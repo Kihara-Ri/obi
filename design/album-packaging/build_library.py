@@ -168,29 +168,37 @@ def crease(parent, materials, length, height, index, direction=-1, bend_side=1, 
     The same sampled arc drives both morph vertices and the moving board's pivot.
     Their exported linear interpolation also preserves this seam between keys.
     """
-    segments = 24
+    segments, height_rows = 24, 16
     vertices, faces = [], []
+    row, layer_size = segments + 1, (segments + 1) * (height_rows + 1)
     for side in [-1, 1]:
-        for y in [-height / 2, height / 2]:
+        for longitudinal in range(height_rows + 1):
+            y = height * (longitudinal / height_rows - .5)
             for step in range(segments + 1):
                 vertices.append((direction * length * step / segments * .001, y * .001, side * .19 * .001))
-    row = segments + 1
     for layer in [0, 1]:
+        for longitudinal in range(height_rows):
+            for step in range(segments):
+                offset = layer * layer_size + longitudinal * row + step
+                face = [offset, offset + 1, offset + row + 1, offset + row]
+                faces.append(face[::-1] if (layer == 0) == (direction > 0) else face)
+    for edge in [0, height_rows * row]:
         for step in range(segments):
-            face = [layer * 2 * row + step, layer * 2 * row + step + 1,
-                    layer * 2 * row + row + step + 1, layer * 2 * row + row + step]
-            faces.append(face[::-1] if (layer == 0) == (direction > 0) else face)
-    for edge in [0, row]:
-        for step in range(segments):
-            faces.append([edge + step, edge + 2 * row + step, edge + 2 * row + step + 1, edge + step + 1])
+            faces.append([edge + step, edge + layer_size + step,
+                          edge + layer_size + step + 1, edge + step + 1])
     for step in [0, segments]:
-        faces.append([step, step + row, step + 3 * row, step + 2 * row])
+        for longitudinal in range(height_rows):
+            offset = longitudinal * row + step
+            faces.append([offset, offset + row, offset + row + layer_size, offset + layer_size])
     mesh = bpy.data.meshes.new('Continuous_fold_sheet')
     mesh.from_pydata(vertices, [], faces)
     mesh.update()
     obj = bpy.data.objects.new('Paper_fold_%s' % index, mesh)
     bpy.context.collection.objects.link(obj)
     obj.parent = parent
+    obj['foldLengthMm'], obj['foldHeightMm'] = length, height
+    obj['foldSegments'], obj['foldRows'] = segments, height_rows
+    obj['foldDirection'], obj['foldBendSide'], obj['foldFlat'] = direction, bend_side, flat_spine
     mesh.materials.append(materials['spine'])
     if flat_spine:
         mesh.materials.append(materials['insideSpine'])
@@ -201,7 +209,7 @@ def crease(parent, materials, length, height, index, direction=-1, bend_side=1, 
         if flat_spine:
             # +Z is the inner sheet; the reverse face is the outer printed
             # spine. Cut edges remain unprinted paper rather than stretched ink.
-            polygon.material_index = 0 if polygon.index < segments else 1 if polygon.index < 2 * segments else 2
+            polygon.material_index = 0 if polygon.index < segments * height_rows else 1 if polygon.index < 2 * segments * height_rows else 2
         for loop in polygon.loop_indices:
             point = mesh.vertices[mesh.loops[loop].vertex_index].co
             u = point.x / (direction * length * .001)
@@ -244,7 +252,7 @@ def crease(parent, materials, length, height, index, direction=-1, bend_side=1, 
     return obj, ends
 
 
-def folded(kind, panels, inward=False):
+def folded(kind, panels, inward=False, flat_spine=False):
     width, height = (139, 125) if kind == 'digipak' else (135, 135)
     depth = (9 if kind == 'digipak' else 5) * (panels - 1)
     if inward:
@@ -264,9 +272,9 @@ def folded(kind, panels, inward=False):
         anchor = group('Crease_anchor_%s' % index, current)
         anchor.location = j.mm((direction * width / 2, 0, 0))
         gap = (4.6 if inward else 13 if kind == 'digibook' else 7 if kind == 'digipak' else 4) * (panels - 1 if index == 0 else 1)
-        length = gap if inward else math.pi * gap / 2
+        length = gap if inward or flat_spine else math.pi * gap / 2
         phase = 'front' if panels > 2 and index == 0 else 'inner' if panels > 2 else 'full'
-        sheet, ends = crease(anchor, materials, length, height, index, direction, bend_side, phase, inward)
+        sheet, ends = crease(anchor, materials, length, height, index, direction, bend_side, phase, inward or flat_spine)
         sheet['foldSheet'], sheet['foldGap'], sheet['foldIndex'] = True, gap, index
         hinge = group('Fold_Joint_%s' % index, anchor)
         hinge['foldJoint'], hinge['foldGap'], hinge['foldIndex'] = True, gap, index
@@ -276,7 +284,7 @@ def folded(kind, panels, inward=False):
             hinge.keyframe_insert(data_path='location', frame=frame)
             hinge.keyframe_insert(data_path='rotation_euler', frame=frame)
             # Both physical seam endpoints use the exact same arc, not a fixed gap.
-            sample = round((180 - abs(math.degrees(angle))) / (180 if inward else 168) * 8)
+            sample = round((180 - abs(math.degrees(angle))) / (180 if inward or flat_spine else 168) * 8)
             key = sheet.data.shape_keys.key_blocks['Bend_%s' % sample]
             assert (key.data[24].co - j.mm((x - .19 * math.sin(angle), -height / 2, z - .19 * math.cos(angle)))).length < 1e-8
         linear_keys(hinge)
@@ -536,6 +544,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', required=True)
     parser.add_argument('--blend-output')
+    parser.add_argument('--models', help='Comma-separated model names; leave other deployed models untouched')
     args = parser.parse_args(sys.argv[sys.argv.index('--') + 1:])
     output = Path(args.output).resolve()
     output.mkdir(parents=True, exist_ok=True)
@@ -543,18 +552,26 @@ def main():
     if blends:
         blends.mkdir(parents=True, exist_ok=True)
     import tempfile
-    reports = {}
+    selected = set(args.models.split(',')) if args.models else None
+    manifest = output / 'manifest.json'
+    reports = json.loads(manifest.read_text())['models'] if selected and manifest.exists() else {}
     with tempfile.TemporaryDirectory(prefix='packaging-author-') as temp:
         for count, thick in [(1, False), (2, False), (4, False), (2, True)]:
+            candidate = 'jewel-fat' if thick else 'jewel-case' if count == 1 else 'jewel-swing-' + str(count)
+            if selected and candidate not in selected:
+                continue
             name, report = jewel(output, blends, Path(temp), count, thick)
             reports[name] = report
     builders = [('slimline-jewel', slim), ('card-sleeve', sleeve), ('mini-lp-sleeve', lambda: sleeve(True)),
                 ('digibook', lambda: folded('digibook', 2)), ('rigid-box', rigid), ('slipcase', slipcase), ('neutral', neutral)]
     builders += [(kind + '-' + str(panels), lambda k=kind, p=panels: folded(k, p))
                  for kind in ['gatefold', 'digipak'] for panels in [2, 3, 4]]
+    builders += [('gatefold-2-mini-lp', lambda: folded('gatefold', 2, flat_spine=True))]
     builders += [('gatefold-' + str(panels) + '-inner', lambda p=panels: folded('gatefold', p, True))
                  for panels in [2, 3, 4]]
     for name, builder in builders:
+        if selected and name not in selected:
+            continue
         root = builder()
         reports[name] = export(root, name, output, blends)
         print('MODEL_COMPLETE', name, json.dumps(reports[name]), flush=True)

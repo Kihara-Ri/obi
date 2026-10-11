@@ -29,7 +29,7 @@ function animation(gltf) {
 
 test('模型库完整且所有部署模型不含贴图或外部资源', async () => {
   const manifest = JSON.parse(await readFile(new URL('manifest.json', directory), 'utf8'));
-  assert.equal(Object.keys(manifest.models).length, 20);
+  assert.equal(Object.keys(manifest.models).length, 21);
   for (const [name, report] of Object.entries(manifest.models)) {
     const gltf = await load(name);
     assert.equal(gltf.animations.length > 0, report.animated, name);
@@ -161,7 +161,7 @@ test('Fatbox 后室外盖使用背面角色，Blender 自动材料编号不改�
 });
 
 for (const name of ['gatefold-2', 'gatefold-3', 'gatefold-4', 'gatefold-2-inner', 'gatefold-3-inner', 'gatefold-4-inner',
-  'digipak-2', 'digipak-3', 'digipak-4', 'digibook']) {
+  'digipak-2', 'digipak-3', 'digipak-4', 'digibook', 'gatefold-2-mini-lp']) {
   test(name + '：导出后折痕在开合中和反向接管时连续连接，封面朝外', async () => {
     const gltf = await load(name), set = animation(gltf);
     const sheets = [], leaves = [];
@@ -177,7 +177,7 @@ for (const name of ['gatefold-2', 'gatefold-3', 'gatefold-4', 'gatefold-2-inner'
         sheet.traverse(mesh => {
           if (!(mesh instanceof THREE.Mesh)) return;
           const uv = mesh.geometry.attributes.uv;
-          const end = name.endsWith('-inner') && mesh.material.name.startsWith('Print_spine') ? 0 : 1;
+          const end = (name.endsWith('-inner') || name.endsWith('-mini-lp')) && mesh.material.name.startsWith('Print_spine') ? 0 : 1;
           for (let i = 0; i < uv.count; i++) if (Math.abs(uv.getX(i) - end) < 1e-6) {
             const point = mesh.localToWorld(mesh.getVertexPosition(i, new THREE.Vector3()));
             points.set(point.toArray().map(value => value.toFixed(8)).join(), point);
@@ -226,4 +226,18 @@ test('内开口双袋纸套：左右独立 CD 留在袋内，缺口朝书脊且�
     assert.ok(localBox.min.z > -.0611 && localBox.max.z < .0611, '120-mm CD clears top/bottom seams');
     assert.ok(localBox.max.y < .00282, 'CD remains beneath the printed pocket lip');
   }
+});
+
+test('连续纸脊具有纵向形变行并携带独立宽度校准所需参数', async () => {
+  const gltf = await load('gatefold-2');
+  const sheet = gltf.scene.getObjectByName('Paper_fold_0');
+  const heights = new Set();
+  sheet.traverse(mesh => {if (mesh instanceof THREE.Mesh) {
+    const uv = mesh.geometry.attributes.uv;
+    for (let i = 0; i < uv.count; i++) heights.add(uv.getY(i).toFixed(5));
+  }});
+  assert.ok(heights.size >= 17, 'longitudinal rows preserve the relief profile');
+  assert.equal(sheet.userData.foldSegments, 24);
+  assert.equal(sheet.userData.foldRows, 16);
+  assert.ok(sheet.userData.foldLengthMm > 0);
 });

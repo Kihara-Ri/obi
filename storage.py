@@ -15,7 +15,7 @@ from datetime import datetime
 from contextlib import closing
 from domain import ValidationError, ConflictError, clean_record, clean_release_info, clean_modules, clean_start_page, clean_showcase_group, clean_showcase_groups, clean_listing, validate_packaging_photos, MODULE_NAMES, cost, number, money, day, allocate, STATUSES
 from decimal import Decimal
-from twins import TWIN_KEY, SKILL_VERSION, ID as TWIN_ID, ASSET as TWIN_ASSET, UUID as TWIN_RELEASE_ID, appearance, same_appearance, clean_barcode, clean_registry, image_type
+from twins import TWIN_KEY, SKILL_VERSION, ID as TWIN_ID, ASSET as TWIN_ASSET, UUID as TWIN_RELEASE_ID, appearance, same_appearance, clean_barcode, clean_registry, image_type, entity_assets
 
 SCHEMA = 4
 SHIPMENT_STATUSES = ('transit', 'arrived', 'cancelled')
@@ -878,7 +878,7 @@ class Store:
             result.update(status='stale', error='包装、照片或发行资料已变更，请按当前资料重新生成', entity=None)
         elif job['status'] == 'succeeded':
             folder = self._twin_folder(job['id'])
-            if not all((folder / s['asset']).is_file() for s in job.get('entity', {}).get('surfaces', {}).values()):
+            if not all((folder / name).is_file() for name in entity_assets(job.get('entity', {}))):
                 result.update(status='interrupted', error='数字实体原图文件缺失，请恢复数据目录或重新生成', entity=None)
         return result
 
@@ -1011,7 +1011,7 @@ class Store:
                 if not same_appearance(record, job['input']): patch = {'status': 'stale', 'error': '生成期间副本资料已修改，旧结果未发布'}
                 else:
                     folder = self._twin_folder(ident)
-                    if not all((folder / s['asset']).is_file() for s in patch['entity']['surfaces'].values()):
+                    if not all((folder / name).is_file() for name in entity_assets(patch['entity'])):
                         raise ValidationError('生成资源不完整，结果未发布')
                     self.audit(db, '完成数字实体', {'id': job['recordId'], 'taskId': ident})
             job.update(patch)
@@ -1049,7 +1049,7 @@ class Store:
     def published_twin_asset(self, ident, name):
         with closing(self.connect()) as db:
             registry = self._twins(db); job = registry['jobs'].get(ident)
-            if not job or job['status'] != 'succeeded' or not any(s['asset'] == name for s in job['entity']['surfaces'].values()):
+            if not job or job['status'] != 'succeeded' or name not in entity_assets(job['entity']):
                 raise ValidationError('数字实体资源尚未发布')
         return self.twin_source(ident, name)
 

@@ -7,7 +7,10 @@ import type {AlbumPackaging} from './album-packaging';
 import {albumModelAsset, albumPanelDiscs, albumTextureSource} from './album-model-assets';
 import {filterSpineRibs, type SpineRibs} from './album-rib-material';
 import {projectPackagingPhoto} from './album-photo-material';
-import {photoProjection} from './album-photo-projection';
+import {photoProjection, photoTextureCrop, photoWarpPoint} from './album-photo-projection';
+import {spineCalibrationFit} from './album-spine-fit';
+import {calibrateFold, compactPaperPocket, resizePaperShell} from './album-fold-calibration';
+import {paperGrain} from './album-paper-material';
 import {AlbumDiscs, type AlbumDiscPose, type AlbumDiscHint} from './album-disc';
 import {discAnisotropy, discDiffraction} from './album-disc-material';
 
@@ -30,6 +33,7 @@ export class AlbumScene {
   private readonly mixers: {mixer: THREE.AnimationMixer; actions: THREE.AnimationAction[]}[] = [];
   private readonly folds: {object: THREE.Object3D; factor: number; position: THREE.Vector3}[] = [];
   private readonly visibleMeshes: THREE.Mesh[] = [];
+  private readonly calibratedFolds: (() => void)[] = [];
   private readonly box = new THREE.Box3();
   private readonly center = new THREE.Vector3();
   private readonly size = new THREE.Vector3();
@@ -70,15 +74,18 @@ export class AlbumScene {
   }
 
   async load(): Promise<void> {
-    const asset = await this.loadAsset(albumModelAsset(this.model));
+    const asset = await this.loadAsset(albumModelAsset(this.model, !!this.record.modelCalibration));
     if (this.disposed) return;
     this.conversion.add(asset);
-    this.configure(asset);
     const root = asset.children.find(child => Array.isArray(child.userData.nominal_mm));
     const nominal: number[] = root?.userData.nominal_mm ?? [135, 135, 2];
     const measured = this.record.packaging?.size;
     // glTF is Y-up: scale axes before converting back to the printed XY plane.
-    if (measured) this.conversion.scale.set(measured.width / nominal[0], measured.depth / nominal[2], measured.height / nominal[1]);
+    if (measured) {
+      if (spineCalibrationFit(this.record)) resizePaperShell(asset, measured.width / nominal[0], measured.height / nominal[1]);
+      else this.conversion.scale.set(measured.width / nominal[0], measured.depth / nominal[2], measured.height / nominal[1]);
+    }
+    this.configure(asset);
     if (this.model.slipcase) {
       const outside = await this.loadAsset('/models/packaging/slipcase.glb');
       if (this.disposed) return;
@@ -96,7 +103,7 @@ export class AlbumScene {
       if (object instanceof THREE.Mesh && this.isVisible(object)) this.visibleMeshes.push(object);
     });
     this.ready = true;
-    this.stage.dataset.modelAsset = albumModelAsset(this.model);
+    this.stage.dataset.modelAsset = albumModelAsset(this.model, !!this.record.modelCalibration);
     this.stage.dataset.renderer = 'webgl'; this.stage.dataset.ready = 'true';
     this.paint(this.pose);
   }
@@ -131,6 +138,8 @@ export class AlbumScene {
   }
 
   private configure(asset: THREE.Object3D, outside = false) {
+    const fit = spineCalibrationFit(this.record);
+    const calibratedSheets: THREE.Object3D[] = [];
     asset.traverse(object => {
       const extras = object.userData;
       const stack = Math.max(0, albumPanelDiscs(this.model, extras.panel ?? object.parent?.userData.panel ?? 1).length - 1) * .00125;
@@ -148,13 +157,17 @@ export class AlbumScene {
         const needed = extras.foldIndex === 0 ? Array.from({length: this.model.panels}, (_, panel) => holderDepth(panel)).reduce((a, b) => a + b,
           this.model.kind === 'gatefold' && this.model.pocketOpening === 'inner' ? .12 : .7)
           : holderDepth(extras.foldIndex + 1) + holderDepth(1) + .7;
-        const factor = Math.max(1, needed / extras.foldGap);
-        if (extras.foldSheet) {object.scale.x *= factor; object.scale.y *= factor;}
-        else this.folds.push({object, factor, position: object.position.clone()});
+        const calibrated = fit && extras.foldIndex === 0;
+        const factor = calibrated ? fit.factor : Math.max(1, needed / extras.foldGap);
+        if (extras.foldSheet) {
+          if (calibrated) calibratedSheets.push(object);
+          else {object.scale.x *= factor; object.scale.y *= factor;}
+        } else this.folds.push({object, factor, position: object.position.clone()});
       }
       if (extras.holder) {
         const expected = this.model.kind === 'jewel' ? 'tray' : this.model.holder;
         object.visible = extras.holder === expected && albumPanelDiscs(this.model, extras.panel).length > 0;
+        if (object.visible && extras.holder === 'pocket' && fit?.compactPockets) compactPaperPocket(object);
       }
       if (extras.extraDisc) object.visible = albumPanelDiscs(this.model, extras.panel).length > 1;
       if (typeof extras.discSlot === 'number') object.visible = this.discIndex(object) >= 0;
@@ -196,11 +209,27 @@ export class AlbumScene {
           while (surface && !surface.userData.ribbedSpine) surface = surface.parent;
           if (surface) filterSpineRibs(clone, surface.userData as SpineRibs, this.renderer.getPixelRatio());
         }
+        if (fit && (/^Paper_/.test(material.name) || print && !print.startsWith('disc'))) {
+          let fold: THREE.Object3D | null = object;
+          while (fold && !fold.userData.foldSheet) fold = fold.parent;
+          paperGrain(clone, [fold?.userData.foldLengthMm ? fold.userData.foldLengthMm * (fold.userData.foldIndex === 0 ? fit.factor : 1) : dimensions.x * 1000,
+            fold?.userData.foldHeightMm ?? dimensions.z * 1000], this.model.finish, this.renderer.getPixelRatio());
+        }
         this.materials.add(clone);
         return clone;
       });
       object.material = Array.isArray(object.material) ? next : next[0];
     });
+    for (const sheet of calibratedSheets) {
+      const joint = sheet.parent?.children.find(object => object.userData.foldJoint && object.userData.foldIndex === sheet.userData.foldIndex);
+      if (joint) this.calibratedFolds.push(calibrateFold(sheet, joint, fit!.factor, this.record.modelCalibration?.spine.reliefMm));
+    }
+    if (fit && !outside) {
+      this.stage.dataset.spineCalibration = fit.status;
+      this.stage.dataset.spineRequestedMm = fit.requestedMm.toFixed(3);
+      this.stage.dataset.spineAppliedMm = fit.appliedMm.toFixed(3);
+      this.stage.dataset.spineBasis = fit.basis;
+    }
   }
 
   private discIndex(object: THREE.Object3D): number {
@@ -249,17 +278,14 @@ export class AlbumScene {
       const original = await this.photoBitmaps.get(source)!;
       let bitmap = original;
       if (this.disposed) return null;
-      let region = this.record.packaging?.photoRegions?.[role];
-      // Give each calibrated face its own GPU resolution budget, especially a
-      // narrow spine. Crop only the in-memory texture, preserving the original.
-      if (region) {
-        const xs = [region[0], region[2], region[4], region[6]], ys = [region[1], region[3], region[5], region[7]];
-        const x = Math.floor(Math.min(...xs) * bitmap.width), y = Math.floor(Math.min(...ys) * bitmap.height);
-        const width = Math.max(1, Math.min(bitmap.width - x, Math.ceil(Math.max(...xs) * bitmap.width) - x));
-        const height = Math.max(1, Math.min(bitmap.height - y, Math.ceil(Math.max(...ys) * bitmap.height) - y));
-        const projected = region.map((n, i) => i % 2 ? (n * bitmap.height - y) / height : (n * bitmap.width - x) / width);
-        const cropped = await createImageBitmap(bitmap, x, y, width, height);
-        bitmap = cropped; region = projected as typeof region;
+      let region: readonly number[] | undefined = this.record.packaging?.photoRegions?.[role];
+      let warpRows: readonly (readonly number[])[] | undefined = this.record.modelWarpRows?.[role];
+      // Crop each face's whole curved ROI in memory. Original source pixels and
+      // task assets remain untouched; narrow spines get their own GPU budget.
+      const crop = photoTextureCrop(bitmap.width, bitmap.height, region, warpRows);
+      if (crop) {
+        bitmap = await createImageBitmap(bitmap, crop.x, crop.y, crop.width, crop.height);
+        region = crop.region; warpRows = crop.warpRows;
       }
       const limit = this.stage.clientWidth < 600 ? 1024 : 1536;
       const scale = Math.min(1, limit / Math.max(bitmap.width, bitmap.height));
@@ -285,6 +311,7 @@ export class AlbumScene {
       texture.anisotropy = Math.min(4, this.renderer.capabilities.getMaxAnisotropy());
       texture.userData.photoSource = true;
       texture.userData.photoRegion = region;
+      texture.userData.photoWarpRows = warpRows;
       this.textures.add(texture);
       return texture;
     } catch {return this.disposed ? null : this.placeholder(role, true);}
@@ -305,7 +332,7 @@ export class AlbumScene {
     const loaded = await Promise.all(roles.map(async role => {
       const source = albumTextureSource(this.record, role);
       if (!source) return [role, this.placeholder(role, false)] as const;
-      const key = source + '/' + JSON.stringify(this.record.packaging?.photoRegions?.[role] ?? null);
+      const key = source + '/' + JSON.stringify([this.record.packaging?.photoRegions?.[role] ?? null, this.record.modelWarpRows?.[role] ?? null]);
       if (!sources.has(key)) sources.set(key, this.texture(role));
       const texture = await sources.get(key)!;
       return [role, texture?.userData.photoSource ? texture : this.disposed ? null : this.placeholder(role, true)] as const;
@@ -319,19 +346,23 @@ export class AlbumScene {
     const spineSource = albumTextureSource(this.record, spineRole);
     const paperReference = maps.get(spineRole);
     const spineRegion = paperReference?.userData.photoRegion ?? this.record.packaging?.photoRegions?.[spineRole];
+    const spineRows = paperReference?.userData.photoWarpRows;
     if (this.model.kind === 'gatefold' && this.model.pocketOpening === 'inner' && !this.model.slipcase
-        && spineRegion && paperReference?.userData.photoSource
+        && (spineRegion || spineRows) && paperReference?.userData.photoSource
         && spineSource === albumTextureSource(this.record, 'insideLeft')
         && spineSource === albumTextureSource(this.record, 'insideRight')) {
-      const projection = photoProjection(spineRegion);
+      const projection = spineRegion ? photoProjection(spineRegion) : null;
       const photograph = paperReference.image as HTMLCanvasElement;
       const context = photograph.getContext('2d');
-      if (projection && context) {
+      if ((projection || spineRows) && context) {
         const channels: number[][] = [[], [], []];
         for (let y = 1; y <= 5; y++) for (let x = 1; x <= 5; x++) {
-          const u = x / 6, v = y / 6, q = projection[6] * u + projection[7] * v + 1;
-          const px = Math.min(photograph.width - 1, Math.max(0, Math.round((projection[0] * u + projection[1] * v + projection[2]) / q * photograph.width)));
-          const py = Math.min(photograph.height - 1, Math.max(0, Math.round((projection[3] * u + projection[4] * v + projection[5]) / q * photograph.height)));
+          const u = x / 6, v = y / 6, q = projection ? projection[6] * u + projection[7] * v + 1 : 1;
+          const point = spineRows ? photoWarpPoint(spineRows, u, v) : projection ?
+            [(projection[0] * u + projection[1] * v + projection[2]) / q, (projection[3] * u + projection[4] * v + projection[5]) / q] : null;
+          if (!point) continue;
+          const px = Math.min(photograph.width - 1, Math.max(0, Math.round(point[0] * photograph.width)));
+          const py = Math.min(photograph.height - 1, Math.max(0, Math.round(point[1] * photograph.height)));
           const sample = context.getImageData(px, py, 1, 1).data;
           channels.forEach((channel, i) => channel.push(sample[i]));
         }
@@ -348,8 +379,8 @@ export class AlbumScene {
       if (material.map) {
         const image = source!.image as HTMLCanvasElement;
         const ratio = image.width / image.height, target = material.userData.ratio;
-        const region = source!.userData.photoRegion;
-        if (region && source!.userData.photoSource) projectPackagingPhoto(material, region);
+        const region = source!.userData.photoRegion, rows = source!.userData.photoWarpRows;
+        if ((region || rows) && source!.userData.photoSource) projectPackagingPhoto(material, region, rows);
         else if (ratio > target) {material.map.repeat.x = target / ratio; material.map.offset.x = (1 - material.map.repeat.x) / 2;}
         else {material.map.repeat.y = ratio / target; material.map.offset.y = (1 - material.map.repeat.y) / 2;}
         material.map.needsUpdate = true; this.textures.add(material.map);
@@ -376,6 +407,7 @@ export class AlbumScene {
       fold.position.copy(fold.object.position);
       fold.object.position.x *= fold.factor; fold.object.position.y *= fold.factor;
     }
+    for (const update of this.calibratedFolds) update();
     if (this.slip) {
       this.slip.position.x = -this.slipWidth * Math.min(1, pose.open / .25);
       // Set the extracted sleeve below the hinge sweep before opening the case.
@@ -454,7 +486,7 @@ export class AlbumScene {
     if (this.disposed) return;
     this.disposed = true; this.abort.abort(); this.observer.disconnect();
     for (const {mixer} of this.mixers) {mixer.stopAllAction(); for (const asset of this.assets) mixer.uncacheRoot(asset);}
-    this.releaseAssets(); this.environmentMap.dispose();
+    this.calibratedFolds.length = 0; this.releaseAssets(); this.environmentMap.dispose();
     this.world.clear(); this.renderer.dispose(); this.renderer.forceContextLoss();
   }
 }

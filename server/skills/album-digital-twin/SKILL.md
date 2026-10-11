@@ -1,27 +1,35 @@
 ---
 name: album-digital-twin
-description: 从实物条形码核对 MusicBrainz CD 发行版本，经用户确认后用 Cover Art Archive 图集校准包装、书脊、内页及盘面。用于专辑数字实体生成或补齐实物贴图。
+description: 从实物条码核对 CD 发行版，经用户确认后用同版 CAA/Discogs 图集生成数字实体，校准包装、连续印刷、书脊与盘面。
 ---
 
 # 专辑实物数字孪生
 
 以具体发行版和可见结构为依据，复用包装模板，直接引用原图校准印刷面。精度来自图集、比例与部件结构；缺失面保留缺失。
 
-## 获取图集
+## 选择执行环境
 
-网站编辑中的数字实体入口使用 [references/runtime-agent.md](references/runtime-agent.md) 的条形码核对与生成协议。先从保存的本副本实物照片读取清晰的完整条形码；缺失、模糊或归属不明时，请用户输入数字或补拍背面。用户手动输入后，查询 MusicBrainz 不依赖视觉模型配置。
+- Codex agent 可用浏览器、图像查看与 shell 工具：按下方流程调用本 skill 的脚本，在新工作目录生成资料与实体 JSON。脚本路径相对于本 skill 目录。
+- 网站配置的视觉模型仅接受图片和 JSON，没有浏览器或 shell：读取 [references/runtime-agent.md](references/runtime-agent.md)，只返回 BARCODE/PLAN/BUILD 阶段 JSON。服务端负责联网、冻结原图、校验与发布。
+
+两种环境共用版本确认与实体契约；脚本输出本身不会写入账本或发布模型。若接入碟渡，读取 [references/diedu-integration.md](references/diedu-integration.md)。
+
+## 核对发行版与获取图集
+
+先从保存的本副本实物照片读取清晰的完整条形码；缺失、模糊或归属不明时，请用户输入数字或补拍背面。用户手动输入后，查询 MusicBrainz 不依赖视觉模型配置。
 
 按完整条形码精确查询 CD 发行版本，返回艺人、标题、日期、国家、厂牌、目录编号、碟数、曲目和可用实物图集供用户确认。唯一候选也须确认；多个候选由用户选择。清晰条形码与一致的发行资料才构成版本证据，标题相似不能替代。册页内的推荐广告可能印有其他专辑的条形码，须确认它属于本副本外包装或侧标。
 
-确认后，服务端保存版本与图集快照并调用配置的视觉模型执行 PLAN/BUILD。校验通过才发布；重复点击与多窗口共用同一任务。展示页仅保留封面或已发布的实体与标题，核对、生成和状态均在编辑内。关闭页面不会取消后台生成。
-
-使用标准库脚本下载 API 元数据及所有原图到新的工作目录；下面的脚本路径相对于本 skill 目录：
+Codex 先查询候选，再等用户确认所选发行版。即使唯一匹配也不跳过确认：
 
 ```sh
-python3 scripts/fetch_release_art.py <release URL 或 MBID> --output <新的临时目录>
+python3 scripts/fetch_release_art.py --barcode 4988013047105
+python3 scripts/fetch_release_art.py <已确认 release URL 或 MBID> --barcode 4988013047105 --confirmed --output <新的临时目录>
 ```
 
-完成标准：查看 `manifest.json` 的失败项、实际图片尺寸和缺失角色。成功获取 JSON 不代表图集完整。直接打开原图，逐面确认；`Booklet` 可能是多折页展开图，`Back, Spine` 常共用一张，`Medium` 是盘面照片，编号不能只按图集排列猜测。按字样或已标注序号识别 CD 1、CD 2。
+脚本冻结 MusicBrainz/CAA JSON 和未改像素的图；仅沿该 release 的 `url-rels` 中 Discogs release 关系补证，完整条码、目录号及 CD 介质一致后才纳入图集，标题相似或同一 release-group 不够。`manifest.json` 保存实际尺寸、来源与失败项；没有读取到角色不等于角色不存在。Discogs 图常只有约 600 px，先查看同版 CAA 大图或请求新扫描，不把同一小图放大称为高清。
+
+直接打开原图逐面确认。CAA 的 `Booklet` 可能是册页，也可能误标外包装展开图；交叉核对同版结构说明、正背印刷、纸袋、折线与订钉，再分配角色。册页、外套及 OBI 分开；按实际字样识别 CD 1、CD 2，不按图集顺序猜。
 
 ## 校准模型
 
@@ -29,9 +37,11 @@ python3 scripts/fetch_release_art.py <release URL 或 MBID> --output <新的临�
 
 盒内册页的折页数与外包装板片数分别判断；`Booklet` 展开图不等于纸套包装。用户提供的《Illinois》样例有 roll-fold 册页，发行资料的外包装仍是 Jewel Case。
 
-MusicBrainz 的 packaging 为空时保留未知。《Islands》条形码 4988013047105 的图集含正面、册页和金色盘面，但册页外封与装订折线不能充当盒背或盒脊。缺少实物背面、托盘或明确包装证据时，请求补图，不能用册页拼成一个完整实体。
+MusicBrainz 的 packaging 为空时继续查同版结构证据，仍不足才保留未知。《Islands》4988013047105 / PCCY-01424 的 MB 关系指向 [Discogs release 2485482](https://api.discogs.com/releases/2485482)，其说明为 gatefold vinyl replica sleeve，另有英文 12 页、日本文 8 页和 OBI。CAA 图 `10468808112` 为 3244×1592 的星云展开图候选；确认印刷与折线吻合外包装后才采用。带订钉的册页中页不能用于书脊；其它 `Booklet` 图也须按实际结构判断，既不全当包装，也不一概排除。参考图的折损只描述来源副本。
 
-展开扫描分成各印刷面四角，沿用完整原文件，用 UV/透视投影绑定。外侧书脊与内侧折脊分开。参照扫描中两道压痕之间的宽度，按同平面比例拟合书脊；透视实拍需先校正。纸层、袋腔及 CD 间隙同步调整，不能只压缩一张书脊贴图。图像估计标为参考，尺量才是实测。
+展开扫描直接绑定原文件；四角用 `region`，弯曲折线用 2–17 行 `warpRows` 连续映射。外书脊与内折脊分别绑定。需要可重复的书脊校准时读取 [references/spine-calibration.md](references/spine-calibration.md)，执行 `scripts/calibrate_spine.py`。它将已确认的原图像素边界归一化，并独立计算窄脊与同平面单块封板的宽度比；输出可合并到 BUILD 的 JSON，不裁图、不改照片或账本。
+
+比例标为 `image-estimate`，透视、斜视缩短或阴影明显时换平展图或保留限制；不能从印刷亮度推算真实毫米或褶皱高度。只有明确给定的保守近似轮廓才输出 ±0.15 mm 内的 `reliefMm`。纸脊、轴心和接缝随校准一起调整，CD 保持真实大小；与最小袋腔间隙冲突时保留空间并报告限制。纸材微纹理独立于印刷，斜视与缩小时应平滑减弱。
 
 盘面印刷与材质分开：保留真实字样、方向和图案；15 mm 中心孔、透明夹持圈、金属数据环与标签各为独立表面。扫描中的白色反射不能烘焙成透明圈上的白墨。完整盘面不足时列出缺口，原图清晰度决定小字上限。反面的刻码或专属图案只在有证据时加入。
 
@@ -41,6 +51,6 @@ MusicBrainz 的 packaging 为空时保留未知。《Islands》条形码 4988013
 
 检查正反面、侧脊、展开图、每张 CD 取出/旋转/放回及关闭时收回；覆盖动画中间态、反向接管与手机视口。截图等动画结束。区分图集参考、本副本照片、名义比例和实测；浏览器验收与实机感应、帧率分别报告。
 
-若接入碟渡，读取 [references/diedu-integration.md](references/diedu-integration.md)。技能执行不等于网站已自动接入；只有实际接通新增专辑流程并验证后，才说明应用自动生成。
+网站确认后保存版本与图集快照并执行 PLAN/BUILD，校验通过才发布。重复点击与多窗口共用任务；关闭编辑不取消后台生成。核对、生成与状态仅在编辑内，展示只读封面或已发布实体与标题。验证时区分 Codex 脚本执行、真实视觉模型生成和参考实体演示；新增记录不会自动生成。
 
-接口依据：[MusicBrainz release API](https://musicbrainz.org/doc/MusicBrainz_API)、[CAA API](https://musicbrainz.org/doc/Cover_Art_Archive/API)、[图片角色](https://musicbrainz.org/doc/Cover_Art/Types)。
+接口依据：[MusicBrainz release API](https://musicbrainz.org/doc/MusicBrainz_API)、[CAA API](https://musicbrainz.org/doc/Cover_Art_Archive/API)、[图片角色](https://musicbrainz.org/doc/Cover_Art/Types)、[Discogs API](https://www.discogs.com/developers/)。

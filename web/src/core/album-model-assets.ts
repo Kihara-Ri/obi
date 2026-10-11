@@ -2,9 +2,11 @@ import type {AlbumRecord, PackagingPhotoRole} from '../types';
 import type {AlbumPackaging} from './album-packaging';
 
 /** A disc count selects a carrier, never silently selects a fatbox shell. */
-export function albumModelAsset(model: AlbumPackaging): string {
+export function albumModelAsset(model: AlbumPackaging, calibrated = false): string {
   const kind = model.kind;
-  const name = kind === 'jewel' ? model.label.startsWith('Slimline') ? 'slimline-jewel'
+  const name = kind === 'gatefold' && model.panels === 2 && model.miniLP && model.holder === 'pocket'
+    && model.pocketOpening === 'outer' && calibrated ? 'gatefold-2-mini-lp'
+    : kind === 'jewel' ? model.label.startsWith('Slimline') ? 'slimline-jewel'
     : model.label.startsWith('Multi-CD') ? 'jewel-fat'
       : model.discs > 2 ? 'jewel-swing-4' : model.discs > 1 ? 'jewel-swing-2' : 'jewel-case'
     : kind === 'gatefold' || kind === 'digipak' ? kind + '-' + model.panels

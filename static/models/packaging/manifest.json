@@ -86,9 +86,9 @@
         140,
         16
       ],
-      "bytes": 2168116,
+      "bytes": 2374348,
       "primitives": 63,
-      "triangles": 77412,
+      "triangles": 78912,
       "animated": true
     },
     "rigid-box": {
@@ -130,9 +130,9 @@
         135,
         5
       ],
-      "bytes": 2067844,
+      "bytes": 2274116,
       "primitives": 59,
-      "triangles": 73652,
+      "triangles": 75152,
       "animated": true
     },
     "gatefold-3": {
@@ -141,9 +141,9 @@
         135,
         10
       ],
-      "bytes": 3084392,
+      "bytes": 3497152,
       "primitives": 89,
-      "triangles": 110576,
+      "triangles": 113576,
       "animated": true
     },
     "gatefold-4": {
@@ -152,9 +152,9 @@
         135,
         15
       ],
-      "bytes": 4095200,
+      "bytes": 4705448,
       "primitives": 119,
-      "triangles": 147500,
+      "triangles": 152000,
       "animated": true
     },
     "digipak-2": {
@@ -163,9 +163,9 @@
         125,
         9
       ],
-      "bytes": 2067760,
+      "bytes": 2274036,
       "primitives": 59,
-      "triangles": 73652,
+      "triangles": 75152,
       "animated": true
     },
     "digipak-3": {
@@ -174,9 +174,9 @@
         125,
         18
       ],
-      "bytes": 3084264,
+      "bytes": 3497028,
       "primitives": 89,
-      "triangles": 110576,
+      "triangles": 113576,
       "animated": true
     },
     "digipak-4": {
@@ -185,9 +185,9 @@
         125,
         27
       ],
-      "bytes": 4094996,
+      "bytes": 4705248,
       "primitives": 119,
-      "triangles": 147500,
+      "triangles": 152000,
       "animated": true
     },
     "gatefold-2-inner": {
@@ -196,9 +196,9 @@
         125.0,
         5.0
       ],
-      "bytes": 2091456,
+      "bytes": 2291776,
       "primitives": 61,
-      "triangles": 73684,
+      "triangles": 75184,
       "animated": true
     },
     "gatefold-3-inner": {
@@ -207,9 +207,9 @@
         125.0,
         10.0
       ],
-      "bytes": 3126372,
+      "bytes": 3514852,
       "primitives": 93,
-      "triangles": 110624,
+      "triangles": 113624,
       "animated": true
     },
     "gatefold-4-inner": {
@@ -218,9 +218,20 @@
         125.0,
         15.0
       ],
-      "bytes": 4157380,
+      "bytes": 4735036,
       "primitives": 125,
-      "triangles": 147564,
+      "triangles": 152064,
+      "animated": true
+    },
+    "gatefold-2-mini-lp": {
+      "nominal_mm": [
+        135,
+        135,
+        5
+      ],
+      "bytes": 2287864,
+      "primitives": 61,
+      "triangles": 75152,
       "animated": true
     }
   }

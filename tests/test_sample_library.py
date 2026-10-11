@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-EXPECTED_STATUS = {'domestic': 7, 'overseas': 5, 'transit': 3, 'shipping': 1,
+EXPECTED_STATUS = {'domestic': 8, 'overseas': 5, 'transit': 3, 'shipping': 1,
                    'sold': 3, 'trash': 1}
 
 
@@ -54,7 +54,7 @@ class SampleLibraryTests(unittest.TestCase):
         for r in st['records']:
             counts[r['status']] = counts.get(r['status'], 0) + 1
         self.assertEqual(counts, EXPECTED_STATUS)
-        self.assertEqual(len({(r['title'], r['artist']) for r in st['records']}), 18)
+        self.assertEqual(len({(r['title'], r['artist']) for r in st['records']}), 19)
         self.assertEqual(st['modules']['configured'], True)
         self.assertEqual(st['modules']['enabled'], {'acquisition': True, 'trading': True,
                                                     'circulation': True, 'showcase': True})
@@ -75,6 +75,17 @@ class SampleLibraryTests(unittest.TestCase):
         m83 = self.sale('DEMO-1001')
         self.assertEqual(m83['status'], 'shipping')
         self.assertEqual(next(i for i in m83['items'])['profit'], '51.50')
+
+    def test_islands_reference_fixture_starts_without_invented_artwork_or_entity(self):
+        self.assertIn('islands-jp', self.ids)
+        record = self.record('islands-jp')
+        self.assertEqual((record['title'], record['artist'], record['pressing']),
+                         ('Islands', 'King Crimson', '日版'))
+        self.assertIsNone(record['cost'])
+        self.assertEqual(record['photoCount'], 0)
+        self.assertFalse(record['cover'])
+        self.assertNotIn('barcode', record.get('releaseInfo', {}))
+        self.assertNotIn(record['id'], self.store.twin_index()['jobs'])
 
     def test_allocation_totals_preserved_with_remainder(self):
         s = self.shipment()

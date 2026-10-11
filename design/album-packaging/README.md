@@ -2,7 +2,7 @@
 
 正式展示灯箱现在使用 Blender 导出的 GLB；九种浏览布局继续使用轻量 CSS 封面代理。生成工具不读写账本或个人照片，部署也无需安装 Blender。
 
-`build_library.py` 生成 20 个无贴图共享模板：标准 Jewel Case、普通双碟/四碟翻转托盘、独立 Slimline 与双室 Fatbox、Card Sleeve、Mini LP Sleeve、Gatefold / Digipak 的 2/3/4 板片版本、三个 Gatefold 内开口纸袋版本、Digibook、套盖式 Rigid Box、Slipcase 与中性模型。尺寸均为名义参考，不代表实物测量或所有厂牌的特殊结构。
+`build_library.py` 生成 21 个无贴图共享模板：标准 Jewel Case、普通双碟/四碟翻转托盘、独立 Slimline 与双室 Fatbox、Card Sleeve、Mini LP Sleeve、Gatefold / Digipak 的 2/3/4 板片版本、三个 Gatefold 内开口纸袋版本、Digibook、套盖式 Rigid Box、Slipcase、中性模型，以及已校准两板 Mini LP 外开口纸套的双压痕变体。尺寸均为名义参考，不代表实物测量或所有厂牌的特殊结构。
 
 ```sh
 blender --background --python design/album-packaging/build_library.py -- --output static/models/packaging --blend-output /tmp/cd-blend-sources
@@ -18,6 +18,12 @@ npm --prefix web test
 内开口纸套的外脊 `spine` 和内折脊 `insideSpine` 使用独立材质；纸边保持未印刷。双袋模板的平直纸脊参考宽度为 4.6 mm，纸层、袋腔和光盘间隙同步收窄，名义闭合厚度约 5 mm；这些仍为模板参考值。多碟堆叠按实际容纳数增加间距。
 
 同一展开原照同时提供左右内页与已校准的内折脊时，内开口纸套从内折脊区域取样纸色，用于未印刷内衬和纸边；兼容旧的同源 `spine`。同源照片在每次灯箱中只请求、解码一次，每个校准面先分配独立 GPU 贴图区域，再逐级过滤缩小。取样与内存贴图裁取不修改原照片，也不推断没有拍到的背面或完整盘面。
+
+已发布实体可用 `warpRows` 连续映射弯曲折线：2–17 行原图归一化左右边界，分段投影正背/内面及书脊；原文件保留，运行时只为每面分配纹理区域。`calibration.spine.widthRatio` 独立控制连续纸脊相对单块封板宽度，标为图像估计。纵向拓扑及所有开合形状一起调整，轴心、端点和相邻接缝保持连续；CD 仍为 120 mm，袋腔最小间隙会限制过窄估计。四角或旧实体无校准时保持原路径。
+
+`gatefold-2-mini-lp.glb` 用于实体已带书脊校准、Mini LP、两板且外开口纸袋的组合；它有两道压痕及独立窄脊，按每个板片端点连接折脊。未校准的旧记录沿用原模板选择，不因 Mini LP 名称自动改变结构。
+
+可选 `reliefMm` 为明确给定的沿高度近似轮廓，最多 ±0.15 mm；不从印刷亮度生成凹凸，也不宣称来源副本的折损属于当前副本。微弱纸纹独立于贴图，并按屏幕缩小和斜视过滤减弱，避免摩尔纹。Codex 可执行现有 [album-digital-twin 校准脚本](../../server/skills/album-digital-twin/references/spine-calibration.md) 产生实体 JSON；名义毫米与图像比例都不写入用户实测尺寸。
 
 光盘分成印刷/金属环与透明夹持圈，保留 15 mm 中心孔。印刷不覆盖透明中心圈，避免把扫描仪白色反射当作白墨。反射环使用连续平面 UV、径向各向异性和宽频带衍射近似；不把微观沟槽逐条建模，以避免摩尔纹。`album-disc.ts` 保持盘体与中心圈一起取放、独立旋转和返回当前折页原位；收回后才闭合包装，支持连续反向与减少动态效果。印刷原图的小字清晰度是复现上限，未提供的反面刻码不生成。
 

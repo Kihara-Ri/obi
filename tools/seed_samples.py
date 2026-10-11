@@ -45,10 +45,10 @@ def open_store(data_dir):
     return Store(data / 'albums.sqlite3', rates)
 
 
-# ── 样本清单（20 副本 / 18 专辑；金额、日期、渠道、备注均为虚构）──────────────
+# ── 样本清单（21 副本 / 19 专辑；金额、日期、渠道、备注均为虚构）──────────────
 # 每条 (键名, 记录)。键名仅脚本与测试内部引用。
 RECORDS = [
-    # 国内库存 domestic（7）
+    # 国内库存 domestic（8）
     ('dookie-jp', dict(title='Dookie', artist='Green Day', currency='JPY', price='220',
                        date='2026-07-05', location='示例唱片行·A 店', version='Jewel Case',
                        pressing='日版', status='domestic')),
@@ -74,6 +74,11 @@ RECORDS = [
                       status='domestic',
                       packaging={'structure': 'jewel', 'thickness': 'standard', 'tray': 'clear',
                                  'discs': 1, 'finish': 'matte'})),
+    # 本副本包装/图片在现场核对；不把网上发行版资料冒充样本实物。
+    ('islands-jp', dict(title='Islands', artist='King Crimson', currency='JPY', price='',
+                        date='2026-08-08', location='示例唱片行·A 店', version='纸盒',
+                        pressing='日版', status='domestic',
+                        note='示例：从实物条形码核对 Mini LP 包装，成本未知')),
     # 海外库存 overseas（5）
     ('dookie-en', dict(title='Dookie', artist='Green Day', currency='JPY', price='300',
                        date='2026-08-02', location='示例唱片行·C 店', version='Jewel Case',

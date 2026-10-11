@@ -12,10 +12,15 @@ export type PackagingStructure = 'jewel' | 'card-sleeve' | 'gatefold' | 'digipak
 export type PackagingPhotoRole = 'front' | 'back' | 'spine' | 'insideSpine' | 'insideLeft' | 'insideRight' | 'insideCenter' | 'insideExtra' | 'disc' | 'disc2' | 'disc3' | 'disc4' | 'outer';
 /** Original-image coordinates: top left, top right, bottom right, bottom left. */
 export type PackagingPhotoRegion = [number, number, number, number, number, number, number, number];
+export type PackagingWarpRow = [number, number, number, number];
+export interface TwinCalibration {
+  spine: {widthRatio: number; basis: 'image-estimate'; asset: string; sourceUrl: string; origin: string; reliefMm?: number[]};
+}
 export interface TwinEntity {
   packaging: PackagingSpec;
-  surfaces: Partial<Record<PackagingPhotoRole, {asset: string; region?: PackagingPhotoRegion | null; sourceUrl: string; origin: string}>>;
+  surfaces: Partial<Record<PackagingPhotoRole, {asset: string; region?: PackagingPhotoRegion | null; warpRows?: PackagingWarpRow[]; sourceUrl: string; origin: string}>>;
   release?: {id: string; title: string; url: string};
+  calibration?: TwinCalibration;
   skill: string;
   warnings: string[];
 }
@@ -42,6 +47,9 @@ export interface TwinReleaseCandidate {
   id: string; title: string; artist: string; date: string; country: string;
   barcode: string; catalogNumber: string; label: string; discCount: number;
   edition?: string; packaging?: string | null;
+  editionReferences?: {origin: 'discogs'; status: 'verified' | 'missing' | 'unavailable' | 'mismatched' | 'ambiguous';
+    id?: string; url?: string; title?: string; barcode?: string; catalogNumbers?: string[]; notes?: string;
+    images?: {sourceId: string; url: string; type: string; width?: number; height?: number}[]}[];
   media: {position: number; format: string; tracks: {position: number; title: string; length?: number}[]}[];
   url: string;
   artwork: {id: string; types: string[]; comment: string; previewUrl?: string;
@@ -74,6 +82,8 @@ export interface CoverSource {
 export interface AlbumRecord {
   /** Viewer-only task assets, never submitted as ledger data. */
   modelTextures?: Partial<Record<PackagingPhotoRole, string>>;
+  modelWarpRows?: Partial<Record<PackagingPhotoRole, PackagingWarpRow[]>>;
+  modelCalibration?: TwinCalibration;
   id: string;
   title: string;
   artist: string;

@@ -173,3 +173,12 @@ test('包装选择项均采用专业名称，可保存后再次定位预设', ()
     assert.ok(preset.label.match(/Jewel Case|Card Sleeve|Gatefold Sleeve|Digisleeve|Digipak|Digibook|Rigid Box|Mini LP Sleeve/));
   }
 });
+
+
+test('经图像校准的 Mini LP 外开口两板用双压痕纸脊，旧实体与其他结构仍沿用旧模型', () => {
+  const mini = packaging.albumPackaging('', {structure: 'gatefold', panels: 2, miniLP: true, holder: 'pocket', pocketOpening: 'outer'});
+  assert.equal(assets.albumModelAsset(mini, true), '/models/packaging/gatefold-2-mini-lp.glb');
+  assert.equal(assets.albumModelAsset(mini), '/models/packaging/gatefold-2.glb');
+  assert.equal(assets.albumModelAsset({...mini, miniLP: false}, true), '/models/packaging/gatefold-2.glb');
+  assert.equal(assets.albumModelAsset({...mini, pocketOpening: 'inner'}, true), '/models/packaging/gatefold-2-inner.glb');
+});

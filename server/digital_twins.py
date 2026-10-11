@@ -1,7 +1,9 @@
 """Bounded skill agent: release evidence -> original art -> calibrated entity -> atomic publication."""
 import base64
 import json
+import re
 import threading
+import unicodedata
 from pathlib import Path
 from urllib.parse import urlsplit
 from urllib.request import Request, build_opener, HTTPRedirectHandler
@@ -9,7 +11,7 @@ from urllib.error import HTTPError, URLError
 
 from domain import ValidationError, ConflictError
 from storage import uid
-from twins import SKILL_VERSION, UUID, clean_barcode, clean_entity, image_type
+from twins import SKILL_VERSION, UUID, clean_barcode, clean_entity, clean_warp_rows, image_type
 from musicbrainz import SourceUnavailable, BadSource
 
 
@@ -56,9 +58,69 @@ class ArtClient:
         return self.read(f'https://coverartarchive.org/release/{edition}/{ident}{suffix}', 24 * 1024 * 1024)
 
 
+def discogs_image_url(value):
+    if not isinstance(value, str) or not value or len(value) > 2048: return False
+    try:
+        parsed = urlsplit(value)
+        return (parsed.scheme == 'https' and parsed.hostname == 'i.discogs.com' and parsed.port in (None, 443)
+                and not parsed.username and not parsed.password and bool(parsed.path) and not parsed.fragment)
+    except ValueError: return False
+
+
+class DiscogsRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        # Image requests never leave the image host, and metadata never leaves the API.
+        old = urlsplit(req.full_url); new = urlsplit(newurl)
+        try: valid = new.scheme == 'https' and new.hostname == old.hostname and new.port in (None, 443) and not new.username and not new.password
+        except ValueError: valid = False
+        if not valid: raise ValidationError('Discogs 来源返回了不支持的跳转')
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+class DiscogsClient:
+    def read(self, url, limit):
+        try:
+            with build_opener(DiscogsRedirect()).open(Request(url, headers={'User-Agent': 'Diedu/2.4 (CD entity artwork)'}), timeout=35) as response:
+                raw = response.read(limit + 1)
+            if len(raw) > limit: raise ValidationError('Discogs 来源资源过大')
+            return raw
+        except HTTPError as exc:
+            if exc.code == 404: raise ArtNotFound('这一 Discogs 发行版不存在') from None
+            raise ValidationError('Discogs 同版资料暂时无法获取') from None
+        except (URLError, TimeoutError, OSError): raise ValidationError('Discogs 同版资料暂时无法获取') from None
+
+    def release(self, ident):
+        if not isinstance(ident, str) or not re.fullmatch(r'[1-9][0-9]{0,9}', ident): raise ValidationError('Discogs 发行版编号无效')
+        try:
+            result = json.loads(self.read('https://api.discogs.com/releases/' + ident, 2 * 1024 * 1024))
+            if (not isinstance(result, dict) or type(result.get('id')) is not int or str(result['id']) != ident
+                    or any(not isinstance(result.get(key, []), list) for key in ('identifiers', 'labels', 'formats', 'images'))):
+                raise ValueError()
+            return result
+        except (ValueError, UnicodeError): raise ValidationError('Discogs 来源返回了无效发行资料') from None
+
+    def image(self, url):
+        if not discogs_image_url(url): raise ValidationError('Discogs 图片来源无效')
+        return self.read(url, 24 * 1024 * 1024)
+
+
+def rows_match_manual_region(rows, region):
+    """Rows are original coordinates; an explicit manual quad owns its boundary."""
+    boundary = rows[0] + rows[-1][2:] + rows[-1][:2]
+    if any(abs(a - b) > 1e-8 for a, b in zip(boundary, region)): return False
+    points = list(zip(region[::2], region[1::2]))
+    for row in rows:
+        for point in (row[:2], row[2:]):
+            turns = [(b[0] - a[0]) * (point[1] - a[1]) - (b[1] - a[1]) * (point[0] - a[0])
+                     for a, b in zip(points, points[1:] + points[:1])]
+            if not (all(turn >= -1e-8 for turn in turns) or all(turn <= 1e-8 for turn in turns)): return False
+    return True
+
+
 class DigitalTwinService:
-    def __init__(self, store, vision, mb, art=None):
+    def __init__(self, store, vision, mb, art=None, discogs=None):
         self.store = store; self.vision = vision; self.mb = mb; self.art = art or ArtClient()
+        self.discogs = discogs or DiscogsClient()
         self.owner = uid(); self.stop_event = threading.Event(); self.wake = threading.Event()
         self.current_lock = threading.Lock(); self.current = None; self.thread = None
         self.skill = (Path(__file__).parent / 'skills/album-digital-twin/SKILL.md').read_text()
@@ -203,6 +265,46 @@ class DigitalTwinService:
             image.update(previewStatus='available', previewAsset=name, previewUrl=f"/api/twin-review-assets/{job['id']}/{name}")
         return artwork, 'available' if artwork else 'missing', catalog
 
+    def review_discogs(self, release, barcode, step):
+        """Follow only this exact MB edition's release relation, with two identifiers."""
+        linked = set()
+        for relation in release.get('relations', []):
+            if not isinstance(relation, dict) or relation.get('type') != 'discogs': continue
+            url = relation.get('url', {}).get('resource') if isinstance(relation.get('url'), dict) else None
+            if not isinstance(url, str): continue
+            try:
+                parsed = urlsplit(url)
+                if (parsed.scheme not in ('http', 'https') or parsed.hostname not in ('discogs.com', 'www.discogs.com')
+                        or parsed.username or parsed.password or parsed.port not in (None, 80, 443) or parsed.query or parsed.fragment): continue
+            except ValueError: continue
+            match = re.fullmatch(r'/release/([1-9][0-9]{0,9})(?:-[^/]+)?/?', parsed.path)
+            if match: linked.add(match[1])
+        if not linked: return []
+        if len(linked) != 1: return [{'origin': 'discogs', 'status': 'ambiguous'}]
+        ident = next(iter(linked)); evidence = {'origin': 'discogs', 'id': ident, 'url': 'https://www.discogs.com/release/' + ident}
+        step('fetching_review', '正在核对同一发行版的 Discogs 条形码与目录号')
+        try: data = self.discogs.release(ident)
+        except ArtNotFound: return [evidence | {'status': 'missing'}]
+        except ValidationError: return [evidence | {'status': 'unavailable'}]
+        numbers = {self._barcode(i.get('value')) for i in data.get('identifiers', [])
+                   if isinstance(i, dict) and i.get('type') == 'Barcode'} - {''}
+        normalize = lambda n: re.sub(r'\s+', '', unicodedata.normalize('NFKC', n)).upper() if isinstance(n, str) else ''
+        expected = {normalize(i.get('catalog-number')) for i in release.get('label-info', []) if isinstance(i, dict)} - {''}
+        catalogs = {normalize(i.get('catno')) for i in data.get('labels', []) if isinstance(i, dict)} - {''}
+        if (str(data.get('id')) != ident or barcode not in numbers or not expected.intersection(catalogs)
+                or not any(isinstance(f, dict) and f.get('name') == 'CD' for f in data.get('formats', []))):
+            return [evidence | {'status': 'mismatched'}]
+        images = []
+        for index, image in enumerate(data.get('images', [])[:40]):
+            if not isinstance(image, dict) or not discogs_image_url(image.get('uri')): continue
+            entry = {'sourceId': f'discogs:{ident}:{index}', 'url': image['uri'], 'type': str(image.get('type', ''))[:50]}
+            for dimension in ('width', 'height'):
+                if type(image.get(dimension)) is int and 0 < image[dimension] <= 50000: entry[dimension] = image[dimension]
+            images.append(entry)
+        return [evidence | {'status': 'verified', 'title': str(data.get('title', ''))[:1000],
+                            'barcode': barcode, 'catalogNumbers': sorted(expected.intersection(catalogs)),
+                            'notes': str(data.get('notes', ''))[:16000], 'images': images}]
+
     def lookup(self, job, step):
         barcode = job.get('barcode') or self.read_barcode(job, step)
         source = 'manual' if job.get('barcode') else 'photo'
@@ -215,14 +317,16 @@ class DigitalTwinService:
             edition = item.get('id', '')
             if not isinstance(edition, str) or not UUID.fullmatch(edition) or self._barcode(item.get('barcode')) != barcode: continue
             step('locating_release', '正在获取对应版本的曲目与发行资料')
-            release = self.mb.get('release/' + edition, {'fmt': 'json', 'inc': 'artist-credits+labels+recordings'})
+            release = self.mb.get('release/' + edition, {'fmt': 'json', 'inc': 'artist-credits+labels+recordings+url-rels'})
             media = release.get('media', [])
             if (release.get('id') != edition or self._barcode(release.get('barcode')) != barcode
                     or not 1 <= len(media) <= 4 or any('CD' not in str(m.get('format', '')) for m in media)): continue
             if edition in releases: continue
             summary = self.release_summary(release)
             artwork, status, catalog = self.review_artwork(job, edition, step)
-            summary.update(artwork=artwork, artworkStatus=status)
+            references = self.review_discogs(release, barcode, step)
+            summary.update(artwork=artwork, artworkStatus=status, editionReferences=references)
+            catalog = {**catalog, 'editionReferences': references}
             candidates.append(summary); releases[edition] = release; catalogs[edition] = catalog
         if not candidates:
             raise NeedsInput('MusicBrainz 没有匹配到这一完整条形码的 CD 发行版本，请检查数字或补拍背面照片；不会按标题猜选其他版本', 'awaiting_barcode')
@@ -253,21 +357,28 @@ class DigitalTwinService:
             raise NeedsInput('这条发行资料不是日版，请核对副本与版本链接')
         step('fetching_art', '正在读取同版实物图集')
         catalog = job.get('confirmedCatalog') or {}
+        references = catalog.get('editionReferences', [])
+        reference_ids = {image['sourceId']: image for reference in references if reference.get('status') == 'verified'
+                         for image in reference.get('images', [])}
         reviewed = next((candidate for candidate in job.get('candidates', []) if candidate['id'] == edition), {})
-        if reviewed.get('artworkStatus') == 'unavailable':
+        archive_status = reviewed.get('artworkStatus', 'missing')
+        if archive_status == 'unavailable':
             step('fetching_art', '正在重新检查已确认发行版的实物图集')
-            try: catalog = self.art.catalog(edition)
-            except ArtNotFound: catalog = {}
+            try:
+                catalog = self.art.catalog(edition)
+                archive_status = 'available' if catalog.get('images') else 'missing'
+            except ArtNotFound: catalog = {}; archive_status = 'missing'
             except ValidationError:
-                if not self.own_faces_complete(job, cd_count):
+                if not reference_ids and not self.own_faces_complete(job, cd_count):
                     raise NeedsInput('同版实物图集仍暂时无法获取，尚未调用生成模型；请稍后重试，或补充并确认正反面、内页及盘面照片', 'source_unavailable') from None
         images = [i for i in catalog.get('images', []) if str(i.get('id', '')).isdigit()][:40]
         catalog_ids = {str(i['id']): i for i in images}
         sources = dict(job['sources'])
-        if not sources and not images: raise NeedsInput('这一发行版没有可用实物图集，请保存正反面、内页和盘面实物照片后重试')
+        if not sources and not images and not reference_ids: raise NeedsInput('这一发行版没有可用实物图集，请保存正反面、内页和盘面实物照片后重试')
         system = self.skill + '\n\n' + self.runtime
         context = {'record': record, 'release': release,
-                   'recordSources': list(sources), 'archiveImages': [{'id': str(i['id']), 'types': i.get('types', []), 'comment': i.get('comment', '')} for i in images]}
+                   'recordSources': list(sources), 'archiveImages': [{'id': str(i['id']), 'types': i.get('types', []), 'comment': i.get('comment', '')} for i in images],
+                   'archiveStatus': archive_status, 'editionReferences': references}
         step('planning', 'agent 正在选择实物素材')
         plan = self.vision.agent_json(system, 'PLAN 阶段。\n' + json.dumps(context, ensure_ascii=False),
                                       on_start=lambda: step('planning', 'agent 正在规划包装与贴图'))
@@ -293,6 +404,12 @@ class DigitalTwinService:
                           'sourceUrl': f'https://coverartarchive.org/release/{edition}/{ident}.jpg'}
                 sources[source_id] = source
                 preview = self.art.image(edition, ident, preview=True)
+            elif source_id in reference_ids:
+                image = reference_ids[source_id]; raw = self.discogs.image(image['url']); ext, mime = image_type(raw)
+                _, ident, index = source_id.split(':'); name = f'discogs-{ident}-{index}.' + ext
+                self.store.write_twin_source(job['id'], job['claim'], name, raw)
+                source = {'asset': name, 'mime': mime, 'origin': 'edition-reference', 'sourceUrl': image['url']}
+                sources[source_id] = source; preview = raw
             else: raise ValidationError('agent 选择了图集中不存在的素材')
             ext, mime = image_type(preview)
             visuals.append('data:' + mime + ';base64,' + base64.b64encode(preview).decode())
@@ -308,11 +425,23 @@ class DigitalTwinService:
         package['discs'] = manual.get('discs', cd_count)
         result['packaging'] = package
         surfaces = result.get('surfaces', {})
-        for role, index in manual.get('photos', {}).items():
-            surfaces[role] = {'sourceId': 'photo:' + str(index), 'region': manual.get('photoRegions', {}).get(role)}
-        result['surfaces'] = surfaces
-        try: entity = clean_entity(result, sources)
+        manual_warnings = []
+        try:
+            for role, index in manual.get('photos', {}).items():
+                source_id = 'photo:' + str(index); planned = surfaces.get(role)
+                region = manual.get('photoRegions', {}).get(role)
+                entry = {'sourceId': source_id, 'region': region}
+                if isinstance(planned, dict) and 'warpRows' in planned:
+                    if planned.get('sourceId') == source_id:
+                        rows = clean_warp_rows(planned['warpRows'])
+                        if region is None or rows_match_manual_region(rows, region): entry['warpRows'] = rows
+                        else: manual_warnings.append(f'{role} 使用手动贴图区域，未应用与其边界冲突的曲面校正')
+                    else: manual_warnings.append(f'{role} 使用手动绑定照片，未应用其他原图的曲面校正')
+                surfaces[role] = entry
+            result['surfaces'] = surfaces
+            entity = clean_entity(result, sources)
         except ValidationError as exc: raise NeedsInput(str(exc)) from None
+        entity['warnings'] = (manual_warnings + entity['warnings'])[:20]
         entity['release'] = {'id': edition, 'title': str(release.get('title', '')),
                              'url': 'https://musicbrainz.org/release/' + edition}
         entity['skill'] = SKILL_VERSION

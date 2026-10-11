@@ -2,7 +2,8 @@ import {useEffect, useRef, useState} from 'react';
 import type {AlbumRecord, TwinReleaseCandidate} from '../types';
 import {useApp} from '../state/AppContext';
 import {ApiError} from '../core/api';
-import {twinBarcodeMatches, twinBusy} from '../core/digital-twins';
+import {twinBarcodeMatches, twinBusy, twinViewerRecord} from '../core/digital-twins';
+import {spineCalibrationFit} from '../core/album-spine-fit';
 
 function ReleaseReview({candidate}: {candidate: TwinReleaseCandidate}) {
   const info = [
@@ -31,6 +32,17 @@ function ReleaseReview({candidate}: {candidate: TwinReleaseCandidate}) {
       {candidate.media.map(media => <div key={media.position}><p className="small-note">CD {media.position} · {media.format}</p>
         <ol>{media.tracks.map(track => <li key={track.position}>{track.title}</li>)}</ol></div>)}
     </details> : null}
+    {candidate.editionReferences?.map((reference, index) => <details key={reference.id ?? index}>
+      <summary>同版实物参考 · Discogs</summary>
+      {reference.status === 'verified' ? <>
+        <p className="small-note">已按完整条形码和目录编号核对。来源说明用于确认发行版结构，照片中的磨损不代表本副本。</p>
+        {reference.notes ? <p>{reference.notes}</p> : null}
+        {reference.url ? <a href={reference.url} target="_blank" rel="noopener noreferrer">查看同版 Discogs 实物资料 ↗</a> : null}
+      </> : <p className="small-note">{reference.status === 'unavailable' ? 'Discogs 实物参考暂时无法读取。'
+        : reference.status === 'mismatched' ? '关联的 Discogs 资料与本条码或目录编号不一致，未采用。'
+        : reference.status === 'ambiguous' ? '关联到多个 Discogs 版本，尚未采用其中任何版本。'
+        : '该发行版没有可读取的 Discogs 实物参考。'}仍以已核对的图集和本副本照片为准。</p>}
+    </details>)}
     <a href={candidate.url} target="_blank" rel="noopener noreferrer">查看 MusicBrainz 发行资料 ↗</a>
   </div>;
 }
@@ -49,6 +61,7 @@ export function TwinControls({record, unsaved = false, saving = false, stale = f
   const gate = useRef(false);
   const barcodeEdited = useRef(false);
   const busy = twinBusy(job), blocked = unsaved || saving || stale;
+  const fit = spineCalibrationFit(twinViewerRecord(record, job) ?? record);
   const reviewing = job?.status === 'needs_input' && job.phase === 'awaiting_confirmation';
   const barcodeChanged = reviewing && !twinBarcodeMatches(barcode, job.barcode ?? '');
   const needsBarcode = job?.status === 'needs_input' && job.phase === 'awaiting_barcode';
@@ -119,6 +132,11 @@ export function TwinControls({record, unsaved = false, saving = false, stale = f
           onClick={confirm}>{sending ? '正在确认任务' : '确认此版本并生成数字实体'}</button>
       </div> : job?.status === 'succeeded' ? <>
         <p className="small-note">打开收藏展示中的封面即可查看。</p>
+        {fit ? <>
+          <p className="small-note">书脊宽度为图像比例估计，按封板参考尺寸折算约 {fit.requestedMm.toFixed(2)} mm，尚未实测。</p>
+          {job.entity?.packaging.size ? <p className="small-note">封板按填写宽高展示；深度不决定折脊宽度，袋腔按 CD 间隙保留。</p> : null}
+          {fit.status === 'minimum-cd-fit' ? <p className="small-note">照片估计偏窄：为保留光盘所需的容纳间隙，模型按约 {fit.appliedMm.toFixed(2)} mm 的参考宽度显示。补拍闭合侧面可继续校准。</p> : null}
+        </> : null}
         {job.entity?.warnings.length ? <details><summary>生成说明</summary>{job.entity.warnings.map((warning, i) => <p key={i}>{warning}</p>)}</details> : null}
       </> : null}
 

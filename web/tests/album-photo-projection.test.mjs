@@ -9,7 +9,7 @@ import ts from 'typescript';
 
 const output = mkdtempSync(join(tmpdir(), 'diedu-photo-projection-test-'));
 const source = fileURLToPath(new URL('../src/', import.meta.url));
-let photoProjection;
+let photoProjection, photoWarpPoint, photoTextureCrop;
 try {
   const program = ts.createProgram([join(source, 'core/album-photo-projection.ts')], {
     target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, strict: true,
@@ -21,7 +21,7 @@ try {
   }));
   assert.equal(program.emit().emitSkipped, false);
   writeFileSync(join(output, 'package.json'), '{"type":"commonjs"}');
-  ({photoProjection} = createRequire(import.meta.url)(join(output, 'core/album-photo-projection.js')));
+  ({photoProjection, photoWarpPoint, photoTextureCrop} = createRequire(import.meta.url)(join(output, 'core/album-photo-projection.js')));
 } catch (error) {rmSync(output, {recursive: true, force: true}); throw error;}
 after(() => rmSync(output, {recursive: true, force: true}));
 
@@ -116,4 +116,35 @@ test('重复角点、共线或任意一组三点共线的退化区域返回 null
 test('交叉或内凹区域不产生在印刷面内部穿过无穷远的投影', () => {
   for (const region of [[0, 0, 1, 1, 1, 0, 0, 1], [0, 0, 1, 0, .2, .2, 0, 1]])
     assert.equal(photoProjection(region), null, `a printed plane cannot project onto ${region}`);
+});
+
+
+test('曲面行映射两边沿折线前进，分段交界逐点连续且未更改输入', () => {
+  const rows = [[.4, .1, .6, .12], [.38, .45, .62, .47], [.42, .9, .58, .92]];
+  const original = structuredClone(rows);
+  for (const u of [0, .17, .5, .88, 1]) {
+    const expected = [rows[1][0] * (1 - u) + rows[1][2] * u, rows[1][1] * (1 - u) + rows[1][3] * u];
+    pointClose(photoWarpPoint(rows, u, .5), expected, 'shared seam');
+    const a = photoWarpPoint(rows, u, .5 - 1e-9), b = photoWarpPoint(rows, u, .5 + 1e-9);
+    assert.ok(Math.hypot(a[0] - b[0], a[1] - b[1]) < 1e-8);
+  }
+  pointClose(photoWarpPoint(rows, 0, 0), [.4, .1], 'top left');
+  pointClose(photoWarpPoint(rows, 1, 1), [.58, .92], 'bottom right');
+  assert.deepEqual(rows, original);
+});
+
+test('ROI 裁剪涵盖所有弯曲折线，裁后坐标仍精确指向原图像素', () => {
+  const rows = [[.45, .1, .5, .1], [.41, .5, .54, .5], [.45, .9, .5, .9]];
+  const crop = photoTextureCrop(2000, 1000, undefined, rows);
+  assert.deepEqual([crop.x, crop.y, crop.width, crop.height], [820, 100, 260, 800]);
+  crop.warpRows.forEach((row, index) => row.forEach((n, axis) =>
+    close(n * (axis % 2 ? crop.height : crop.width) + (axis % 2 ? crop.y : crop.x),
+      rows[index][axis] * (axis % 2 ? 1000 : 2000), 'preserved original pixel')));
+});
+
+test('畸形行映射不会发布自交、折返或越界纹理投影', () => {
+  for (const rows of [[], [[0, 0, 1, 0]], [[0, 0, 1, 0], [1, 1, 0, 1]],
+    [[0, 0, 1, 0], [0, .8, 1, .8], [0, .7, 1, .7]],
+    [[0, 0, 1, 0], [0, 1.01, 1, 1]], [[0, 0, 1, 0], [0, NaN, 1, 1]]])
+    assert.equal(photoWarpPoint(rows, .5, .5), null);
 });

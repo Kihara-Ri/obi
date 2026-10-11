@@ -6,15 +6,16 @@ import json
 import http.client
 from http.server import ThreadingHTTPServer
 import unittest
+from unittest.mock import patch
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from domain import ValidationError, ConflictError
 from storage import Store, uid
-from server.digital_twins import DigitalTwinService, ArtNotFound
+from server.digital_twins import DigitalTwinService, ArtNotFound, DiscogsClient, DiscogsRedirect
 from server import Services, make_handler
 from security import Auth
-from twins import TWIN_KEY, clean_barcode, clean_entity
+from twins import TWIN_KEY, clean_barcode, clean_entity, clean_registry
 
 PNG = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==')
 PHOTO = 'data:image/png;base64,' + base64.b64encode(PNG).decode()
@@ -265,6 +266,7 @@ class DigitalTwinTests(unittest.TestCase):
         def inspect(_skill, instruction, *args, **kwargs):
             if instruction.startswith('PLAN'):
                 context = json.loads(instruction.split('\n', 1)[1]); self.assertEqual(context['archiveImages'][0]['id'], '123')
+                self.assertEqual(context['archiveStatus'], 'available')
             return original(_skill, instruction, *args, **kwargs)
         self.model.agent_json = inspect; self.service.run_one()
         self.assertEqual(art.editions, [EDITION, EDITION]); self.assertEqual(self.model.calls, 2)
@@ -342,6 +344,327 @@ class DigitalTwinTests(unittest.TestCase):
                       {'sameAlbum': True, 'packaging': {'structure': 'gatefold'}, 'surfaces': {'front': {'sourceId': 'other'}}}]:
             with self.assertRaises(ValidationError): clean_entity(spec, source)
 
+    def test_spine_and_surface_calibration_survives_restore_without_ledger_changes(self):
+        original = copy.deepcopy(self.record())
+        original_agent = self.model.agent_json
+        rows = [[.2, .1, .3, .1], [.21, .5, .31, .5], [.2, .9, .3, .9]]
+        def calibrated(skill, instruction, *args, **kwargs):
+            result = original_agent(skill, instruction, *args, **kwargs)
+            if instruction.startswith('BUILD'):
+                result['surfaces']['spine'] = {'sourceId': 'photo:0', 'warpRows': rows}
+                result['calibration'] = {'spine': {'widthRatio': .035, 'sourceId': 'photo:0',
+                                                 'basis': 'image-estimate', 'reliefMm': [-.1, 0, .1]}}
+            return result
+        self.model.agent_json = calibrated
+        job = self.publish()
+        self.assertEqual(job['entity']['surfaces']['spine']['warpRows'], rows)
+        self.assertEqual(job['entity']['calibration'], {'spine': {'widthRatio': .035, 'asset': 'photo-0.png',
+            'sourceUrl': '', 'origin': 'record-photo', 'basis': 'image-estimate', 'reliefMm': [-.1, 0, .1]}})
+        backup = copy.deepcopy(self.store.backup()); self.store.restore_backup(backup)
+        restored = self.store.twin_index()['jobs'][self.rid]
+        self.assertEqual(restored['entity'], job['entity'])
+        self.assertEqual(self.record(), original)
+
+    def test_mandated_front_and_back_photos_keep_same_source_warp_rows(self):
+        original_agent = self.model.agent_json; original_record = copy.deepcopy(self.record())
+        rows = {'front': [[.51, 0, 1, 0], [.5, .5, .99, .5], [.51, 1, 1, 1]],
+                'back': [[0, 0, .49, 0], [.01, .5, .5, .5], [0, 1, .49, 1]]}
+        def calibrated(skill, instruction, *args, **kwargs):
+            result = original_agent(skill, instruction, *args, **kwargs)
+            if instruction.startswith('BUILD'):
+                result['surfaces'].update({role: {'sourceId': 'photo:0', 'warpRows': warp} for role, warp in rows.items()})
+            return result
+        self.model.agent_json = calibrated; job = self.publish()
+        self.assertEqual(job['status'], 'succeeded')
+        for role, expected in rows.items():
+            self.assertEqual(job['entity']['surfaces'][role].get('warpRows'), expected)
+            self.assertEqual(job['entity']['surfaces'][role]['asset'], 'photo-0.png')
+        self.assertEqual(self.record(), original_record)
+
+    def test_mandated_photo_discards_other_source_warp_and_keeps_manual_region(self):
+        manual = copy.deepcopy(FULL); region = [0, 0, .49, 0, .49, 1, 0, 1]
+        manual['photoRegions'] = {'front': region}
+        r = self.record(); self.store.save({'id': self.rid, 'revision': r['revision'], 'photos': [PHOTO, PHOTO], 'packaging': manual})
+        original_agent = self.model.agent_json
+        def other_photo(skill, instruction, *args, **kwargs):
+            result = original_agent(skill, instruction, *args, **kwargs)
+            if instruction.startswith('PLAN'): result['sourceIds'] = ['photo:0', 'photo:1']
+            if instruction.startswith('BUILD'):
+                result['surfaces']['front'] = {'sourceId': 'photo:1', 'region': [.51, 0, 1, 0, 1, 1, .51, 1],
+                    'warpRows': [[.51, 0, 1, 0], [.51, 1, 1, 1]]}
+            return result
+        self.model.agent_json = other_photo; job = self.publish()
+        self.assertEqual(job['status'], 'succeeded')
+        self.assertEqual(job['entity']['surfaces']['front']['asset'], 'photo-0.png')
+        self.assertEqual(job['entity']['surfaces']['front']['region'], region)
+        self.assertNotIn('warpRows', job['entity']['surfaces']['front'])
+
+    def test_mandated_same_photo_invalid_warp_cannot_silently_publish(self):
+        manual = copy.deepcopy(FULL); manual['photoRegions'] = {'front': [0, 0, 1, 0, 1, 1, 0, 1]}
+        r = self.record(); self.store.save({'id': self.rid, 'revision': r['revision'], 'packaging': manual})
+        original_agent = self.model.agent_json
+        def invalid_warp(skill, instruction, *args, **kwargs):
+            result = original_agent(skill, instruction, *args, **kwargs)
+            if instruction.startswith('BUILD'):
+                result['surfaces']['front'] = {'sourceId': 'photo:0', 'warpRows': [0, 1]}
+            return result
+        self.model.agent_json = invalid_warp; job = self.publish()
+        self.assertEqual(job['status'], 'needs_input'); self.assertIsNone(job['entity'])
+
+    def test_manual_region_keeps_same_source_rows_matching_its_boundary(self):
+        region = [.1, .1, .6, .1, .6, .9, .1, .9]
+        manual = copy.deepcopy(FULL); manual['photoRegions'] = {'front': region}
+        r = self.record(); self.store.save({'id': self.rid, 'revision': r['revision'], 'packaging': manual})
+        rows = [[.1, .1, .6, .1], [.11, .5, .59, .5], [.1, .9, .6, .9]]
+        original_agent = self.model.agent_json
+        def calibrated(skill, instruction, *args, **kwargs):
+            result = original_agent(skill, instruction, *args, **kwargs)
+            if instruction.startswith('BUILD'):
+                result['surfaces']['front'] = {'sourceId': 'photo:0', 'warpRows': rows}
+            return result
+        self.model.agent_json = calibrated; job = self.publish()
+        self.assertEqual(job['status'], 'succeeded')
+        self.assertEqual(job['entity']['surfaces']['front']['warpRows'], rows)
+        self.assertEqual(job['entity']['surfaces']['front']['region'], region)
+
+    def test_conflicting_manual_region_discards_same_source_rows_with_warning(self):
+        region = [.1, .1, .6, .1, .6, .9, .1, .9]
+        manual = copy.deepcopy(FULL); manual['photoRegions'] = {'front': region, 'back': region}
+        r = self.record(); self.store.save({'id': self.rid, 'revision': r['revision'], 'packaging': manual})
+        original_agent = self.model.agent_json
+        def calibrated(skill, instruction, *args, **kwargs):
+            result = original_agent(skill, instruction, *args, **kwargs)
+            if instruction.startswith('BUILD'):
+                result['surfaces']['front'] = {'sourceId': 'photo:0', 'warpRows': [[.2, .1, .6, .1], [.2, .9, .6, .9]]}
+                result['surfaces']['back'] = {'sourceId': 'photo:0', 'warpRows': [[.1, .1, .6, .1], [.01, .5, .6, .5], [.1, .9, .6, .9]]}
+            return result
+        self.model.agent_json = calibrated; job = self.publish()
+        self.assertEqual(job['status'], 'succeeded')
+        for role in ('front', 'back'):
+            self.assertEqual(job['entity']['surfaces'][role]['region'], region)
+            self.assertNotIn('warpRows', job['entity']['surfaces'][role])
+            self.assertTrue(any(role in warning and '未应用' in warning for warning in job['entity']['warnings']))
+
+    def test_discogs_same_edition_metadata_and_images_are_frozen_with_confirmation(self):
+        base = Metadata()
+        class Linked:
+            def get(_self, path, params):
+                result = base.get(path, params)
+                if path != 'release':
+                    self.assertIn('url-rels', params['inc'])
+                    result['relations'] = [{'type': 'discogs', 'url': {'resource': 'https://www.discogs.com/release/2485482-Islands'}}]
+                return result
+        class Reference:
+            def __init__(_self): _self.reads = []
+            def release(_self, ident):
+                _self.reads.append(ident)
+                return {'id': 2485482, 'title': 'Test Album', 'notes': 'Gatefold vinyl replica sleeve, with separate booklets and OBI.',
+                        'identifiers': [{'type': 'Barcode', 'value': BARCODE}],
+                        'labels': [{'catno': 'FIXTURE-001'}], 'formats': [{'name': 'CD', 'qty': '2'}],
+                        'images': [{'type': 'primary', 'uri': 'https://i.discogs.com/frozen-front.jpeg', 'width': 600, 'height': 600}]}
+            def image(_self, url):
+                self.assertEqual(url, 'https://i.discogs.com/frozen-front.jpeg'); return PNG
+        reference = Reference(); self.service.discogs = reference; self.service.mb = Linked()
+        first = self.create(); self.service.run_one()
+        review = self.store.twin_index()['jobs'][self.rid]['candidates'][0]
+        self.assertEqual(review['editionReferences'][0]['status'], 'verified')
+        self.assertIn('Gatefold', review['editionReferences'][0]['notes'])
+        self.service.confirm({'id': first['id'], 'releaseId': EDITION})
+        reference.release = lambda *_: self.fail('confirmed reference metadata must stay frozen')
+        original_agent = self.model.agent_json
+        def using_reference(skill, instruction, *args, **kwargs):
+            if instruction.startswith('PLAN'):
+                context = json.loads(instruction.split('\n', 1)[1]); ref = context['editionReferences'][0]
+                self.assertEqual(ref['images'][0]['sourceId'], 'discogs:2485482:0')
+                self.assertIn('Gatefold', ref['notes'])
+                return {'sourceIds': ['photo:0', 'discogs:2485482:0']}
+            result = original_agent(skill, instruction, *args, **kwargs)
+            if instruction.startswith('BUILD'):
+                self.assertIn('Gatefold', instruction)
+                result['surfaces']['spine'] = {'sourceId': 'discogs:2485482:0'}
+            return result
+        self.model.agent_json = using_reference; self.service.run_one()
+        job = self.store.twin_index()['jobs'][self.rid]
+        self.assertEqual(job['status'], 'succeeded')
+        self.assertEqual(job['entity']['surfaces']['spine'], {'asset': 'discogs-2485482-0.png', 'region': None,
+            'sourceUrl': 'https://i.discogs.com/frozen-front.jpeg', 'origin': 'edition-reference'})
+        self.assertEqual(self.store.published_twin_asset(job['id'], 'discogs-2485482-0.png').read_bytes(), PNG)
+        self.assertEqual(reference.reads, ['2485482'])
+
+    def test_discogs_unavailable_mismatched_or_arbitrary_links_do_not_supply_images(self):
+        base = Metadata()
+        class Linked:
+            def __init__(_self, url): _self.url = url
+            def get(_self, path, params):
+                result = base.get(path, params)
+                if path != 'release': result['relations'] = [{'type': 'discogs', 'url': {'resource': _self.url}}]
+                return result
+        class Reference:
+            def __init__(_self, barcode, catno): _self.barcode = barcode; _self.catno = catno
+            def release(_self, ident):
+                if _self.barcode is None: raise ValidationError('unavailable')
+                return {'id': 2485482, 'notes': 'must not be accepted', 'identifiers': [{'type': 'Barcode', 'value': _self.barcode}],
+                        'labels': [{'catno': _self.catno}], 'formats': [{'name': 'CD'}],
+                        'images': [{'uri': 'https://i.discogs.com/wrong.jpeg'}]}
+        latest = None
+        for barcode, catno, status in [(None, 'FIXTURE-001', 'unavailable'), ('4006381333931', 'FIXTURE-001', 'mismatched'),
+                                        (BARCODE, 'WRONG-001', 'mismatched')]:
+            self.service.mb = Linked('https://www.discogs.com/release/2485482')
+            self.service.discogs = Reference(barcode, catno)
+            latest = self.create(expectedJobId=latest and latest['id']); self.service.run_one()
+            ref = self.store.twin_index()['jobs'][self.rid]['candidates'][0]['editionReferences'][0]
+            self.assertEqual(ref['status'], status); self.assertNotIn('images', ref); self.assertNotIn('notes', ref)
+            self.store.cancel_twin(latest['id'])
+        for link in ('https://www.discogs.com/master/2485482', 'https://arbitrary.example/release/2485482',
+                     'https://www.discogs.com@arbitrary.example/release/2485482'):
+            self.service.mb = Linked(link)
+            self.service.discogs = type('MustNotFetch', (), {'release': lambda *_: self.fail('only exact release relationship may be followed')})()
+            latest = self.create(expectedJobId=latest['id']); self.service.run_one()
+            self.assertEqual(self.store.twin_index()['jobs'][self.rid]['candidates'][0]['editionReferences'], [])
+            self.store.cancel_twin(latest['id'])
+
+    def test_calibration_evidence_asset_is_published_and_missing_file_revokes_ready_state(self):
+        original_agent = self.model.agent_json
+        def calibrated(skill, instruction, *args, **kwargs):
+            result = original_agent(skill, instruction, *args, **kwargs)
+            if instruction.startswith('BUILD'):
+                result['calibration'] = {'spine': {'widthRatio': .035, 'sourceId': 'photo:1', 'basis': 'image-estimate'}}
+            elif instruction.startswith('PLAN'): result['sourceIds'] = ['photo:0', 'photo:1']
+            return result
+        r = self.record(); self.store.save({'id': self.rid, 'revision': r['revision'], 'photos': [PHOTO, PHOTO], 'packaging': FULL})
+        self.model.agent_json = calibrated; job = self.publish()
+        self.assertEqual(job['status'], 'succeeded')
+        self.assertEqual(self.store.published_twin_asset(job['id'], 'photo-1.png').read_bytes(), PNG)
+        backup = copy.deepcopy(self.store.backup()); self.store.restore_backup(backup)
+        self.assertEqual(self.store.twin_index()['jobs'][self.rid]['entity']['calibration'], job['entity']['calibration'])
+        self.store.twin_source(job['id'], 'photo-1.png').unlink()
+        self.assertEqual(self.store.twin_index()['jobs'][self.rid]['status'], 'interrupted')
+
+    def test_missing_calibration_evidence_prevents_atomic_publication(self):
+        job = self.create(); claim = self.store.claim_twin('worker')
+        package = {k: v for k, v in FULL.items() if k != 'photos'}
+        entity = clean_entity({'sameAlbum': True, 'packaging': package,
+            'surfaces': {role: {'sourceId': 'photo:0'} for role in FULL['photos']},
+            'calibration': {'spine': {'widthRatio': .035, 'sourceId': 'photo:1', 'basis': 'image-estimate'}}},
+            {'photo:0': {'asset': 'photo-0.png'}, 'photo:1': {'asset': 'photo-1.png'}})
+        with self.assertRaises(ValidationError): self.store.update_twin(job['id'], claim['claim'], status='succeeded', entity=entity)
+        self.assertNotEqual(self.store.twin_index()['jobs'][self.rid]['status'], 'succeeded')
+
+
+class EntityCalibrationTests(unittest.TestCase):
+    def setUp(self):
+        self.sources = {'caa:12': {'asset': 'caa-12.png', 'origin': 'edition-reference',
+                                  'sourceUrl': 'https://coverartarchive.org/release/' + EDITION + '/12.jpg'}}
+        self.entity = {'sameAlbum': True, 'packaging': {'structure': 'gatefold', 'discs': 1},
+                       'surfaces': {role: {'sourceId': 'caa:12'} for role in ('front', 'back', 'insideLeft', 'insideRight', 'disc')}}
+
+    def test_original_coordinates_preserve_bent_spine_rows(self):
+        rows = [[.1, .05, .2, .06], [.11, .5, .21, .51], [.1, .95, .2, .96]]
+        self.entity['surfaces']['spine'] = {'sourceId': 'caa:12', 'warpRows': rows}
+        cleaned = clean_entity(self.entity, self.sources)
+        self.assertEqual(cleaned['surfaces']['spine']['warpRows'], rows)
+        self.assertIsNone(cleaned['surfaces']['spine']['region'])
+
+    def test_invalid_row_bounds_order_or_crossed_strip_cannot_be_published(self):
+        invalid = [[], [[.1, .1, .2, .1]], [[.1, .1, .2, .1]] * 18,
+                   [[-.1, .1, .2, .1], [.1, .9, .2, .9]],
+                   [[.1, .1, .2, .1], [.1, float('nan'), .2, .9]],
+                   [[.1, .1, True, .1], [.1, .9, .2, .9]],
+                   [[.1, .9, .2, .9], [.1, .1, .2, .1]],
+                   [[.1, .1, .2, .1], [.3, .9, .2, .9]],
+                   [[.1, .1, .9, .8], [.2, .2, .8, .9]]]
+        for rows in invalid:
+            with self.subTest(rows=rows), self.assertRaises(ValidationError):
+                self.entity['surfaces']['spine'] = {'sourceId': 'caa:12', 'warpRows': rows}
+                clean_entity(self.entity, self.sources)
+
+    def test_spine_estimate_resolves_frozen_source_and_does_not_claim_measurement(self):
+        self.entity['calibration'] = {'spine': {'widthRatio': .04, 'sourceId': 'caa:12', 'basis': 'image-estimate',
+                                               'reliefMm': [-.15, 0, .15]}}
+        cleaned = clean_entity(self.entity, self.sources)
+        self.assertEqual(cleaned['calibration']['spine'], {'widthRatio': .04, 'asset': 'caa-12.png',
+            'origin': 'edition-reference', 'sourceUrl': self.sources['caa:12']['sourceUrl'],
+            'basis': 'image-estimate', 'reliefMm': [-.15, 0, .15]})
+        self.assertNotIn('size', cleaned['packaging'])
+
+    def test_invalid_calibration_or_nonpaper_spine_is_rejected(self):
+        baseline = {'widthRatio': .04, 'sourceId': 'caa:12', 'basis': 'image-estimate'}
+        invalid = [{'widthRatio': value} for value in (0, -.1, .0009, .2001, 1.01, float('inf'), True, '0.04')]
+        invalid += [{'sourceId': 'https://arbitrary.example/image.jpg'}, {'basis': 'measured'}]
+        invalid += [{'reliefMm': values} for values in ([0, 0], [0] * 18, [0, .151, 0], [0, float('nan'), 0])]
+        for patch in invalid:
+            with self.subTest(patch=patch), self.assertRaises(ValidationError):
+                self.entity['calibration'] = {'spine': baseline | patch}
+                clean_entity(self.entity, self.sources)
+        self.entity['packaging']['structure'] = 'jewel'
+        self.entity['calibration'] = {'spine': baseline}
+        with self.assertRaises(ValidationError): clean_entity(self.entity, self.sources)
+
+    def test_calibration_bounds_and_surface_source_types_are_checked(self):
+        for ratio in (.001, .2):
+            self.entity['calibration'] = {'spine': {'widthRatio': ratio, 'sourceId': 'caa:12', 'basis': 'image-estimate'}}
+            self.assertEqual(clean_entity(self.entity, self.sources)['calibration']['spine']['widthRatio'], ratio)
+        for source in ([], {}, 12, None):
+            self.entity['surfaces']['front'] = {'sourceId': source}
+            with self.subTest(source=source), self.assertRaises(ValidationError): clean_entity(self.entity, self.sources)
+
+    def test_restored_calibration_and_warp_rows_are_validated(self):
+        self.entity['surfaces']['spine'] = {'sourceId': 'caa:12', 'warpRows': [[.1, .1, .2, .1], [.1, .9, .2, .9]]}
+        self.entity['calibration'] = {'spine': {'widthRatio': .04, 'sourceId': 'caa:12', 'basis': 'image-estimate'}}
+        cleaned = clean_entity(self.entity, self.sources); ident = '1' * 32; rid = '2' * 32
+        registry = {'epoch': '3' * 32, 'revision': 0, 'latest': {rid: ident}, 'jobs': {ident:
+            {'id': ident, 'recordId': rid, 'status': 'succeeded', 'requestId': '4' * 32, 'seq': 0, 'input': {}, 'entity': cleaned}}}
+        self.assertEqual(clean_registry(registry), registry)
+        for mutate in (lambda e: e['calibration']['spine'].update(widthRatio=.4),
+                       lambda e: e['calibration']['spine'].update(asset='../outside.png'),
+                       lambda e: e['surfaces']['spine'].update(warpRows=[[.1, .9, .2, .9], [.1, .1, .2, .1]])):
+            bad = copy.deepcopy(registry); mutate(bad['jobs'][ident]['entity'])
+            with self.assertRaises(ValidationError): clean_registry(bad)
+
+
+class DiscogsClientTests(unittest.TestCase):
+    def test_image_fetch_rejects_nonallowlisted_urls_before_network(self):
+        client = DiscogsClient()
+        with patch('server.digital_twins.build_opener', side_effect=AssertionError('must not fetch')):
+            for url in ('http://i.discogs.com/photo.jpg', 'https://arbitrary.example/photo.jpg',
+                        'https://i.discogs.com.arbitrary.example/photo.jpg', 'https://i.discogs.com:8443/photo.jpg',
+                        'https://user:pass@i.discogs.com/photo.jpg'):
+                with self.subTest(url=url), self.assertRaises(ValidationError): client.image(url)
+
+    def test_metadata_and_image_fetch_are_bounded_and_use_release_api(self):
+        calls = []
+        class Response:
+            def __init__(self, raw): self.raw = raw
+            def __enter__(self): return self
+            def __exit__(self, *args): pass
+            def read(self, count): calls.append(('limit', count)); return self.raw
+        class Opener:
+            def open(self, request, timeout):
+                calls.append(('url', request.full_url))
+                return Response(b'{"id":2485482,"identifiers":[],"labels":[],"formats":[],"images":[]}')
+        with patch('server.digital_twins.build_opener', return_value=Opener()):
+            self.assertEqual(DiscogsClient().release('2485482')['id'], 2485482)
+        self.assertEqual(calls, [('url', 'https://api.discogs.com/releases/2485482'), ('limit', 2 * 1024 * 1024 + 1)])
+        class LargeOpener:
+            def open(self, *_args, **_kwargs): return Response(b'x' * (24 * 1024 * 1024 + 1))
+        with patch('server.digital_twins.build_opener', return_value=LargeOpener()), self.assertRaises(ValidationError):
+            DiscogsClient().image('https://i.discogs.com/photo.jpg')
+
+    def test_redirect_cannot_move_an_image_or_api_request_to_another_host(self):
+        from urllib.request import Request
+        redirect = DiscogsRedirect()
+        for old, target in [('https://i.discogs.com/a.jpg', 'https://arbitrary.example/a.jpg'),
+                            ('https://api.discogs.com/releases/1', 'https://i.discogs.com/a.jpg'),
+                            ('https://i.discogs.com/a.jpg', 'http://i.discogs.com/a.jpg')]:
+            with self.subTest(target=target), self.assertRaises(ValidationError):
+                redirect.redirect_request(Request(old), None, 302, '', {}, target)
+
+    def test_invalid_api_collections_and_wrong_release_id_are_unavailable(self):
+        client = DiscogsClient()
+        for payload in ({'id': 123}, {'id': 2485482, 'images': None}, {'id': 2485482, 'identifiers': 'barcode'}):
+            client.read = lambda *_: json.dumps(payload).encode()
+            with self.subTest(payload=payload), self.assertRaises(ValidationError): client.release('2485482')
+
 
 class TwinHttpTests(unittest.TestCase):
     record = DigitalTwinTests.record
@@ -382,6 +705,25 @@ class TwinHttpTests(unittest.TestCase):
         _, headers, _ = self.http_req('/api/login', {'password': 'fixture-password-12345'}); cookie = headers['Set-Cookie']
         self.store.set_modules({'showcase': False, 'acquisition': False, 'trading': False, 'circulation': False})
         self.assertEqual(self.http_req('/api/twins/start', self.request(), cookie)[0], 400)
+
+    def test_calibration_only_evidence_asset_requires_login_and_publication(self):
+        r = self.record(); self.store.save({'id': self.rid, 'revision': r['revision'], 'photos': [PHOTO, PHOTO], 'packaging': FULL})
+        original_agent = self.model.agent_json
+        def calibrated(skill, instruction, *args, **kwargs):
+            result = original_agent(skill, instruction, *args, **kwargs)
+            if instruction.startswith('PLAN'): result['sourceIds'] = ['photo:0', 'photo:1']
+            if instruction.startswith('BUILD'):
+                result['calibration'] = {'spine': {'widthRatio': .03, 'sourceId': 'photo:1', 'basis': 'image-estimate'}}
+            return result
+        self.model.agent_json = calibrated
+        job = self.store.start_twin(self.request())['job']; self.service.run_one()
+        _, headers, _ = self.http_req('/api/login', {'password': 'fixture-password-12345'}); cookie = headers['Set-Cookie']
+        url = '/api/twin-assets/' + job['id'] + '/photo-1.png'
+        self.assertEqual(self.http_req(url, cookie=cookie)[0], 400)
+        self.service.confirm({'id': job['id'], 'releaseId': EDITION}); self.service.run_one()
+        self.assertEqual(self.http_req(url)[0], 401)
+        status, headers, raw = self.http_req(url, cookie=cookie)
+        self.assertEqual(status, 200); self.assertEqual(raw, PNG); self.assertTrue(headers['Cache-Control'].startswith('private'))
 
     def test_review_artwork_is_protected_and_not_published_entity_artwork(self):
         class Preview:

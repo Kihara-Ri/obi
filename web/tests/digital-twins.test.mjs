@@ -68,3 +68,26 @@ test('模型引用不可变任务资产与独立四角区域，不改副本照�
   assert.deepEqual(view.packaging.photoRegions.front, ready.entity.surfaces.front.region);
   assert.equal(record.packaging.structure, 'jewel'); assert.equal(record.cover, '/api/cover/original.png');
 });
+
+
+test('连续折线与图像估计仅进入展示派生记录，保留来源且不改实体或账本', () => {
+  const record = {id: 'copy', packaging: {structure: 'jewel'}, cover: ''};
+  const job = structuredClone(ready);
+  job.entity.surfaces.spine = {asset: 'spread.jpg', warpRows: [[.48, .1, .50, .1], [.47, .5, .51, .5], [.48, .9, .50, .9]]};
+  job.entity.calibration = {spine: {widthRatio: .02, basis: 'image-estimate', asset: 'spread.jpg', sourceUrl: 'https://example.com/spread', origin: 'reference', reliefMm: [0, .1, 0]}};
+  const snapshot = structuredClone(job);
+  const view = twinViewerRecord(record, job);
+  assert.deepEqual(view.modelWarpRows.spine, job.entity.surfaces.spine.warpRows);
+  assert.deepEqual(view.modelCalibration, job.entity.calibration);
+  view.modelWarpRows.spine[0][0] = 0;
+  view.modelCalibration.spine.reliefMm[1] = 0;
+  assert.deepEqual(job, snapshot, 'viewer owns independent calibration copies');
+  assert.equal(record.modelWarpRows, undefined);
+  assert.equal(record.modelCalibration, undefined);
+});
+
+test('旧实体不增加校准或行映射的展示字段', () => {
+  const view = twinViewerRecord({id: 'copy', packaging: {structure: 'jewel'}, cover: ''}, ready);
+  assert.equal(Object.hasOwn(view, 'modelCalibration'), false);
+  assert.equal(Object.hasOwn(view, 'modelWarpRows'), false);
+});

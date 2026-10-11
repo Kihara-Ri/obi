@@ -24,7 +24,7 @@ const {TwinControls} = require(join(output, 'components/TwinControls.js'));
 const {AppContext} = require(join(output, 'state/AppContext.js'));
 after(() => rmSync(output, {recursive: true, force: true}));
 
-const record = {id: 'islands-copy', title: 'Islands', artist: 'King Crimson', revision: 1, photoCount: 0};
+const record = {id: 'islands-copy', title: 'Islands', artist: 'King Crimson', version: '纸盒', revision: 1, photoCount: 0};
 const candidate = {
   id: 'e618bce6-8e08-4628-9574-2d8f53b20db7', title: 'Islands', artist: 'King Crimson',
   barcode: '4988013047105', country: 'JP', date: '2000-03-01', label: 'Discipline Global Mobile',
@@ -91,4 +91,27 @@ test('未尝试加载的图片不误报为来源不可用，旧任务无预览�
   const markup = render({...review, candidates: [{...candidate, artwork}]});
   assert.equal(markup.match(/>未加载预览</g)?.length, 2);
   assert.equal(markup.match(/>预览暂不可用</g)?.length, 1);
+});
+
+test('同版 Discogs 结构说明在编辑核对中展示，失败来源不冒充已核对', () => {
+  const editionReferences = [{origin: 'discogs', status: 'verified', id: '2485482',
+    url: 'https://www.discogs.com/release/2485482', notes: 'gatefold vinyl replica sleeve',
+    barcode: candidate.barcode, catalogNumbers: ['PCCY-01424'], images: []}];
+  const markup = render({...review, candidates: [{...candidate, editionReferences}]});
+  assert.match(markup, /同版实物参考/);
+  assert.match(markup, /gatefold vinyl replica sleeve/);
+  assert.match(markup, /href="https:\/\/www.discogs.com\/release\/2485482"/);
+  const unavailable = render({...review, candidates: [{...candidate, editionReferences: [{origin:'discogs',status:'unavailable'}]}]});
+  assert.match(unavailable, /暂时无法读取/);
+  assert.doesNotMatch(unavailable, /gatefold vinyl replica sleeve/);
+});
+
+test('照片估计的窄脊与 CD 容纳空间冲突时在编辑说明，不伪装成实测厚度', () => {
+  const entity = {packaging: {structure: 'gatefold', panels:2, holder:'pocket', pockets:'both', pocketOpening:'inner', discs:2},
+    surfaces:{}, warnings:[], skill:'album-digital-twin/3',
+    calibration:{spine:{widthRatio:.001,basis:'image-estimate',asset:'photo-0.jpg',origin:'edition-reference',sourceUrl:''}}};
+  const markup=render({id:'ready',status:'succeeded',entity});
+  assert.match(markup, /书脊宽度为图像比例估计/);
+  assert.match(markup, /保留光盘所需的容纳间隙/);
+  assert.doesNotMatch(markup, /实测书脊/);
 });
