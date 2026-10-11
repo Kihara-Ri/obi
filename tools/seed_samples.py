@@ -45,7 +45,7 @@ def open_store(data_dir):
     return Store(data / 'albums.sqlite3', rates)
 
 
-# ── 样本清单（19 副本 / 17 专辑；金额、日期、渠道、备注均为虚构）──────────────
+# ── 样本清单（20 副本 / 18 专辑；金额、日期、渠道、备注均为虚构）──────────────
 # 每条 (键名, 记录)。键名仅脚本与测试内部引用。
 RECORDS = [
     # 国内库存 domestic（7）
@@ -74,7 +74,7 @@ RECORDS = [
                       status='domestic',
                       packaging={'structure': 'jewel', 'thickness': 'standard', 'tray': 'clear',
                                  'discs': 1, 'finish': 'matte'})),
-    # 海外库存 overseas（4）
+    # 海外库存 overseas（5）
     ('dookie-en', dict(title='Dookie', artist='Green Day', currency='JPY', price='300',
                        date='2026-08-02', location='示例唱片行·C 店', version='Jewel Case',
                        pressing='外版', status='overseas')),
@@ -87,6 +87,10 @@ RECORDS = [
     ('tpab', dict(title='To Pimp a Butterfly', artist='Kendrick Lamar', currency='JPY',
                   price='1700', date='2026-08-15', location='示例唱片行·B 店', version='Jewel Case',
                   pressing='日版', obi='带侧标', status='overseas')),
+    ('lift-fists', dict(title='Lift Your Skinny Fists Like Antennas to Heaven',
+                        artist='Godspeed You! Black Emperor', currency='JPY', price='2860',
+                        date='2026-08-08', location='示例唱片行·C 店', version='纸盒',
+                        status='overseas')),
     # 在途 transit（3，同一条包裹，运费按 3 副本分摊）
     ('yehui', dict(title='叶惠美', artist='周杰伦', currency='JPY', price='4000',
                    date='2026-08-15', location='示例代购', version='Jewel Case',
