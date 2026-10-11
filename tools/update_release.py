@@ -19,7 +19,7 @@ VERSION_RE = re.compile(r'^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$')
 # tests/test_updates.py 有对账测试防止再次漏加。
 PACKAGE_ROOTS = {'VERSION', 'app.py', 'domain.py', 'storage.py', 'covers.py',
                  'cjkvariants.py', 'musicbrainz.py', 'rates.py', 'security.py',
-                 'backups.py', 'README.md', '使用说明.md', '部署说明.md',
+                 'backups.py', 'twins.py', 'README.md', '使用说明.md', '部署说明.md',
                  'CHANGELOG.md', 'server', 'static', 'deploy', 'tools'}
 
 

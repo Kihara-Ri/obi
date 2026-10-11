@@ -9,12 +9,13 @@ share of the postage onto each album's fees (part of acquisition cost); it
 can be rolled back at any step while albums haven't moved on.
 Sales start at 'shipping'; only 确认收货 turns them into realized cash ('sold').
 """
-import json, sqlite3, uuid, base64, hashlib, re, shutil, threading
+import json, sqlite3, uuid, base64, hashlib, re, shutil, threading, time
 from pathlib import Path
 from datetime import datetime
 from contextlib import closing
-from domain import ValidationError, ConflictError, clean_record, clean_release_info, clean_modules, clean_start_page, clean_showcase_group, clean_showcase_groups, clean_listing, MODULE_NAMES, cost, number, money, day, allocate, STATUSES
+from domain import ValidationError, ConflictError, clean_record, clean_release_info, clean_modules, clean_start_page, clean_showcase_group, clean_showcase_groups, clean_listing, validate_packaging_photos, MODULE_NAMES, cost, number, money, day, allocate, STATUSES
 from decimal import Decimal
+from twins import TWIN_KEY, SKILL_VERSION, ID as TWIN_ID, ASSET as TWIN_ASSET, appearance, same_appearance, release_id, clean_registry, image_type
 
 SCHEMA = 4
 SHIPMENT_STATUSES = ('transit', 'arrived', 'cancelled')
@@ -165,6 +166,7 @@ class Store:
         return out
     def state(self):
         b=self.backup(audit_limit=100)  # audit 全量只服务备份/导出；state 只带最近 100 条
+        b['settings'].pop(TWIN_KEY, None)  # 任务快照与工作令牌不进入普通账本状态
         enabled = b['settings'].get('modules-v1')
         b['modules'] = {'enabled': clean_modules(enabled) if enabled is not None else {k: k != 'showcase' for k in MODULE_NAMES},
                         'configured': enabled is not None,
@@ -372,8 +374,28 @@ class Store:
                     plan=self.prepare_photos(r['id'],photos)
                     plans.append((r['id'],plan))
                     r['photoCount']=len(plan)
-                elif item.get('id'): r['photoCount']=old.get('photoCount',0)
+                    if not item.get('id') or photos != list(range(old.get('photoCount', 0))):
+                        r['photoRevision'] = old.get('photoRevision', 0) + 1 if item.get('id') else 1
+                    elif 'photoRevision' in old: r['photoRevision'] = old['photoRevision']
+                    # Clients updating photos without packaging retain the same physical
+                    # photo identity. Explicit maps already address the new photo order.
+                    if 'packaging' not in item and r.get('packaging', {}).get('photos'):
+                        role_map = {}
+                        for role, old_index in r['packaging']['photos'].items():
+                            matches = [i for i, entry in enumerate(photos) if type(entry) is int and entry == old_index]
+                            if matches: role_map[role] = matches[0]
+                        packaging = {**r['packaging'], 'photos': role_map}
+                        if 'photoRegions' in packaging:
+                            packaging['photoRegions'] = {
+                                role: region for role, region in packaging['photoRegions'].items()
+                                if role in role_map or role == 'front' and role not in r['packaging']['photos']
+                            }
+                        r['packaging'] = packaging
+                elif item.get('id'):
+                    r['photoCount']=old.get('photoCount',0)
+                    if 'photoRevision' in old: r['photoRevision'] = old['photoRevision']
                 else: r['photoCount']=0
+                validate_packaging_photos(r)
                 self.put(db,'records',r);result.append(r['id'])
                 # 专辑笔记在同专辑所有副本间共享：保存时传播给同名同艺人的其他记录
                 if item.get('id') and 'noteAlbum' in item:
@@ -759,6 +781,13 @@ class Store:
         if 'start-page-v1' in settings: settings['start-page-v1'] = clean_start_page(settings['start-page-v1'])
         if 'showcase-groups-v1' in settings:
             settings['showcase-groups-v1'] = clean_showcase_groups(settings['showcase-groups-v1'])
+        if TWIN_KEY in settings:
+            registry = clean_registry(settings[TWIN_KEY])
+            registry['epoch'] = uid(); registry['revision'] += 1
+            for job in registry['jobs'].values():
+                if job['status'] in ('queued', 'running'):
+                    job.update(status='interrupted', error='备份中的生成任务未继续执行，请手动重试', leaseUntil=0)
+                    job.pop('claim', None); job['seq'] += 1
         # 新键只验结构与类型；恢复可能带来不存在的记录 ID / 过期关联，读取时再忽略或标待核对。
         if 'artist-identities-v1' in b.get('settings', {}):
             clean_artist_identities(b['settings']['artist-identities-v1'])
@@ -779,6 +808,10 @@ class Store:
         ids=set()
         for r in b['records']:
             normalized=clean_record(r)
+            validate_packaging_photos(normalized)
+            if 'packaging' in r:
+                if 'packaging' in normalized: r['packaging'] = normalized['packaging']
+                else: r.pop('packaging')
             if r.get('listingChannel') or r.get('listingUrl'):
                 clean_listing({'channel': r.get('listingChannel', ''), 'url': r.get('listingUrl', '')})
             if any(normalized.get(k)!=r.get(k) for k in ('title','artist','date','price','currency','fees','actual','cover')):
@@ -825,6 +858,172 @@ class Store:
     def meta_get(self, db, key):
         row = db.execute('SELECT data FROM meta WHERE key=?',(key,)).fetchone()
         return json.loads(row['data']) if row else None
+
+    # ── 数字实体任务：BEGIN IMMEDIATE 是跨请求/进程的唯一性与发布闸门 ──
+    def _twins(self, db):
+        return self.meta_get(db, TWIN_KEY) or {'epoch': uid(), 'revision': 0, 'jobs': {}, 'latest': {}}
+
+    def _write_twins(self, db, registry, job=None):
+        registry['revision'] += 1
+        if job is not None: job['seq'] += 1; job['updatedAt'] = now()
+        db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)', (TWIN_KEY, dumps(registry)))
+
+    def _twin_folder(self, ident):
+        if not isinstance(ident, str) or not TWIN_ID.fullmatch(ident): raise ValidationError('生成任务编号无效')
+        return self.path.parent / 'digital-twins' / ident
+
+    def _public_twin(self, job, record=None):
+        result = {k: job.get(k) for k in ('id', 'recordId', 'status', 'phase', 'message', 'error', 'seq', 'createdAt', 'updatedAt', 'candidates', 'entity', 'instructions', 'releaseId')}
+        if record is not None and not same_appearance(record, job['input']):
+            result.update(status='stale', error='包装、照片或发行资料已变更，请按当前资料重新生成', entity=None)
+        elif job['status'] == 'succeeded':
+            folder = self._twin_folder(job['id'])
+            if not all((folder / s['asset']).is_file() for s in job.get('entity', {}).get('surfaces', {}).values()):
+                result.update(status='interrupted', error='数字实体原图文件缺失，请恢复数据目录或重新生成', entity=None)
+        return result
+
+    def twin_index(self):
+        with closing(self.connect()) as db:
+            registry = self.meta_get(db, TWIN_KEY)
+            if registry is None: return {'epoch': '', 'revision': 0, 'jobs': {}}
+            records = {r['id']: r for r in self.rows(db, 'records')}
+            jobs = {rid: self._public_twin(registry['jobs'][jid], records[rid])
+                    for rid, jid in registry['latest'].items() if rid in records}
+            return {'epoch': registry['epoch'], 'revision': registry['revision'], 'jobs': jobs}
+
+    def start_twin(self, body):
+        if not isinstance(body, dict): raise ValidationError('生成请求无效')
+        rid, request_id = body.get('recordId'), body.get('requestId')
+        if not isinstance(rid, str) or not TWIN_ID.fullmatch(rid) or not isinstance(request_id, str) or not TWIN_ID.fullmatch(request_id):
+            raise ValidationError('请提供副本编号和生成请求编号')
+        instructions = body.get('instructions', '')
+        if not isinstance(instructions, str) or len(instructions) > 2000: raise ValidationError('生成需求最多 2000 字')
+        if type(body.get('recordRevision')) is not int: raise ValidationError('请提供有效的副本版本')
+        edition = release_id(body.get('releaseId', ''))
+        with closing(self.connect()) as db, db:
+            db.execute('BEGIN IMMEDIATE'); self.require_module('showcase', db)
+            record = self.get(db, 'records', rid)
+            if record['status'] not in ('domestic', 'overseas', 'transit'): raise ValidationError('只能为当前收藏副本生成数字实体')
+            registry = self._twins(db)
+            # A lost HTTP response cannot turn the same accepted request into another task.
+            receipt = next((j for j in registry['jobs'].values() if j['recordId'] == rid and j['requestId'] == request_id), None)
+            if receipt: return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': self._public_twin(receipt, record)}
+            latest_id = registry['latest'].get(rid); latest = registry['jobs'].get(latest_id)
+            if latest is None and body.get('expectedJobId') is not None:
+                raise ConflictError('任务历史已变化，请刷新状态后重新发起')
+            if latest:
+                shown = self._public_twin(latest, record)
+                changed_input = shown['status'] == 'stale' and body.get('expectedJobId') == latest_id
+                if latest['status'] in ('queued', 'running') and changed_input:
+                    latest.update(status='stale', error='副本资料已变化，旧生成已停止', leaseUntil=0)
+                    latest.pop('claim', None); latest['seq'] += 1
+                elif latest['status'] in ('queued', 'running') or shown['status'] == 'succeeded' or body.get('expectedJobId') != latest_id:
+                    return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': shown}
+            if body.get('recordRevision') != record['revision']: raise ConflictError('副本已在其他窗口修改，请刷新后再生成')
+            ident = uid(); folder = self._twin_folder(ident); folder.mkdir(parents=True)
+            sources = {}
+            # Freeze photo identity before the worker or subsequent edits can reorder it.
+            for index in range(record.get('photoCount', 0)):
+                found = sorted((self.photos_dir / rid).glob(str(index) + '.*'))
+                if not found: raise ConflictError('实物照片未保存完整，请稍后重试')
+                ext, mime = image_type(found[0].read_bytes()); name = f'photo-{index}.{ext}'
+                shutil.copyfile(found[0], folder / name)
+                sources['photo:' + str(index)] = {'asset': name, 'mime': mime, 'origin': 'record-photo', 'sourceUrl': ''}
+            cover_name = record.get('cover', '').split('/')[-1]
+            if re.fullmatch(r'[0-9a-f]{16}\.(jpg|png|webp)', cover_name) and (self.covers_dir / cover_name).is_file():
+                raw = (self.covers_dir / cover_name).read_bytes(); ext, mime = image_type(raw); name = 'cover.' + ext
+                (folder / name).write_bytes(raw); sources['cover'] = {'asset': name, 'mime': mime, 'origin': 'record-cover', 'sourceUrl': ''}
+            job = {'id': ident, 'recordId': rid, 'requestId': request_id, 'skill': SKILL_VERSION,
+                   'status': 'queued', 'phase': 'queued', 'message': '等待生成 agent', 'error': '', 'seq': 0,
+                   'input': appearance(record), 'inputRevision': record['revision'], 'instructions': instructions.strip(),
+                   'releaseId': edition, 'sources': sources, 'createdAt': now(), 'updatedAt': now(), 'leaseUntil': 0}
+            registry['jobs'][ident] = job; registry['latest'][rid] = ident
+            self._write_twins(db, registry, job); self.audit(db, '请求生成数字实体', {'id': rid, 'taskId': ident, 'skill': SKILL_VERSION})
+            return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': self._public_twin(job, record)}
+
+    def claim_twin(self, owner, stamp=None):
+        stamp = time.time() if stamp is None else stamp
+        with closing(self.connect()) as db, db:
+            db.execute('BEGIN IMMEDIATE'); registry = self.meta_get(db, TWIN_KEY)
+            if not registry: return None
+            try: self.require_module('showcase', db)
+            except ValidationError: return None
+            changed = False
+            for job in registry['jobs'].values():
+                if job['status'] == 'running' and job.get('leaseUntil', 0) <= stamp:
+                    job.update(status='interrupted', error='生成服务中断，结果未发布；请手动重试', leaseUntil=0)
+                    job.pop('claim', None); job['seq'] += 1; changed = True
+            selected = next((j for j in registry['jobs'].values() if j['status'] == 'queued'), None)
+            if selected:
+                record = self.get(db, 'records', selected['recordId'])
+                if not same_appearance(record, selected['input']): selected.update(status='stale', error='生成前副本资料已变化')
+                else: selected.update(status='running', owner=owner, claim=uid(), leaseUntil=stamp + 90)
+                self._write_twins(db, registry, selected)
+                return selected if selected['status'] == 'running' else None
+            if changed: self._write_twins(db, registry)
+            return None
+
+    def heartbeat_twin(self, ident, claim, stamp=None):
+        with closing(self.connect()) as db, db:
+            db.execute('BEGIN IMMEDIATE'); registry = self._twins(db); job = registry['jobs'].get(ident)
+            if not job or job['status'] != 'running' or job.get('claim') != claim: return False
+            job['leaseUntil'] = (time.time() if stamp is None else stamp) + 90
+            # Heartbeats do not change the public version or emit fake progress.
+            db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)', (TWIN_KEY, dumps(registry)))
+            return True
+
+    def update_twin(self, ident, claim, **patch):
+        allowed = {'phase', 'message', 'status', 'error', 'candidates', 'entity'}
+        if set(patch) - allowed: raise ValidationError('生成任务更新字段无效')
+        with closing(self.connect()) as db, db:
+            db.execute('BEGIN IMMEDIATE'); registry = self._twins(db); job = registry['jobs'].get(ident)
+            if not job or job['status'] != 'running' or job.get('claim') != claim: return False
+            if patch.get('status') == 'succeeded':
+                self.require_module('showcase', db); record = self.get(db, 'records', job['recordId'])
+                if not same_appearance(record, job['input']): patch = {'status': 'stale', 'error': '生成期间副本资料已修改，旧结果未发布'}
+                else:
+                    folder = self._twin_folder(ident)
+                    if not all((folder / s['asset']).is_file() for s in patch['entity']['surfaces'].values()):
+                        raise ValidationError('生成资源不完整，结果未发布')
+                    self.audit(db, '完成数字实体', {'id': job['recordId'], 'taskId': ident})
+            job.update(patch)
+            if job['status'] != 'running': job.pop('claim', None); job['leaseUntil'] = 0
+            self._write_twins(db, registry, job); return True
+
+    def cancel_twin(self, ident):
+        if not isinstance(ident, str) or not TWIN_ID.fullmatch(ident): raise ValidationError('生成任务编号无效')
+        with closing(self.connect()) as db, db:
+            db.execute('BEGIN IMMEDIATE'); self.require_module('showcase', db); registry = self._twins(db)
+            job = registry['jobs'].get(ident)
+            if not job: raise ValidationError('生成任务不存在')
+            if job['status'] in ('queued', 'running', 'needs_input'):
+                job.update(status='cancelled', error='', message='已取消生成', leaseUntil=0); job.pop('claim', None)
+                self._write_twins(db, registry, job)
+            return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': self._public_twin(job)}
+
+    def twin_source(self, ident, name):
+        if not isinstance(name, str) or not TWIN_ASSET.fullmatch(name): raise ValidationError('数字实体资源名无效')
+        path = self._twin_folder(ident) / name
+        if not path.is_file(): raise ValidationError('数字实体资源不存在')
+        return path
+
+    def write_twin_source(self, ident, claim, name, raw):
+        if not isinstance(name, str) or not TWIN_ASSET.fullmatch(name) or len(raw) > 24 * 1024 * 1024:
+            raise ValidationError('数字实体图片过大或文件名无效')
+        image_type(raw)
+        with closing(self.connect()) as db, db:
+            db.execute('BEGIN IMMEDIATE'); registry = self._twins(db); job = registry['jobs'].get(ident)
+            if not job or job['status'] != 'running' or job.get('claim') != claim: raise ConflictError('生成任务已停止')
+            path = self._twin_folder(ident) / name
+            temp = path.with_suffix('.tmp'); temp.write_bytes(raw); temp.replace(path)
+        return path
+
+    def published_twin_asset(self, ident, name):
+        with closing(self.connect()) as db:
+            registry = self._twins(db); job = registry['jobs'].get(ident)
+            if not job or job['status'] != 'succeeded' or not any(s['asset'] == name for s in job['entity']['surfaces'].values()):
+                raise ValidationError('数字实体资源尚未发布')
+        return self.twin_source(ident, name)
 
     # ── 艺人身份绑定与副本-作品关联（meta 持久化；调用方先完成外部核验，
     #    这里在单事务内重读当前值并校验预期，竞争失败抛 ConflictError → 409）──

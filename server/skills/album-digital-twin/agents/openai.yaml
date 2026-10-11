@@ -1,0 +1,4 @@
+interface:
+  display_name: "专辑实物数字孪生"
+  short_description: "按具体 CD 发行版本获取实物图集并校准包装、书脊和盘面模型"
+  default_prompt: "使用 $album-digital-twin 为这张 CD 查询同版实物图并校准可交互包装模型。"

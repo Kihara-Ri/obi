@@ -19,7 +19,8 @@ PROMPT = '''你负责根据同一个实体 CD 副本的多张照片提取资料�
 "releaseInfo":{"catalogNumber":"","barcode":"","label":"","country":"","releaseDate":"","edition":"",
 "format":"","discCount":"","matrix":"","extras":"","observations":"","tracklist":[]}},
 "evidence":[{"field":"","value":"","photo":1,"note":""}],"warnings":[]}
-未知用空字符串。保留原文与续作编号。version 是碟盒（Jewel Case/纸盒/Digipak），pressing 仅日版/外版/空，
+未知用空字符串。保留原文与续作编号。version 是包装，能确认结构时使用专业名称：Jewel Case、Slimline Jewel Case、Multi-CD Jewel Case、Card Sleeve、Gatefold Sleeve、Digisleeve、Digipak、Digibook、Rigid Box、Mini LP Sleeve。
+Digipak 需要纸壳和塑料托盘的可见依据；纸ジャケット/Mini LP 仅表示系列或风格，不能仅凭封面推断是否见开き、口袋或托盘；2CD 不等于厚盒。不能确认结构时保留照片中明确的包装原文或留空并写入 warnings。pressing 仅日版/外版/空，
 obi 仅日版且照片看到侧标时填带侧标；没看到不代表缺失。edition 为照片明确支持的初回/通常/再版等细分信息。
 发行日不等于购入日，定价不等于买入价。catalogNumber 是唱片编号，barcode 是条码，matrix 是内圈刻码。
 附件只描述实际看到的，不能推断齐全；observations 仅描述可见包装/实物情况，不能断言播放正常、无划痕、正品、全新、首版或绝版。
@@ -110,6 +111,26 @@ class VisionService:
         with self.config_lock:
             return {k:v for k,v in self.config.items() if k != 'apiKey'} | {
                 'hasKey':bool(self.config['apiKey']), 'configured':bool(self.config['baseUrl'] and self.config['model'])}
+
+    def agent_json(self, skill, instruction, images=(), on_start=None):
+        """Skill agent steps share configured model credentials and concurrency slots."""
+        with self.config_lock: config = dict(self.config)
+        if not config['baseUrl'] or not config['model']: raise ValidationError('请先在设置中配置视觉模型')
+        with self.slot():
+            if on_start: on_start()
+            endpoint = config['baseUrl']
+            if not endpoint.endswith('/chat/completions'): endpoint += '/chat/completions'
+            response = read_json(endpoint, {'model': config['model'], 'messages': [
+                {'role': 'system', 'content': skill},
+                {'role': 'user', 'content': [{'type': 'text', 'text': instruction}] +
+                    [{'type': 'image_url', 'image_url': {'url': image}} for image in images]}]}, config['apiKey'], timeout=120)
+            try:
+                content = response['choices'][0]['message']['content']
+                result = json.loads(re.sub(r'^```(?:json)?\s*|\s*```$', '', content.strip()))
+                if not isinstance(result, dict): raise ValueError()
+                return result
+            except (KeyError, IndexError, TypeError, ValueError, AttributeError):
+                raise ValidationError('生成 agent 没有返回有效的结构化结果') from None
 
     def configure(self, body):
         with self.config_lock:

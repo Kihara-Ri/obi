@@ -12,6 +12,8 @@ import {openSaleForm} from './SaleForm';
 import {openListingForm} from './ListingForm';
 import {bulkAction} from './shared';
 import {releaseLabels} from '../core/recognition';
+import {formatPackagingName} from '../core/album-packaging';
+import {TwinControls} from '../components/TwinControls';
 
 export interface DetailBack {
   label?: string;
@@ -46,7 +48,7 @@ function DetailBody({id, back}: {id: string; back?: DetailBack}) {
     ['额外费用（含运费分摊）', r.fees && Number(r.fees) ? yuan(r.fees) : '—'],
     ] as [string, React.ReactNode][] : []),
     ['存放位置', r.storage || '—'],
-    ['碟盒', r.version || '—'],
+    ['包装（碟盒）', formatPackagingName(r.version, r.packaging) || '—'],
     ['版次', r.pressing ? (r.pressing === '日版' && r.obi ? `${r.pressing}（${r.obi}）` : r.pressing) : '—'],
   ];
   return (
@@ -73,6 +75,10 @@ function DetailBody({id, back}: {id: string; back?: DetailBack}) {
           </dd></div>
         ))}
       </dl>
+      {r.packaging && formatPackagingName(r.version, r.packaging) !== r.version && r.version ? <p className="small-note">原碟盒记录：{r.version}</p> : null}
+      {modules.showcase && ['domestic', 'overseas', 'transit'].includes(r.status) ? <>
+        <h3 className="section-title">数字实体</h3><TwinControls record={r}/>
+      </> : null}
       {app.modules.trading && (r.listingChannel || r.listingUrl) ? <>
         <h3 className="section-title">上架资料</h3>
         <p className="small-note">{r.listingChannel || '未填写平台'}

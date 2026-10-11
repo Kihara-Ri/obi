@@ -253,6 +253,21 @@ def api_import_photo(h, svc):
     h.send(path.read_bytes(),mime=mimetypes.guess_type(path.name)[0] or 'image/jpeg')
 
 
+def twins(svc):
+    if svc.twins is None: raise ValidationError('数字实体服务未启动，请重启碟渡')
+    return svc.twins
+
+
+def api_twins(h, svc): h.send(twins(svc).index())
+def api_twin_start(h, svc, body): h.send(twins(svc).start_task(body))
+def api_twin_cancel(h, svc, body): h.send(twins(svc).cancel(body.get('id')))
+def api_twin_asset(h, svc):
+    parts = urlsplit(h.path).path.split('/')
+    if len(parts) != 5: raise ValidationError('数字实体资源地址无效')
+    path = svc.store.published_twin_asset(parts[3], parts[4])
+    h.send(path.read_bytes(), mime=mimetypes.guess_type(path.name)[0] or 'image/jpeg', cache='private, max-age=31536000, immutable')
+
+
 def api_recognize(h, svc, body):
     rid = body.get('recordId')
     if rid:
@@ -283,6 +298,7 @@ GET = {
     '/api/vision/release': api_release,
     '/api/imports': api_imports,
     '/api/imports/draft': api_import_draft,
+    '/api/twins': api_twins,
 }
 PUBLIC_GET = {  # 免登录（监控与部署探测）
     '/api/health',
@@ -292,6 +308,7 @@ GET_PREFIX = {  # 带路径参数的接口
     '/api/cover/': api_cover,
     '/api/import-photo/': api_import_photo,
     '/api/artists/artwork/': api_artists_artwork,
+    '/api/twin-assets/': api_twin_asset,
 }
 POST = {
     # path: (处理函数, 需要登录, 需要 WRITE_LOCK)
@@ -325,6 +342,8 @@ POST = {
     '/api/imports/start': (api_import_start, True, False),
     '/api/imports/commit': (api_import_commit, True, True),
     '/api/imports/delete': (api_import_delete, True, False),
+    '/api/twins/start': (api_twin_start, True, True),
+    '/api/twins/cancel': (api_twin_cancel, True, True),
 }
 
 # 允许跨站（外部页面）调用的写接口；当前为空，保留豁免管线供未来令牌鉴权回调使用

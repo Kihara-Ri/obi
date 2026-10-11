@@ -1,0 +1,61 @@
+import assert from 'node:assert/strict';
+import {after, test} from 'node:test';
+import {mkdtempSync, rmSync, writeFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import ts from 'typescript';
+
+const output = mkdtempSync(join(tmpdir(), 'diedu-twin-state-test-'));
+const source = fileURLToPath(new URL('../src/', import.meta.url));
+const program = ts.createProgram([join(source, 'core/digital-twins.ts'), join(source, 'core/album-model-assets.ts')], {
+  target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, strict: true, skipLibCheck: true, types: [], rootDir: source, outDir: output,
+});
+assert.equal(ts.getPreEmitDiagnostics(program).length, 0); assert.equal(program.emit().emitSkipped, false);
+writeFileSync(join(output, 'package.json'), '{"type":"commonjs"}');
+const {mergeTwinIndex, twinViewerRecord, twinBusy} = createRequire(import.meta.url)(join(output, 'core/digital-twins.js'));
+const {albumTextureSource} = createRequire(import.meta.url)(join(output, 'core/album-model-assets.js'));
+after(() => rmSync(output, {recursive: true, force: true}));
+
+const ready = {id: 'task2', recordId: 'copy', seq: 9, status: 'succeeded', error: '', entity: {
+  packaging: {structure: 'gatefold', discs: 2}, warnings: [],
+  surfaces: {front: {asset: 'caa-123.jpg', region: [.1, .1, .9, .1, .9, .9, .1, .9]}, back: {asset: 'photo-0.png'}},
+}};
+
+test('完成后迟到的排队/运行响应不会回退状态，旧 epoch 不共用任务身份', () => {
+  const current = {epoch: 'one', revision: 19, configured: true, jobs: {copy: ready}};
+  const delayed = {epoch: 'one', revision: 17, configured: true, jobs: {copy: {...ready, seq: 7, status: 'running'}}};
+  assert.equal(mergeTwinIndex(current, delayed), current);
+  const restored = {epoch: 'two', revision: 1, configured: true, jobs: {}};
+  assert.equal(mergeTwinIndex(current, restored), restored);
+});
+
+test('重复轮询保留已完成实体的对象身份，避免重建模型或丢失旋转位置', () => {
+  const current = {epoch: 'one', revision: 19, configured: true, jobs: {copy: ready}};
+  const next = structuredClone(current); next.revision = 20;
+  assert.equal(mergeTwinIndex(current, next).jobs.copy, ready);
+  next.jobs.copy.status = 'stale'; next.jobs.copy.error = 'input changed';
+  assert.notEqual(mergeTwinIndex(current, next).jobs.copy, ready);
+});
+
+test('只有已发布实体能进入 3D；包装资料本身、生成中与失败结果保持 2D', () => {
+  const record = {id: 'copy', packaging: {structure: 'gatefold'}, cover: '/api/cover/original.png'};
+  assert.equal(twinViewerRecord(record), null);
+  for (const status of ['queued', 'running', 'failed', 'needs_input', 'cancelled', 'stale', 'interrupted'])
+    assert.equal(twinViewerRecord(record, {...ready, status}), null);
+  assert.equal(twinViewerRecord(record, {...ready, entity: null}), null);
+  assert.equal(twinBusy({...ready, status: 'running'}), true);
+  assert.equal(twinBusy(ready), false);
+});
+
+test('模型引用不可变任务资产与独立四角区域，不改副本照片或原封面', () => {
+  const record = Object.freeze({id: 'copy', photoCount: 3, revision: 5, cover: '/api/cover/original.png',
+    packaging: Object.freeze({structure: 'jewel', photos: Object.freeze({front: 2})})});
+  const view = twinViewerRecord(record, ready);
+  assert.equal(view.packaging.structure, 'gatefold');
+  assert.equal(albumTextureSource(view, 'front'), '/api/twin-assets/task2/caa-123.jpg');
+  assert.equal(albumTextureSource(view, 'disc'), '');
+  assert.deepEqual(view.packaging.photoRegions.front, ready.entity.surfaces.front.region);
+  assert.equal(record.packaging.structure, 'jewel'); assert.equal(record.cover, '/api/cover/original.png');
+});

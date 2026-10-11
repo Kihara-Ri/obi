@@ -51,6 +51,8 @@
 .gallery-case--sleeve{--case-depth:2px;--case-rim:var(--border);--case-edge:var(--border-strong)}
 .gallery-case--sleeve .gallery-case-face--front{padding:1px;border-radius:2px}
 .gallery-case--sleeve .gallery-case-face--front::after{background:none;box-shadow:inset 0 0 0 1px var(--hairline)}
+.gallery-case--rigid-box{--case-rim:var(--album-paper-edge);--case-edge:var(--album-paper-base)}
+.gallery-case--unknown .gallery-case-face{border-color:var(--border-strong);background:var(--surface-3)}
 .gallery-case--flat{--case-half:0px;transform-style:flat}
 .gallery-case--flat .gallery-case-body{overflow:hidden;border-radius:2px;transform:translateY(0);transform-style:flat}
 .gallery-case--flat .gallery-case-shadow{transform:none;box-shadow:var(--shadow-sm)}

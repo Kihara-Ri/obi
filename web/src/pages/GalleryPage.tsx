@@ -1,6 +1,6 @@
-import {useEffect, useMemo, useRef, useState} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useApp} from '../state/AppContext';
-import {GALLERY_MODES, GALLERY_ROAMING_DEFAULTS, galleryIndex, galleryModeHasFocus, galleryRecords, readGalleryPreferences, saveGalleryPreferences, showcaseGroups} from '../core/gallery';
+import {GALLERY_MODES, GALLERY_ROAMING_DEFAULTS, galleryIndex, galleryModeHasFocus, galleryRecords, isCollectedRecord, readGalleryPreferences, saveGalleryPreferences, showcaseGroups} from '../core/gallery';
 import type {GalleryDensity, GalleryPreferences, GallerySort, GalleryScope, ShowcaseGroup} from '../core/gallery';
 import {PageHead} from '../components/PageHead';
 import {GalleryStage} from '../components/GalleryStage';
@@ -12,7 +12,8 @@ import {Dropdown} from '../components/ui/Dropdown';
 import {Seg} from '../components/ui/Seg';
 import {ChevDownIco} from '../components/icons';
 import {openArtistDrawer} from '../forms/ArtistDrawer';
-import {openDetail} from '../forms/DetailDrawer';
+import {requestAlbumOrientationPermission} from '../components/useAlbumOrientation';
+import type {AlbumOrientationPermission} from '../components/useAlbumOrientation';
 import {ShowcaseGroupForm} from '../forms/ShowcaseGroupForm';
 
 const SORTS = [
@@ -27,6 +28,10 @@ export function GalleryPage() {
   const [immersive, setImmersive] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
   const [roaming, setRoaming] = useState(false);
+  const [focused, setFocused] = useState<{id: string; permission: Promise<AlbumOrientationPermission>} | null>(null);
+  const focusEntry = useRef(false);
+  const focusClosing = useRef(false);
+  const focusedRecord = focused ? app.rec(focused.id) : undefined;
   const [reducedMotion, setReducedMotion] = useState(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
   const ownsFullscreen = useRef(false);
   const mounted = useRef(true);
@@ -132,20 +137,41 @@ export function GalleryPage() {
     return () => document.removeEventListener('keydown', onEscape);
   }, [immersive]);
 
+  const closeFocus = useCallback(() => {
+    if (focusClosing.current) return;
+    if (focusEntry.current && history.state?.diedu === 'gallery-focus') {
+      // Keep the modal and its guard until Back finishes; a second tap cannot
+      // reopen a cover or consume another page's history during this window.
+      focusClosing.current = true; history.back(); return;
+    }
+    focusEntry.current = false;
+    setFocused(null);
+  }, []);
+  useEffect(() => {
+    const popped = () => {
+      if (!focusEntry.current) return;
+      focusEntry.current = false; focusClosing.current = false; setFocused(null);
+    };
+    window.addEventListener('popstate', popped);
+    return () => {
+      window.removeEventListener('popstate', popped);
+      if (focusEntry.current && !focusClosing.current && history.state?.diedu === 'gallery-focus') history.back();
+      focusEntry.current = false; focusClosing.current = false;
+    };
+  }, []);
+  useEffect(() => {
+    if (focused && (!focusedRecord || !isCollectedRecord(focusedRecord))) closeFocus();
+  }, [focused, focusedRecord, closeFocus]);
   const focus = (id: string) => {
-    pick(id);
-    const ids = records.map(r => r.id);
-    const restore = (recordId: string) => focus(recordId);
-    app.openDrawer({
-      title: '收藏展示', wide: true,
-      content: <GalleryFocus key={id} ids={ids} initialId={id} onPick={pick}
-        onArtist={(artist, recordId) => openArtistDrawer(app, artist,
-          {back: {label: '返回展示', run: () => restore(recordId)}})}
-        onDetail={recordId => openDetail(app, recordId, {label: '返回展示', run: () => restore(recordId)})}/>,
-    });
+    if (focusEntry.current) return;
+    const permission = app.twins.jobs[id]?.status === 'succeeded'
+      ? requestAlbumOrientationPermission() : Promise.resolve('unavailable' as const);
+    pick(id); history.pushState({diedu: 'gallery-focus'}, ''); focusEntry.current = true;
+    setFocused({id, permission});
   };
 
   return <div className={`gallery-page${immersive ? ' is-immersive' : ''}`}>
+    {focused && focusedRecord ? <GalleryFocus record={focusedRecord} permission={focused.permission} onClose={closeFocus}/> : null}
     <PageHead title="收藏展示" desc="把收藏铺开，慢慢看。"
               actions={<button type="button" className="quiet" onClick={immersive ? exitImmersive : enterImmersive}>
                 {immersive ? '退出沉浸' : '沉浸展示'}

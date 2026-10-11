@@ -25,6 +25,13 @@
   --seg-thumb:#3d4658; --vinyl-hole:#0e1014; --shadow-ink:rgba(0,0,0,.5);
   /* 黑胶盘体本色：中性真黑（真实唱片是纯黑，不带界面主题的蓝灰调），不随主题变化 */
   --vinyl-rim:#1f1f1f; --vinyl-ring:#111; --vinyl-body:#030303;
+  /* 碟盒材质本色不随界面主题改变；光泽使用固定环境光。 */
+  --album-plastic-light:#fff; --album-plastic-base:#c7cbd0; --album-plastic-edge:#80868e;
+  --album-plastic-dark:#34383e; --album-plastic-ink:#25282c;
+  --album-paper-base:#cfc5b2; --album-paper-edge:#a79c86; --album-paper-ink:#464237; --album-paper-cut:#e9e2d6;
+  --album-lightbox-bg:rgba(4,6,10,.9);
+  --album-tray-black:#151719; --album-tray-white:#f1f0e9; --album-tray-clear:rgba(203,211,218,.16);
+  --album-disc-base:#b8bec2; --album-disc-light:#f2f5f4; --album-disc-shade:#858c92; --album-disc-edge:#91989e;
   --radius:14px; --radius-sm:10px;
   --shadow:0 8px 28px rgba(0,0,0,.42);
   --shadow-sm:0 4px 14px rgba(0,0,0,.35);

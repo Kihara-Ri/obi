@@ -8,7 +8,10 @@ import {prefs} from '../core/prefs';
 import {matchRecords, norm, artistSuggestions} from '../core/search';
 import {useApp} from '../state/AppContext';
 import type {AppCtx} from '../state/AppContext';
-import type {AlbumRecord, Currency, Status, RecognitionResult, RecognitionFields, ReleaseInfo, VisionConfig} from '../types';
+import type {AlbumRecord, Currency, Status, RecognitionResult, RecognitionFields, ReleaseInfo, VisionConfig, PackagingSpec} from '../types';
+import {formatPackagingName, PACKAGING_PRESETS, packagingPreset, remapPackagingPhotos} from '../core/album-packaging';
+import {PackagingEditor} from '../components/PackagingEditor';
+import {Dropdown} from '../components/ui/Dropdown';
 import {listingText} from '../core/recognition';
 import {MAX_PHOTOS} from '../core/photos';
 import {RecognitionReview, ReleaseEditor} from '../components/Recognition';
@@ -26,7 +29,6 @@ interface CoverCandidate {
   thumbnail: string; exact: boolean;
 }
 
-const VERSION_PRESETS = ['Jewel Case', '纸盒', 'Digipak'];
 
 export function openRecordForm(app: AppCtx, id?: string) {
   app.openDrawer({title: id ? '编辑专辑' : '添加专辑', asForm: true, content: <RecordForm id={id}/>});
@@ -56,6 +58,7 @@ export function RecordForm({id}: {id?: string}) {
     location: base.current.location || '',
     fees: base.current.fees || '0',
     version: base.current.version || '',
+    packaging: base.current.packaging ?? null as PackagingSpec | null,
     pressing: base.current.pressing || '',
     obi: base.current.obi || '',
     note: base.current.note || '',
@@ -66,6 +69,7 @@ export function RecordForm({id}: {id?: string}) {
     listingDescription: base.current.listingDescription ?? '',
   }));
   const set = (patch: Partial<typeof v>) => setV(prev => ({...prev, ...patch}));
+  const [packagingError, setPackagingError] = useState<string | null>(null);
   const liveValues = useRef(v); liveValues.current = v;
   const dirty = () => app.setDrawerDirty(true);
 
@@ -291,7 +295,7 @@ export function RecordForm({id}: {id?: string}) {
 
   // 是否有实际改动：与打开表单时的快照逐字比对，改回原值会自动回到「未修改」态。
   // 照片槽只记序号/长度（data URL 太长），失败槽与保存口径一致地忽略。
-  const sign = () => JSON.stringify([v, base.current.cover || '',
+  const sign = () => JSON.stringify([v, packagingError, base.current.cover || '',
     photos.slots.map(p => 'existing' in p ? `e${p.existing}` : 'pending' in p ? 'p' : 'error' in p ? '' : `d${p.data.length}`),
     recognition ? {model:recognition.model,at:recognition.at,evidence:recognition.evidence,sources:recognition.sources,warnings:recognition.warnings} : base.current.recognition]);
   const pristine = useRef(sign());
@@ -300,8 +304,10 @@ export function RecordForm({id}: {id?: string}) {
 
   // ── 碟盒自定义输入 ──
   const [customVersion, setCustomVersion] = useState(
-    !!v.version && !VERSION_PRESETS.includes(v.version));
-  const isCustomSeg = !!v.version && !VERSION_PRESETS.includes(v.version);
+    packagingPreset(v.version, v.packaging) === '__custom');
+  const showCustomVersion = customVersion || packagingPreset(v.version, v.packaging) === '__custom';
+  const packagingKey = packagingPreset(v.version, v.packaging);
+  useEffect(() => {setPackagingError(null);}, [packagingKey]);
 
   const pressingOptions = (() => {
     const os = [{value: '', label: '未设置'}, {value: '日版', label: '日版'}, {value: '外版', label: '外版'}];
@@ -315,6 +321,7 @@ export function RecordForm({id}: {id?: string}) {
     const miss = names.filter(([k]) => !String((v as Record<string, unknown>)[k] ?? '').trim());
     if (miss.length) { setError('请填写：' + miss.map(([, n]) => n).join('、')); return; }
     if (photos.hasPending) { setError('还有照片在处理中，等缩略图就绪后再保存'); return; }
+    if (packagingError) {setError(packagingError); return;}
     run(app, async () => {
       const payload: Record<string, unknown> = {...base.current, ...v, status: v.status || where || base.current.status};
       delete payload.cost;
@@ -330,6 +337,7 @@ export function RecordForm({id}: {id?: string}) {
       }
       payload.photos = photos.slots.filter(p => !('error' in p))
         .map(p => 'existing' in p ? p.existing : (p as {data: string}).data);
+      payload.packaging = remapPackagingPhotos(v.packaging, photos.slots.map((_, i) => i).filter(i => !('error' in photos.slots[i])));
       if (modules.acquisition) {
         prefs.set('location', v.location);
         prefs.set('currency', v.currency);
@@ -346,7 +354,10 @@ export function RecordForm({id}: {id?: string}) {
         <section className="record-photo-entry" onDragOver={e => e.preventDefault()}
           onDrop={e => {e.preventDefault();const files=[...e.dataTransfer.files];if(files.length){photos.addFiles(files);clearRecognition();dirty();}}}>
           <div className="record-photo-head"><strong>实物照片</strong><small>可拖入或多选 · 每张副本最多 {MAX_PHOTOS} 张</small></div>
-          <PhotoThumbs slots={photos.slots} recordId={r?.id ?? null} onRemove={i => {photos.remove(i);clearRecognition();dirty();}}/>
+          <PhotoThumbs slots={photos.slots} recordId={r?.id ?? null} onRemove={i => {
+            set({packaging: remapPackagingPhotos(v.packaging, photos.slots.map((_, k) => k).filter(k => k !== i))});
+            photos.remove(i);clearRecognition();dirty();
+          }}/>
           <div className="photo-actions">
             <button type="button" onClick={() => fileInput.current?.click()}>{CamIco}<span>添加照片</span></button>
             <button type="button" className="primary" disabled={!visionConfigured || !photos.slots.length || photos.hasPending || recognizing}
@@ -446,24 +457,28 @@ export function RecordForm({id}: {id?: string}) {
 
         <div className="form-section form-grid">
           <div className="field full">
-            <label>碟盒（选填）</label>
-            <Seg ariaLabel="碟盒"
+            <label>包装（碟盒，选填）</label>
+            <Dropdown id="record-packaging" label="专辑包装"
                  options={[
                    {value: '__none', label: '未设置'},
-                   ...VERSION_PRESETS.map(p => ({value: p, label: p})),
-                   {value: '__custom', label: '自定义…'},
+                   ...PACKAGING_PRESETS.map(p => ({value: p.value, label: p.label})),
+                   {value: '__custom', label: '其他 / 待核对…'},
                  ]}
-                 value={isCustomSeg ? '__custom' : (v.version || '__none')}
-                 onValue={val => {
+                 value={showCustomVersion ? '__custom' : packagingPreset(v.version, v.packaging)}
+                 onPick={val => {
                    dirty();
-                   if (val === '__custom') { setCustomVersion(true); return; }
+                   if (val === '__custom') {setCustomVersion(true); set({packaging: {...v.packaging, structure: 'unknown'}}); return;}
                    setCustomVersion(false);
-                   set({version: val === '__none' ? '' : val});
+                   setPackagingError(null);
+                   if (val === '__none') {set({version: '', packaging: null}); return;}
+                   const preset = PACKAGING_PRESETS.find(p => p.value === val)!;
+                   set({version: r?.version ? v.version : preset.label, packaging: {...v.packaging, ...preset.spec}});
                  }}/>
             <input id="f-version" name="version" value={v.version}
-                   placeholder="填写其他碟盒类型，如 初回限定" autoComplete="off"
-                   hidden={!customVersion}
-                   onChange={e => { set({version: e.target.value}); dirty(); }}/>
+                   placeholder="保留原包装描述，或填写专业名称" autoComplete="off"
+                   hidden={!showCustomVersion}
+                   onChange={e => {const next = {...v.packaging}; delete next.structure; set({version: e.target.value, packaging: next}); dirty(); }}/>
+            {!showCustomVersion && v.version && formatPackagingName(v.version, v.packaging) !== v.version ? <small className="packaging-original">原碟盒记录：{v.version}</small> : null}
           </div>
           <div className="field">
             <span className="field-label"><label>版次（选填）</label></span>
@@ -493,7 +508,14 @@ export function RecordForm({id}: {id?: string}) {
           <button type="button" className="quiet" onClick={() => {set({listingDescription:listingText(v)});dirty();}}>从当前资料生成描述</button>
         </details>
         <details className="adv">
-          <summary>更多信息</summary>
+          <summary>包装细节与更多信息</summary>
+          <PackagingEditor key={packagingKey} version={v.version} value={v.packaging} onChange={packaging => {
+            const name = formatPackagingName(v.version, packaging);
+            set({packaging, version: !r && name !== '待核对' ? name : v.version});setCustomVersion(false);dirty();
+          }}
+            onValidity={setPackagingError} photos={photos.slots.flatMap((p, index) => 'existing' in p
+              ? [{index, source: '/api/photo/' + r?.id + '/' + p.existing + '?v=' + r?.revision}]
+              : 'data' in p ? [{index, source: p.data}] : [])}/>
           <div className="form-grid">
             {modules.circulation ? <Field label="存放位置（选填）" name="storage" value={v.storage}
               placeholder="例如：书房第二层" onChange={e => { set({storage: e.target.value}); dirty(); }}/> : null}

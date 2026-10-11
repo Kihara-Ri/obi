@@ -12,6 +12,7 @@ import {Seg} from '../components/ui/Seg';
 import {Dropdown} from '../components/ui/Dropdown';
 import {ShopField} from '../components/ShopField';
 import {RecognitionReview, ReleaseEditor} from '../components/Recognition';
+import {PACKAGING_PRESETS} from '../core/album-packaging';
 
 interface DraftSummary {id: string; updatedAt: string; photoCount: number; groupCount: number}
 const statusLabels = {idle:'待识别',queued:'排队中',running:'识别中',done:'识别完成',error:'识别失败'};
@@ -194,8 +195,10 @@ export function BatchForm() {
         {g.photoIds.length>MAX_PHOTOS ? <p className="recognition-warnings">这一组超过 {MAX_PHOTOS} 张照片，请先点击照片间的分隔线切组。</p> : null}
         {g.error ? <p className="error" role="alert">{g.error}</p> : null}
         <fieldset disabled={!editable||!!g.savedId||g.excluded} className="import-fields">
+          <datalist id={'batch-packaging-names-' + g.id}>{PACKAGING_PRESETS.map(p => <option key={p.value} value={p.label}/>)}</datalist>
           <div className="import-basic-fields">{([['title','专辑名'],['artist','艺人'],...(modules.acquisition ? [['price','买入金额（选填）']] : []),['version','碟盒'],['pressing','日版／外版'],['obi','侧标']] as [keyof RecognitionFields,string][]).map(([key,label]) => <div className="field" key={key}>
-            <label htmlFor={`${g.id}-${key}`}>{label}</label><input id={`${g.id}-${key}`} name={`batch-${key}`} value={String(g.fields[key]??'')}
+            <label htmlFor={`${g.id}-${key}`}>{key === 'version' ? '包装（专业名称）' : label}</label><input id={`${g.id}-${key}`} name={`batch-${key}`} value={String(g.fields[key]??'')}
+              list={key === 'version' ? 'batch-packaging-names-' + g.id : undefined}
               type={key==='price' ? 'number' : 'text'} min={key==='price' ? '0' : undefined}
               step={key==='price' ? (draft.common.currency==='JPY' ? 'any' : '0.01') : undefined}
               inputMode={key==='price' ? (draft.common.currency==='JPY' ? 'numeric' : 'decimal') : undefined}

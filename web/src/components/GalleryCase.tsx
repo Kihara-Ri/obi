@@ -1,10 +1,12 @@
 import type {AlbumRecord} from '../types';
 import {GalleryArtwork} from './GalleryMedia';
+import {albumPackaging} from '../core/album-packaging';
 
 /** The rail moves the button; this inner body handles only contact lift. */
 export function GalleryCase({record, spatial = false}: {record: AlbumRecord; spatial?: boolean}) {
-  const sleeve = ['纸盒', '纸套', 'digipak'].includes(record.version.trim().toLowerCase());
-  return <span className={`gallery-case gallery-case--${spatial ? 'spatial' : 'flat'}${sleeve ? ' gallery-case--sleeve' : ''}`}>
+  const kind = albumPackaging(record.version, record.packaging).kind;
+  const sleeve = ['card-sleeve', 'gatefold', 'digipak', 'digibook'].includes(kind);
+  return <span className={`gallery-case gallery-case--${spatial ? 'spatial' : 'flat'} gallery-case--${kind}${sleeve ? ' gallery-case--sleeve' : ''}`}>
     <span className="gallery-case-shadow" aria-hidden="true"/>
     <span className="gallery-case-body">
       {spatial ? <>

@@ -6,6 +6,7 @@ import {applyThemePref, themePref} from './core/theme';
 import type {ThemePref} from './core/theme';
 import {useHashRoute} from './hooks/useHashRoute';
 import {AppContext} from './state/AppContext';
+import {useDigitalTwins} from './state/useDigitalTwins';
 import type {AppCtx, DrawerSpec} from './state/AppContext';
 import type {AppState, SortMode} from './types';
 import {Ledger} from './components/PageHead';
@@ -93,6 +94,7 @@ export default function App() {
     : state ? normalizeModules(state.modules?.enabled ?? LEGACY_MODULES) : undefined;
   const home = modules ? homePage(state?.modules?.startPage, modules) : 'domestic';
   const page = !route ? home : modules && !pageEnabled(route, modules) ? 'domestic' : route;
+  const twinState = useDigitalTwins(!!modules?.showcase);
 
   const refresh = useCallback(async () => { setState(await api<AppState>('state')); }, []);
 
@@ -377,7 +379,7 @@ export default function App() {
     selected, setSelected,
     theme, setTheme,
     rec: id => state.records.find(r => r.id === id),
-    refresh, toast,
+    refresh, toast, ...twinState,
     openDrawer, closeDrawer, setDrawerDirty,
   };
 

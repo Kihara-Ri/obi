@@ -23,6 +23,7 @@ from server.artists import ArtistService
 from server.routes import WRITE_LOCK
 from server.version import version
 from server.recognition import VisionService
+from server.digital_twins import DigitalTwinService
 from storage import Store
 
 ROOT = Path(__file__).resolve().parent
@@ -35,9 +36,10 @@ def build(data_dir, public_origin=None):
     store = Store(data / 'albums.sqlite3', rates)
     mb = MusicBrainzClient()
     covers = CoverService(data / 'cover-cache.sqlite3', mb=mb)
+    vision = VisionService(store, covers, mb=mb)
     return Services(store=store,
                     auth=Auth(data / 'auth.sqlite3'),
-                    covers=covers, vision=VisionService(store, covers, mb=mb),
+                    covers=covers, vision=vision, twins=DigitalTwinService(store, vision, mb),
                     artists=ArtistService(store, mb, covers, write_lock=WRITE_LOCK),
                     rates=rates,
                     public_origin=public_origin)
@@ -85,6 +87,7 @@ def main():
     if not args.no_seed: seed_from_json(svc.store)
     svc.backups = Backups(svc.store.path); svc.backups.start()
     svc.artists.start_prewarm()  # 后台预取存量未绑定艺人（账本写入后的增量由路由触发）
+    svc.twins.start()
     server = ThreadingHTTPServer((args.host, args.port), make_handler(svc))
     print(f'碟渡已启动：http://{args.host}:{args.port}（版本 {version()}）', flush=True)
 
@@ -97,6 +100,7 @@ def main():
         server.serve_forever()
     finally:
         server.server_close()
+        svc.twins.stop()
         svc.vision.close()
         print('碟渡已停止', flush=True)
 

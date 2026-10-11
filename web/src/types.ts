@@ -1,11 +1,56 @@
 // API 数据模型：与 storage.py 的 state() 输出一一对应。
 // 金额一律是字符串（服务端 Decimal 量化到分），显示时再转 Number。
+import {formatPackagingName} from './core/album-packaging';
 
 export type Status = 'overseas' | 'transit' | 'domestic' | 'shipping' | 'sold' | 'trash';
 export type SaleStatus = 'shipping' | 'complete' | 'cancelled' | 'returned' | 'refunded';
 export type ShipmentStatus = 'transit' | 'arrived' | 'cancelled';
 export type Currency = 'JPY' | 'CNY';
 export type SortMode = 'new' | 'cost' | 'artist';
+
+export type PackagingStructure = 'jewel' | 'card-sleeve' | 'gatefold' | 'digipak' | 'digibook' | 'rigid-box' | 'unknown';
+export type PackagingPhotoRole = 'front' | 'back' | 'spine' | 'insideSpine' | 'insideLeft' | 'insideRight' | 'insideCenter' | 'insideExtra' | 'disc' | 'disc2' | 'disc3' | 'disc4' | 'outer';
+/** Original-image coordinates: top left, top right, bottom right, bottom left. */
+export type PackagingPhotoRegion = [number, number, number, number, number, number, number, number];
+export interface TwinEntity {
+  packaging: PackagingSpec;
+  surfaces: Partial<Record<PackagingPhotoRole, {asset: string; region?: PackagingPhotoRegion | null; sourceUrl: string; origin: string}>>;
+  release?: {id: string; title: string; url: string};
+  skill: string;
+  warnings: string[];
+}
+export interface TwinJob {
+  id: string; recordId: string;
+  status: 'queued' | 'running' | 'needs_input' | 'succeeded' | 'failed' | 'interrupted' | 'cancelled' | 'stale';
+  phase: string; message: string; error: string; seq: number;
+  createdAt: string; updatedAt: string;
+  instructions?: string; releaseId?: string;
+  candidates?: ReleaseCandidate[]; entity?: TwinEntity | null;
+}
+export interface TwinIndex {
+  epoch: string; revision: number; jobs: Record<string, TwinJob>;
+  configured: boolean; skill: string;
+}
+export interface TwinStart {
+  recordId: string; recordRevision: number; expectedJobId: string | null;
+  releaseId?: string; instructions?: string;
+}
+export interface PackagingSpec {
+  structure?: PackagingStructure;
+  thickness?: 'slim' | 'standard' | 'thick';
+  panels?: 2 | 3 | 4;
+  pockets?: 'left' | 'right' | 'both';
+  pocketOpening?: 'outer' | 'inner';
+  holder?: 'tray' | 'pocket';
+  tray?: 'clear' | 'black' | 'white';
+  discs?: 1 | 2 | 3 | 4;
+  finish?: 'uncoated' | 'matte' | 'gloss';
+  miniLP?: boolean;
+  slipcase?: boolean;
+  size?: {width: number; height: number; depth: number};
+  photos?: Partial<Record<PackagingPhotoRole, number>>;
+  photoRegions?: Partial<Record<PackagingPhotoRole, PackagingPhotoRegion>>;
+}
 
 export interface CoverSource {
   title: string;
@@ -14,6 +59,8 @@ export interface CoverSource {
 }
 
 export interface AlbumRecord {
+  /** Viewer-only task assets, never submitted as ledger data. */
+  modelTextures?: Partial<Record<PackagingPhotoRole, string>>;
   id: string;
   title: string;
   artist: string;
@@ -29,6 +76,7 @@ export interface AlbumRecord {
   coverSource?: CoverSource;
   location: string;
   version: string;
+  packaging?: PackagingSpec;
   pressing: string;
   obi: string;
   note: string;
@@ -201,5 +249,5 @@ export const SALE_NAMES: Record<SaleStatus, string> = {
 // 碟盒 + 版次合并成卡片小标签；日版带侧标时拼成「日版·带侧标」
 export function labelTags(r: AlbumRecord): string[] {
   const p = r.pressing ? (r.pressing === '日版' && r.obi ? `${r.pressing}·${r.obi}` : r.pressing) : '';
-  return [p, r.version].filter(Boolean);
+  return [p, formatPackagingName(r.version, r.packaging)].filter(Boolean);
 }
