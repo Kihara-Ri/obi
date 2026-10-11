@@ -136,6 +136,10 @@
   .shelf-page .toolbar{gap:8px}
   .shelf-page .toolbar .search{order:-1;flex-basis:100%}
   .mobile-select-toggle{display:inline-flex;min-height:42px;margin-left:auto;padding:8px 10px}
+  /* 全选不插队：排到视图切换之后、选择/取消选择之前，出现时旧控件零位移；
+     放不下换行后与右端的取消选择同排相对。不选择时全选本就隐藏，布局不变。 */
+  .shelf-page .toolbar .select-all{order:1}
+  .shelf-page .toolbar .mobile-select-toggle{order:2}
   .shelf-page:not(.is-selecting) .select-all,.shelf-page:not(.is-selecting) .card-check{display:none}
   .shelf-page .card-edit{display:none}
   .shelf-page .summary{gap:8px 16px;font-size:12px;padding:10px 12px;margin-bottom:12px}
@@ -154,4 +158,58 @@
 }
 @media (max-width:500px){
   .shelf-cards .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+/* 卡片视图的分组横滑行：时间线 / 艺人分组每组一行，放不下的封面横向滑动浏览。
+   负边距 + 内边距让行两端各让出 6px，行内副本组的外圈 outline 不被滚动口裁切，
+   内容边缘仍与列表视图对齐（align-list 的最大宽度相应 +12px）。
+   滚动条不显示：露出的半张封面就是可滑提示，吸附只到卡片边界。 */
+.shelf-cards :is(.tl-cards, .artist-group) .grid{
+  --hcard:176px;
+  --hgap:16px;
+  display:flex;
+  gap:var(--hgap);
+  overflow-x:auto;
+  scrollbar-width:none;
+  scroll-snap-type:x proximity;
+  scroll-padding-inline:6px;
+  margin:-6px;
+  padding:6px;
+}
+.shelf-cards :is(.tl-cards, .artist-group) .grid::-webkit-scrollbar{display:none}
+.shelf-cards :is(.tl-cards, .artist-group) .grid > *{flex:0 0 var(--hcard);scroll-snap-align:start}
+.shelf-cards :is(.tl-cards, .artist-group) .grid > .copy-group{
+  flex:0 0 auto;
+  width:calc(var(--n, 1) * var(--hcard) + (var(--n, 1) - 1) * var(--hgap));
+  grid-template-columns:repeat(var(--n, 1),minmax(0,1fr));
+  gap:var(--hgap);
+}
+/* 横滑行上下方向裁切，副本组标签收进组框内自己的上内边距里 */
+.shelf-cards :is(.tl-cards, .artist-group) .grid .copy-group::before{top:1px;line-height:1}
+.align-list :is(.tl-cards, .artist-group) .grid{max-width:1012px}
+.align-list .artist-group .grid{max-width:1159px}
+@media (max-width:840px){
+  .shelf-cards :is(.tl-cards, .artist-group) .grid{--hcard:152px;--hgap:12px}
+}
+@media (max-width:500px){
+  /* App Store / Netflix 式露出提示：卡片略缩（约 0.93 张的可见节奏），
+     行尾永远露出一小条下一张封面，告诉用户这行能往右滑 */
+  .shelf-cards :is(.tl-cards, .artist-group) .grid{--hcard:calc((100% - var(--hgap) * 2) / 2.15)}
+}
+
+/* 分组分隔线：卡片视图里每组一行后，用两端渐隐的发丝线划清边界。
+   只加在组与组之间（首个分组顶上无线）；列表视图行线已密，不加。 */
+.shelf-cards .tl-group + .tl-group,
+.shelf-cards .artist-group + .artist-group{position:relative;padding-top:16px}
+.shelf-cards .tl-group + .tl-group::before,
+.shelf-cards .artist-group + .artist-group::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:1px;pointer-events:none;
+  background:linear-gradient(90deg,transparent,var(--border) 7%,var(--border) 93%,transparent);
+}
+.shelf-cards .tl-cards{padding-bottom:18px}
+.shelf-cards .artist-group{margin-bottom:18px}
+@media (max-width:500px){
+  .shelf-cards .tl-cards{padding-bottom:14px}
+  .shelf-cards .tl-group + .tl-group,
+  .shelf-cards .artist-group + .artist-group{padding-top:14px}
 }

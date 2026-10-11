@@ -1,5 +1,6 @@
-// 库存卡片与网格：同一专辑（标题+艺人相同）的副本聚成一组，
-// 副本组跨列 = min(副本数, 网格列数)，subgrid 保证与相邻卡片同宽。
+// 库存卡片与网格：同一专辑（标题+艺人相同）的副本聚成一组。
+// wrap 网格里副本组跨列 = min(副本数, 网格列数)，subgrid 保证与相邻卡片同宽；
+// 分组横滑行（flex，见 shelf.css）没有列轨道，副本组改用 --n 定宽。
 import {useLayoutEffect, useMemo, useRef} from 'react';
 import type {ReactNode} from 'react';
 import type {AlbumRecord} from '../types';
@@ -94,9 +95,18 @@ export function CardGrid({records, renderCard}: {
       const g = ref.current;
       if (!g) return;
       const groups = [...g.querySelectorAll<HTMLElement>('.copy-group')];
-      // 先解除旧跨列，避免卡片 → 列表或缩窄时，旧 span 生成隐式列，
-      // 再被当成真实列数读回，导致副本组一直保留旧宽度。
-      groups.forEach(cg => { cg.style.gridColumn = 'span 1'; });
+      // 横滑行（flex）没有列数概念，副本组直接按副本数定宽。
+      // 两种模式都先解除旧定位再测量：布局切换时旧 span / 旧 --n 会污染读数。
+      let hrow = false;
+      try { hrow = getComputedStyle(g).display === 'flex'; } catch { /* 无样式时兜底 */ }
+      if (hrow) {
+        groups.forEach(cg => {
+          cg.style.gridColumn = '';
+          cg.style.setProperty('--n', String(Math.max(1, cg.children.length)));
+        });
+        return;
+      }
+      groups.forEach(cg => { cg.style.gridColumn = 'span 1'; cg.style.setProperty('--n', ''); });
       let cols = 3;
       try { cols = getComputedStyle(g).gridTemplateColumns.split(' ').length; } catch { /* 无样式时兜底 */ }
       groups.forEach(cg => {
