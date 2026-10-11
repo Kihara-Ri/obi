@@ -14,7 +14,7 @@ const program = ts.createProgram([join(source, 'core/digital-twins.ts'), join(so
 });
 assert.equal(ts.getPreEmitDiagnostics(program).length, 0); assert.equal(program.emit().emitSkipped, false);
 writeFileSync(join(output, 'package.json'), '{"type":"commonjs"}');
-const {mergeTwinIndex, twinViewerRecord, twinBusy} = createRequire(import.meta.url)(join(output, 'core/digital-twins.js'));
+const {mergeTwinIndex, twinViewerRecord, twinBusy, twinBarcodeMatches} = createRequire(import.meta.url)(join(output, 'core/digital-twins.js'));
 const {albumTextureSource} = createRequire(import.meta.url)(join(output, 'core/album-model-assets.js'));
 after(() => rmSync(output, {recursive: true, force: true}));
 
@@ -22,6 +22,15 @@ const ready = {id: 'task2', recordId: 'copy', seq: 9, status: 'succeeded', error
   packaging: {structure: 'gatefold', discs: 2}, warnings: [],
   surfaces: {front: {asset: 'caa-123.jpg', region: [.1, .1, .9, .1, .9, .9, .1, .9]}, back: {asset: 'photo-0.png'}},
 }};
+
+test('条码草稿只有格式变更可沿用确认；换号、删位和前导零变化必须重新查询', () => {
+  const reviewed = '4988013047105';
+  assert.equal(twinBarcodeMatches('４９８８０１３０４７１０５', reviewed), true);
+  assert.equal(twinBarcodeMatches(' 4988-0130 47105 ', reviewed), true);
+  for (const draft of ['4988013047106', '498801304710', '', '04988013047105'])
+    assert.equal(twinBarcodeMatches(draft, reviewed), false);
+  assert.equal(twinBarcodeMatches('', ''), false);
+});
 
 test('完成后迟到的排队/运行响应不会回退状态，旧 epoch 不共用任务身份', () => {
   const current = {epoch: 'one', revision: 19, configured: true, jobs: {copy: ready}};

@@ -4,7 +4,7 @@
 import {createContext, useContext} from 'react';
 import type {ReactNode} from 'react';
 import type {ThemePref} from '../core/theme';
-import type {AlbumRecord, AppState, ModuleFlags, SortMode, TwinIndex, TwinStart} from '../types';
+import type {AlbumRecord, AppState, ModuleFlags, SortMode, TwinIndex, TwinStart, TwinConfirm} from '../types';
 
 export interface DrawerSpec {
   title: string;
@@ -40,6 +40,7 @@ export interface AppCtx {
   twinSyncError: string;
   refreshTwins(): Promise<void>;
   startTwin(input: TwinStart): Promise<void>;
+  confirmTwin(input: TwinConfirm): Promise<void>;
   cancelTwin(id: string): Promise<void>;
   toast(msg: string, kind?: ToastKind): void;
   openDrawer(spec: DrawerSpec): void;

@@ -25,7 +25,8 @@ export interface TwinJob {
   phase: string; message: string; error: string; seq: number;
   createdAt: string; updatedAt: string;
   instructions?: string; releaseId?: string;
-  candidates?: ReleaseCandidate[]; entity?: TwinEntity | null;
+  barcode?: string; barcodeSource?: 'manual' | 'photo' | 'record' | '';
+  candidates?: TwinReleaseCandidate[]; entity?: TwinEntity | null;
 }
 export interface TwinIndex {
   epoch: string; revision: number; jobs: Record<string, TwinJob>;
@@ -33,7 +34,19 @@ export interface TwinIndex {
 }
 export interface TwinStart {
   recordId: string; recordRevision: number; expectedJobId: string | null;
-  releaseId?: string; instructions?: string;
+  barcode?: string;
+}
+export interface TwinConfirm {id: string; releaseId: string;}
+/** Exact-barcode release review; separate from name-based recognition suggestions. */
+export interface TwinReleaseCandidate {
+  id: string; title: string; artist: string; date: string; country: string;
+  barcode: string; catalogNumber: string; label: string; discCount: number;
+  edition?: string; packaging?: string | null;
+  media: {position: number; format: string; tracks: {position: number; title: string; length?: number}[]}[];
+  url: string;
+  artwork: {id: string; types: string[]; comment: string; previewUrl?: string;
+    previewStatus?: 'available' | 'unavailable' | 'not_loaded'}[];
+  artworkStatus: 'available' | 'missing' | 'unavailable';
 }
 export interface PackagingSpec {
   structure?: PackagingStructure;

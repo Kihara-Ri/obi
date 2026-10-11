@@ -2,6 +2,12 @@ import type {AlbumRecord, PackagingPhotoRole, TwinIndex, TwinJob} from '../types
 
 export function twinBusy(job?: TwinJob): boolean {return job?.status === 'queued' || job?.status === 'running';}
 
+/** Formatting changes do not change a barcode; different or incomplete digits require a fresh review. */
+export function twinBarcodeMatches(draft: string, reviewed: string): boolean {
+  const normalize = (value: string) => value.normalize('NFKC').replace(/[\s-]/g, '');
+  return !!normalize(reviewed) && normalize(draft) === normalize(reviewed);
+}
+
 /** An older polling/POST response cannot rewind an already observed task. */
 export function mergeTwinIndex(current: TwinIndex, next: TwinIndex): TwinIndex {
   if (current.epoch === next.epoch && next.revision < current.revision) return current;

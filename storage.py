@@ -15,7 +15,7 @@ from datetime import datetime
 from contextlib import closing
 from domain import ValidationError, ConflictError, clean_record, clean_release_info, clean_modules, clean_start_page, clean_showcase_group, clean_showcase_groups, clean_listing, validate_packaging_photos, MODULE_NAMES, cost, number, money, day, allocate, STATUSES
 from decimal import Decimal
-from twins import TWIN_KEY, SKILL_VERSION, ID as TWIN_ID, ASSET as TWIN_ASSET, appearance, same_appearance, release_id, clean_registry, image_type
+from twins import TWIN_KEY, SKILL_VERSION, ID as TWIN_ID, ASSET as TWIN_ASSET, UUID as TWIN_RELEASE_ID, appearance, same_appearance, clean_barcode, clean_registry, image_type
 
 SCHEMA = 4
 SHIPMENT_STATUSES = ('transit', 'arrived', 'cancelled')
@@ -873,7 +873,7 @@ class Store:
         return self.path.parent / 'digital-twins' / ident
 
     def _public_twin(self, job, record=None):
-        result = {k: job.get(k) for k in ('id', 'recordId', 'status', 'phase', 'message', 'error', 'seq', 'createdAt', 'updatedAt', 'candidates', 'entity', 'instructions', 'releaseId')}
+        result = {k: job.get(k) for k in ('id', 'recordId', 'status', 'phase', 'message', 'error', 'seq', 'createdAt', 'updatedAt', 'candidates', 'entity', 'instructions', 'releaseId', 'barcode', 'barcodeSource')}
         if record is not None and not same_appearance(record, job['input']):
             result.update(status='stale', error='包装、照片或发行资料已变更，请按当前资料重新生成', entity=None)
         elif job['status'] == 'succeeded':
@@ -896,10 +896,8 @@ class Store:
         rid, request_id = body.get('recordId'), body.get('requestId')
         if not isinstance(rid, str) or not TWIN_ID.fullmatch(rid) or not isinstance(request_id, str) or not TWIN_ID.fullmatch(request_id):
             raise ValidationError('请提供副本编号和生成请求编号')
-        instructions = body.get('instructions', '')
-        if not isinstance(instructions, str) or len(instructions) > 2000: raise ValidationError('生成需求最多 2000 字')
         if type(body.get('recordRevision')) is not int: raise ValidationError('请提供有效的副本版本')
-        edition = release_id(body.get('releaseId', ''))
+        barcode = clean_barcode(body.get('barcode', ''))
         with closing(self.connect()) as db, db:
             db.execute('BEGIN IMMEDIATE'); self.require_module('showcase', db)
             record = self.get(db, 'records', rid)
@@ -913,11 +911,15 @@ class Store:
                 raise ConflictError('任务历史已变化，请刷新状态后重新发起')
             if latest:
                 shown = self._public_twin(latest, record)
+                changed_barcode = bool(barcode and barcode != latest.get('barcode') and body.get('expectedJobId') == latest_id)
+                if (shown['status'] == 'needs_input' and latest.get('phase') == 'awaiting_confirmation'
+                        and (not barcode or barcode == latest.get('barcode'))):
+                    return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': shown}
                 changed_input = shown['status'] == 'stale' and body.get('expectedJobId') == latest_id
                 if latest['status'] in ('queued', 'running') and changed_input:
                     latest.update(status='stale', error='副本资料已变化，旧生成已停止', leaseUntil=0)
                     latest.pop('claim', None); latest['seq'] += 1
-                elif latest['status'] in ('queued', 'running') or shown['status'] == 'succeeded' or body.get('expectedJobId') != latest_id:
+                elif latest['status'] in ('queued', 'running') or (shown['status'] == 'succeeded' and not changed_barcode) or body.get('expectedJobId') != latest_id:
                     return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': shown}
             if body.get('recordRevision') != record['revision']: raise ConflictError('副本已在其他窗口修改，请刷新后再生成')
             ident = uid(); folder = self._twin_folder(ident); folder.mkdir(parents=True)
@@ -934,11 +936,36 @@ class Store:
                 raw = (self.covers_dir / cover_name).read_bytes(); ext, mime = image_type(raw); name = 'cover.' + ext
                 (folder / name).write_bytes(raw); sources['cover'] = {'asset': name, 'mime': mime, 'origin': 'record-cover', 'sourceUrl': ''}
             job = {'id': ident, 'recordId': rid, 'requestId': request_id, 'skill': SKILL_VERSION,
-                   'status': 'queued', 'phase': 'queued', 'message': '等待生成 agent', 'error': '', 'seq': 0,
-                   'input': appearance(record), 'inputRevision': record['revision'], 'instructions': instructions.strip(),
-                   'releaseId': edition, 'sources': sources, 'createdAt': now(), 'updatedAt': now(), 'leaseUntil': 0}
+                   'status': 'queued', 'phase': 'locating_release' if barcode else 'reading_barcode', 'message': '等待核对条形码', 'error': '', 'seq': 0,
+                   'input': appearance(record), 'inputRevision': record['revision'], 'instructions': '',
+                   'workflow': 'barcode-first', 'barcode': barcode, 'barcodeSource': 'manual' if barcode else '',
+                   'releaseId': '', 'sources': sources, 'createdAt': now(), 'updatedAt': now(), 'leaseUntil': 0}
             registry['jobs'][ident] = job; registry['latest'][rid] = ident
             self._write_twins(db, registry, job); self.audit(db, '请求生成数字实体', {'id': rid, 'taskId': ident, 'skill': SKILL_VERSION})
+            return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': self._public_twin(job, record)}
+
+    def confirm_twin(self, ident, edition, configured=False):
+        if not isinstance(ident, str) or not TWIN_ID.fullmatch(ident): raise ValidationError('生成任务编号无效')
+        if not isinstance(edition, str) or not TWIN_RELEASE_ID.fullmatch(edition): raise ValidationError('发行版本编号无效')
+        with closing(self.connect()) as db, db:
+            db.execute('BEGIN IMMEDIATE'); self.require_module('showcase', db); registry = self._twins(db)
+            job = registry['jobs'].get(ident)
+            if not job: raise ValidationError('生成任务不存在')
+            record = self.get(db, 'records', job['recordId'])
+            if registry['latest'].get(job['recordId']) != ident or not same_appearance(record, job['input']):
+                raise ConflictError('副本或任务已变化，请保存并重新核对条形码')
+            # A response lost after confirmation must never queue a second paid generation.
+            if job.get('releaseId') == edition and job.get('confirmedRelease'):
+                return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': self._public_twin(job, record)}
+            if job['status'] != 'needs_input' or job.get('phase') != 'awaiting_confirmation':
+                raise ConflictError('当前任务没有可确认的发行资料，请刷新状态')
+            release = job.get('releaseData', {}).get(edition)
+            if not release or not any(c.get('id') == edition for c in job.get('candidates', [])):
+                raise ValidationError('只能确认这次条形码查询返回的发行版本')
+            if not configured: raise ValidationError('请先在设置中配置视觉模型，发行资料会保留供确认')
+            job.update(status='queued', phase='queued_generation', message='已确认发行版，等待生成 agent', error='',
+                       releaseId=edition, confirmedRelease=release, confirmedCatalog=job.get('artData', {}).get(edition, {}), confirmedAt=now())
+            self._write_twins(db, registry, job); self.audit(db, '确认数字实体发行版', {'id': job['recordId'], 'taskId': ident, 'releaseId': edition})
             return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': self._public_twin(job, record)}
 
     def claim_twin(self, owner, stamp=None):
@@ -957,6 +984,7 @@ class Store:
             if selected:
                 record = self.get(db, 'records', selected['recordId'])
                 if not same_appearance(record, selected['input']): selected.update(status='stale', error='生成前副本资料已变化')
+                elif selected.get('workflow') != 'barcode-first': selected.update(status='interrupted', error='请重新核对条形码并确认发行版后生成')
                 else: selected.update(status='running', owner=owner, claim=uid(), leaseUntil=stamp + 90)
                 self._write_twins(db, registry, selected)
                 return selected if selected['status'] == 'running' else None
@@ -973,7 +1001,7 @@ class Store:
             return True
 
     def update_twin(self, ident, claim, **patch):
-        allowed = {'phase', 'message', 'status', 'error', 'candidates', 'entity'}
+        allowed = {'phase', 'message', 'status', 'error', 'candidates', 'entity', 'barcode', 'barcodeSource', 'releaseData', 'artData'}
         if set(patch) - allowed: raise ValidationError('生成任务更新字段无效')
         with closing(self.connect()) as db, db:
             db.execute('BEGIN IMMEDIATE'); registry = self._twins(db); job = registry['jobs'].get(ident)
@@ -1023,6 +1051,14 @@ class Store:
             registry = self._twins(db); job = registry['jobs'].get(ident)
             if not job or job['status'] != 'succeeded' or not any(s['asset'] == name for s in job['entity']['surfaces'].values()):
                 raise ValidationError('数字实体资源尚未发布')
+        return self.twin_source(ident, name)
+
+    def review_twin_asset(self, ident, name):
+        with closing(self.connect()) as db:
+            registry = self._twins(db); job = registry['jobs'].get(ident)
+            if not job or not any(name == image.get('previewAsset') for candidate in job.get('candidates', [])
+                                  for image in candidate.get('artwork', [])):
+                raise ValidationError('发行资料预览不存在')
         return self.twin_source(ident, name)
 
     # ── 艺人身份绑定与副本-作品关联（meta 持久化；调用方先完成外部核验，

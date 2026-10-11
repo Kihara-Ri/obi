@@ -1,16 +1,29 @@
 """Digital entity contracts; pure validation, no network or import side effects."""
 import json
 import re
+import unicodedata
 from urllib.parse import urlsplit
 
 from domain import ValidationError, PACKAGING_ROLES, clean_packaging
 
 TWIN_KEY = 'digital-twins-v1'
-SKILL_VERSION = 'album-digital-twin/1'
+SKILL_VERSION = 'album-digital-twin/2'
 JOB_STATES = frozenset({'queued', 'running', 'needs_input', 'succeeded', 'failed', 'interrupted', 'cancelled', 'stale'})
 ID = re.compile(r'^[0-9a-f]{32}$')
 ASSET = re.compile(r'^(?:photo-[0-9]+|cover|caa-[0-9]+|preview-[0-9]+)\.(?:jpg|png|webp)$')
 UUID = re.compile(r'^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$')
+
+
+def clean_barcode(value):
+    """Keep leading zeros and reject incomplete or invalid EAN/UPC readings."""
+    if value in (None, ''): return ''
+    if not isinstance(value, str): raise ValidationError('请填写条形码数字')
+    value = re.sub(r'[\s-]', '', unicodedata.normalize('NFKC', value))
+    if not re.fullmatch(r'(?:[0-9]{8}|[0-9]{12,14})', value):
+        raise ValidationError('请填写完整的 8、12、13 或 14 位条形码数字')
+    checksum = sum(int(n) * (3 if i % 2 == 0 else 1) for i, n in enumerate(reversed(value[:-1])))
+    if (checksum + int(value[-1])) % 10: raise ValidationError('条形码校验位不正确，请检查数字或重拍清晰的背面照片')
+    return value
 
 
 def appearance(record):

@@ -13,7 +13,6 @@ import {openListingForm} from './ListingForm';
 import {bulkAction} from './shared';
 import {releaseLabels} from '../core/recognition';
 import {formatPackagingName} from '../core/album-packaging';
-import {TwinControls} from '../components/TwinControls';
 
 export interface DetailBack {
   label?: string;
@@ -76,9 +75,6 @@ function DetailBody({id, back}: {id: string; back?: DetailBack}) {
         ))}
       </dl>
       {r.packaging && formatPackagingName(r.version, r.packaging) !== r.version && r.version ? <p className="small-note">原碟盒记录：{r.version}</p> : null}
-      {modules.showcase && ['domestic', 'overseas', 'transit'].includes(r.status) ? <>
-        <h3 className="section-title">数字实体</h3><TwinControls record={r}/>
-      </> : null}
       {app.modules.trading && (r.listingChannel || r.listingUrl) ? <>
         <h3 className="section-title">上架资料</h3>
         <p className="small-note">{r.listingChannel || '未填写平台'}

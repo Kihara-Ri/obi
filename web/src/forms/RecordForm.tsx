@@ -11,6 +11,8 @@ import type {AppCtx} from '../state/AppContext';
 import type {AlbumRecord, Currency, Status, RecognitionResult, RecognitionFields, ReleaseInfo, VisionConfig, PackagingSpec} from '../types';
 import {formatPackagingName, PACKAGING_PRESETS, packagingPreset, remapPackagingPhotos} from '../core/album-packaging';
 import {PackagingEditor} from '../components/PackagingEditor';
+import {TwinControls} from '../components/TwinControls';
+import {twinBusy} from '../core/digital-twins';
 import {Dropdown} from '../components/ui/Dropdown';
 import {listingText} from '../core/recognition';
 import {MAX_PHOTOS} from '../core/photos';
@@ -500,6 +502,11 @@ export function RecordForm({id}: {id?: string}) {
           </div>
         </div>
 
+        {modules.showcase && r && ['domestic', 'overseas', 'transit'].includes(r.status) ? <details className="adv record-twin-entry">
+          <summary>数字实体{twinBusy(app.twins.jobs[r.id]) ? ' · 任务进行中' : app.twins.jobs[r.id]?.status === 'succeeded' ? ' · 已生成' : ''}</summary>
+          <TwinControls record={r} unsaved={edited || photos.hasPending} saving={saving}
+            stale={r.revision !== base.current.revision} onAddPhoto={() => fileInput.current?.click()}/>
+        </details> : null}
         <details className="adv">
           <summary>发行资料与上架描述</summary>
           <ReleaseEditor prefix="record-release" value={v.releaseInfo} onChange={releaseInfo => {set({releaseInfo});dirty();}}/>

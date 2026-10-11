@@ -1,12 +1,10 @@
-import {useEffect, useMemo, useRef, useState} from 'react';
+import {useEffect, useMemo, useRef} from 'react';
 import {createPortal} from 'react-dom';
 import type {AlbumRecord} from '../types';
 import {AlbumModel} from './AlbumModel';
 import type {AlbumOrientationPermission} from './useAlbumOrientation';
-import {requestAlbumOrientationPermission} from './useAlbumOrientation';
 import {useApp} from '../state/AppContext';
 import {twinViewerRecord} from '../core/digital-twins';
-import {TwinControls} from './TwinControls';
 
 /** Photo-style focus: flat cover until generation, model and title after publication. */
 export function GalleryFocus({record, permission, onClose}: {
@@ -17,9 +15,6 @@ export function GalleryFocus({record, permission, onClose}: {
   const dialog = useRef<HTMLDialogElement>(null);
   const app = useApp(), job = app.twins.jobs[record.id];
   const modelRecord = useMemo(() => twinViewerRecord(record, job), [record, job]);
-  const [showModel, setShowModel] = useState(!!modelRecord);
-  const [motionPermission, setMotionPermission] = useState(() => permission);
-  useEffect(() => {if (!modelRecord) setShowModel(false);}, [modelRecord]);
   useEffect(() => {
     const element = dialog.current;
     if (!element) return;
@@ -57,14 +52,11 @@ export function GalleryFocus({record, permission, onClose}: {
       if (!(event.target instanceof Element) || !event.target.closest('.gallery-focus-visual')) onClose();
     }}>
     <div className="gallery-focus-visual">
-      {showModel && modelRecord ? <AlbumModel key={job?.id} record={modelRecord} permission={motionPermission} onDismiss={onClose}/>
+      {modelRecord ? <AlbumModel key={job?.id} record={modelRecord} permission={permission} onDismiss={onClose}/>
         : <div className="gallery-focus-cover" tabIndex={0} role="group" aria-label={'专辑封面：' + record.title}>
           {record.cover ? <img src={record.cover} alt={record.title + '封面'}/> : <span>暂无封面</span>}
         </div>}
       <h2 id="gallery-focus-title">{record.title}</h2>
-      {!showModel || !modelRecord ? <TwinControls record={record} onView={() => {
-        setMotionPermission(requestAlbumOrientationPermission()); setShowModel(true);
-      }}/> : null}
     </div>
   </dialog>, document.body);
 }

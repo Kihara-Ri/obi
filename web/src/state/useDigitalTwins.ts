@@ -1,7 +1,7 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {api, ApiError} from '../core/api';
 import {mergeTwinIndex, twinBusy} from '../core/digital-twins';
-import type {TwinIndex, TwinJob, TwinStart} from '../types';
+import type {TwinConfirm, TwinIndex, TwinJob, TwinStart} from '../types';
 
 type JobResponse = {epoch: string; revision: number; job: TwinJob};
 
@@ -11,6 +11,7 @@ export function useDigitalTwins(enabled: boolean) {
   const [twinSyncError, setSyncError] = useState('');
   const latest = useRef(twins); latest.current = twins;
   const requests = useRef(new Map<string, {key: string; expected: string | null; pending: boolean}>());
+  const confirmations = useRef(new Set<string>());
   const poll = useRef(0);
   const commit = useCallback((result: JobResponse) => {
     setTwins(current => {
@@ -51,6 +52,14 @@ export function useDigitalTwins(enabled: boolean) {
   const cancelTwin = useCallback(async (id: string) => {
     commit(await api<JobResponse>('twins/cancel', {id})); notify(); await refreshTwins();
   }, [commit, refreshTwins]);
+  const confirmTwin = useCallback(async (input: TwinConfirm) => {
+    if (confirmations.current.has(input.id)) return;
+    confirmations.current.add(input.id);
+    try {
+      commit(await api<JobResponse>('twins/confirm', input)); notify(); await refreshTwins().catch(() => {});
+    } catch (error) {void refreshTwins().catch(() => {}); throw error;}
+    finally {confirmations.current.delete(input.id);}
+  }, [commit, refreshTwins]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -69,5 +78,5 @@ export function useDigitalTwins(enabled: boolean) {
       window.removeEventListener('storage', change); document.removeEventListener('visibilitychange', foreground);
     };
   }, [enabled, refreshTwins]);
-  return {twins, twinSyncError, refreshTwins, startTwin, cancelTwin};
+  return {twins, twinSyncError, refreshTwins, startTwin, confirmTwin, cancelTwin};
 }

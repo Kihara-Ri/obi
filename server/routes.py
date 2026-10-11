@@ -260,7 +260,13 @@ def twins(svc):
 
 def api_twins(h, svc): h.send(twins(svc).index())
 def api_twin_start(h, svc, body): h.send(twins(svc).start_task(body))
+def api_twin_confirm(h, svc, body): h.send(twins(svc).confirm(body))
 def api_twin_cancel(h, svc, body): h.send(twins(svc).cancel(body.get('id')))
+def api_twin_review_asset(h, svc):
+    parts = urlsplit(h.path).path.split('/')
+    if len(parts) != 5: raise ValidationError('发行资料预览地址无效')
+    path = svc.store.review_twin_asset(parts[3], parts[4])
+    h.send(path.read_bytes(), mime=mimetypes.guess_type(path.name)[0] or 'image/jpeg', cache='private, max-age=31536000, immutable')
 def api_twin_asset(h, svc):
     parts = urlsplit(h.path).path.split('/')
     if len(parts) != 5: raise ValidationError('数字实体资源地址无效')
@@ -309,6 +315,7 @@ GET_PREFIX = {  # 带路径参数的接口
     '/api/import-photo/': api_import_photo,
     '/api/artists/artwork/': api_artists_artwork,
     '/api/twin-assets/': api_twin_asset,
+    '/api/twin-review-assets/': api_twin_review_asset,
 }
 POST = {
     # path: (处理函数, 需要登录, 需要 WRITE_LOCK)
@@ -343,6 +350,7 @@ POST = {
     '/api/imports/commit': (api_import_commit, True, True),
     '/api/imports/delete': (api_import_delete, True, False),
     '/api/twins/start': (api_twin_start, True, True),
+    '/api/twins/confirm': (api_twin_confirm, True, True),
     '/api/twins/cancel': (api_twin_cancel, True, True),
 }
 
