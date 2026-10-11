@@ -1,7 +1,9 @@
-// 表单字段构造：受控 input / 自动长高 textarea / 币种金额组（买入金额同款）。
-import type {InputHTMLAttributes} from 'react';
+// 表单字段构造：受控 input / 自动长高 textarea / 币种金额组（买入金额同款）/
+// 日期快捷行（今天 / 昨天 / 选日期，记录售出与确认表单共用）。
+import type {InputHTMLAttributes, MouseEvent} from 'react';
 import {AutoTextarea} from '../components/ui/AutoTextarea';
 import {Seg} from '../components/ui/Seg';
+import {today, yesterday} from '../core/format';
 import type {Currency} from '../types';
 
 type FieldProps = InputHTMLAttributes<HTMLInputElement> & {label: string; name: string};
@@ -50,6 +52,37 @@ export function TextareaField({label, name, value, onChange, className = ''}: {
       <label htmlFor={`f-${name}`}>{label}</label>
       <AutoTextarea id={`f-${name}`} name={name} value={value}
                     onChange={e => onChange(e.target.value)}/>
+    </div>
+  );
+}
+
+// 日期快捷行（row-group 行形态）：今天 / 昨天 / 选日期，点按即弹系统选择器。
+// 隐形日期输入铺满「选日期」块，iOS/桌面一致；自定义日期显示为「N月N日」。
+export function DateChipsRow({label, value, onChange}: {
+  label: string; value: string; onChange: (v: string) => void;
+}) {
+  const dToday = today();
+  const dYesterday = yesterday();
+  const preset = value === dToday ? 'today' : value === dYesterday ? 'yesterday' : 'custom';
+  const pickDate = (e: MouseEvent<HTMLLabelElement>) => {
+    const inp = e.currentTarget.querySelector<HTMLInputElement>('input[type=date]');
+    if (!inp) return;
+    try { inp.showPicker(); } catch { /* 旧浏览器退回 label 激活 */ }
+  };
+  return (
+    <div className="row">
+      <label>{label}</label>
+      <div className="row-value chips" role="group" aria-label={label}>
+        <button type="button" className={`chip${preset === 'today' ? ' on' : ''}`}
+                onClick={() => onChange(dToday)}>今天</button>
+        <button type="button" className={`chip${preset === 'yesterday' ? ' on' : ''}`}
+                onClick={() => onChange(dYesterday)}>昨天</button>
+        <label className={`chip${preset === 'custom' ? ' on' : ''}`} onClick={pickDate}>
+          {preset === 'custom' ? `${Number(value.slice(5, 7))}月${Number(value.slice(8, 10))}日` : '选日期'}
+          <input className="vh-date" type="date" value={value}
+                 onChange={e => e.target.value && onChange(e.target.value)}/>
+        </label>
+      </div>
     </div>
   );
 }

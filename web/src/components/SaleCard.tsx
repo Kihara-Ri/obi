@@ -11,7 +11,7 @@ import {CONFIRM_TITLES, ConfirmForm} from '../forms/ConfirmForm';
 
 function openConfirm(app: AppCtx, kind: keyof typeof CONFIRM_TITLES,
                     opts: {id?: string; sale?: Sale; arriveCount?: number} = {}) {
-  app.openDrawer({title: CONFIRM_TITLES[kind], asForm: true,
+  app.openDrawer({title: CONFIRM_TITLES[kind], asForm: true, compact: true,
     content: <ConfirmForm kind={kind} id={opts.id} sale={opts.sale} arriveCount={opts.arriveCount}/>});
 }
 
@@ -74,7 +74,7 @@ export function SaleCard({s, onArtist, onEditCosts}: {s: Sale; onArtist: (artist
           <div className="actions">
             <button onClick={onEditCosts}>修改费用</button>
             {shipping ? <>
-            <button className="primary" onClick={() => openConfirm(app, 'receive', {id: s.id})}>确认收货</button>
+            <button className="primary" onClick={() => openConfirm(app, 'receive', {id: s.id, sale: s})}>确认收货</button>
             <button onClick={() => openConfirm(app, 'refund', {id: s.id, sale: s})}>退款 / 退货</button>
             <button className="quiet" onClick={() => openConfirm(app, 'cancel', {id: s.id})}>撤销</button>
             </> : null}

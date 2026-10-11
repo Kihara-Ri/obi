@@ -45,6 +45,7 @@ export function SettingsPage() {
       app.openDrawer({
         title: CONFIRM_TITLES.restore,
         asForm: true,
+        compact: true,
         content: <ConfirmForm kind="restore" restoreData={data}/>,
       });
     } catch (err) {

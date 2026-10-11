@@ -8,7 +8,7 @@ import {sum, today, yuan} from '../core/format';
 import {useApp} from '../state/AppContext';
 import type {AppCtx} from '../state/AppContext';
 import type {Currency} from '../types';
-import {Field, TextareaField} from './fields';
+import {DateChipsRow, Field, TextareaField} from './fields';
 import {Seg} from '../components/ui/Seg';
 import {AlbumLine} from '../components/SaleCard';
 import {useFormSubmit, useRate} from './shared';
@@ -24,11 +24,6 @@ export function openSaleForm(app: AppCtx, ids: string[]) {
     content: <SaleForm ids={ids}/>,
   });
 }
-
-const yesterday = (): string => {
-  const d = new Date(Date.now() - 86400000);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
 
 // 历史售出渠道按频次排序，取前 6（与购买渠道 ShopField 同一套归并思路）
 function saleChannels(channels: string[]): string[] {
@@ -70,9 +65,6 @@ function SaleForm({ids}: {ids: string[]}) {
 
   const hist = saleChannels(app.state.sales.map(s => s.channel));
   const channels = v.channel && !hist.includes(v.channel) ? [v.channel, ...hist] : hist;
-  const dToday = today();
-  const dYesterday = yesterday();
-  const datePreset = v.date === dToday ? 'today' : v.date === dYesterday ? 'yesterday' : 'custom';
   const profit = net === null ? null : Number((net - csum).toFixed(2));
   const curLine = rate === null
     ? '暂无当日汇率，无法折算；可直接填人民币或稍后再试'
@@ -87,11 +79,6 @@ function SaleForm({ids}: {ids: string[]}) {
     });
   };
 
-  const pickDate = (e: React.MouseEvent<HTMLLabelElement>) => {
-    const inp = e.currentTarget.querySelector<HTMLInputElement>('input[type=date]');
-    if (!inp) return;
-    try { inp.showPicker(); } catch { /* 旧浏览器退回 label 激活 */ }
-  };
   // 日元金额不设步进限制：成交价/扣费/运费常是非整十数（如 108 円＝成交价 10%）
   const step = v.currency === 'JPY' ? 'any' : '0.01';
 
@@ -112,20 +99,7 @@ function SaleForm({ids}: {ids: string[]}) {
                    value={v.currency} onValue={c => switchCurrency(c as Currency)}/>
             </div>
           </div>
-          <div className="row">
-            <label>售出日期</label>
-            <div className="row-value chips" role="group" aria-label="售出日期">
-              <button type="button" className={`chip${datePreset === 'today' ? ' on' : ''}`}
-                      onClick={() => set({date: dToday})}>今天</button>
-              <button type="button" className={`chip${datePreset === 'yesterday' ? ' on' : ''}`}
-                      onClick={() => set({date: dYesterday})}>昨天</button>
-              <label className={`chip${datePreset === 'custom' ? ' on' : ''}`} onClick={pickDate}>
-                {datePreset === 'custom' ? `${Number(v.date.slice(5, 7))}月${Number(v.date.slice(8, 10))}日` : '选日期'}
-                <input className="vh-date" type="date" value={v.date}
-                       onChange={e => e.target.value && set({date: e.target.value})}/>
-              </label>
-            </div>
-          </div>
+          <DateChipsRow label="售出日期" value={v.date} onChange={d => set({date: d})}/>
           <div className="row">
             <label htmlFor="f-fees">平台扣费合计</label>
             <div className="row-value">

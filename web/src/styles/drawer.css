@@ -50,6 +50,11 @@
 /* 预览 / 成本行 / 折叠区 / 勾选行 */
 .preview{background:var(--surface-2);border:1px dashed var(--border-strong);border-radius:var(--radius-sm);padding:12px 14px;margin-top:14px;font-size:12.5px;color:var(--muted)}
 .preview strong{display:block;font-size:18px;color:var(--text);font-variant-numeric:tabular-nums;margin:2px 0}
+
+/* 确认收货摘要卡与后果提示：金额是主角，不可逆后果独立成警示行 */
+.receive-summary .line b{font-size:20px}
+.confirm-note{font-size:12.5px;color:var(--muted);margin:10px 0 0}
+.confirm-warn{font-size:12.5px;color:var(--orange);font-weight:550;margin:6px 0 0}
 .cost-line{font-size:12.5px;color:var(--muted);background:var(--surface-2);border:1px dashed var(--border-strong);border-radius:var(--radius-sm);padding:7px 10px;margin-top:10px}
 .cost-line b{color:var(--text);font-size:13.5px;font-variant-numeric:tabular-nums;margin-right:2px}
 details.adv{margin-top:10px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 12px}
@@ -154,7 +159,12 @@ details.adv:not([open]) > :not(summary){display:none}
 .batch-heading{font-size:11px;color:var(--faint);margin:18px 0 8px}
 
 @media (max-width:840px){
-  .form-grid{grid-template-columns:1fr}
+  /* 轨道要能收缩：裸 1fr 的最小宽取内容固有宽，iOS 日期输入的固有宽度撑破抽屉
+     （右缘切断，money-row 当初同款问题） */
+  .form-grid{grid-template-columns:minmax(0,1fr)}
+  /* 确认类抽屉：贴底内容高度卡，消除短表单的整屏空白；超长内容仍由 body 滚动。
+     桌面保持全高右抽屉。拖拽关闭、键盘视口逻辑照旧复用 */
+  .drawer.compact{top:auto;max-height:calc(100% - 56px)}
   /* 表单抽屉 → 底部上滑 sheet：顶部圆角 + 抓手，底部避开 Home 条；
      进入 = 整块自屏底滑入，关闭 = 跟手下滑收回（sheet-down + Drawer 拖拽） */
   .drawer{top:calc(10px + env(safe-area-inset-top));right:0;bottom:0;left:0;width:auto;
@@ -173,9 +183,11 @@ details.adv:not([open]) > :not(summary){display:none}
      WebKit 的横向露出滚动），手机上一律上下堆叠，与表单栅格的单列口径一致 */
   .money-row{flex-direction:column}
   /* Safari 的 flex stretch 对含固有尺寸子项的列不生效，显式全宽；iOS date input
-     无值时会缩成 min-content 窄框，去 -webkit-appearance 让它吃满宽度 */
+     无值时会缩成 min-content 窄框，去 -webkit-appearance 让它吃满宽度。
+     form-grid 内的日期输入同口径：原生外观的固有宽度连 minmax(0,1fr) 也压不住 */
   .money-row>.field{width:100%}
-  #panel .money-row input[type=date]{-webkit-appearance:none;appearance:none;width:100%}
+  #panel .money-row input[type=date],
+  #panel .form-grid input[type=date]{-webkit-appearance:none;appearance:none;width:100%}
   .drawer-footer{gap:8px;flex-wrap:wrap;padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
   .drawer-footer button{flex:1 1 calc((100% - 16px)/3);min-height:42px}
   /* 分组列表行：输入 16px 防 iOS 聚焦放大；快捷块加高到可点 */

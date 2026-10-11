@@ -236,7 +236,7 @@ export function Drawer({spec, closing, onClose, onClosed}: {
     <div id="panel" ref={panelRef} onKeyDown={onKeyDown}
          onClick={e => { if (e.target === e.currentTarget) requestClose(); }}>
       <section ref={sheetRef} onAnimationEnd={onAnimationEnd}
-               className={`drawer${spec.wide ? ' wide' : ''}${spec.variant === 'artist' ? ' artist-drawer' : ''}${spec.workspace ? ' import-workspace' : ''}${closing ? ' closing' : ''}`}
+               className={`drawer${spec.wide ? ' wide' : ''}${spec.compact ? ' compact' : ''}${spec.variant === 'artist' ? ' artist-drawer' : ''}${spec.workspace ? ' import-workspace' : ''}${closing ? ' closing' : ''}`}
                role="dialog" aria-modal="true" aria-labelledby="drawer-title">
         <div className="drawer-head" onPointerDown={onHeadPointerDown} onPointerMove={onHeadPointerMove}
              onPointerUp={endHeadDrag} onPointerCancel={endHeadDrag}>

@@ -1,11 +1,12 @@
 // 确认表单族：签收 / 回滚 / 撤销运输 / 确认收货 / 撤销售出 / 退款退货 / 恢复备份。
-// 原版 simpleForm 的每一种 kind，提交时路由到对应 API。
+// 提交时路由到对应 API。日期一律用「今天/昨天/选日期」快捷行；确认收货先给
+// 金额摘要（到手 / 利润 / 成交价口径），不可逆后果独立成警示行。
 import {useState} from 'react';
 import {api} from '../core/api';
-import {today} from '../core/format';
+import {shipFeeText, sum, today, yuan} from '../core/format';
 import {useApp} from '../state/AppContext';
 import type {BackupFile, Sale} from '../types';
-import {Field} from './fields';
+import {DateChipsRow} from './fields';
 import {useFormSubmit} from './shared';
 
 export type ConfirmKind = 'arrive' | 'undo_arrive' | 'cancel_shipment' | 'receive' | 'cancel' | 'refund' | 'restore';
@@ -19,6 +20,30 @@ export const CONFIRM_TITLES: Record<ConfirmKind, string> = {
   refund: '退款 / 退货',
   restore: '恢复完整备份',
 };
+
+// 确认收货摘要卡：与售出卡片同口径（日元单显示原币 + 折算）；
+// 成本未知的明细利润不计入合计，显示「利润待补」。
+function ReceiveSummary({sale: s}: {sale: Sale}) {
+  const app = useApp();
+  const unknown = s.items.some(i => i.profit === null);
+  const net = sum(s.items, 'net');
+  const profit = sum(s.items, 'profit');
+  return (
+    <div className="preview sale-preview receive-summary">
+      <div className="line">
+        <b>{yuan(net)}</b><span>到手</span>
+        {app.modules.acquisition && !unknown ? <>
+          <span className="hint">· 利润</span>
+          <span className={Number(profit) < 0 ? 'negative' : 'positive'}>{yuan(profit)}</span>
+        </> : null}
+        {app.modules.acquisition && unknown ? <span className="hint">· 利润待补</span> : null}
+        {s.items.length > 1 ? <span className="hint">· {s.items.length} 张合计</span> : null}
+      </div>
+      <p>{`成交价 ${shipFeeText(s.currency, s.grossOriginal, s.gross)} − 平台扣费 ${shipFeeText(s.currency, s.feesOriginal, s.fees)} − 寄出运费 ${shipFeeText(s.currency, s.postageOriginal, s.postage || '0')}`}</p>
+      <p>{[s.channel, `${s.date} 售出`].filter(Boolean).join(' · ')}</p>
+    </div>
+  );
+}
 
 export function ConfirmForm({kind, id, arriveCount, sale, restoreData}: {
   kind: ConfirmKind;
@@ -52,8 +77,8 @@ export function ConfirmForm({kind, id, arriveCount, sale, restoreData}: {
         {kind === 'arrive' && (
           <>
             <p>整包 {arriveCount ?? ''} 张专辑转入国内库存。</p>
-            <div className="form-grid form-section">
-              <Field label="签收日期" name="arrive-date" type="date" required value={date} onChange={e => setDate(e.target.value)}/>
+            <div className="row-group">
+              <DateChipsRow label="签收日期" value={date} onChange={setDate}/>
             </div>
             <p className="small-note">误操作可在「最近签收」里回滚。</p>
           </>
@@ -62,20 +87,29 @@ export function ConfirmForm({kind, id, arriveCount, sale, restoreData}: {
         {kind === 'cancel_shipment' && <p>包裹取消，专辑退回「海外库存」，运费分摊从成本中扣回。</p>}
         {kind === 'receive' && (
           <>
-            <p>买家已签收、钱款已到账。交易转为「已售出」，{app.modules.acquisition ? '利润' : '到账金额'}计入统计。平台扣费和寄出运费仍可修改，此后不再支持退款操作。</p>
-            <div className="form-grid form-section">
-              <Field label="到账日期" name="receive-date" type="date" required value={date} onChange={e => setDate(e.target.value)}/>
+            {sale && <ReceiveSummary sale={sale}/>}
+            <div className="row-group">
+              <DateChipsRow label="到账日期" value={date} onChange={setDate}/>
             </div>
+            <p className="confirm-note">交易将转为「已售出」，{app.modules.acquisition ? '利润' : '到账金额'}计入统计；平台扣费与寄出运费仍可修改。</p>
+            <p className="confirm-warn">确认后不再支持退款操作。</p>
           </>
         )}
         {kind === 'cancel' && <p>用于纠正误记或未成交，专辑回到原状态，交易保留撤销历史。</p>}
         {kind === 'refund' && (
           <>
             <p className="help">仅限「售出中」的交易；销售费用保留为损失；勾选退货则专辑回到{app.modules.circulation ? '国内库存' : '我的收藏'}。</p>
-            <div className="form-grid form-section">
-              <Field label="退款总额（元）" name="refund" type="number" required min="0"
-                     max={sale?.gross} step="0.01" value={refund} onChange={e => setRefund(e.target.value)}/>
-              <Field label="处理日期" name="refund-date" type="date" required value={date} onChange={e => setDate(e.target.value)}/>
+            <div className="row-group">
+              <div className="row amount-row">
+                <label htmlFor="f-refund">退款总额</label>
+                <div className="row-value">
+                  <input id="f-refund" name="refund" type="number" required min="0"
+                         max={sale?.gross} step="0.01" inputMode="decimal" placeholder="0.00"
+                         value={refund} onChange={e => setRefund(e.target.value)}/>
+                  <span className="unit">元</span>
+                </div>
+              </div>
+              <DateChipsRow label="处理日期" value={date} onChange={setDate}/>
             </div>
             <label className="check-line">
               <input name="returned" type="checkbox" checked={returned} onChange={e => setReturned(e.target.checked)}/>
@@ -98,7 +132,9 @@ export function ConfirmForm({kind, id, arriveCount, sale, restoreData}: {
       </div>
       <div className="drawer-footer">
         <button type="button" onClick={() => app.closeDrawer()}>取消</button>
-        <button type="submit" className="primary" disabled={saving}>确认</button>
+        <button type="submit" className="primary" disabled={saving}>
+          {kind === 'receive' ? '确认收货' : kind === 'refund' ? '确认退款' : '确认'}
+        </button>
       </div>
     </form>
   );
