@@ -80,10 +80,12 @@
 ```sh
 python3 -m unittest discover -s tests -v                                   # 后端全绿
 npm --prefix web run typecheck && npm --prefix web run build               # 前端
-python3 app.py --port <空闲端口> --data-dir /private/tmp/xxx --no-seed      # 浏览器验证
+python3 tools/seed_samples.py --data-dir /private/tmp/diedu-samples        # 固定测试样本库（空目录）
+python3 app.py --port <空闲端口> --data-dir /private/tmp/diedu-samples --no-seed   # 浏览器验证
 ```
 
 - **8765 等本机常用端口可能被常驻服务占用**——验证一律用空闲端口（如 8791）+ 临时数据目录 + `--no-seed`；Docker 验证用独立端口与临时卷。
+- **浏览器验证与手动测试一律用固定样本库**（`tools/seed_samples.py`）：19 副本覆盖国内/海外/在途/售出中/已售/回收站、日元/人民币、多副本分组、侧标、新式包装资料、成本缺失等场景，金额日期渠道均为虚构、不含个人数据。不要每次现造测试数据；样本场景缺口先扩样本清单与 `tests/test_sample_library.py`（守护精确断言）再扩功能。需要实物照片/条码的流程（拍照识别、数字实体核对）不在样本库内，现场补照片或手输条码。样本清单与各覆盖点见 `tools/seed_samples.py` 模块注释。
 - 涉及 UI 的改动必须浏览器实测：console 零报错 + 关键流程走通。
 - 截图视觉验收要等动画结束（灯箱 0.15s / 抽屉 0.22s）再判断。
 
