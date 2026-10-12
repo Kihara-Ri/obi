@@ -13,7 +13,7 @@ export interface GalleryStageProps {
   roaming?: boolean;
   roamingSpeed?: number;
   onPick(id: string): void;
-  onFocus(id: string): void;
+  onFocus(id: string, source?: HTMLElement): void;
   onArtist(artist: string, id: string): void;
 }
 

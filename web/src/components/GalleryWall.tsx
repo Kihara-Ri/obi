@@ -66,11 +66,11 @@ export function GalleryWall({records, mode, currentId, density, showTitles, roam
   };
   const tile = (r: AlbumRecord) => <div key={r.id} className="gallery-item" data-current={r.id === records[index]?.id}>
     <button type="button" className="gallery-cover-button gallery-case-button" tabIndex={r.id === records[index]?.id ? 0 : -1}
-            aria-label={`查看封面：${r.title} · ${r.artist}`} onClick={() => onFocus(r.id)} title={r.title}>
+            data-gallery-record-id={r.id} aria-label={`查看封面：${r.title} · ${r.artist}`} onClick={event => onFocus(r.id, event.currentTarget)} title={r.title}>
       <GalleryCase record={r}/>
     </button>
     {showTitles || mode === 'waterfall' ? <div className="gallery-tile-caption">
-      <button type="button" className="gallery-title" onClick={() => onFocus(r.id)}>{r.title}</button>
+      <button type="button" className="gallery-title" onClick={event => onFocus(r.id, event.currentTarget)}>{r.title}</button>
       <ArtistButton artist={r.artist} onOpen={name => onArtist(name, r.id)}/>
       {labelTags(r).length ? <span className="gallery-tile-tags">{labelTags(r).join(' · ')}</span> : null}
     </div> : null}

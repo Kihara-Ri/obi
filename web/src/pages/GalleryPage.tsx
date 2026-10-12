@@ -28,7 +28,7 @@ export function GalleryPage() {
   const [immersive, setImmersive] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
   const [roaming, setRoaming] = useState(false);
-  const [focused, setFocused] = useState<{id: string; permission: Promise<AlbumOrientationPermission>} | null>(null);
+  const [focused, setFocused] = useState<{id: string; originElement: HTMLElement | null; permission: Promise<AlbumOrientationPermission>} | null>(null);
   const focusEntry = useRef(false);
   const focusClosing = useRef(false);
   const focusedRecord = focused ? app.rec(focused.id) : undefined;
@@ -140,17 +140,18 @@ export function GalleryPage() {
   const closeFocus = useCallback(() => {
     if (focusClosing.current) return;
     if (focusEntry.current && history.state?.diedu === 'gallery-focus') {
-      // Keep the modal and its guard until Back finishes; a second tap cannot
-      // reopen a cover or consume another page's history during this window.
-      focusClosing.current = true; history.back(); return;
+      // The dialog has already completed its reverse zoom. Remove it now while
+      // consuming its history entry, then block reopening until popstate settles.
+      focusEntry.current = false; focusClosing.current = true; history.back();
     }
-    focusEntry.current = false;
     setFocused(null);
   }, []);
   useEffect(() => {
     const popped = () => {
-      if (!focusEntry.current) return;
-      focusEntry.current = false; focusClosing.current = false; setFocused(null);
+      if (!focusEntry.current) {focusClosing.current = false; return;}
+      focusEntry.current = false; focusClosing.current = false;
+      // Let the photo-style focus finish its reverse zoom before removing the dialog.
+      window.dispatchEvent(new Event('gallery-focus-history-back'));
     };
     window.addEventListener('popstate', popped);
     return () => {
@@ -162,16 +163,28 @@ export function GalleryPage() {
   useEffect(() => {
     if (focused && (!focusedRecord || !isCollectedRecord(focusedRecord))) closeFocus();
   }, [focused, focusedRecord, closeFocus]);
-  const focus = (id: string) => {
-    if (focusEntry.current) return;
+  const focus = (id: string, source?: HTMLElement) => {
+    if (focusEntry.current || focusClosing.current) return;
+    const originElement = source?.matches('.gallery-cover-button') ? source
+      : source?.closest('.gallery-item')?.querySelector<HTMLElement>('.gallery-cover-button') ?? null;
     const permission = app.twins.jobs[id]?.status === 'succeeded'
       ? requestAlbumOrientationPermission() : Promise.resolve('unavailable' as const);
-    pick(id); history.pushState({diedu: 'gallery-focus'}, ''); focusEntry.current = true;
-    setFocused({id, permission});
+    // Opening a cover pauses the track at its current pose; selecting here would
+    // recenter looping layouts behind the dialog and change the return position.
+    history.pushState({diedu: 'gallery-focus'}, ''); focusEntry.current = true;
+    setFocused({id, originElement, permission});
+  };
+  const navigateFocus = (id: string) => {
+    const next = records.find(record => record.id === id);
+    if (!next || !focused) return;
+    const permission = app.twins.jobs[id]?.status === 'succeeded'
+      ? requestAlbumOrientationPermission() : Promise.resolve('unavailable' as const);
+    pick(id); setFocused({id, originElement: null, permission});
   };
 
   return <div className={`gallery-page${immersive ? ' is-immersive' : ''}`}>
-    {focused && focusedRecord ? <GalleryFocus record={focusedRecord} permission={focused.permission} onClose={closeFocus}/> : null}
+    {focused && focusedRecord ? <GalleryFocus record={focusedRecord} records={records} originElement={focused.originElement} permission={focused.permission}
+      onNavigate={navigateFocus} onClose={closeFocus}/> : null}
     <PageHead title="收藏展示" desc="把收藏铺开，慢慢看。"
               actions={<button type="button" className="quiet" onClick={immersive ? exitImmersive : enterImmersive}>
                 {immersive ? '退出沉浸' : '沉浸展示'}

@@ -2,17 +2,28 @@
 .gallery-focus{
   position:fixed;inset:0;margin:0;padding:24px max(16px,env(safe-area-inset-right)) 24px max(16px,env(safe-area-inset-left));
   width:100%;height:100dvh;max-width:none;max-height:none;border:0;
-  background:var(--album-lightbox-bg);color:var(--album-plastic-light);overflow:hidden;cursor:zoom-out;
+  background:transparent;color:var(--album-plastic-light);overflow:hidden;cursor:zoom-out;
 }
 .gallery-focus[open]{display:flex;align-items:center;justify-content:center}
 .gallery-focus::backdrop{background:transparent}
-.gallery-focus-visual{display:flex;flex-direction:column;align-items:center;gap:8px;width:min(100%,1000px);max-height:100%;animation:gallery-focus-in .18s ease-out}
+.gallery-focus-shade{position:absolute;inset:0;z-index:0;background:var(--album-lightbox-bg)}
+.gallery-focus-visual{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:8px;width:min(100%,1000px);max-height:100%;transform-origin:center;will-change:transform,opacity,border-radius}
 .gallery-focus .album-viewer{min-height:0;flex:1}
 .gallery-focus .album-model-scene{height:min(72dvh,82vw,680px);max-height:100%;border-radius:0;background:none;outline:none}
 .gallery-focus .album-model-ground{opacity:.35;bottom:8%}
-.gallery-focus-cover{display:flex;align-items:center;justify-content:center;width:100%;height:min(72dvh,82vw,680px);outline-offset:4px;cursor:default}
+/* This read-only focus target is used to announce a 2D cover inside the dialog.
+   Mobile browsers otherwise draw their native blue ring around the whole cover. */
+.gallery-focus-cover{display:flex;align-items:center;justify-content:center;width:100%;height:min(72dvh,82vw,680px);outline:none;cursor:default}
 .gallery-focus-cover img{display:block;max-width:100%;max-height:100%;object-fit:contain}
 .gallery-focus-cover span{display:grid;place-items:center;width:min(70vw,400px);aspect-ratio:1;background:var(--surface-2);color:var(--muted)}
 .gallery-focus h2{flex:none;max-width:min(100%,700px);margin:0;padding:0 8px;font-size:clamp(17px,2.4vw,25px);font-weight:500;line-height:1.5;text-align:center;white-space:normal;overflow-wrap:anywhere;max-height:20dvh;overflow:auto;cursor:default}
-@keyframes gallery-focus-in{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
-@media(prefers-reduced-motion:reduce){.gallery-focus-visual{animation:none}}
+.gallery-focus-nav{position:fixed;top:50%;z-index:2;display:flex;align-items:center;justify-content:center;width:52px;height:64px;padding:0;border:1px solid var(--hairline);border-radius:var(--radius);background:color-mix(in srgb,var(--album-lightbox-bg) 65%,transparent);color:var(--album-plastic-light);transform:translateY(-50%);cursor:pointer;touch-action:manipulation;transition:background .18s ease,opacity .18s ease}
+.gallery-focus-nav svg{width:24px;height:24px}
+.gallery-focus-nav:hover:not(:disabled){background:color-mix(in srgb,var(--album-lightbox-bg) 90%,transparent)}
+.gallery-focus-nav:active{transform:translateY(calc(-50% + 1px))}
+.gallery-focus-nav:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.gallery-focus-nav:disabled{opacity:.28;cursor:default}
+.gallery-focus-prev{left:max(16px,env(safe-area-inset-left))}
+.gallery-focus-next{right:max(16px,env(safe-area-inset-right))}
+@media(max-width:600px){.gallery-focus-nav{width:44px;height:56px;border-radius:12px}.gallery-focus-prev{left:max(8px,env(safe-area-inset-left))}.gallery-focus-next{right:max(8px,env(safe-area-inset-right))}}
+@media(prefers-reduced-motion:reduce){.gallery-focus-nav{transition:none}}

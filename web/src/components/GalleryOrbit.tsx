@@ -131,9 +131,9 @@ export function GalleryOrbit({records, mode, currentId, roaming = false, roaming
 
   if (!records.length) return null;
   const first = Math.max(0, windowCenter - 4), last = Math.min(records.length, windowCenter + 5);
-  const choose = (recordIndex: number) => {
+  const choose = (recordIndex: number, source?: HTMLElement) => {
     if (motion.isClickSuppressed()) return;
-    if (recordIndex === Math.round(motion.positionRef.current)) onFocus(records[recordIndex].id);
+    if (recordIndex === Math.round(motion.positionRef.current)) onFocus(records[recordIndex].id, source);
     else motion.moveTo(recordIndex);
   };
   const step = (by: number) => {
@@ -167,8 +167,9 @@ export function GalleryOrbit({records, mode, currentId, roaming = false, roaming
         else {nodes.current.delete(recordIndex); animations.current.delete(recordIndex);}
       }}>
       <button type="button" className="gallery-cover-button gallery-case-button" tabIndex={active ? 0 : -1}
+        data-gallery-record-id={record.id}
         aria-pressed={active} aria-label={`${active ? '放大展示' : '选择'}：${record.title} · ${record.artist}`}
-        title={record.title} onClick={() => choose(recordIndex)}><GalleryCase record={record} spatial/></button>
+        title={record.title} onClick={event => choose(recordIndex, event.currentTarget)}><GalleryCase record={record} spatial/></button>
     </div>;
   });
 

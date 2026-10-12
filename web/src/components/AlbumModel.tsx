@@ -261,6 +261,10 @@ export function AlbumModel({record, permission, onDismiss}: {
         if (startedOnCase?.disc !== undefined) takeDisc(startedOnCase.disc); else toggle();
       }}>
       <canvas ref={canvas} className="album-webgl-canvas" aria-hidden="true"/>
+      {!ready ? <div className="album-model-loading" role="status" aria-live="polite">
+        <span className="album-model-loading-spinner" aria-hidden="true"/>
+        <span>正在加载专辑模型</span>
+      </div> : null}
       <span className="album-model-status" role="status">{discStatus}</span>
     </div>
   </div>;

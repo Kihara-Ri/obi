@@ -8,6 +8,7 @@ import {useEffect, useLayoutEffect, useRef, useState} from 'react';
 import type {MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent} from 'react';
 import {ChevLeftIco, ChevRightIco} from '../icons';
 import {advanceGalleryMotion, clampGalleryPosition, galleryReleaseVelocity, releaseGalleryMotion} from '../../core/gallery-motion';
+import {thumbnailZoomFrames} from '../../core/gallery-zoom';
 import type {GalleryMotionState} from '../../core/gallery-motion';
 
 type View = {list: string[]; pos: number};
@@ -147,13 +148,10 @@ export function Lightbox() {
     zoomAnim.current = null;
     const rect = img.getBoundingClientRect();
     if (!rect.width || !rect.height) {teardown(); return;}
-    const sx = box.width / rect.width;
-    const sy = box.height / rect.height;
+    const [thumbnailFrame] = thumbnailZoomFrames(rect, box, data.radius, fromRadius);
     const anim = img.animate(
       [{transform: fromTransform, borderRadius: fromRadius},
-       {transform: `translate(${box.left + box.width / 2 - rect.left - rect.width / 2}px, `
-          + `${box.top + box.height / 2 - rect.top - rect.height / 2}px) scale(${sx}, ${sy})`,
-        borderRadius: `${Math.max(0, data.radius / sx)}px`}],
+       thumbnailFrame],
       {duration: ZOOM_MS, easing: ZOOM_EASE, fill: 'forwards'});
     zoomAnim.current = anim;
     anim.finished.then(() => {
@@ -221,13 +219,10 @@ export function Lightbox() {
       const box = thumb.getBoundingClientRect();
       if (!rect.width || !rect.height || !box.width || !box.height) return;
       introDone.current = true;
-      const sx = box.width / rect.width;
-      const sy = box.height / rect.height;
+      const [thumbnailFrame, fullFrame] = thumbnailZoomFrames(rect, box, data.radius,
+        window.getComputedStyle(img).borderRadius);
       const anim = img.animate(
-        [{transform: `translate(${box.left + box.width / 2 - rect.left - rect.width / 2}px, `
-            + `${box.top + box.height / 2 - rect.top - rect.height / 2}px) scale(${sx}, ${sy})`,
-          borderRadius: `${Math.max(0, data.radius / sx)}px`},
-         {transform: 'none', borderRadius: window.getComputedStyle(img).borderRadius}],
+        [thumbnailFrame, fullFrame],
         {duration: ZOOM_MS, easing: ZOOM_EASE});
       zoomAnim.current = anim;
       anim.finished.then(() => {

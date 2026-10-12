@@ -202,8 +202,9 @@ export function GalleryFilm(props: GalleryStageProps) {
         onLostPointerCapture={release} onClickCapture={onClickCapture}>
         {records.map((record, index) => <div key={record.id} className="gallery-film-item" data-motion-index={index}>
           <button type="button" className="gallery-cover-button gallery-continuous-cover gallery-case-button"
+            data-gallery-record-id={record.id}
             aria-label={`查看封面：${record.title} · ${record.artist}`} title={record.title}
-            onClick={() => {lastEcho.current = record.id; onFocus(record.id);}}>
+            onClick={event => {lastEcho.current = record.id; onFocus(record.id, event.currentTarget);}}>
             <GalleryCase record={record}/>
           </button>
         </div>)}
@@ -246,12 +247,12 @@ export function GalleryTable({records, currentId, density, showTitles, roaming =
       {records.map(record => {
         const tags = labelTags(record);
         return <div key={record.id} className={`gallery-table-item gallery-table-angle--${tableAngle(record.id)}`}>
-        <button type="button" className="gallery-cover-button gallery-continuous-cover gallery-case-button" data-record-id={record.id}
-          aria-label={`查看封面：${record.title} · ${record.artist}`} title={record.title} onClick={() => onFocus(record.id)}>
+        <button type="button" className="gallery-cover-button gallery-continuous-cover gallery-case-button" data-record-id={record.id} data-gallery-record-id={record.id}
+          aria-label={`查看封面：${record.title} · ${record.artist}`} title={record.title} onClick={event => onFocus(record.id, event.currentTarget)}>
           <GalleryCase record={record} spatial/>
         </button>
         {showTitles ? <div className="gallery-tile-caption">
-          <button type="button" className="gallery-title" title={record.title} onClick={() => onFocus(record.id)}>{record.title}</button>
+          <button type="button" className="gallery-title" title={record.title} onClick={event => onFocus(record.id, event.currentTarget)}>{record.title}</button>
           <ArtistButton artist={record.artist} onOpen={artist => onArtist(artist, record.id)}/>
           {tags.length ? <span className="gallery-tile-tags">{tags.join(' · ')}</span> : null}
         </div> : null}
@@ -334,7 +335,7 @@ export function GalleryIsometric({records, currentId, density, roaming = false, 
 
   const step = (by: number) => motion.moveTo(motion.positionRef.current + by);
   // 拖后点击由 rail capture 消费；键盘生成的 click 仍正常打开。
-  const open = (id: string) => {motion.stop(false); onFocus(id);};
+  const open = (id: string, source: HTMLElement) => {motion.stop(false); onFocus(id, source);};
   return <div className={`gallery-stage gallery-stage--isometric gallery-density--${density}`} tabIndex={0}
     role="region" aria-label="等距封面墙，沿左上和右下拖动连续浏览" onKeyDown={event => stageKey(event, step)}>
     <div className="gallery-isometric-shell">
@@ -357,7 +358,8 @@ export function GalleryIsometric({records, currentId, density, roaming = false, 
             }
           }}>
           <button type="button" className="gallery-cover-button gallery-continuous-cover gallery-case-button"
-            aria-label={`查看封面：${record.title} · ${record.artist}`} title={record.title} onClick={() => open(record.id)}>
+            data-gallery-record-id={record.id}
+            aria-label={`查看封面：${record.title} · ${record.artist}`} title={record.title} onClick={event => open(record.id, event.currentTarget)}>
             <GalleryCase record={record} spatial/>
           </button>
         </div>;
