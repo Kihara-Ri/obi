@@ -108,7 +108,7 @@ export interface AlbumRecord {
 }
 
 export interface ReleaseInfo {
-  catalogNumber?: string; barcode?: string; label?: string; country?: string;
+  catalogNumber?: string; barcode?: string; musicBrainzReleaseId?: string; label?: string; country?: string;
   releaseDate?: string; edition?: string; format?: string; discCount?: string;
   matrix?: string; extras?: string; observations?: string; tracklist?: string[];
 }

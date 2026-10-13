@@ -8,18 +8,16 @@ import {prefs} from '../core/prefs';
 import {matchRecords, norm, artistSuggestions} from '../core/search';
 import {useApp} from '../state/AppContext';
 import type {AppCtx} from '../state/AppContext';
-import type {AlbumRecord, Currency, Status, RecognitionResult, RecognitionFields, ReleaseInfo, VisionConfig, PackagingSpec} from '../types';
-import {formatPackagingName, PACKAGING_PRESETS, packagingPreset, remapPackagingPhotos} from '../core/album-packaging';
-import {PackagingEditor} from '../components/PackagingEditor';
+import type {AlbumRecord, Currency, Status, RecognitionResult, RecognitionFields, ReleaseInfo, ReleaseCandidate, VisionConfig, PackagingSpec} from '../types';
+import {remapPackagingPhotos} from '../core/album-packaging';
 import {TwinControls} from '../components/TwinControls';
+import {EditionArtwork} from '../components/EditionArtwork';
 import {twinBusy} from '../core/digital-twins';
-import {Dropdown} from '../components/ui/Dropdown';
 import {listingText} from '../core/recognition';
 import {MAX_PHOTOS} from '../core/photos';
-import {RecognitionReview, ReleaseEditor} from '../components/Recognition';
+import {RecognitionReview} from '../components/Recognition';
 import {statusName} from '../core/modules';
 import {Seg} from '../components/ui/Seg';
-import {Switch} from '../components/ui/Switch';
 import {ShopField} from '../components/ShopField';
 import {CamIco} from '../components/icons';
 import {Field, TextareaField} from './fields';
@@ -71,9 +69,78 @@ export function RecordForm({id}: {id?: string}) {
     listingDescription: base.current.listingDescription ?? '',
   }));
   const set = (patch: Partial<typeof v>) => setV(prev => ({...prev, ...patch}));
-  const [packagingError, setPackagingError] = useState<string | null>(null);
   const liveValues = useRef(v); liveValues.current = v;
   const dirty = () => app.setDrawerDirty(true);
+  // 新建时先以真实条码确定发行版。名称/艺人/曲目由 MusicBrainz 填充，
+  // 多个候选必须由用户选择，不推断精确版次。
+  const [barcode, setBarcode] = useState(r?.releaseInfo?.barcode || '');
+  const [barcodeCandidates, setBarcodeCandidates] = useState<ReleaseCandidate[]>([]);
+  const [barcodeBusy, setBarcodeBusy] = useState(false);
+  const [barcodeMessage, setBarcodeMessage] = useState('');
+  const lookupSequence = useRef(0);
+  const lookupBarcode = async () => {
+    const value = barcode.trim();
+    const seq = ++lookupSequence.current;
+    if (!/^(?:\d{8}|\d{12,14})$/.test(value)) {
+      setBarcodeCandidates([]); setBarcodeMessage('请输入完整的 8、12、13 或 14 位数字条形码'); return;
+    }
+    setBarcodeBusy(true); setBarcodeMessage('正在从 MusicBrainz 检索 CD 发行版…');
+    setBarcodeCandidates([]);
+    try {
+      const result = await api<{candidates: ReleaseCandidate[]}>('catalog/barcode', {barcode: value});
+      if (seq !== lookupSequence.current || !formRef.current?.isConnected) return;
+      setBarcodeCandidates(result.candidates);
+      setBarcodeMessage(result.candidates.length
+        ? `找到 ${result.candidates.length} 个匹配发行版，请确认后带入`
+        : 'MusicBrainz 没有找到对应的 CD 发行版。请核对条码，无法精确匹配时暂不自动创建。');
+    } catch (err) {
+      if (seq === lookupSequence.current) setBarcodeMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      if (seq === lookupSequence.current) setBarcodeBusy(false);
+    }
+  };
+  const chooseRelease = async (candidate: ReleaseCandidate) => {
+    const seq = ++lookupSequence.current;
+    setBarcodeBusy(true); setBarcodeMessage('正在补全发行资料与曲目…');
+    try {
+      let releaseInfo: ReleaseInfo = {...candidate.releaseInfo, barcode: barcode.trim(), musicBrainzReleaseId: candidate.id};
+      let detailUnavailable = false;
+      try {
+        const detail = await api<{releaseInfo: ReleaseInfo}>('vision/release?id=' + encodeURIComponent(candidate.id));
+        releaseInfo = {...releaseInfo, ...detail.releaseInfo, barcode: barcode.trim(), musicBrainzReleaseId: candidate.id};
+      } catch { detailUnavailable = true; } // 曲目请求失败时保留精确匹配的基本资料。
+      if (seq !== lookupSequence.current || !formRef.current?.isConnected) return;
+      set({title: candidate.title, artist: candidate.artist, releaseInfo});
+      setBarcodeCandidates([]);
+      setBarcodeMessage(`已确认发行版，保存后会记住此版本${detailUnavailable ? '（曲目详情暂不可用）' : ''}`);
+      // Front cover and the digital twin must derive from the same selected release UUID.
+      // A same-title release is NOT necessarily the same edition.
+      if (candidate.id !== v.releaseInfo.musicBrainzReleaseId || !hasCover) {
+        base.current = {...base.current, cover: '', coverSource: undefined};
+        setHasCover(false);
+        lastQuery.current = null;
+        setCandidates([]);
+        setCoverStatus('正在获取已确认发行版的正面封面…');
+        try {
+          const selected = await api<{cover: string; coverSource?: {title: string; artist: string}}>(
+            'catalog/front-cover?id=' + encodeURIComponent(candidate.id));
+          if (seq !== lookupSequence.current) return;
+          if (selected.cover) {
+            base.current = {...base.current, cover: selected.cover,
+              coverSource: {title: candidate.title, artist: candidate.artist}};
+            setHasCover(true);
+            setCoverStatus('已带入此发行版的正面封面');
+          } else setCoverStatus('此发行版没有正面图，可手动查找封面并核对');
+        } catch {setCoverStatus('此发行版封面暂不可用，可手动查找；发行资料仍能保存');}
+      }
+      dirty();
+    } catch (err) {
+      if (seq === lookupSequence.current) setBarcodeMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      if (seq === lookupSequence.current) setBarcodeBusy(false);
+    }
+  };
+
 
   // ── 封面 ──
   const [coverStatus, setCoverStatus] = useState(r?.cover ? '已自动匹配' : '填写后自动抓取');
@@ -297,33 +364,24 @@ export function RecordForm({id}: {id?: string}) {
 
   // 是否有实际改动：与打开表单时的快照逐字比对，改回原值会自动回到「未修改」态。
   // 照片槽只记序号/长度（data URL 太长），失败槽与保存口径一致地忽略。
-  const sign = () => JSON.stringify([v, packagingError, base.current.cover || '',
+  const sign = () => JSON.stringify([v, base.current.cover || '',
     photos.slots.map(p => 'existing' in p ? `e${p.existing}` : 'pending' in p ? 'p' : 'error' in p ? '' : `d${p.data.length}`),
     recognition ? {model:recognition.model,at:recognition.at,evidence:recognition.evidence,sources:recognition.sources,warnings:recognition.warnings} : base.current.recognition]);
   const pristine = useRef(sign());
   const edited = sign() !== pristine.current;
   useEffect(() => { app.setDrawerDirty(edited); }, [edited]);
 
-  // ── 碟盒自定义输入 ──
-  const [customVersion, setCustomVersion] = useState(
-    packagingPreset(v.version, v.packaging) === '__custom');
-  const showCustomVersion = customVersion || packagingPreset(v.version, v.packaging) === '__custom';
-  const packagingKey = packagingPreset(v.version, v.packaging);
-  useEffect(() => {setPackagingError(null);}, [packagingKey]);
-
-  const pressingOptions = (() => {
-    const os = [{value: '', label: '未设置'}, {value: '日版', label: '日版'}, {value: '外版', label: '外版'}];
-    if (v.pressing && !os.some(o => o.value === v.pressing)) os.push({value: v.pressing, label: v.pressing});
-    return os;
-  })();
-
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const names: [string, string][] = [['title', '专辑名'], ['artist', '艺人']];
     const miss = names.filter(([k]) => !String((v as Record<string, unknown>)[k] ?? '').trim());
-    if (miss.length) { setError('请填写：' + miss.map(([, n]) => n).join('、')); return; }
+    if (miss.length) { setError(id ? '请先补全：' + miss.map(([, n]) => n).join('、') : '请先通过条形码匹配发行版'); return; }
+    if (!id && !v.releaseInfo.musicBrainzReleaseId) {setError('请先通过条形码确认发行版本');return;}
+    if (barcode !== (v.releaseInfo.barcode || '') || (v.releaseInfo.barcode && !v.releaseInfo.musicBrainzReleaseId && barcode !== (r?.releaseInfo?.barcode || ''))) {
+      setError('条形码已修改，请先确认对应的发行版本');return;
+    }
+    if (barcodeBusy) {setError('正在检索发行资料或封面，请稍候');return;}
     if (photos.hasPending) { setError('还有照片在处理中，等缩略图就绪后再保存'); return; }
-    if (packagingError) {setError(packagingError); return;}
     run(app, async () => {
       const payload: Record<string, unknown> = {...base.current, ...v, status: v.status || where || base.current.status};
       delete payload.cost;
@@ -365,7 +423,7 @@ export function RecordForm({id}: {id?: string}) {
             <button type="button" className="primary" disabled={!visionConfigured || !photos.slots.length || photos.hasPending || recognizing}
               onClick={recognize}>{recognizing ? '识别中…' : '识别并补全'}</button>
           </div>
-          <p className="small-note" role="status">{recognitionMessage || (visionConfigured ? '正面、背面、侧标和内圈照片有助于核对版本。' : '可先手工录入，在设置中配置模型后使用照片识别。')}</p>
+          <p className="small-note" role="status">{recognitionMessage || (visionConfigured ? '正面、背面、侧标和内圈照片有助于核对版本。' : '无需 AI 模型即可通过下方条形码匹配发行版本；如需照片识别，可在设置的高级功能中配置。')}</p>
           <input ref={fileInput} type="file" accept="image/*,.heic,.heif" multiple hidden
             onChange={e => {const files=[...(e.target.files ?? [])];e.target.value='';if(files.length){photos.addFiles(files);clearRecognition();dirty();}}}/>
           {recognition ? <details className="adv"><summary>识别结果与依据{recognition.candidates.length ? ` · ${recognition.candidates.length} 个发行候选` : ''}{recognition.warnings.length ? ' · 有待核对项' : ''}</summary>
@@ -379,22 +437,59 @@ export function RecordForm({id}: {id?: string}) {
               setRecognition({...recognition,sources:[...recognition.sources,source]});dirty();
             }}/></details> : null}
         </section>
-        <div className="form-grid">
-          <Field label="专辑名" name="title" required autoComplete="off" value={v.title}
+        <section className="record-barcode-entry form-section">
+          <label htmlFor="record-barcode">条形码编号</label>
+          <div className="record-barcode-row">
+            <input id="record-barcode" type="text" inputMode="numeric" autoComplete="off"
+              placeholder="输入 CD 包装背面的条形码" value={barcode}
+              onChange={e => {
+                const next = e.target.value.replace(/[^\d]/g, '');
+                ++lookupSequence.current;
+                setBarcode(next); setBarcodeCandidates([]); setBarcodeMessage('');
+                if (next !== v.releaseInfo.barcode) {
+                  set({releaseInfo: {...v.releaseInfo, barcode: '', musicBrainzReleaseId: '', tracklist: []}});
+                  setCoverStatus('条形码已更改，等待确认新版封面'); dirty();
+                }
+              }}
+              onKeyDown={e => {if (e.key === 'Enter') {e.preventDefault();void lookupBarcode();}}}/>
+            <button type="button" className="primary" onClick={() => void lookupBarcode()} disabled={barcodeBusy}>
+              {barcodeBusy ? '查询中…' : '查询发行版'}
+            </button>
+          </div>
+          {barcodeMessage ? <p className="small-note" role="status">{barcodeMessage}</p> : null}
+          {barcodeCandidates.length ? <div className="record-barcode-candidates" role="group" aria-label="选择精确条码对应的发行版本">
+            {barcodeCandidates.map(c => <button type="button" key={c.id} disabled={barcodeBusy}
+              onClick={() => void chooseRelease(c)}>
+              <strong>{c.title}</strong><span>{c.artist} · {c.releaseInfo.releaseDate || '日期未知'} · {c.releaseInfo.country || '地区未知'}
+                {c.releaseInfo.catalogNumber ? ' · ' + c.releaseInfo.catalogNumber : ''}</span>
+            </button>)}
+          </div> : null}
+          {v.title && v.artist ? <div className="record-barcode-result">
+            <strong>{v.title}</strong><span>{v.artist}</span>
+            {v.releaseInfo.musicBrainzReleaseId && v.releaseInfo.barcode === barcode ? <>
+              <small>✓ 已确认发行版 · {v.releaseInfo.country || '地区未收录'} · {v.releaseInfo.releaseDate || '日期未收录'}
+                {v.releaseInfo.catalogNumber ? ' · ' + v.releaseInfo.catalogNumber : ''}</small>
+              <a href={'https://musicbrainz.org/release/' + v.releaseInfo.musicBrainzReleaseId}
+                target="_blank" rel="noopener noreferrer">MusicBrainz 发行资料 ↗</a>
+            </> : <small>尚未确认发行版，请先查询并选择</small>}
+          </div> : null}
+        </section>
+        {id && !v.releaseInfo.musicBrainzReleaseId ? <div className="form-grid form-section">
+          <Field label="专辑名（更正用）" name="title" required autoComplete="off" value={v.title}
                  onChange={e => onTitleInput(e.target.value)} onBlur={scheduleCover}/>
           <Field label="艺人" name="artist" required autoComplete="off" value={v.artist}
                  onChange={e => onArtistInput(e.target.value)} onBlur={scheduleCover}/>
-        </div>
-        <div id="ta-hints" className="suggestions">
+        </div> : null}
+        {id && !v.releaseInfo.musicBrainzReleaseId ? <div id="ta-hints" className="suggestions">
           {hints.label ? <small>{hints.label}</small> : null}
           {hints.items.map(h => (
             <button key={h.id} type="button" className="quiet"
                     onClick={() => applyHint(h.id)}>{h.text}</button>
           ))}
-        </div>
-        {dupHint ? <p className="dup-hint">{dupHint}</p> : null}
+        </div> : null}
+        {id && !v.releaseInfo.musicBrainzReleaseId && dupHint ? <p className="dup-hint">{dupHint}</p> : null}
 
-        <section className="cover-search">
+        {id || v.releaseInfo.musicBrainzReleaseId || candidates.length ? <section className="cover-search">
           <div className="cover-search-head">
             <strong>封面</strong>
             <span className="cover-status" role="status">{coverStatus}</span>
@@ -410,7 +505,7 @@ export function RecordForm({id}: {id?: string}) {
               </button>
             ))}
           </div>
-        </section>
+        </section> : null}
 
         {modules.acquisition ? <section className="money-block form-section">
           <div className="money-row">
@@ -438,6 +533,15 @@ export function RecordForm({id}: {id?: string}) {
             <Field label="买入日期（选填）" name="date" type="date" value={v.date}
                    onChange={e => { set({date: e.target.value}); dirty(); }}/>
           </div>
+          <div className="record-fees field">
+            <label htmlFor="f-fees">额外买入费用 · 运费等（人民币）</label>
+            <div className="amount-group">
+              <span className="cur-static">¥</span>
+              <input id="f-fees" name="fees" type="number" min="0" step="0.01"
+                inputMode="decimal" value={v.fees} onChange={e => {set({fees: e.target.value});dirty();}}/>
+            </div>
+            {shipItem?.feeOriginal ? <small>含国际运费 {fmtJPY(shipItem.feeOriginal)} 円 ≈ {yuan(shipItem.fee)}</small> : null}
+          </div>
           {!preview.hidden && <div className="cost-line">{preview.text}</div>}
         </section> : null}
 
@@ -445,8 +549,6 @@ export function RecordForm({id}: {id?: string}) {
           {modules.acquisition ? <ShopField value={v.location} records={app.state.records}
                      defaultShop={prefs.get('location', '')}
                      onChange={val => { set({location: val}); dirty(); }}/> : null}
-          {!modules.circulation ? <Field label="存放位置（选填）" name="storage" value={v.storage}
-            placeholder="例如：书房第二层" onChange={e => { set({storage: e.target.value}); dirty(); }}/> : null}
           {!id && modules.circulation && (
             <div className="field">
               <span className="field-label"><label>入库位置</label></span>
@@ -457,93 +559,23 @@ export function RecordForm({id}: {id?: string}) {
           )}
         </div>
 
-        <div className="form-section form-grid">
-          <div className="field full">
-            <label>包装（碟盒，选填）</label>
-            <Dropdown id="record-packaging" label="专辑包装"
-                 options={[
-                   {value: '__none', label: '未设置'},
-                   ...PACKAGING_PRESETS.map(p => ({value: p.value, label: p.label})),
-                   {value: '__custom', label: '其他 / 待核对…'},
-                 ]}
-                 value={showCustomVersion ? '__custom' : packagingPreset(v.version, v.packaging)}
-                 onPick={val => {
-                   dirty();
-                   if (val === '__custom') {setCustomVersion(true); set({packaging: {...v.packaging, structure: 'unknown'}}); return;}
-                   setCustomVersion(false);
-                   setPackagingError(null);
-                   if (val === '__none') {set({version: '', packaging: null}); return;}
-                   const preset = PACKAGING_PRESETS.find(p => p.value === val)!;
-                   set({version: r?.version ? v.version : preset.label, packaging: {...v.packaging, ...preset.spec}});
-                 }}/>
-            <input id="f-version" name="version" value={v.version}
-                   placeholder="保留原包装描述，或填写专业名称" autoComplete="off"
-                   hidden={!showCustomVersion}
-                   onChange={e => {const next = {...v.packaging}; delete next.structure; set({version: e.target.value, packaging: next}); dirty(); }}/>
-            {!showCustomVersion && v.version && formatPackagingName(v.version, v.packaging) !== v.version ? <small className="packaging-original">原碟盒记录：{v.version}</small> : null}
-          </div>
-          <div className="field">
-            <span className="field-label"><label>版次（选填）</label></span>
-            <Seg ariaLabel="版次" options={pressingOptions} value={v.pressing}
-                 onValue={p => {
-                   dirty();
-                   if (p !== '日版') set({pressing: p, obi: ''});
-                   else set({pressing: p});
-                 }}/>
-          </div>
-          <div className="field switch-field" hidden={v.pressing !== '日版'}>
-            <div className="switch-line">
-              <Switch on={v.obi === '带侧标'} onToggle={() => {
-                dirty();
-                set({obi: v.obi === '带侧标' ? '无侧标' : '带侧标'});
-              }}/>
-              <label className="switch-text">{v.obi === '带侧标' ? '带侧标（帯在）' : '无侧标（帯缺失）'}</label>
-            </div>
-          </div>
-        </div>
-
-        {modules.showcase && r && ['domestic', 'overseas', 'transit'].includes(r.status) ? <details className="adv record-twin-entry">
-          <summary>数字实体{twinBusy(app.twins.jobs[r.id]) ? ' · 任务进行中' : app.twins.jobs[r.id]?.status === 'succeeded' ? ' · 已生成' : ''}</summary>
-          <TwinControls record={r} unsaved={edited || photos.hasPending} saving={saving}
-            stale={r.revision !== base.current.revision} onAddPhoto={() => fileInput.current?.click()}/>
+        {modules.showcase ? <details className="adv record-twin-entry">
+          <summary>数字实体 · 同版 Cover Art Archive 图集{r && twinBusy(app.twins.jobs[r.id]) ? ' · 任务进行中' : r && app.twins.jobs[r.id]?.status === 'succeeded' ? ' · 已生成' : ''}</summary>
+          {v.releaseInfo.musicBrainzReleaseId && v.releaseInfo.barcode === barcode
+            ? <EditionArtwork releaseId={v.releaseInfo.musicBrainzReleaseId}/>
+            : <p className="small-note">请先在上方输入条形码并确认 MusicBrainz 发行版本。</p>}
+          {r && ['domestic', 'overseas', 'transit'].includes(r.status) ? <TwinControls record={r}
+            releaseId={v.releaseInfo.barcode === barcode ? v.releaseInfo.musicBrainzReleaseId || '' : ''}
+            unsaved={edited || photos.hasPending} saving={saving}
+            stale={r.revision !== base.current.revision}/> : null}
+          {!r && v.releaseInfo.musicBrainzReleaseId ? <p className="small-note">保存入库后可根据已确认的发行版本生成数字实体，无需重复选版。</p> : null}
         </details> : null}
-        <details className="adv">
-          <summary>发行资料与上架描述</summary>
-          <ReleaseEditor prefix="record-release" value={v.releaseInfo} onChange={releaseInfo => {set({releaseInfo});dirty();}}/>
-          <TextareaField label="上架描述草稿" name="listingDescription" value={v.listingDescription}
-            onChange={listingDescription => {set({listingDescription});dirty();}}/>
-          <button type="button" className="quiet" onClick={() => {set({listingDescription:listingText(v)});dirty();}}>从当前资料生成描述</button>
-        </details>
-        <details className="adv">
-          <summary>包装细节与更多信息</summary>
-          <PackagingEditor key={packagingKey} version={v.version} value={v.packaging} onChange={packaging => {
-            const name = formatPackagingName(v.version, packaging);
-            set({packaging, version: !r && name !== '待核对' ? name : v.version});setCustomVersion(false);dirty();
-          }}
-            onValidity={setPackagingError} photos={photos.slots.flatMap((p, index) => 'existing' in p
-              ? [{index, source: '/api/photo/' + r?.id + '/' + p.existing + '?v=' + r?.revision}]
-              : 'data' in p ? [{index, source: p.data}] : [])}/>
-          <div className="form-grid">
-            {modules.circulation ? <Field label="存放位置（选填）" name="storage" value={v.storage}
-              placeholder="例如：书房第二层" onChange={e => { set({storage: e.target.value}); dirty(); }}/> : null}
-            {modules.acquisition ? <div className="field">
-              <label htmlFor="f-fees">额外买入费用（人民币）</label>
-              <div className="amount-group">
-                <span className="cur-static">人民币</span>
-                <input id="f-fees" name="fees" type="number" min="0" step="0.01"
-                       inputMode="decimal" value={v.fees}
-                       onChange={e => { set({fees: e.target.value}); dirty(); }}/>
-              </div>
-              {shipItem?.feeOriginal
-                ? <small>国际运费 {fmtJPY(shipItem.feeOriginal)} 円 ≈ {yuan(shipItem.fee)}，已摊入上列费用</small>
-                : null}
-            </div> : null}
-            <TextareaField label="笔记 · 这张副本" name="note" value={v.note}
-                           onChange={val => { set({note: val}); dirty(); }}/>
-            <TextareaField label="笔记 · 这张专辑（感想与音乐记录，所有副本共享）" name="noteAlbum"
-                           value={v.noteAlbum} onChange={val => { set({noteAlbum: val}); dirty(); }}/>
-          </div>
-        </details>
+        <div className="form-grid form-section record-remarks">
+          <TextareaField label="备注 · 这张副本" name="note" value={v.note}
+            onChange={val => {set({note: val});dirty();}}/>
+          <TextareaField label="备注 · 这张专辑（所有副本共享）" name="noteAlbum" value={v.noteAlbum}
+            onChange={val => {set({noteAlbum: val});dirty();}}/>
+        </div>
       </div>
       <div className="drawer-footer">
         <button type="button" onClick={() => app.closeDrawer()}>取消</button>

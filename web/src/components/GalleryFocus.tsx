@@ -5,7 +5,8 @@ import {AlbumModel} from './AlbumModel';
 import type {AlbumOrientationPermission} from './useAlbumOrientation';
 import {useApp} from '../state/AppContext';
 import {twinViewerRecord} from '../core/digital-twins';
-import {commitAnimationOpacity, thumbnailZoomFrames} from '../core/gallery-zoom';
+import {commitAnimationOpacity, containedImageRect, coverRectFrames} from '../core/gallery-zoom';
+import type {ZoomRect} from '../core/gallery-zoom';
 import {ChevLeftIco, ChevRightIco} from './icons';
 
 const ZOOM_MS = 260;
@@ -41,6 +42,8 @@ export function GalleryFocus({record, records, originElement, permission, onNavi
   const visual = useRef<HTMLDivElement>(null);
   const shade = useRef<HTMLDivElement>(null);
   const visualAnimation = useRef<Animation | null>(null);
+  const coverProxy = useRef<HTMLImageElement>(null);
+  const coverAnimation = useRef<Animation | null>(null);
   const shadeAnimation = useRef<Animation | null>(null);
   const exitTimer = useRef(0);
   const switching = useRef(false);
@@ -71,72 +74,148 @@ export function GalleryFocus({record, records, originElement, permission, onNavi
     return animation;
   };
 
-  const playIntro = (id: string, afterSwitch: boolean) => {
-    const element = visual.current;
-    if (!element) return;
+  const visibleThumbnail = (source: HTMLElement | null, aspect: number): ZoomRect | null => {
+    if (!source?.isConnected) return null;
+    const image = source.querySelector<HTMLImageElement>('.gallery-artwork img.cover');
+    // The button includes shadows/rims and is usually square. The pixels of a
+    // portrait cover inside object-fit:contain occupy a smaller painted rectangle.
+    const bounds = (image || source).getBoundingClientRect();
+    if (!bounds.width || !bounds.height || bounds.right <= 0 || bounds.bottom <= 0
+      || bounds.left >= innerWidth || bounds.top >= innerHeight) return null;
+    return containedImageRect(bounds, aspect);
+  };
+
+  const coverAspect = (source: HTMLElement | null): number => {
+    const sourceImage = source?.querySelector<HTMLImageElement>('.gallery-artwork img.cover');
+    const image = sourceImage?.naturalWidth ? sourceImage : coverProxy.current;
+    return image?.naturalWidth && image.naturalHeight ? image.naturalWidth / image.naturalHeight : 1;
+  };
+
+  const expandedCover = (aspect: number): ZoomRect | null => {
+    const root = visual.current;
+    if (!root) return null;
+    const image = root.querySelector<HTMLElement>('.gallery-focus-cover img');
+    const scene = root.querySelector<HTMLElement>('.album-model-scene');
+    const container = image || scene;
+    if (!container) return null;
+    const bounds = container.getBoundingClientRect();
+    if (!bounds.width || !bounds.height) return null;
+    // A model is a 3D scene: transition its cover into a centred cover-sized
+    // preview, then reveal the engine's actual geometry when motion completes.
+    const box = image ? bounds : containedImageRect(bounds, 1);
+    return containedImageRect(box, aspect);
+  };
+
+  const findSource = (id: string) => {
     const source = thumbnailOrigin.current?.dataset.galleryRecordId === id && thumbnailOrigin.current.isConnected
       ? thumbnailOrigin.current : findThumbnail(id);
     thumbnailOrigin.current = source;
-    const radius = source ? parseFloat(getComputedStyle(source).borderTopLeftRadius) || 0 : 0;
-    // A prior close-to-thumbnail animation can still hold its final transform.
-    // Cancel and start the incoming zoom in this same layout pass, before paint.
+    return source;
+  };
+
+  const resetCoverProxy = () => {
+    coverAnimation.current?.cancel(); coverAnimation.current = null;
+    if (coverProxy.current) coverProxy.current.style.opacity = '0';
+  };
+
+  const showFull = (afterSwitch: boolean) => {
+    if (visual.current) {
+      visual.current.style.opacity = '1';
+      visual.current.style.pointerEvents = '';
+    }
+    resetCoverProxy();
+    if (afterSwitch) {switching.current = false; setTransitionStatus('');}
+  };
+
+  const fadeVisual = (from: number, to: number, complete: () => void) => {
+    const element = visual.current;
+    if (!element || reducedMotion()) {complete(); return null;}
+    visualAnimation.current?.cancel();
+    const animation = element.animate([{opacity: from}, {opacity: to}],
+      {duration: ZOOM_MS, easing: ZOOM_EASE, fill: 'both'});
+    visualAnimation.current = animation;
+    animation.finished.then(() => {
+      if (visualAnimation.current !== animation) return;
+      visualAnimation.current = null;
+      animation.cancel(); complete();
+    }).catch(() => {});
+    return animation;
+  };
+
+  const playIntro = (id: string, afterSwitch: boolean) => {
+    const element = visual.current;
+    if (!element) return;
+    window.clearTimeout(exitTimer.current);
     element.getAnimations().forEach(item => item.cancel());
     visualAnimation.current = null;
-    const full = element.getBoundingClientRect();
-    const fullRadius = getComputedStyle(element).borderRadius;
-    let animation: Animation | null = null;
-    if (!reducedMotion()) {
-      const frames = source?.isConnected && source.getBoundingClientRect().width
-        ? thumbnailZoomFrames(full, source.getBoundingClientRect(), radius, fullRadius)
-        : [{transform: 'scale(.96)', borderRadius: fullRadius}, {transform: 'none', borderRadius: fullRadius}];
-      animation = element.animate([
-        {...frames[0], opacity: 0}, {...frames[1], opacity: 1},
-      ], {duration: ZOOM_MS, easing: ZOOM_EASE, fill: 'both'});
-      visualAnimation.current = animation;
+    resetCoverProxy();
+    const source = findSource(id);
+    const aspect = coverAspect(source);
+    const thumbnail = visibleThumbnail(source, aspect);
+    const large = expandedCover(aspect);
+    const proxy = coverProxy.current;
+    if (!reducedMotion() && current.current.record.cover && proxy && thumbnail && large) {
+      // Animate image pixels only, with both endpoints fitted to the *same*
+      // intrinsic aspect ratio. Text and the (possibly 3D) model do not stretch.
+      element.style.opacity = '0'; element.style.pointerEvents = 'none';
+      const [from, to] = coverRectFrames(thumbnail, large);
+      Object.assign(proxy.style, {...from, opacity: '1'});
+      const animation = proxy.animate([{...from, opacity: 1}, {...to, opacity: 1}],
+        {duration: ZOOM_MS, easing: ZOOM_EASE, fill: 'both'});
+      coverAnimation.current = animation;
       animation.finished.then(() => {
-        if (visualAnimation.current === animation) {
-          element.getAnimations().forEach(item => item.cancel());
-          visualAnimation.current = null;
-          if (afterSwitch) {switching.current = false; setTransitionStatus('');}
-        }
+        if (coverAnimation.current === animation) showFull(afterSwitch);
       }).catch(() => {});
-      // Keep the scrim steady between cover zooms, so the gallery cannot flash bright.
+      // Pause display of the backdrop until the exact first image frame is ready.
       if (!afterSwitch) playShade(0, 1);
-    } else if (afterSwitch) {switching.current = false; setTransitionStatus('');}
-    if (!animation && afterSwitch) {switching.current = false; setTransitionStatus('');}
+      return;
+    }
+    element.style.pointerEvents = '';
+    if (!reducedMotion()) {
+      element.style.opacity = '0';
+      fadeVisual(0, 1, () => showFull(afterSwitch));
+      if (!afterSwitch) playShade(0, 1);
+    } else showFull(afterSwitch);
   };
 
   const animateOut = (id: string, after: () => void, dismiss = false) => {
     const element = visual.current;
     if (!element || reducedMotion()) {after(); return;}
     window.clearTimeout(exitTimer.current);
-    const source = thumbnailOrigin.current?.dataset.galleryRecordId === id && thumbnailOrigin.current.isConnected
-      ? thumbnailOrigin.current : findThumbnail(id);
-    const fromTransform = getComputedStyle(element).transform;
-    const fromRadius = getComputedStyle(element).borderRadius;
-    const radius = source ? parseFloat(getComputedStyle(source).borderTopLeftRadius) || 0 : 0;
+    const source = findSource(id);
+    const aspect = coverAspect(source);
+    const thumbnail = visibleThumbnail(source, aspect);
+    const large = expandedCover(aspect);
+    const proxy = coverProxy.current;
+    const ongoing = coverAnimation.current;
+    // If dismissed during an opening zoom, reverse from its actual on-screen
+    // position instead of teleporting to the finished large cover first.
+    const currentRect = ongoing && proxy ? proxy.getBoundingClientRect() : large;
     element.getAnimations().forEach(item => item.cancel());
-    // Measure the untransformed box even when the incoming zoom is interrupted;
-    // the first keyframe retains the currently visible transform.
-    const rect = element.getBoundingClientRect();
-    const thumbnailFrame = source?.isConnected && source.getBoundingClientRect().width
-      ? thumbnailZoomFrames(rect, source.getBoundingClientRect(), radius, fromRadius)[0]
-      : {transform: 'scale(.96)', borderRadius: fromRadius};
-    const animation = element.animate([
-      {transform: fromTransform, borderRadius: fromRadius, opacity: 1},
-      {...thumbnailFrame, opacity: source ? 1 : 0},
-    ], {duration: ZOOM_MS, easing: ZOOM_EASE, fill: 'both'});
-    visualAnimation.current = animation;
+    visualAnimation.current = null;
+    resetCoverProxy();
+    let animation: Animation | null = null;
+    if (current.current.record.cover && proxy && thumbnail && currentRect) {
+      element.style.opacity = '0'; element.style.pointerEvents = 'none';
+      const [from, to] = coverRectFrames(currentRect, thumbnail);
+      Object.assign(proxy.style, {...from, opacity: '1'});
+      animation = proxy.animate([{...from, opacity: 1}, {...to, opacity: 1}],
+        {duration: ZOOM_MS, easing: ZOOM_EASE, fill: 'both'});
+      coverAnimation.current = animation;
+    } else {
+      element.style.opacity = '1';
+      animation = element.animate([{opacity: 1}, {opacity: 0}],
+        {duration: ZOOM_MS, easing: ZOOM_EASE, fill: 'both'});
+      visualAnimation.current = animation;
+    }
     if (dismiss) playShade(shade.current ? Number(getComputedStyle(shade.current).opacity) : 1, 0);
     const complete = () => {
-      if (visualAnimation.current !== animation) return;
+      if (animation && coverAnimation.current !== animation && visualAnimation.current !== animation) return;
       window.clearTimeout(exitTimer.current); exitTimer.current = 0;
       after();
     };
-    // Browsers can defer WAAPI's finished event while a modal or tab is backgrounded.
-    // Keep the state transition bounded by the same duration as the visual motion.
     exitTimer.current = window.setTimeout(complete, ZOOM_MS + 120);
-    animation.finished.then(complete).catch(() => {});
+    animation?.finished.then(complete).catch(() => {});
   };
 
   requestClose.current = () => {
@@ -176,7 +255,7 @@ export function GalleryFocus({record, records, originElement, permission, onNavi
       window.removeEventListener('scroll', lock);
       window.removeEventListener('gallery-focus-history-back', onHistoryBack);
       window.clearTimeout(exitTimer.current);
-      visualAnimation.current?.cancel(); shadeAnimation.current?.cancel();
+      visualAnimation.current?.cancel(); coverAnimation.current?.cancel(); shadeAnimation.current?.cancel();
       element.close();
       html.style.overflow = overflow;
       window.scrollTo(x, y);
@@ -217,6 +296,8 @@ export function GalleryFocus({record, records, originElement, permission, onNavi
         </div>}
       <h2 id="gallery-focus-title">{record.title}</h2>
     </div>
+    {record.cover ? <img ref={coverProxy} className="gallery-focus-transition-image" src={record.cover}
+      alt="" aria-hidden="true" draggable={false}/> : null}
     <span className="gallery-visually-hidden" role="status" aria-live="polite">{transitionStatus}</span>
     {records.length > 1 ? <>
       <button type="button" className="gallery-focus-nav gallery-focus-prev" aria-label="上一张专辑" disabled={!previous}

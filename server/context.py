@@ -14,3 +14,4 @@ class Services:
     artists: Optional[Any] = None    # artists.ArtistService —— 艺人资料与作品目录
     public_origin: Optional[str] = None  # 反向代理场景下放行的 HTTPS 根地址
     twins: Optional[Any] = None       # 手动触发的数字实体 skill agent
+    shops: Optional[Any] = None       # 新购买渠道商家图标自动发现

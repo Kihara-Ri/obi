@@ -27,7 +27,7 @@ class ConflictError(ValidationError):
 
 
 RELEASE_FIELDS = ('catalogNumber', 'barcode', 'label', 'country', 'releaseDate',
-                  'edition', 'format', 'discCount', 'matrix', 'extras', 'observations')
+                  'edition', 'format', 'discCount', 'matrix', 'extras', 'observations', 'musicBrainzReleaseId')
 
 
 def clean_release_info(value):
@@ -39,6 +39,11 @@ def clean_release_info(value):
         if not isinstance(text, str) or len(text) > 5000:
             raise ValidationError('发行资料应为文字，且每项不超过 5000 字')
         result[key] = text.strip()
+    release_id = result['musicBrainzReleaseId']
+    if release_id and not re.fullmatch(r'[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}', release_id):
+        raise ValidationError('MusicBrainz 发行版本编号不正确')
+    if release_id and not result['barcode']:
+        raise ValidationError('已确认的发行版本必须包含条形码')
     tracks = value.get('tracklist', [])
     if not isinstance(tracks, list) or len(tracks) > 500 or any(not isinstance(t, str) or len(t) > 500 for t in tracks):
         raise ValidationError('曲目资料格式不正确')

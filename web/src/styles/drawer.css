@@ -213,3 +213,36 @@ details.adv:not([open]) > :not(summary){display:none}
   .batch-collection .batch-row>:nth-child(5){grid-column:2}
   .batch-collection .batch-row>:nth-child(6){grid-column:3}
 }
+
+
+/* 详情抽屉：编辑/上架与库存流转/交易两组，自适应换行，绝不越过抽屉边界。 */
+.drawer-footer:has(.detail-footer-stack){display:block}
+.detail-footer-stack{display:flex;flex-direction:column;gap:8px;min-width:0;width:100%}
+.detail-footer-row{display:flex;justify-content:flex-end;align-items:center;flex-wrap:wrap;gap:7px;min-width:0}
+.detail-footer-row+.detail-footer-row{border-top:1px solid var(--border);padding-top:8px}
+.detail-footer-row button{flex:0 1 auto;max-width:100%;min-width:0;white-space:normal}
+@media(max-width:600px){
+  .detail-footer-row button{flex:0 1 auto;min-height:38px}
+}
+.record-barcode-entry>label{display:block;font-size:13px;color:var(--muted);font-weight:600;margin-bottom:6px}
+.record-barcode-row{display:flex;gap:8px;min-width:0}
+#panel .record-barcode-row input{flex:1;min-width:0;font-variant-numeric:tabular-nums}
+.record-barcode-row button{flex:none}
+.record-barcode-candidates{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.record-barcode-candidates button{display:flex;flex-direction:column;gap:3px;text-align:left;align-items:flex-start;white-space:normal}
+.record-barcode-candidates button span,.record-barcode-result span,.record-barcode-result small{display:block;font-size:12px;color:var(--muted)}
+.record-barcode-result{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border-radius:var(--radius-sm);background:var(--surface-2);margin-top:8px;overflow-wrap:anywhere}
+.record-barcode-result strong{font-size:14px}
+.record-fees{margin-top:8px;opacity:.85}
+.record-fees>label{font-size:11.5px}
+.record-fees .amount-group{max-width:220px}
+#panel .record-fees .amount-group input{flex:1;min-width:0;width:90px}
+.record-remarks{margin-top:16px}
+
+/* 只展示确认过的 MusicBrainz 发行版对应的 Cover Art Archive 内容物。 */
+.edition-artwork{padding:8px 0 12px;min-width:0}
+.edition-artwork-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(82px,1fr));gap:9px;margin:10px 0}
+.edition-artwork-grid figure{margin:0;min-width:0}
+.edition-artwork-grid img,.edition-artwork-grid figure>span{width:100%;aspect-ratio:1;object-fit:contain;display:grid;place-items:center;background:var(--surface-2);border:1px solid var(--border);border-radius:8px}
+.edition-artwork-grid figcaption{font-size:11px;color:var(--muted);margin-top:3px;overflow-wrap:anywhere}
+.edition-artwork>a,.record-barcode-result>a{display:inline-block;font-size:12px;margin-top:6px}

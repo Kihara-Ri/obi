@@ -12,16 +12,19 @@ export function GalleryRoamingSwitch({enabled, disabled = false, onToggle}: {
   disabled?: boolean;
   onToggle: () => void;
 }) {
-  return <button type="button" className="gallery-roaming-switch" role="switch" aria-label="自动漫游"
-    aria-checked={enabled} disabled={disabled} onClick={onToggle}>
-    <span>漫游</span>
-    <span className="gallery-roaming-switch-track" aria-hidden="true"><span /></span>
-  </button>;
+  return <div className="gallery-roaming-switch" data-enabled={enabled}>
+    <span className="gallery-roaming-switch-label">漫游</span>
+    <button type="button" className="gallery-roaming-switch-button" role="switch" aria-label="自动漫游"
+      aria-checked={enabled} disabled={disabled} onClick={onToggle}>
+      <span className="gallery-roaming-switch-track" aria-hidden="true"><span /></span>
+    </button>
+  </div>;
 }
 
-export function GalleryRoamingSpeed({disabled = false, discrete = false, seconds, onSpeedChange}: {
+export function GalleryRoamingSpeed({disabled = false, discrete = false, isometric = false, seconds, onSpeedChange}: {
   disabled?: boolean;
   discrete?: boolean;
+  isometric?: boolean;
   seconds: number;
   onSpeedChange: (seconds: number) => void;
 }) {
@@ -32,6 +35,8 @@ export function GalleryRoamingSpeed({disabled = false, discrete = false, seconds
   const [draft, setDraft] = useState(() => validSeconds(seconds));
   const current = validSeconds(seconds);
   const title = discrete ? '切换间隔' : '漫游速度';
+  const unit = discrete ? '秒' : isometric ? '秒/排' : '秒/张';
+  const description = discrete ? '每张停留时间' : isometric ? '等距轨道移动一排（3 张封面）的时间' : '移动一张封面所需时间';
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -80,10 +85,10 @@ export function GalleryRoamingSpeed({disabled = false, discrete = false, seconds
   };
 
   return <>
-    <button type="button" className="gallery-roaming-speed" aria-label={`${title}：每张 ${current} 秒`}
+    <button type="button" className="gallery-roaming-speed" aria-label={`${title}：${current} ${unit}`}
       aria-haspopup="dialog" aria-expanded={open} aria-controls={`${id}-dialog`} disabled={disabled}
       onClick={() => {setDraft(current); setOpen(true);}}>
-      <span><strong>{current}</strong> {discrete ? '秒' : '秒/张'}</span>
+      <span><strong>{current}</strong> {unit}</span>
       <span className="dd-caret" aria-hidden="true">{ChevDownIco}</span>
     </button>
     <dialog ref={dialogRef} id={`${id}-dialog`} className="gallery-speed-picker"
@@ -100,11 +105,11 @@ export function GalleryRoamingSpeed({disabled = false, discrete = false, seconds
         <h3 id={`${id}-title`}>{title}</h3>
         <button type="button" className="gallery-speed-picker-confirm" aria-label="确认漫游速度" onClick={confirm}>✓</button>
       </div>
-      <p id={`${id}-description`} className="gallery-speed-picker-description">{discrete ? '每张停留时间' : '浏览一张的时间'}</p>
+      <p id={`${id}-description`} className="gallery-speed-picker-description">{description}</p>
       <div className="gallery-speed-wheel-frame">
         <div className="gallery-speed-wheel-band" aria-hidden="true" />
         <div ref={wheelRef} className="gallery-speed-wheel" role="listbox" tabIndex={0}
-          aria-label="每张停留秒数" aria-activedescendant={`${id}-seconds-${draft}`}
+          aria-label={description} aria-activedescendant={`${id}-seconds-${draft}`}
           onKeyDown={onWheelKeyDown}
           onScroll={event => {
             const wheel = event.currentTarget;
@@ -120,7 +125,7 @@ export function GalleryRoamingSpeed({disabled = false, discrete = false, seconds
             </div>;
           })}
         </div>
-        <span className="gallery-speed-wheel-unit" aria-hidden="true">{discrete ? '秒' : '秒 / 张'}</span>
+        <span className="gallery-speed-wheel-unit" aria-hidden="true">{unit}</span>
       </div>
       <p className="gallery-speed-picker-hint">{discrete ? '滑动选择 · 每次切换前停留' : '滑动选择 · 数值越小越快'}</p>
     </dialog>

@@ -31,7 +31,7 @@ def appearance(record):
     keys = ('title', 'artist', 'version', 'pressing', 'obi', 'packaging', 'cover', 'photoCount', 'photoRevision')
     result = {key: record.get(key) for key in keys}
     result['releaseInfo'] = {key: record.get('releaseInfo', {}).get(key, '') for key in
-                            ('barcode', 'catalogNumber', 'country', 'edition', 'label', 'releaseDate', 'discCount', 'format', 'matrix')}
+                            ('barcode', 'catalogNumber', 'country', 'edition', 'label', 'releaseDate', 'discCount', 'format', 'matrix', 'musicBrainzReleaseId')}
     return result
 
 

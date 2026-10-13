@@ -71,6 +71,40 @@ class DigitalTwinTests(unittest.TestCase):
         job = self.create(); self.service.run_one(); self.service.confirm({'id': job['id'], 'releaseId': EDITION})
         self.service.run_one(); return self.store.twin_index()['jobs'][self.rid]
 
+    def test_saved_release_is_reused_without_second_selection(self):
+        """Barcode -> release UUID persisted on copy -> artwork and twin use same UUID."""
+        record = self.record()
+        self.store.save({'id': self.rid, 'revision': record['revision'],
+                         'releaseInfo': {'barcode': BARCODE, 'musicBrainzReleaseId': EDITION}})
+        with_store = Store(self.store.path)
+        persisted = next(r for r in with_store.state()['records'] if r['id'] == self.rid)
+        self.assertEqual(persisted['releaseInfo']['musicBrainzReleaseId'], EDITION)
+        request = self.request(barcode='')
+        job = self.store.start_twin(request)['job']
+        self.assertEqual(job['barcodeSource'], 'record')
+        self.service.run_one()
+        intermediate = self.store.twin_index()['jobs'][self.rid]
+        self.assertEqual(intermediate['status'], 'queued')
+        self.assertEqual(intermediate['releaseId'], EDITION)
+        self.assertEqual([path for path, _ in self.service.mb.calls], ['release/' + EDITION])
+        self.assertEqual(self.model.calls, 0)
+        self.service.run_one()
+        finished = self.store.twin_index()['jobs'][self.rid]
+        self.assertEqual(finished['status'], 'succeeded')
+        self.assertEqual(finished['releaseId'], EDITION)
+        self.assertEqual(self.model.calls, 2)
+        self.assertEqual(self.store.start_twin(request)['job']['id'], job['id'])
+
+    def test_saved_release_rejects_conflicting_barcode_and_invalid_id(self):
+        record = self.record()
+        with self.assertRaises(ValidationError):
+            self.store.save({'id': self.rid, 'revision': record['revision'],
+                             'releaseInfo': {'barcode': BARCODE, 'musicBrainzReleaseId': 'unverified'}})
+        self.store.save({'id': self.rid, 'revision': record['revision'],
+                         'releaseInfo': {'barcode': BARCODE, 'musicBrainzReleaseId': EDITION}})
+        with self.assertRaises(ValidationError):
+            self.store.start_twin(self.request(barcode='4006381333931'))
+
     def test_concurrent_tabs_and_different_keys_create_one_task(self):
         bodies = [self.request() for _ in range(16)]
         with ThreadPoolExecutor(max_workers=8) as pool: jobs = list(pool.map(self.store.start_twin, bodies))

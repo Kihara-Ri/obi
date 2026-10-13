@@ -28,3 +28,8 @@
   .module-option{min-height:44px}
   .module-presets{grid-template-columns:1fr}
 }
+
+/* Barcode catalog lookup is always active; visual AI remains an optional advanced workflow. */
+.settings-optional>summary{cursor:pointer;font-size:14px;font-weight:600;color:var(--text);line-height:1.5}
+.settings-optional[open]>summary{margin-bottom:14px}
+.settings-optional-content>p{max-width:78ch}

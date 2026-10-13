@@ -234,7 +234,7 @@ export function GalleryPage() {
         </> : null}
         {roaming ? <div className="gallery-setting gallery-roaming-setting">
           <span>{galleryModeHasFocus(preferences.mode) ? '切换间隔' : '漫游速度'}</span>
-          <GalleryRoamingSpeed seconds={roamingSeconds} discrete={galleryModeHasFocus(preferences.mode)}
+          <GalleryRoamingSpeed seconds={roamingSeconds} discrete={galleryModeHasFocus(preferences.mode)} isometric={preferences.mode === 'isometric'}
             onSpeedChange={seconds => setPreferences(p => ({...p, roamingSpeeds: {...p.roamingSpeeds, [p.mode]: seconds}}))}/>
         </div> : null}
       </div>

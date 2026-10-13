@@ -46,7 +46,6 @@ function DetailBody({id, back}: {id: string; back?: DetailBack}) {
     ['当日汇率', r.currency === 'JPY' && r.rate ? `100 円 = ¥${Number(r.rate).toFixed(2)}` : '—'],
     ['额外费用（含运费分摊）', r.fees && Number(r.fees) ? yuan(r.fees) : '—'],
     ] as [string, React.ReactNode][] : []),
-    ['存放位置', r.storage || '—'],
     ['包装（碟盒）', formatPackagingName(r.version, r.packaging) || '—'],
     ['版次', r.pressing ? (r.pressing === '日版' && r.obi ? `${r.pressing}（${r.obi}）` : r.pressing) : '—'],
   ];
@@ -93,7 +92,7 @@ function DetailBody({id, back}: {id: string; back?: DetailBack}) {
           </div>
         </>
       ) : null}
-      {r.note ? <><h3 className="section-title">笔记 · 这张副本</h3><p className="note-text">{r.note}</p></> : null}
+      {r.note ? <><h3 className="section-title">备注 · 这张副本</h3><p className="note-text">{r.note}</p></> : null}
       {r.releaseInfo && Object.values(r.releaseInfo).some(v => Array.isArray(v) ? v.length : v) ? <>
         <h3 className="section-title">发行资料</h3>
         <dl className="detail-grid">{releaseLabels.map(([key,label]) => r.releaseInfo?.[key] ? <div key={key}><dt>{label}</dt><dd>{r.releaseInfo[key]}</dd></div> : null)}</dl>
@@ -108,7 +107,7 @@ function DetailBody({id, back}: {id: string; back?: DetailBack}) {
         <h3 className="section-title">上架描述草稿</h3><p className="note-text listing-description">{r.listingDescription}</p>
         <button type="button" className="quiet" onClick={async () => {try {await navigator.clipboard.writeText(r.listingDescription!);app.toast('上架描述已复制');}catch{app.toast('复制失败，可选中文字手动复制','warn');}}}>复制上架描述</button>
       </> : null}
-      {r.noteAlbum ? <><h3 className="section-title">笔记 · 这张专辑</h3><p className="note-text">{r.noteAlbum}</p></> : null}
+      {r.noteAlbum ? <><h3 className="section-title">备注 · 这张专辑</h3><p className="note-text">{r.noteAlbum}</p></> : null}
       {app.modules.circulation && shipment && shipment.status !== 'cancelled' ? (
         <>
           <h3 className="section-title">运输包裹</h3>
@@ -146,22 +145,27 @@ function DetailFooter({id, back}: {id: string; back?: DetailBack}) {
   const r = app.rec(id);
   if (!r) return null;
   return (
-    <>
-      {back ? <button className="quiet" onClick={back.run}>{back.label ?? '返回'}</button> : null}
-      <button onClick={() => openRecordForm(app, id)}>编辑</button>
-      {app.modules.trading && ['overseas', 'domestic'].includes(r.status)
-        ? <button className="quiet" onClick={() => openListingForm(app, id)}>上架资料</button> : null}
-      {app.modules.trading && ['overseas', 'domestic'].includes(r.status)
-        ? <button className="quiet" onClick={() => bulkAction(app, r.listed ? 'unlist' : 'list', [id], r.listed ? '已取消上架' : '已标记上架')}>
-            {r.listed ? '取消上架' : '标记上架'}</button> : null}
-      {app.modules.circulation && r.status === 'domestic'
-        ? <button className="quiet" onClick={() => bulkAction(app, 'to_overseas', [id])}>调回海外</button> : null}
-      {['overseas', 'domestic'].includes(r.status) ? (
-        <button className="quiet danger"
-                onClick={() => bulkAction(app, 'delete', [id], '已移入回收站，可在设置中恢复')}>移除</button>
+    <div className="detail-footer-stack">
+      <div className="detail-footer-row" role="group" aria-label="编辑与上架">
+        {back ? <button className="quiet" onClick={back.run}>{back.label ?? '返回'}</button> : null}
+        <button onClick={() => openRecordForm(app, id)}>编辑</button>
+        {app.modules.trading && ['overseas', 'domestic'].includes(r.status)
+          ? <button className="quiet" onClick={() => openListingForm(app, id)}>上架资料</button> : null}
+        {app.modules.trading && ['overseas', 'domestic'].includes(r.status)
+          ? <button className="quiet" onClick={() => bulkAction(app, r.listed ? 'unlist' : 'list', [id], r.listed ? '已取消上架' : '已标记上架')}>
+              {r.listed ? '取消上架' : '标记上架'}</button> : null}
+      </div>
+      {(app.modules.circulation || app.modules.trading) && ['overseas', 'domestic'].includes(r.status) ? (
+        <div className="detail-footer-row" role="group" aria-label="库存流转与交易">
+          {app.modules.circulation && r.status === 'domestic'
+            ? <button className="quiet" onClick={() => bulkAction(app, 'to_overseas', [id])}>调回海外</button> : null}
+          {['overseas', 'domestic'].includes(r.status) ? (
+            <button className="quiet danger" onClick={() => bulkAction(app, 'delete', [id], '已移入回收站，可在设置中恢复')}>移除</button>
+          ) : null}
+          {app.modules.trading && ['domestic', 'overseas'].includes(r.status)
+            ? <button className="primary" onClick={() => openSaleForm(app, [id])}>记录售出</button> : null}
+        </div>
       ) : null}
-      {app.modules.trading && ['domestic', 'overseas'].includes(r.status)
-        ? <button className="primary" onClick={() => openSaleForm(app, [id])}>记录售出</button> : null}
-    </>
+    </div>
   );
 }

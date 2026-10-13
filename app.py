@@ -24,6 +24,7 @@ from server.routes import WRITE_LOCK
 from server.version import version
 from server.recognition import VisionService
 from server.digital_twins import DigitalTwinService
+from server.shop_brands import ShopBrandService
 from storage import Store
 
 ROOT = Path(__file__).resolve().parent
@@ -37,7 +38,7 @@ def build(data_dir, public_origin=None):
     mb = MusicBrainzClient()
     covers = CoverService(data / 'cover-cache.sqlite3', mb=mb)
     vision = VisionService(store, covers, mb=mb)
-    return Services(store=store,
+    return Services(store=store, shops=ShopBrandService(store),
                     auth=Auth(data / 'auth.sqlite3'),
                     covers=covers, vision=vision, twins=DigitalTwinService(store, vision, mb),
                     artists=ArtistService(store, mb, covers, write_lock=WRITE_LOCK),

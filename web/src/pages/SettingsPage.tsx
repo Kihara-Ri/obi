@@ -83,8 +83,10 @@ export function SettingsPage() {
         {state.modules ? <ModuleChooser/> : <p className="small-note">当前后端仍是旧版本。重启碟渡服务后，即可选择功能模块；原有账本可以继续使用。</p>}
       </section>
       <section className="settings-section">
-        <h3>自动化服务</h3>
-        <p>封面从 iTunes / MusicBrainz 公开资料库自动抓取。{app.modules.acquisition ? '日元成本按购买当天汇率自动折算，无需手动维护。' : ''}</p>
+        <h3>发行资料自动匹配</h3>
+        <p>添加专辑时输入实物条形码，系统会从 MusicBrainz 搜索 CD 发行版本。确认对应版本后，自动填写专辑名、艺人、发行日期、厂牌及曲目，并记住该版本，无需重复选择。</p>
+        <p>封面与其他发行版图片优先从该版本的 Cover Art Archive 获取；如果未收录，可手动查找封面。<strong>这一流程无需配置 AI 模型或 API 密钥</strong>，但需要连接公开资料库。</p>
+        {app.modules.acquisition ? <p>日元成本按购买当天汇率自动折算，无需手动维护。</p> : null}
         <p className="small-note">
           版本 {state.service?.version || 'dev'}{app.modules.acquisition ? <> · 汇率缓存：{state.rateService
             ? `${state.rateService.days} 天（最新 ${state.rateService.latest || '—'}）`

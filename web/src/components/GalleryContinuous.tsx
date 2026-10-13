@@ -297,8 +297,9 @@ export function GalleryIsometric({records, currentId, density, roaming = false, 
   };
   const motion = useGalleryMotion({
     position: index, min: 0, max: Math.max(0, records.length - 1), snap: false, scopeKey,
-    loopCount: records.length, autoRun: roaming,
-    autoVelocity: () => 1 / roamingSpeed,
+    loopCount: records.length, autoRun: roaming && records.length > 1,
+    // 每排有三张唱片：UI 使用秒/排，位移按三张/排换算。
+    autoVelocity: () => 3 / roamingSpeed,
     project: (start, point, startPosition) => startPosition - ((point.x - start.x) + (point.y - start.y)) * 3 / (axisStep.current * 2),
     onFrame: position => {
       paint(position);

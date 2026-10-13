@@ -52,6 +52,28 @@ def api_state(h, svc):
     h.send(state)
 
 
+def api_shop_brands(h, svc):
+    h.send({'brands': svc.shops.index() if svc.shops else {},
+            'provider': svc.shops.status() if svc.shops else {'piInstalled': False}})
+
+
+def api_shop_retry(h, svc, body):
+    if not svc.shops: raise ValidationError('商家图标服务不可用')
+    name = str(body.get('name', '')).strip()
+    from .shop_brands import normalize
+    with svc.store.connect() as db:
+        known = any(normalize(r.get('location', '')) == normalize(name)
+                    for r in svc.store.rows(db, 'records'))
+    if not known: raise ValidationError('请先保存该购买渠道')
+    h.send({'queued': svc.shops.schedule(name, retry=True)})
+
+
+def api_shop_brand_icon(h, svc):
+    name = urlsplit(h.path).path.split('/')[-1]
+    if not svc.shops: raise ValidationError('商家图标服务不可用')
+    h.send(svc.shops.icon(name), mime='image/png', cache='private, max-age=86400')
+
+
 def api_rate(h, svc):
     d = query(h).get('date', '')
     h.send({'date': d, 'rate': svc.rates.get(d) if svc.rates else None})
@@ -203,7 +225,21 @@ def api_artists_artwork(h, svc):
 
 # ── POST：账本写操作（全部走 WRITE_LOCK）────────────────────────────
 def api_records(h, svc, body):
+    # Discover only newly recorded purchase channels, after the ledger write commits.
+    # The model can only suggest a favicon; it never overwrites the entered location.
+    incoming = body.get('items') if isinstance(body, dict) and 'items' in body else [body]
+    if not isinstance(incoming, list): incoming = []
+    proposed = {str(item.get('location', '')).strip() for item in incoming if isinstance(item, dict)}
+    proposed.discard('')
+    from .shop_brands import normalize
+    with svc.store.connect() as db:
+        recorded = {normalize(r.get('location', '')) for r in svc.store.rows(db, 'records')}
     h.send(svc.store.save(body))
+    if svc.shops:
+        for name in proposed:
+            if normalize(name) not in recorded:
+                try: svc.shops.schedule(name)
+                except Exception: pass  # Icon discovery is best-effort, never part of the ledger transaction.
     prewarm(svc)
 def api_bulk(h, svc, body):
     h.send(svc.store.bulk(body))
@@ -233,6 +269,63 @@ def vision(svc):
 
 def api_vision(h, svc): h.send(vision(svc).public_config())
 def api_release(h, svc): h.send({'releaseInfo':vision(svc).release_details(query(h).get('id'))})
+def api_barcode_lookup(h, svc, body):
+    """精确条形码检索 MusicBrainz CD 发行版，复用现有节流与缓存。"""
+    barcode = body.get('barcode', '')
+    from twins import clean_barcode
+    barcode = clean_barcode(barcode)
+    if not barcode: raise ValidationError('请输入完整的条形码')
+    candidates = vision(svc).catalog({'title': '', 'artist': '',
+        'releaseInfo': {'barcode': barcode}})
+    candidates = [c for c in candidates if c['identifierMatch']
+                  and re.sub(r'\D', '', c['releaseInfo'].get('barcode', '')) == barcode]
+    h.send({'barcode': barcode, 'candidates': candidates})
+
+
+def api_release_artwork(h, svc):
+    """Selected edition's CAA artwork metadata; never search other releases by title."""
+    from twins import UUID
+    from server.digital_twins import ArtNotFound
+    ident = query(h).get('id', '')
+    if not isinstance(ident, str) or not UUID.fullmatch(ident):
+        raise ValidationError('发行版本编号不正确')
+    try:
+        catalog = twins(svc).art.catalog(ident)
+    except ArtNotFound:
+        return h.send({'id': ident, 'artwork': []})
+    artwork = []
+    for item in catalog.get('images', [])[:40]:
+        if not isinstance(item, dict) or not str(item.get('id', '')).isdigit(): continue
+        thumbs = item.get('thumbnails') or {}
+        url = thumbs.get('small') or thumbs.get('250') or item.get('image') or ''
+        if not isinstance(url, str) or not url.startswith('https://'): url = ''
+        artwork.append({'id': str(item['id']), 'types': item.get('types', []),
+                        'thumbnail': url})
+    h.send({'id': ident, 'artwork': artwork})
+
+
+def api_release_front_cover(h, svc):
+    """Use ONLY the front of the confirmed MB release, not title-matched unrelated editions."""
+    from twins import UUID, image_type
+    from server.digital_twins import ArtNotFound
+    import base64
+    ident = query(h).get('id', '')
+    if not isinstance(ident, str) or not UUID.fullmatch(ident):
+        raise ValidationError('发行版本编号不正确')
+    try:
+        images = twins(svc).art.catalog(ident).get('images', [])
+    except ArtNotFound:
+        return h.send({'cover': '', 'reason': 'no-artwork'})
+    front = next((item for item in images if isinstance(item, dict) and str(item.get('id', '')).isdigit()
+                  and 'Front' in item.get('types', [])), None)
+    if front is None: return h.send({'cover': '', 'reason': 'no-front'})
+    raw = twins(svc).art.image(ident, str(front['id']), preview=True)
+    if len(raw) > 2500000: raise ValidationError('这一发行版的封面预览过大，请手动选择封面')
+    _, mime = image_type(raw)
+    h.send({'cover': 'data:' + mime + ';base64,' + base64.b64encode(raw).decode('ascii'),
+            'coverSource': {'title': '', 'artist': ''}})
+
+
 def api_vision_config(h, svc, body): h.send(vision(svc).configure(body))
 def api_imports(h, svc): h.send({'drafts':svc.store.list_imports()})
 def api_import_draft(h, svc): h.send(svc.store.read_import(query(h).get('id')))
@@ -296,12 +389,15 @@ GET = {
     '/api/health': api_health,
     '/api/state': api_state,
     '/api/rate': api_rate,
+    '/api/shop-brands': api_shop_brands,
     '/api/backup': api_backup,
     '/api/artists/profile': api_artists_profile,
     '/api/artists/catalog': api_artists_catalog,
     '/api/export': api_export,
     '/api/vision': api_vision,
     '/api/vision/release': api_release,
+    '/api/catalog/artwork': api_release_artwork,
+    '/api/catalog/front-cover': api_release_front_cover,
     '/api/imports': api_imports,
     '/api/imports/draft': api_import_draft,
     '/api/twins': api_twins,
@@ -312,6 +408,7 @@ PUBLIC_GET = {  # 免登录（监控与部署探测）
 GET_PREFIX = {  # 带路径参数的接口
     '/api/photo/': api_photo,
     '/api/cover/': api_cover,
+    '/api/shop-brand-icon/': api_shop_brand_icon,
     '/api/import-photo/': api_import_photo,
     '/api/artists/artwork/': api_artists_artwork,
     '/api/twin-assets/': api_twin_asset,
@@ -322,6 +419,8 @@ POST = {
     '/api/login': (api_login, False, False),
     '/api/logout': (api_logout, True, False),
     '/api/password': (api_password, True, True),
+    '/api/catalog/barcode': (api_barcode_lookup, True, False),
+    '/api/shops/retry': (api_shop_retry, True, False),
     '/api/covers/search': (api_covers_search, True, False),
     '/api/covers/download': (api_covers_download, True, False),
     '/api/artists/resolve': (api_artists_resolve, True, False),

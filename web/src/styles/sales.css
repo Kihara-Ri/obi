@@ -20,7 +20,7 @@
 .sale-foot .cell span{font-size:11px;color:var(--faint)}
 .sale-foot .cell b{font-size:14px;font-variant-numeric:tabular-nums}
 .sale-foot .spacer{display:none}
-.sale-foot .actions{display:flex;gap:7px;flex-wrap:wrap;margin-left:6px}
+.sale-foot .actions{display:flex;gap:7px;flex-wrap:wrap;margin-left:auto;justify-content:flex-end}
 
 @media (max-width:840px){
   .sale-card{padding:13px 14px}
@@ -31,7 +31,7 @@
   .sale-foot{flex-wrap:wrap;align-items:baseline;gap:4px 12px;padding-top:10px}
   .sale-foot .cell{flex-direction:row;align-items:baseline;gap:4px}
   .sale-foot .cell b{font-size:13.5px}
-  .sale-foot .actions{flex-basis:100%;margin-top:4px;margin-left:0}
-  .sale-foot .actions button{flex:1;min-height:42px}
+  .sale-foot .actions{flex-basis:100%;margin-top:4px;margin-left:0;justify-content:flex-end}
+  .sale-foot .actions button{flex:0 1 auto;min-height:42px}
 
 }

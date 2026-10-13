@@ -12,10 +12,10 @@ ROOT = Path(__file__).resolve().parents[1]
 STATIC = ROOT / 'static'
 ALIASES = {'/': 'index.html', '/login': 'login.html'}
 
-# 免登录的请求路径（login.html 引用的资源变化时须同步维护这份名单）
+# 免登录的请求路径（login.html / offline.html 引用的资源变化时须同步维护这份名单）
 PUBLIC = frozenset({
     '/login', '/login.js', '/theme.js', '/assets/index.css', '/favicon.svg',
-    '/manifest.webmanifest', '/sw.js', '/offline.html',
+    '/manifest.webmanifest', '/sw.js', '/offline.html', '/offline.css',
     '/icon-192.png', '/icon-512.png', '/icon-192-maskable.png', '/icon-512-maskable.png',
 })
 

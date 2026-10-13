@@ -149,3 +149,7 @@ button:disabled:hover{background:var(--surface-2)}
   /* 外观切换在手机上收进「更多」页（仅隐藏页头这份，「更多」行内的照常显示） */
   .head-actions .theme-seg{display:none}
 }
+
+.shop-discovery-hint{display:block;color:var(--muted);font-size:11px;margin:5px 2px 0;overflow-wrap:anywhere}
+
+.shop-discovery-retry{font-size:11px;padding:3px 0;color:var(--muted);margin-top:4px;white-space:normal}

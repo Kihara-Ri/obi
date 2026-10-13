@@ -214,7 +214,7 @@ class VisionService:
                 candidates.append({'id':r['id'],'title':r.get('title',''),
                     'artist':''.join(a.get('name','') + a.get('joinphrase','') for a in r.get('artist-credit',[]) if isinstance(a,dict)),
                     'releaseInfo':ri,'identifierMatch':matched,'url':'https://musicbrainz.org/release/' + r['id']})
-            result = sorted(candidates,key=lambda r:r['identifierMatch'],reverse=True)[:6]
+            result = sorted(candidates,key=lambda r:r['identifierMatch'],reverse=True)[:15]
             if len(self.catalog_cache)>=200: self.catalog_cache.clear()
             self.catalog_cache[query] = result
             return result

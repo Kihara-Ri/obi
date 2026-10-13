@@ -902,6 +902,16 @@ class Store:
             db.execute('BEGIN IMMEDIATE'); self.require_module('showcase', db)
             record = self.get(db, 'records', rid)
             if record['status'] not in ('domestic', 'overseas', 'transit'): raise ValidationError('只能为当前收藏副本生成数字实体')
+            # A confirmed MusicBrainz edition belongs to the copy, not to a transient twin job.
+            release_info = record.get('releaseInfo') or {}
+            selected_release = release_info.get('musicBrainzReleaseId') or ''
+            if selected_release:
+                from twins import UUID
+                if not UUID.fullmatch(selected_release): raise ValidationError('已保存的发行版本编号无效')
+                saved_barcode = clean_barcode(release_info.get('barcode', ''))
+                if not saved_barcode: raise ValidationError('已确认发行版缺少有效的条形码')
+                if barcode and barcode != saved_barcode: raise ValidationError('请先在编辑页面更新条形码与发行版本')
+                barcode = saved_barcode
             registry = self._twins(db)
             # A lost HTTP response cannot turn the same accepted request into another task.
             receipt = next((j for j in registry['jobs'].values() if j['recordId'] == rid and j['requestId'] == request_id), None)
@@ -913,7 +923,7 @@ class Store:
                 shown = self._public_twin(latest, record)
                 changed_barcode = bool(barcode and barcode != latest.get('barcode') and body.get('expectedJobId') == latest_id)
                 if (shown['status'] == 'needs_input' and latest.get('phase') == 'awaiting_confirmation'
-                        and (not barcode or barcode == latest.get('barcode'))):
+                        and not selected_release and (not barcode or barcode == latest.get('barcode'))):
                     return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': shown}
                 changed_input = shown['status'] == 'stale' and body.get('expectedJobId') == latest_id
                 if latest['status'] in ('queued', 'running') and changed_input:
@@ -938,7 +948,8 @@ class Store:
             job = {'id': ident, 'recordId': rid, 'requestId': request_id, 'skill': SKILL_VERSION,
                    'status': 'queued', 'phase': 'locating_release' if barcode else 'reading_barcode', 'message': '等待核对条形码', 'error': '', 'seq': 0,
                    'input': appearance(record), 'inputRevision': record['revision'], 'instructions': '',
-                   'workflow': 'barcode-first', 'barcode': barcode, 'barcodeSource': 'manual' if barcode else '',
+                   'workflow': 'barcode-first', 'barcode': barcode, 'barcodeSource': 'record' if selected_release else 'manual' if barcode else '',
+                   'selectedReleaseId': selected_release,
                    'releaseId': '', 'sources': sources, 'createdAt': now(), 'updatedAt': now(), 'leaseUntil': 0}
             registry['jobs'][ident] = job; registry['latest'][rid] = ident
             self._write_twins(db, registry, job); self.audit(db, '请求生成数字实体', {'id': rid, 'taskId': ident, 'skill': SKILL_VERSION})
@@ -1001,7 +1012,7 @@ class Store:
             return True
 
     def update_twin(self, ident, claim, **patch):
-        allowed = {'phase', 'message', 'status', 'error', 'candidates', 'entity', 'barcode', 'barcodeSource', 'releaseData', 'artData'}
+        allowed = {'phase', 'message', 'status', 'error', 'candidates', 'entity', 'barcode', 'barcodeSource', 'releaseData', 'artData', 'releaseId', 'confirmedRelease', 'confirmedCatalog'}
         if set(patch) - allowed: raise ValidationError('生成任务更新字段无效')
         with closing(self.connect()) as db, db:
             db.execute('BEGIN IMMEDIATE'); registry = self._twins(db); job = registry['jobs'].get(ident)

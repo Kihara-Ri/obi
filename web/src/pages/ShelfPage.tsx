@@ -86,9 +86,9 @@ export function ShelfPage() {
   });
 
   const title = page === 'domestic' && !modules.circulation ? '我的收藏' : page === 'overseas' ? '海外库存' : page === 'domestic' ? '国内库存' : '回收站';
-  const desc = !modules.circulation && !isTrash ? '整理每张实物的版本、照片和存放位置。'
+  const desc = !modules.circulation && !isTrash ? '整理每张实物的版本和照片。'
     : page === 'overseas' ? (modules.trading ? '在日本持有的专辑，可标记上架（如メルカリ）或直接记录售出；选中多张可打包运输。' : '在海外持有的专辑，选中多张可打包运输。')
-    : page === 'domestic' ? (modules.trading ? '已运回国；标记「已上架」的正在闲鱼出售，其余暂未上架，随时可记录售出。' : '已运回的专辑，记录版本、照片和存放位置。')
+    : page === 'domestic' ? (modules.trading ? '已运回国；标记「已上架」的正在闲鱼出售，其余暂未上架，随时可记录售出。' : '已运回的专辑，记录版本和照片。')
       : '移除的专辑保留在这里，随时可以恢复。';
   // 页头说明小字只保留在回收站与单库模式（我的收藏）；国内/海外库存按用户要求去掉。
   const keepDesc = isTrash || (page === 'domestic' && !modules.circulation);
@@ -222,7 +222,7 @@ export function ShelfPage() {
           </label>
         )}
         <div className="search">
-          <input aria-label="搜索专辑" placeholder={modules.acquisition ? '搜索专辑、艺人或渠道…' : '搜索专辑、艺人或存放位置…'} value={query}
+          <input aria-label="搜索专辑" placeholder={modules.acquisition ? '搜索专辑、艺人或渠道…' : '搜索专辑或艺人…'} value={query}
                  onChange={e => app.setQuery(e.target.value)}/>
         </div>
         {modules.acquisition && sort === 'new' && !searching ? (

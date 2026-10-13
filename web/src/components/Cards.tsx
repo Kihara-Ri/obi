@@ -36,7 +36,6 @@ export function AlbumCard({r, page, checked, onSelect, onDetail, onArtist, actio
       </>}
       metadata={<>
         <div className="list-badges">{badges}</div>
-        {r.storage ? <div className="album-storage">{r.storage}</div> : null}
       </>}
       money={modules.acquisition ? <><small>买入</small><div className="album-purchase"><PriceCell r={r}/></div></> : undefined}
       actions={<div className="card-actions">{actions}</div>}/>
@@ -67,7 +66,6 @@ export function AlbumCard({r, page, checked, onSelect, onDetail, onArtist, actio
           <div className="card-tags">{tags.map(t => <span key={t} className="card-edt">{t}</span>)}</div>
         ) : null}
         {modules.acquisition ? <div className="card-price"><PriceCell r={r}/></div> : null}
-        {r.storage ? <div className="card-storage">{r.storage}</div> : null}
       </div>
       <div className="card-actions">{actions}</div>
     </article>

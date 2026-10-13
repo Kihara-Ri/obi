@@ -22,3 +22,19 @@ export function thumbnailZoomFrames(full: ZoomRect, thumbnail: ZoomRect, radius:
     {transform: 'none', borderRadius: fullRadius},
   ];
 }
+
+/** Actual painted bounds of an object-fit:contain cover, excluding letterboxing. */
+export function containedImageRect(box: ZoomRect, aspect: number): ZoomRect {
+  if (!Number.isFinite(aspect) || aspect <= 0 || box.width <= 0 || box.height <= 0) return {...box};
+  const width = Math.min(box.width, box.height * aspect);
+  const height = width / aspect;
+  return {left: box.left + (box.width - width) / 2,
+    top: box.top + (box.height - height) / 2, width, height};
+}
+
+/** Animate a cover image by its painted bounds, never by stretching a title+scene wrapper. */
+export function coverRectFrames(from: ZoomRect, to: ZoomRect): [Record<string, string>, Record<string, string>] {
+  const frame = (rect: ZoomRect) => ({left: `${rect.left}px`, top: `${rect.top}px`,
+    width: `${rect.width}px`, height: `${rect.height}px`});
+  return [frame(from), frame(to)];
+}

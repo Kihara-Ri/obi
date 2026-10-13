@@ -24,94 +24,50 @@ const {TwinControls} = require(join(output, 'components/TwinControls.js'));
 const {AppContext} = require(join(output, 'state/AppContext.js'));
 after(() => rmSync(output, {recursive: true, force: true}));
 
-const record = {id: 'islands-copy', title: 'Islands', artist: 'King Crimson', version: '纸盒', revision: 1, photoCount: 0};
-const candidate = {
-  id: 'e618bce6-8e08-4628-9574-2d8f53b20db7', title: 'Islands', artist: 'King Crimson',
-  barcode: '4988013047105', country: 'JP', date: '2000-03-01', label: 'Discipline Global Mobile',
-  catalogNumber: 'PCCY-01424', discCount: 1, media: [{position: 1, format: 'CD', tracks: [{position: 1, title: 'Formentera Lady'}]}],
-  url: 'https://musicbrainz.org/release/e618bce6-8e08-4628-9574-2d8f53b20db7',
-  artworkStatus: 'available', artwork: [{id: 'gold-disc', types: ['Medium'], comment: '', previewUrl: '/api/twin-review-assets/review/preview-disc.jpg'}],
-};
-const review = {id: 'review', status: 'needs_input', phase: 'awaiting_confirmation', barcode: candidate.barcode,
-  barcodeSource: 'manual', candidates: [candidate]};
-function render(job, props = {}, configured = false) {
-  return renderToStaticMarkup(createElement(AppContext.Provider, {value: {twins: {jobs: job ? {[record.id]: job} : {}, configured}, twinSyncError: ''}},
-    createElement(TwinControls, {record, onAddPhoto() {}, ...props})));
+const id = 'e618bce6-8e08-4628-9574-2d8f53b20db7';
+const record = {id: 'copy', title: 'Islands', artist: 'King Crimson', version: 'Jewel Case', revision: 1,
+  releaseInfo: {barcode: '4988013047105', musicBrainzReleaseId: id}};
+function render(props = {}, configured = true, job = null) {
+  const app = {twins: {jobs: job ? {copy: job} : {}, configured}, twinSyncError: ''};
+  return renderToStaticMarkup(createElement(AppContext.Provider, {value: app},
+    createElement(TwinControls, {record, releaseId: id, ...props})));
 }
 function button(markup, label) {
-  const found = Array.from(markup.matchAll(/<button([^>]*)>(.*?)<\/button>/g)).find(([, , text]) => text === label);
+  const found = [...markup.matchAll(/<button([^>]*)>(.*?)<\/button>/g)]
+    .find(([, , contents]) => contents === label);
   assert.ok(found, 'button exists: ' + label);
   return found[1];
 }
 
-test('未配置生成模型仍可手工查询条形码；实物照片入口优先读取照片，不要求发行链接和还原要求', () => {
-  const manual = render();
-  assert.match(manual, /实物条形码号/);
-  assert.doesNotMatch(manual, /还原要求|发行版链接|textarea/);
-  const photo = render(undefined, {record: {...record, photoCount: 1}});
-  assert.doesNotMatch(button(photo, '识别实物条形码并匹配版本'), /disabled/);
-  assert.match(photo, /输入条形码号/);
+test('只使用上方已保存的发行版编号；不再有第二组条形码、背面照片与选版', () => {
+  const html = render();
+  assert.match(html, /已绑定 MusicBrainz 发行版/);
+  assert.doesNotMatch(html, /<input|添加背面照片|输入条形码|确认此版本并生成/);
+  assert.doesNotMatch(button(html, '生成数字实体'), /disabled/);
 });
-
-test('单一条码结果仍展示实物资料和显式确认；未收录包装保持未知，受保护图集不冒充完整实物', () => {
-  const markup = render(review);
-  for (const value of ['Islands', 'King Crimson', '4988013047105', 'PCCY-01424', '2000-03-01', 'Formentera Lady']) assert.ok(markup.includes(value));
-  assert.match(markup, /未收录，请以实物为准/);
-  assert.match(markup, /缺少的背面、书脊或收纳结构/);
-  assert.match(markup, /src="\/api\/twin-review-assets\/review\/preview-disc.jpg"/);
-  assert.match(button(markup, '确认此版本并生成数字实体'), /disabled/);
-  assert.match(markup, /配置视觉模型/);
+test('必须先保存发行版，并已配置模型才能生成', () => {
+  assert.match(button(render({releaseId: ''}), '生成数字实体'), /disabled/);
+  assert.match(button(render({unsaved: true}), '生成数字实体'), /disabled/);
+  assert.match(button(render({stale: true}), '生成数字实体'), /disabled/);
+  assert.match(button(render({}, false), '生成数字实体'), /disabled/);
+  assert.match(render({}, false), /图集预览无需模型/);
 });
-
-test('未保存修改禁止按旧资料查询或确认，添加背面照片保留入口；等待条码能继续手工填写', () => {
-  const dirty = render(undefined, {unsaved: true});
-  assert.match(button(dirty, '匹配条形码对应的发行版本'), /disabled/);
-  assert.doesNotMatch(button(dirty, '添加背面照片'), /disabled/);
-  assert.match(dirty, /当前输入和照片仍保留/);
-  assert.match(button(render(review, {unsaved: true}, true), '确认此版本并生成数字实体'), /disabled/);
-  const waiting = render({...review, phase: 'awaiting_barcode', candidates: []}, {record: {...record, photoCount: 2}});
-  assert.match(waiting, /未找到清晰可读的条形码/);
-  assert.match(waiting, /实物条形码号/);
+test('失败任务可重试，后台生成任务可取消，不重复选择发行版', () => {
+  const failed = render({}, true, {id: 'job', status: 'failed', error: '图集暂不可用'});
+  assert.doesNotMatch(button(failed, '重新生成数字实体'), /disabled/);
+  assert.match(failed, /图集暂不可用/);
+  const running = render({}, true, {id: 'job', status: 'running', message: '生成中'});
+  assert.match(button(running, '取消任务'), /type="button"/);
+  assert.doesNotMatch(running, /重新匹配发行版本/);
 });
-
-test('外部保存导致编辑快照过期时保持当前输入，禁止静默使用刷新后的副本查询或生成', () => {
-  const markup = render(review, {stale: true}, true);
-  assert.match(markup, /副本已在其他窗口更新/);
-  assert.match(markup, /关闭并重新打开编辑/);
-  assert.match(button(markup, '确认此版本并生成数字实体'), /disabled/);
-  assert.match(button(markup, '重新匹配发行版本'), /disabled/);
-});
-
-test('未尝试加载的图片不误报为来源不可用，旧任务无预览状态时保持中性提示', () => {
-  const artwork = [
-    {id: 'deferred', types: ['Booklet'], comment: '', previewStatus: 'not_loaded'},
-    {id: 'failed', types: ['Booklet'], comment: '', previewStatus: 'unavailable'},
-    {id: 'legacy', types: ['Booklet'], comment: ''},
-  ];
-  const markup = render({...review, candidates: [{...candidate, artwork}]});
-  assert.equal(markup.match(/>未加载预览</g)?.length, 2);
-  assert.equal(markup.match(/>预览暂不可用</g)?.length, 1);
-});
-
-test('同版 Discogs 结构说明在编辑核对中展示，失败来源不冒充已核对', () => {
-  const editionReferences = [{origin: 'discogs', status: 'verified', id: '2485482',
-    url: 'https://www.discogs.com/release/2485482', notes: 'gatefold vinyl replica sleeve',
-    barcode: candidate.barcode, catalogNumbers: ['PCCY-01424'], images: []}];
-  const markup = render({...review, candidates: [{...candidate, editionReferences}]});
-  assert.match(markup, /同版实物参考/);
-  assert.match(markup, /gatefold vinyl replica sleeve/);
-  assert.match(markup, /href="https:\/\/www.discogs.com\/release\/2485482"/);
-  const unavailable = render({...review, candidates: [{...candidate, editionReferences: [{origin:'discogs',status:'unavailable'}]}]});
-  assert.match(unavailable, /暂时无法读取/);
-  assert.doesNotMatch(unavailable, /gatefold vinyl replica sleeve/);
-});
-
-test('照片估计的窄脊与 CD 容纳空间冲突时在编辑说明，不伪装成实测厚度', () => {
-  const entity = {packaging: {structure: 'gatefold', panels:2, holder:'pocket', pockets:'both', pocketOpening:'inner', discs:2},
-    surfaces:{}, warnings:[], skill:'album-digital-twin/3',
-    calibration:{spine:{widthRatio:.001,basis:'image-estimate',asset:'photo-0.jpg',origin:'edition-reference',sourceUrl:''}}};
-  const markup=render({id:'ready',status:'succeeded',entity});
-  assert.match(markup, /书脊宽度为图像比例估计/);
-  assert.match(markup, /保留光盘所需的容纳间隙/);
-  assert.doesNotMatch(markup, /实测书脊/);
+test('成功实体沿用已保存版本，估计尺寸不会冒充实测', () => {
+  const job = {id: 'job', status: 'succeeded', releaseId: id,
+    entity: {packaging: {structure: 'gatefold', panels: 2, holder: 'pocket',
+      pockets: 'both', pocketOpening: 'inner', discs: 2}, surfaces: {}, warnings: [],
+      calibration: {spine: {widthRatio: .001, basis: 'image-estimate', asset: 'photo-0.jpg',
+        origin: 'edition-reference', sourceUrl: ''}}}};
+  const html = render({}, true, job);
+  assert.match(html, /数字实体已生成/);
+  assert.match(html, /并非实测尺寸/);
+  assert.doesNotMatch(html, /生成数字实体<\/button>/);
 });

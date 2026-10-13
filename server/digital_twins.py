@@ -172,8 +172,20 @@ class DigitalTwinService:
                 self.store.update_twin(job['id'], job['claim'], status='succeeded', phase='ready', message='数字实体已生成', entity=entity)
             else:
                 review = self.lookup(job, step)
-                self.store.update_twin(job['id'], job['claim'], **review, status='needs_input', phase='awaiting_confirmation',
-                                       message='请核对发行资料，确认后再生成数字实体', error='')
+                selected = job.get('selectedReleaseId')
+                if selected:
+                    # Edition was confirmed in the album form and persisted before this job.
+                    if not self.vision.public_config()['configured']:
+                        raise NeedsInput('请先配置视觉模型，再重新生成数字实体', 'awaiting_generation')
+                    self.store.update_twin(job['id'], job['claim'], **review,
+                        status='queued', phase='queued_generation',
+                        message='已复用已确认的发行版，等待生成数字实体', error='',
+                        releaseId=selected, confirmedRelease=review['releaseData'][selected],
+                        confirmedCatalog=review['artData'].get(selected, {}))
+                    self.wake.set()
+                else:
+                    self.store.update_twin(job['id'], job['claim'], **review, status='needs_input', phase='awaiting_confirmation',
+                                           message='请核对发行资料，确认后再生成数字实体', error='')
         except Stopped:
             if self.stop_event.is_set(): self.store.update_twin(job['id'], job['claim'], status='interrupted', error='生成服务已停止，请手动重试')
         except NeedsInput as exc:
@@ -307,13 +319,19 @@ class DigitalTwinService:
 
     def lookup(self, job, step):
         barcode = job.get('barcode') or self.read_barcode(job, step)
-        source = 'manual' if job.get('barcode') else 'photo'
+        source = 'record' if job.get('selectedReleaseId') else 'manual' if job.get('barcode') else 'photo'
         if not self.store.update_twin(job['id'], job['claim'], barcode=barcode, barcodeSource=source): raise Stopped()
         step('locating_release', '正在按完整条形码匹配 MusicBrainz CD 发行版本')
-        result = self.mb.get('release', {'fmt': 'json', 'query': 'barcode:"' + barcode + '"', 'limit': 20})
-        if result.get('count', 0) > 20: raise NeedsInput('这个条形码对应超过 20 条发行资料，请核对副本的条形码数字', 'awaiting_barcode')
+        selected = job.get('selectedReleaseId')
+        if selected:
+            # No second barcode search or edition selection: use the previously saved release UUID.
+            items = [{'id': selected, 'barcode': barcode}]
+        else:
+            result = self.mb.get('release', {'fmt': 'json', 'query': 'barcode:"' + barcode + '"', 'limit': 20})
+            if result.get('count', 0) > 20: raise NeedsInput('这个条形码对应超过 20 条发行资料，请核对副本的条形码数字', 'awaiting_barcode')
+            items = result.get('releases', [])
         candidates = []; releases = {}; catalogs = {}
-        for item in result.get('releases', []):
+        for item in items:
             edition = item.get('id', '')
             if not isinstance(edition, str) or not UUID.fullmatch(edition) or self._barcode(item.get('barcode')) != barcode: continue
             step('locating_release', '正在获取对应版本的曲目与发行资料')
@@ -329,7 +347,8 @@ class DigitalTwinService:
             catalog = {**catalog, 'editionReferences': references}
             candidates.append(summary); releases[edition] = release; catalogs[edition] = catalog
         if not candidates:
-            raise NeedsInput('MusicBrainz 没有匹配到这一完整条形码的 CD 发行版本，请检查数字或补拍背面照片；不会按标题猜选其他版本', 'awaiting_barcode')
+            if selected: raise NeedsInput('已保存发行版本与条形码或 CD 介质不一致，请在上方重新选择发行版', 'awaiting_edition')
+            raise NeedsInput('MusicBrainz 没有匹配到这一完整条形码的 CD 发行版本，请检查数字；不会按标题猜选其他版本', 'awaiting_barcode')
         return {'barcode': barcode, 'barcodeSource': source, 'candidates': candidates, 'releaseData': releases, 'artData': catalogs}
 
     def own_faces_complete(self, job, cd_count):
