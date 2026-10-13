@@ -31,6 +31,12 @@ python3 scripts/fetch_release_art.py <已确认 release URL 或 MBID> --barcode 
 
 直接打开原图逐面确认。CAA 的 `Booklet` 可能是册页，也可能误标外包装展开图；交叉核对同版结构说明、正背印刷、纸袋、折线与订钉，再分配角色。册页、外套及 OBI 分开；按实际字样识别 CD 1、CD 2，不按图集顺序猜。
 
+## 跨发行版本的图集选取
+
+严格先使用已确认发行版自己的 CAA 图，再使用以完整条形码、目录号、CD 介质同时验证过的同版 Discogs 图。如果不足，再检查 MusicBrainz 同一个 release-group 的其他具体 CD 发行版，只接受已知封装类型完全一致、CD 张数相等的版本，以正背、盘面、册页角色覆盖率及原图数量排序。这些只能作标注源发行版 UUID 的印刷参考，不能改变用户已经确认的发行版 UUID，不能拿 Jewel Case 的结构当纸封套，不能拿双 CD 当单 CD。
+
+2017 年日本版 the Glow, pt. 2，EAN 4582237837001（EPCD-100）：CAA 本版无图，但其同版 Discogs release 11384187 有 22 张图，包含纸封套正背、CD、侧标、册页，应优先使用同版图。该版为 A 式单袋厚纸封套（非 Gatefold）；别把 2001 年 Jewel Case 版的 7 张 CAA 当成同封装。无对应模型部件时保留侧标、册页为来源证据，不将其伪装成内封板。
+
 ## 校准模型
 
 从实物图确认 Jewel Case、Card Sleeve、Gatefold Sleeve、Digipak、Digibook 或 Rigid Box，另列 Mini LP 和 Slipcase 属性。记录折页数、袋口方向、托盘/纸袋、CD 分配及开合轴。

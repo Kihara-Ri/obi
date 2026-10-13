@@ -170,7 +170,11 @@ def clean_entity(value, sources):
         if region is not None:
             clean_packaging({'photoRegions': {role: region}})
         cleaned[role] = {'asset': source['asset'], 'region': region, 'sourceUrl': source.get('sourceUrl', ''),
-                         'origin': source.get('origin', 'record-photo')}
+                         'origin': source.get('origin', 'record-photo'),
+                         **({'sourceReleaseId': source['sourceReleaseId']}
+                            if source.get('origin') == 'compatible-edition-reference'
+                            and isinstance(source.get('sourceReleaseId'), str)
+                            and UUID.fullmatch(source['sourceReleaseId']) else {})}
         if 'warpRows' in entry: cleaned[role]['warpRows'] = clean_warp_rows(entry['warpRows'])
         if 'discCalibration' in entry:
             if not role.startswith('disc'): raise ValidationError('只有盘面允许使用椭圆校准')

@@ -13,6 +13,7 @@ from domain import ValidationError, ConflictError
 from storage import uid
 from twins import SKILL_VERSION, UUID, clean_barcode, clean_entity, clean_warp_rows, image_type
 from musicbrainz import SourceUnavailable, BadSource
+from server.artwork_fallback import compatible_release, image_coverage, has_sufficient_exact_art
 
 
 class NeedsInput(Exception):
@@ -317,6 +318,58 @@ class DigitalTwinService:
                             'barcode': barcode, 'catalogNumbers': sorted(expected.intersection(catalogs)),
                             'notes': str(data.get('notes', ''))[:16000], 'images': images}]
 
+    def related_artwork(self, release, archive, references, step):
+        """Find better art *inside the same release group* with equal sleeve and CD count.
+
+        Do not replace release identity or query by fuzzy album name. Confirmed
+        same-edition photos (especially Discogs) always take precedence.
+        """
+        if has_sufficient_exact_art(archive, references):
+            return []
+        group = release.get('release-group')
+        group_id = group.get('id') if isinstance(group, dict) else None
+        media = release.get('media', [])
+        if (not isinstance(group_id, str) or not UUID.fullmatch(group_id)
+                or not isinstance(media, list) or not media
+                or not all(isinstance(m, dict) and 'CD' in str(m.get('format', '')).upper() for m in media)):
+            return []
+        candidates = []
+        try:
+            response = self.mb.get('release', {'fmt': 'json', 'release-group': group_id, 'limit': 30})
+            if not isinstance(response, dict) or response.get('release-count', 0) > 30:
+                return []
+            for item in response.get('releases', [])[:8]:
+                ident = item.get('id') if isinstance(item, dict) else None
+                if not isinstance(ident, str) or not UUID.fullmatch(ident) or ident == release['id']:
+                    continue
+                # The release browse response does not reliably include medium
+                # or packaging; fetch only a small, bounded candidate set.
+                detail = self.mb.get('release/' + ident, {'fmt': 'json', 'inc': 'artist-credits+labels+recordings'})
+                if detail.get('id') != ident or not compatible_release(detail, release, len(media)):
+                    continue
+                try:
+                    catalog = self.art.catalog(ident)
+                except (ArtNotFound, ValidationError):
+                    continue
+                images = [entry for entry in catalog.get('images', [])
+                          if isinstance(entry, dict) and str(entry.get('id', '')).isdigit()][:40]
+                if image_coverage(images)[0] < 2 or len(images) < 3:
+                    continue
+                candidates.append({
+                    'releaseId': ident,
+                    'releaseUrl': 'https://musicbrainz.org/release/' + ident,
+                    'packaging': detail['packaging'], 'country': str(detail.get('country', '')),
+                    'roleCoverage': image_coverage(images)[0], 'imageCount': len(images),
+                    'images': [{'sourceId': f'related-caa:{ident}:{i["id"]}', 'types': i.get('types', []),
+                                'comment': str(i.get('comment', ''))[:400]} for i in images],
+                })
+        except (SourceUnavailable, BadSource, ValidationError):
+            return []  # Never block a valid original-edition workflow on secondary sources.
+        # Image coverage is primary; country is a tiebreaker, not an identity shortcut.
+        candidates.sort(key=lambda c: (c['roleCoverage'], c['imageCount'],
+                                        int(c['country'] == release.get('country')), c['releaseId']), reverse=True)
+        return candidates[:2]
+
     def lookup(self, job, step):
         barcode = job.get('barcode') or self.read_barcode(job, step)
         source = 'record' if job.get('selectedReleaseId') else 'manual' if job.get('barcode') else 'photo'
@@ -343,8 +396,10 @@ class DigitalTwinService:
             summary = self.release_summary(release)
             artwork, status, catalog = self.review_artwork(job, edition, step)
             references = self.review_discogs(release, barcode, step)
-            summary.update(artwork=artwork, artworkStatus=status, editionReferences=references)
-            catalog = {**catalog, 'editionReferences': references}
+            related = self.related_artwork(release, catalog, references, step)
+            summary.update(artwork=artwork, artworkStatus=status, editionReferences=references,
+                           compatibleArtwork=related)
+            catalog = {**catalog, 'editionReferences': references, 'compatibleArtwork': related}
             candidates.append(summary); releases[edition] = release; catalogs[edition] = catalog
         if not candidates:
             if selected: raise NeedsInput('已保存发行版本与条形码或 CD 介质不一致，请在上方重新选择发行版', 'awaiting_edition')
@@ -377,6 +432,9 @@ class DigitalTwinService:
         step('fetching_art', '正在读取同版实物图集')
         catalog = job.get('confirmedCatalog') or {}
         references = catalog.get('editionReferences', [])
+        related_references = catalog.get('compatibleArtwork', [])
+        related_ids = {image['sourceId']: (ref, image)
+                       for ref in related_references for image in ref.get('images', [])}
         reference_ids = {image['sourceId']: image for reference in references if reference.get('status') == 'verified'
                          for image in reference.get('images', [])}
         reviewed = next((candidate for candidate in job.get('candidates', []) if candidate['id'] == edition), {})
@@ -393,11 +451,12 @@ class DigitalTwinService:
         images = [i for i in catalog.get('images', []) if str(i.get('id', '')).isdigit()][:40]
         catalog_ids = {str(i['id']): i for i in images}
         sources = dict(job['sources'])
-        if not sources and not images and not reference_ids: raise NeedsInput('这一发行版没有可用实物图集，请保存正反面、内页和盘面实物照片后重试')
+        if not sources and not images and not reference_ids and not related_ids: raise NeedsInput('这张专辑没有同版或同封装的可用图集，请保存实物照片后重试')
         system = self.skill + '\n\n' + self.runtime
         context = {'record': record, 'release': release,
                    'recordSources': list(sources), 'archiveImages': [{'id': str(i['id']), 'types': i.get('types', []), 'comment': i.get('comment', '')} for i in images],
-                   'archiveStatus': archive_status, 'editionReferences': references}
+                   'archiveStatus': archive_status, 'editionReferences': references,
+                   'compatibleArtwork': related_references}
         step('planning', 'agent 正在选择实物素材')
         plan = self.vision.agent_json(system, 'PLAN 阶段。\n' + json.dumps(context, ensure_ascii=False),
                                       on_start=lambda: step('planning', 'agent 正在规划包装与贴图'))
@@ -423,6 +482,18 @@ class DigitalTwinService:
                           'sourceUrl': f'https://coverartarchive.org/release/{edition}/{ident}.jpg'}
                 sources[source_id] = source
                 preview = self.art.image(edition, ident, preview=True)
+            elif source_id in related_ids:
+                reference, entry = related_ids[source_id]
+                rel_id = reference['releaseId']; ident = source_id.split(':')[-1]
+                raw = self.art.image(rel_id, ident); ext, mime = image_type(raw)
+                name = 'caa-' + ident + '.' + ext
+                self.store.write_twin_source(job['id'], job['claim'], name, raw)
+                source = {'asset': name, 'mime': mime, 'origin': 'compatible-edition-reference',
+                          'sourceReleaseId': rel_id,
+                          'sourceUrl': f'https://coverartarchive.org/release/{rel_id}/{ident}.jpg'}
+                sources[source_id] = source
+                try: preview = self.art.image(rel_id, ident, preview=True)
+                except ValidationError: preview = raw
             elif source_id in reference_ids:
                 image = reference_ids[source_id]; raw = self.discogs.image(image['url']); ext, mime = image_type(raw)
                 _, ident, index = source_id.split(':'); name = f'discogs-{ident}-{index}.' + ext
@@ -460,7 +531,12 @@ class DigitalTwinService:
             result['surfaces'] = surfaces
             entity = clean_entity(result, sources)
         except ValidationError as exc: raise NeedsInput(str(exc)) from None
-        entity['warnings'] = (manual_warnings + entity['warnings'])[:20]
+        borrowed = sorted({surface.get('sourceReleaseId') for surface in entity['surfaces'].values()
+                           if surface.get('origin') == 'compatible-edition-reference'})
+        borrowed_warnings = ([f'部分印刷面借用同专辑、同封装的其他发行版 {rid}；'
+                              '该参考不证明当前副本的印刷、侧标或附属品完全一致。'
+                              for rid in borrowed] if borrowed else [])
+        entity['warnings'] = (manual_warnings + borrowed_warnings + entity['warnings'])[:20]
         entity['release'] = {'id': edition, 'title': str(release.get('title', '')),
                              'url': 'https://musicbrainz.org/release/' + edition}
         entity['skill'] = SKILL_VERSION

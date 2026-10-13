@@ -547,6 +547,58 @@ class DigitalTwinTests(unittest.TestCase):
             self.assertNotIn('warpRows', job['entity']['surfaces'][role])
             self.assertTrue(any(role in warning and '未应用' in warning for warning in job['entity']['warnings']))
 
+    def test_same_packaging_alternate_art_beats_jewel_case_while_release_stays_confirmed(self):
+        """Same release group is necessary but not sufficient: sleeve + disc count must match."""
+        from server.artwork_fallback import compatible_release, image_coverage, has_sufficient_exact_art
+        group = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
+        jewel = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+        sleeve = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+        vinyl = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+        release = {'id': EDITION, 'packaging': 'Cardboard/Paper Sleeve',
+                   'country': 'JP', 'release-group': {'id': group}, 'media': [{'format': 'CD'}]}
+        def metadata(rid, kind):
+            return {'id': rid, 'packaging': kind, 'media': [{'format': 'CD'}], 'country': 'US'}
+        class Linked:
+            def get(_self, path, params):
+                if path == 'release':
+                    self.assertEqual(params['release-group'], group)
+                    return {'releases': [{'id': rid} for rid in (jewel, sleeve, vinyl)]}
+                ident = path.removeprefix('release/')
+                return metadata(ident, {jewel: 'Jewel Case', sleeve: 'Cardboard/Paper Sleeve',
+                                        vinyl: 'Cardboard/Paper Sleeve'}[ident]) | (
+                    {'media': [{'format': '12" Vinyl'}]} if ident == vinyl else {})
+        class Covers:
+            def catalog(_self, ident):
+                types = ['Front', 'Back', 'Medium', 'Booklet', 'Other', 'Spine', 'Booklet']
+                return {'images': [{'id': i + (100 if ident == jewel else 200), 'types': [role]}
+                                   for i, role in enumerate(types if ident == jewel else types[:5])]}
+        self.service.mb = Linked(); self.service.art = Covers()
+        refs = self.service.related_artwork(release, {}, [], lambda *args: None)
+        self.assertEqual(len(refs), 1)
+        self.assertEqual(refs[0]['releaseId'], sleeve)
+        self.assertEqual(refs[0]['imageCount'], 5)
+        self.assertEqual(refs[0]['images'][0]['sourceId'], f'related-caa:{sleeve}:200')
+        self.assertFalse(compatible_release(metadata(jewel, 'Jewel Case'), release, 1))
+        self.assertFalse(compatible_release({'packaging': 'Cardboard/Paper Sleeve',
+                                             'media': [{'format': 'CD'}, {'format': 'CD'}]}, release, 1))
+        self.assertEqual(image_coverage(Covers().catalog(sleeve)['images'])[0], 5)
+        self.assertTrue(has_sufficient_exact_art({}, [{'status': 'verified', 'images': [{}] * 22}]))
+        self.assertEqual(self.service.related_artwork(release, {}, [{'status': 'verified', 'images': [{}] * 22}],
+                                                       lambda *args: None), [])
+
+    def test_related_cover_source_keeps_original_release_identity_and_provenance(self):
+        related_id = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+        source = {'related-caa:' + related_id + ':345': {
+            'asset': 'caa-345.png', 'origin': 'compatible-edition-reference',
+            'sourceReleaseId': related_id,
+            'sourceUrl': f'https://coverartarchive.org/release/{related_id}/345.jpg'}}
+        other = {role: {'sourceId': next(iter(source))} for role in (
+            'front','back','insideLeft','insideRight','disc','disc2')}
+        entity = clean_entity({'sameAlbum': True, 'packaging': {'structure': 'gatefold', 'discs': 2},
+                               'surfaces': other}, source)
+        self.assertEqual(entity['surfaces']['front']['sourceReleaseId'], related_id)
+        self.assertEqual(entity['surfaces']['disc']['origin'], 'compatible-edition-reference')
+
     def test_discogs_same_edition_metadata_and_images_are_frozen_with_confirmation(self):
         base = Metadata()
         class Linked:

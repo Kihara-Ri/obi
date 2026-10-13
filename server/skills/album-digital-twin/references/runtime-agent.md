@@ -10,6 +10,8 @@ BARCODE 输入为已保存实物照片、当前副本标题/艺人和图片 sour
 
 无法确认时输出 `{"barcodes":[]}`。surface 仅 back/obi。服务端另验来源照片、数字格式与校验位；照片识别失败时转输入条形码/补拍背面，不以标题搜索替代。服务端按完整条形码获取 CD release 的曲目、厂牌、编号、日期、国家与图集预览，持久化候选，并等待用户确认；单一候选也不会自动生成。
 
+PLAN 按先本副本实拍、本版 CAA、条码及目录号验证的本版 Discogs、再同一个 release-group 且封装与 CD 数都严格一致的其他发行版参考的顺序选择。不同封装的版本不得替代。候选兼容图集在 compatibleArtwork 中，图片 ID 使用 related-caa:<releaseUUID>:<imageId>；BUILD 必须在 warnings 中说明借用版次印刷差异。
+
 PLAN 输入含副本资料、用户确认的 CD release 快照、已有照片 sourceId、同版 CAA 图集与 `editionReferences`。后者仅含该 MB release 的 Discogs 关系经完整条码/目录号/CD 核对后的元数据及图集。输出：
 
 ```json
