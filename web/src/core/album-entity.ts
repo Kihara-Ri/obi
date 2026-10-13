@@ -15,9 +15,11 @@ export function toAlbumEntity(record: AlbumRecord): AlbumEntity {
   const surfaces: AlbumEntity['surfaces'] = {};
   for (const {value: role} of PACKAGING_PHOTO_ROLES) {
     if (!albumTextureSource(record, role)) continue;
-    const region = record.packaging?.photoRegions?.[role], rows = record.modelWarpRows?.[role];
+    const region = record.packaging?.photoRegions?.[role], rows = record.modelWarpRows?.[role],
+      discCalibration = record.modelDiscCalibrations?.[role];
     surfaces[role] = {asset: 'surface:' + role, ...record.modelSources?.[role],
-      ...(region ? {region: [...region]} : {}), ...(rows ? {warpRows: rows.map(row => [...row])} : {})};
+      ...(region ? {region: [...region]} : {}), ...(rows ? {warpRows: rows.map(row => [...row])} : {}),
+      ...(discCalibration ? {discCalibration: structuredClone(discCalibration)} : {})};
   }
   return {schemaVersion: 1, key: record.id, title: record.title, packaging, surfaces,
     placeholderHue: [...record.artist].reduce((sum, char) => sum + char.charCodeAt(0), 0) % 4 as 0 | 1 | 2 | 3,

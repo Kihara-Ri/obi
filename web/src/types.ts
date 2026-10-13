@@ -1,3 +1,4 @@
+import type {DiscCalibration} from '@diedu/album-engine/disc-calibration';
 // API 数据模型：与 storage.py 的 state() 输出一一对应。
 // 金额一律是字符串（服务端 Decimal 量化到分），显示时再转 Number。
 import {formatPackagingName} from './core/album-packaging';
@@ -14,7 +15,7 @@ export type {PackagingStructure, PackagingPhotoRole, PackagingPhotoRegion, Packa
 export type TwinCalibration = AlbumCalibration;
 export interface TwinEntity {
   packaging: PackagingSpec;
-  surfaces: Partial<Record<PackagingPhotoRole, {asset: string; region?: PackagingPhotoRegion | null; warpRows?: PackagingWarpRow[]; sourceUrl: string; origin: string}>>;
+  surfaces: Partial<Record<PackagingPhotoRole, {asset: string; region?: PackagingPhotoRegion | null; warpRows?: PackagingWarpRow[]; discCalibration?: DiscCalibration; sourceUrl: string; origin: string}>>;
   release?: {id: string; title: string; url: string};
   calibration?: TwinCalibration;
   skill: string;
@@ -68,6 +69,7 @@ export interface AlbumRecord {
   modelSources?: Partial<Record<PackagingPhotoRole, {sourceUrl: string; origin: string}>>;
   modelTextures?: Partial<Record<PackagingPhotoRole, string>>;
   modelWarpRows?: Partial<Record<PackagingPhotoRole, PackagingWarpRow[]>>;
+  modelDiscCalibrations?: Partial<Record<PackagingPhotoRole, DiscCalibration>>;
   modelCalibration?: TwinCalibration;
   id: string;
   title: string;

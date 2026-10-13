@@ -39,4 +39,4 @@ pi
 
 ## Album Engine 边界
 
-`独立的 album-engine 仓库` 当前 `@diedu/album-engine` 0.1.1 仅负责 3D 查看器、模型、动画、材质、校准与模型工具链；碟渡的 `server/digital_twins.py` 仍管理真实图集选择、PLAN/BUILD、生成任务与实体发布。生成算法 **尚未**迁至 Engine，不应在调用代码中假设完整解耦。本次改动仅触及购买渠道与模型适配，不修改此生成边界。
+`独立的 album-engine 仓库` 当前 `@diedu/album-engine` 0.1.2 仅负责 3D 查看器、模型、动画、材质、校准与模型工具链；碟渡的 `server/digital_twins.py` 仍管理真实图集选择、PLAN/BUILD、生成任务与实体发布。生成算法 **尚未**迁至 Engine，不应在调用代码中假设完整解耦。本次改动仅触及购买渠道与模型适配，不修改此生成边界。

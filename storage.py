@@ -1040,6 +1040,31 @@ class Store:
                 self._write_twins(db, registry, job)
             return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': self._public_twin(job)}
 
+    def set_twin_disc_calibration(self, body):
+        from twins import clean_disc_calibration
+        if not isinstance(body, dict): raise ValidationError('盘面校准请求无效')
+        ident, role = body.get('id'), body.get('role')
+        if not isinstance(ident, str) or not TWIN_ID.fullmatch(ident) or role not in ('disc', 'disc2', 'disc3', 'disc4'):
+            raise ValidationError('数字实体或盘面编号无效')
+        value = body.get('calibration')
+        calibration = None if value is None else clean_disc_calibration(value)
+        with closing(self.connect()) as db, db:
+            db.execute('BEGIN IMMEDIATE'); self.require_module('showcase', db)
+            registry = self._twins(db)
+            job = registry['jobs'].get(ident)
+            if not job or job['status'] != 'succeeded' or registry['latest'].get(job['recordId']) != ident:
+                raise ValidationError('只能校准已生成且当前有效的数字实体')
+            record = self.get(db, 'records', job['recordId'])
+            if not same_appearance(record, job['input']): raise ValidationError('数字实体资料已发生变化')
+            surface = (job.get('entity') or {}).get('surfaces', {}).get(role)
+            if not isinstance(surface, dict) or not surface.get('asset'):
+                raise ValidationError('当前光盘没有可校准的原始贴图')
+            if calibration is None: surface.pop('discCalibration', None)
+            else: surface['discCalibration'] = calibration
+            self._write_twins(db, registry, job)
+            self.audit(db, '校准数字实体盘面', {'id': job['recordId'], 'taskId': ident, 'role': role})
+            return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': self._public_twin(job, record)}
+
     def twin_source(self, ident, name):
         if not isinstance(name, str) or not TWIN_ASSET.fullmatch(name): raise ValidationError('数字实体资源名无效')
         path = self._twin_folder(ident) / name

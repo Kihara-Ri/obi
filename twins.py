@@ -110,6 +110,37 @@ def clean_spine_calibration(value, sources, package):
     return {'spine': result}
 
 
+def clean_disc_calibration(value):
+    """Presentation-only disc rim alignment, never a modification of source artwork."""
+    if not isinstance(value, dict) or set(value) - {'outer', 'inner', 'source', 'confidence'} or value.get('source') not in ('auto', 'manual'):
+        raise ValidationError('盘面校准资料格式不正确')
+    def ellipse(e):
+        if not isinstance(e, dict) or set(e) != {'cx', 'cy', 'rx', 'ry', 'angle'}:
+            raise ValidationError('盘面椭圆参数不完整')
+        if any(type(v) not in (int, float) or not math.isfinite(v) for v in e.values()):
+            raise ValidationError('盘面坐标必须是有限数')
+        cx, cy, rx, ry, angle = (e[k] for k in ('cx','cy','rx','ry','angle'))
+        if not (0 <= cx <= 1 and 0 <= cy <= 1 and .025 <= rx <= 1 and .025 <= ry <= 1
+                and -math.pi <= angle <= math.pi and .18 <= rx / ry <= 5.5):
+            raise ValidationError('盘面椭圆尺寸不合法')
+        width = math.hypot(rx * math.cos(angle), ry * math.sin(angle))
+        height = math.hypot(rx * math.sin(angle), ry * math.cos(angle))
+        if cx - width < -.015 or cx + width > 1.015 or cy - height < -.015 or cy + height > 1.015:
+            raise ValidationError('盘面椭圆超出照片边界')
+        return {k: e[k] for k in ('cx', 'cy', 'rx', 'ry', 'angle')}
+    outer = ellipse(value.get('outer'))
+    inner = ellipse(value['inner']) if value.get('inner') is not None else None
+    if inner is not None:
+        if (inner['rx'] >= outer['rx'] * .85 or inner['ry'] >= outer['ry'] * .85
+                or math.hypot(inner['cx']-outer['cx'], inner['cy']-outer['cy']) > max(outer['rx'], outer['ry']) * .4):
+            raise ValidationError('盘面中心环须位于外圈内部')
+    confidence = value.get('confidence')
+    if confidence is not None and (type(confidence) not in (int,float) or not math.isfinite(confidence) or not 0 <= confidence <= 1):
+        raise ValidationError('盘面校准置信度不合法')
+    return {'outer': outer, **({'inner': inner} if inner else {}),
+            'source': value['source'], **({'confidence': confidence} if confidence is not None else {})}
+
+
 def entity_assets(entity):
     """Include calibration evidence even when it is not used as a surface texture."""
     assets = {source['asset'] for source in entity.get('surfaces', {}).values()}
@@ -141,6 +172,9 @@ def clean_entity(value, sources):
         cleaned[role] = {'asset': source['asset'], 'region': region, 'sourceUrl': source.get('sourceUrl', ''),
                          'origin': source.get('origin', 'record-photo')}
         if 'warpRows' in entry: cleaned[role]['warpRows'] = clean_warp_rows(entry['warpRows'])
+        if 'discCalibration' in entry:
+            if not role.startswith('disc'): raise ValidationError('只有盘面允许使用椭圆校准')
+            cleaned[role]['discCalibration'] = clean_disc_calibration(entry['discCalibration'])
     required = {'front', 'back'}
     kind = package['structure']
     if kind in ('jewel', 'gatefold', 'digipak', 'digibook'):
@@ -179,7 +213,8 @@ def clean_registry(value):
                 raise ValidationError('数字实体结果备份无效')
             candidate = {'sameAlbum': True, 'packaging': entity.get('packaging'),
                          'surfaces': {r: {'sourceId': r, 'region': s.get('region'),
-                                         **({'warpRows': s['warpRows']} if 'warpRows' in s else {})}
+                                         **({'warpRows': s['warpRows']} if 'warpRows' in s else {}),
+                                         **({'discCalibration': s['discCalibration']} if 'discCalibration' in s else {})}
                                       for r, s in entity.get('surfaces', {}).items()},
                          'warnings': entity.get('warnings', [])}
             sources = dict(entity['surfaces'])

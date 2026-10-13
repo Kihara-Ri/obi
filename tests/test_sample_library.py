@@ -143,6 +143,9 @@ class SampleLibraryTests(unittest.TestCase):
                 self.assertIn('合成', job['message'])
                 self.assertEqual(store.published_twin_asset(job['id'], 'photo-0.png').read_bytes()[:8], b'\x89PNG\r\n\x1a\n')
             self.assertEqual(jobs[ids['lift-fists']]['entity']['packaging']['pocketOpening'], 'inner')
+            self.assertEqual(jobs[ids['lift-fists']]['entity']['surfaces']['disc']['asset'], 'photo-1.png')
+            self.assertTrue(store.published_twin_asset(jobs[ids['lift-fists']]['id'], 'photo-1.png').read_bytes().startswith(b'\x89PNG'))
+
             faces = jobs[ids['lift-fists']]['entity']['surfaces']
             self.assertEqual(faces['front']['region'], self.seed.MODEL_SAMPLE_REGIONS['front'])
             self.assertNotEqual(faces['front']['region'], faces['back']['region'])
@@ -182,7 +185,7 @@ class EngineFixtureExportTests(unittest.TestCase):
                 cwd=ROOT, capture_output=True, text=True, check=False)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual({p.name for p in target.iterdir()},
-                             {'entities.json', 'sample-scan.png', 'pixels.json'})
+                             {'entities.json', 'sample-scan.png', 'sample-disc.png', 'pixels.json'})
             entities = json.loads((target / 'entities.json').read_text())
             self.assertEqual([e['key'] for e in entities], ['lift-fists', 'loveless', 'illinois'])
             self.assertEqual([e['title'] for e in entities],
@@ -194,7 +197,9 @@ class EngineFixtureExportTests(unittest.TestCase):
                 self.assertEqual(set(entity['surfaces']),
                                  {'front', 'back', 'insideLeft', 'insideRight', 'disc', 'disc2'})
                 for role, surface in entity['surfaces'].items():
-                    self.assertEqual(surface['asset'], 'sample-scan.png')
+                    self.assertEqual(surface['asset'],
+                                     'sample-disc.png' if entity['key'] == 'lift-fists' and role == 'disc'
+                                     else 'sample-scan.png')
                     self.assertEqual(surface['origin'], 'synthetic-sample')
                     self.assertEqual(surface['sourceUrl'], '')
                     if role in self.seed.MODEL_SAMPLE_REGIONS:

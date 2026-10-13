@@ -265,6 +265,24 @@ def model_sample_png():
             + chunk(b'IDAT', zlib.compress(b''.join(rows))) + chunk(b'IEND', b''))
 
 
+def model_sample_disc_png():
+    """Single tilted printed disc, deliberately elliptical, for A/B correction tests."""
+    import math
+    width = height = 240
+    pixels = bytearray()
+    for y in range(height):
+        for x in range(width):
+            nx, ny = (x + .5) / width - .5, (y + .5) / height - .5
+            distance = math.hypot(nx / .41, ny / .31)
+            color = (29, 32, 45) if distance > 1 else (212, 122, 76) if distance > .18 else (245, 240, 231)
+            pixels.extend(color)
+    def chunk(kind, raw):
+        return struct.pack('>I', len(raw)) + kind + raw + struct.pack('>I', zlib.crc32(kind + raw))
+    rows = b''.join(b'\x00' + pixels[y * width * 3:(y + 1) * width * 3] for y in range(height))
+    return (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0))
+            + chunk(b'IDAT', zlib.compress(rows)) + chunk(b'IEND', b''))
+
+
 def model_sample_surfaces(asset):
     """数据库样本与独立引擎共用的逐面映射，资产名由使用方指定。"""
     roles = ('front', 'back', 'insideLeft', 'insideRight', 'disc', 'disc2')
@@ -284,7 +302,10 @@ def export_engine_fixtures(directory):
     entities = [{'schemaVersion': 1, 'key': key, 'title': titles[key],
                  'packaging': dict(packaging), 'surfaces': model_sample_surfaces('sample-scan.png')}
                 for key, packaging in MODEL_SAMPLES.items()]
+    # A single disc is oblique, while the surrounding synthetic spread stays unchanged.
+    entities[0]['surfaces']['disc']['asset'] = 'sample-disc.png'
     target.mkdir(parents=True, exist_ok=True)
+    (target / 'sample-disc.png').write_bytes(model_sample_disc_png())
     (target / 'entities.json').write_text(json.dumps(entities, ensure_ascii=False, indent=2) + '\n',
                                          encoding='utf-8')
     (target / 'sample-scan.png').write_bytes(model_sample_png())
@@ -308,8 +329,12 @@ def seed_models(data_dir):
         claimed = store.claim_twin('sample-library')
         assert claimed['id'] == job['id']
         store.write_twin_source(job['id'], claimed['claim'], 'photo-0.png', model_sample_png())
+        surfaces = model_sample_surfaces('photo-0.png')
+        if key == 'lift-fists':
+            store.write_twin_source(job['id'], claimed['claim'], 'photo-1.png', model_sample_disc_png())
+            surfaces['disc']['asset'] = 'photo-1.png'
         entity = {'packaging': dict(packaging),
-                  'surfaces': model_sample_surfaces('photo-0.png')}
+                  'surfaces': surfaces}
         store.update_twin(job['id'], claimed['claim'], status='succeeded', phase='published',
                           message='合成模型样本：仅用于动画验收，未核对实物发行版', entity=entity)
     return ids

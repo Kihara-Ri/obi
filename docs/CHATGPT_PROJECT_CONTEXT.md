@@ -33,4 +33,4 @@
 ## 2026-10-13 后续核查与新渠道
 - 新购买渠道：保存成功后由 `server/shop_brands.py` 异步通过 Pi CLI 补全可能的官方 favicon，未识别保留首字图标；元数据缓存于 `shop-brand-cache-v1`，图标数据在数据目录的 `shop-icons/`。OAuth/API Key 由 Pi 用户目录管理；配置细节见 `docs/PI_SHOP_BRANDS.md`。
 - ChatGPT OAuth 本机已存在 Pi 登录凭据，但调用在账户额度限制处失败，不能宣称完全端到端正常。
-- Album Engine 0.1.1 已解耦模型查看器和材质/动作，但生成工作流目前仍在碟渡 `server/digital_twins.py`；该边界不能混淆。
+- Album Engine 0.1.2 已解耦模型查看器和材质/动作，但生成工作流目前仍在碟渡 `server/digital_twins.py`；该边界不能混淆。

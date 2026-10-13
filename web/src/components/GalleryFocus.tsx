@@ -2,6 +2,7 @@ import {useLayoutEffect, useMemo, useRef, useState} from 'react';
 import {createPortal} from 'react-dom';
 import type {AlbumRecord} from '../types';
 import {AlbumModel} from './AlbumModel';
+import {DiscCalibrationEditor} from './DiscCalibrationEditor';
 import type {AlbumOrientationPermission} from './useAlbumOrientation';
 import {useApp} from '../state/AppContext';
 import {twinViewerRecord} from '../core/digital-twins';
@@ -49,6 +50,7 @@ export function GalleryFocus({record, records, originElement, permission, onNavi
   const switching = useRef(false);
   const closing = useRef(false);
   const [transitionStatus, setTransitionStatus] = useState('');
+  const [calibrating,setCalibrating] = useState(false);
   const currentRecordId = useRef(record.id);
   const thumbnailOrigin = useRef(originElement);
   const current = useRef({record, records, onNavigate, onClose});
@@ -227,7 +229,7 @@ export function GalleryFocus({record, records, originElement, permission, onNavi
   };
 
   const navigate = (by: -1 | 1) => {
-    if (closing.current || switching.current) return;
+    if (closing.current || switching.current || calibrating) return;
     const list = current.current.records;
     const index = list.findIndex(item => item.id === currentRecordId.current);
     const next = list[index + by];
@@ -276,7 +278,7 @@ export function GalleryFocus({record, records, originElement, permission, onNavi
   return createPortal(<dialog id="gallery-focus" className="gallery-focus" ref={dialog}
     aria-labelledby="gallery-focus-title" data-task-id={job?.id ?? ''} onCancel={event => {event.preventDefault(); requestClose.current();}}
     onKeyDown={event => {
-      if (event.defaultPrevented) return;
+      if (event.defaultPrevented || calibrating) return;
       if (event.key === 'Escape') {event.preventDefault(); event.stopPropagation(); requestClose.current();}
       else if (event.key === 'ArrowLeft') {event.preventDefault(); event.stopPropagation(); navigate(-1);}
       else if (event.key === 'ArrowRight') {event.preventDefault(); event.stopPropagation(); navigate(1);}
@@ -290,12 +292,16 @@ export function GalleryFocus({record, records, originElement, permission, onNavi
     }}>
     <div className="gallery-focus-shade" ref={shade} aria-hidden="true" onClick={() => requestClose.current()}/>
     <div className="gallery-focus-visual" ref={visual}>
-      {modelRecord ? <AlbumModel key={job?.id} record={modelRecord} permission={permission} onDismiss={() => requestClose.current()}/>
+      {modelRecord ? <AlbumModel key={job?.id + ':' + job?.seq} record={modelRecord} permission={permission} onDismiss={() => requestClose.current()}/>
         : <div className="gallery-focus-cover" tabIndex={0} role="group" aria-label={'专辑封面：' + record.title}>
           {record.cover ? <img src={record.cover} alt={record.title + '封面'}/> : <span>暂无封面</span>}
         </div>}
       <h2 id="gallery-focus-title">{record.title}</h2>
     </div>
+    {modelRecord && job?.entity && Object.keys(job.entity.surfaces).some(role=>role.startsWith('disc')) ?
+      <button type="button" className="disc-calibration-launch" onClick={()=>setCalibrating(true)}>校准盘面</button>:null}
+    {calibrating&&job?.entity?<DiscCalibrationEditor job={job} onClose={()=>setCalibrating(false)}
+      onSaved={app.refreshTwins}/>:null}
     {record.cover ? <img ref={coverProxy} className="gallery-focus-transition-image" src={record.cover}
       alt="" aria-hidden="true" draggable={false}/> : null}
     <span className="gallery-visually-hidden" role="status" aria-live="polite">{transitionStatus}</span>

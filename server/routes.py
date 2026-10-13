@@ -354,6 +354,8 @@ def twins(svc):
 def api_twins(h, svc): h.send(twins(svc).index())
 def api_twin_start(h, svc, body): h.send(twins(svc).start_task(body))
 def api_twin_confirm(h, svc, body): h.send(twins(svc).confirm(body))
+def api_twin_disc_calibration(h, svc, body): h.send(svc.store.set_twin_disc_calibration(body))
+
 def api_twin_cancel(h, svc, body): h.send(twins(svc).cancel(body.get('id')))
 def api_twin_review_asset(h, svc):
     parts = urlsplit(h.path).path.split('/')
@@ -451,6 +453,7 @@ POST = {
     '/api/twins/start': (api_twin_start, True, True),
     '/api/twins/confirm': (api_twin_confirm, True, True),
     '/api/twins/cancel': (api_twin_cancel, True, True),
+    '/api/twins/disc-calibration': (api_twin_disc_calibration, True, True),
 }
 
 # 允许跨站（外部页面）调用的写接口；当前为空，保留豁免管线供未来令牌鉴权回调使用

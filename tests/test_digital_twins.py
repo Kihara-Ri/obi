@@ -144,6 +144,43 @@ class DigitalTwinTests(unittest.TestCase):
         self.assertEqual(self.store.twin_index()['jobs'][self.rid]['status'], 'succeeded')
         self.assertEqual(self.create()['id'], job['id'])
 
+    def test_post_publication_disc_calibration_is_persistent_and_reversible(self):
+        """Edit the printed CD without replacing the published entity or editing album records."""
+        job = self.publish()
+        record = copy.deepcopy(self.record())
+        original = self.store.twin_index()['jobs'][self.rid]
+        self.assertEqual(original['status'], 'succeeded')
+        ellipse = {'cx': .48, 'cy': .51, 'rx': .43, 'ry': .34, 'angle': .12}
+        cal = {'source': 'manual', 'outer': ellipse,
+               'inner': {'cx': .49, 'cy': .50, 'rx': .09, 'ry': .07, 'angle': .12}}
+        result = self.store.set_twin_disc_calibration({'id': job['id'], 'role': 'disc', 'calibration': cal})
+        updated = result['job']
+        self.assertEqual(updated['status'], 'succeeded')
+        self.assertEqual(updated['entity']['surfaces']['disc']['discCalibration'], cal)
+        self.assertEqual(self.record(), record)
+        self.assertEqual(self.store.start_twin(self.request())['job']['id'], job['id'])
+        self.assertEqual(Store(self.store.path).twin_index()['jobs'][self.rid]['entity']['surfaces']['disc']['discCalibration'], cal)
+        backup = self.store.backup()
+        self.assertEqual(backup['settings'][TWIN_KEY]['jobs'][job['id']]['entity']['surfaces']['disc']['discCalibration'], cal)
+        self.store.set_twin_disc_calibration({'id': job['id'], 'role': 'disc', 'calibration': None})
+        self.assertNotIn('discCalibration', self.store.twin_index()['jobs'][self.rid]['entity']['surfaces']['disc'])
+
+    def test_disc_calibration_rejects_wrong_surface_and_invalid_ellipses(self):
+        job = self.publish()
+        base = {'id': job['id'], 'role': 'disc'}
+        invalid = [
+            {'source': 'manual', 'outer': {'cx': .99, 'cy': .5, 'rx': .4, 'ry': .4, 'angle': 0}},
+            {'source': 'manual', 'outer': {'cx': .5, 'cy': .5, 'rx': .4, 'ry': 0, 'angle': 0}},
+            {'source': 'manual', 'outer': {'cx': .5, 'cy': .5, 'rx': .4, 'ry': .4, 'angle': float('nan')}},
+        ]
+        for cal in invalid:
+            with self.assertRaises(ValidationError):
+                self.store.set_twin_disc_calibration({**base, 'calibration': cal})
+        with self.assertRaises(ValidationError):
+            self.store.set_twin_disc_calibration({**base, 'role': 'front', 'calibration': None})
+        with self.assertRaises(ValidationError):
+            self.store.set_twin_disc_calibration({**base, 'role': 'disc4', 'calibration': None})
+
     def test_pre_release_uuid_published_entity_survives_upgrade(self):
         """An old successful task remains visible when only the snapshot schema changes."""
         job = self.publish()

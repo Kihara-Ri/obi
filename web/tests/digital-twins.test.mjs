@@ -93,3 +93,16 @@ test('旧实体不增加校准或行映射的展示字段', () => {
   assert.equal(Object.hasOwn(view, 'modelCalibration'), false);
   assert.equal(Object.hasOwn(view, 'modelWarpRows'), false);
 });
+
+test('手动盘面校准只加入派生展示字段，不修改原始实体及资源引用', () => {
+  const record = {id: 'copy', packaging: {structure: 'jewel'}, cover: ''};
+  const job = structuredClone(ready);
+  job.entity.surfaces.disc = {asset: 'disc-original.png', sourceUrl: '', origin: 'record-photo',
+    discCalibration: {source: 'manual', outer: {cx:.49,cy:.51,rx:.42,ry:.35,angle:.1}}};
+  const source = structuredClone(job);
+  const view = twinViewerRecord(record, job);
+  assert.deepEqual(view.modelDiscCalibrations.disc, job.entity.surfaces.disc.discCalibration);
+  view.modelDiscCalibrations.disc.outer.rx = .2;
+  assert.deepEqual(job, source);
+  assert.equal(albumTextureSource(view, 'disc'), '/api/twin-assets/task2/disc-original.png');
+});
