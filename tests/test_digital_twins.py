@@ -144,6 +144,37 @@ class DigitalTwinTests(unittest.TestCase):
         self.assertEqual(self.store.twin_index()['jobs'][self.rid]['status'], 'succeeded')
         self.assertEqual(self.create()['id'], job['id'])
 
+    def test_pre_release_uuid_published_entity_survives_upgrade(self):
+        """An old successful task remains visible when only the snapshot schema changes."""
+        job = self.publish()
+        with self.store.connect() as db:
+            registry = self.store.meta_get(db, TWIN_KEY)
+            registry['jobs'][job['id']]['input']['releaseInfo'].pop('musicBrainzReleaseId')
+            db.execute('UPDATE meta SET data=? WHERE key=?', (json.dumps(registry), TWIN_KEY))
+            db.commit()
+
+        before = self.store.twin_index()['jobs'][self.rid]
+        self.assertEqual(before['status'], 'succeeded')
+        self.assertIsNotNone(before['entity'])
+        self.assertEqual(self.store.start_twin(self.request())['job']['id'], job['id'])
+
+        # Changing an unrelated field still invalidates the older snapshot.
+        record = self.record()
+        self.store.save({'id': self.rid, 'revision': record['revision'], 'version': 'new edition'})
+        self.assertEqual(self.store.twin_index()['jobs'][self.rid]['status'], 'stale')
+
+    def test_pre_release_uuid_snapshot_rejects_new_confirmed_edition(self):
+        job = self.publish()
+        with self.store.connect() as db:
+            registry = self.store.meta_get(db, TWIN_KEY)
+            registry['jobs'][job['id']]['input']['releaseInfo'].pop('musicBrainzReleaseId')
+            db.execute('UPDATE meta SET data=? WHERE key=?', (json.dumps(registry), TWIN_KEY))
+            db.commit()
+        record = self.record()
+        self.store.save({'id': self.rid, 'revision': record['revision'],
+                         'releaseInfo': {'barcode': BARCODE, 'musicBrainzReleaseId': EDITION}})
+        self.assertEqual(self.store.twin_index()['jobs'][self.rid]['status'], 'stale')
+
     def test_explicit_new_barcode_after_success_starts_review_and_fences_old_confirmation(self):
         first = self.publish()
         second = self.create(barcode='4006381333931', expectedJobId=first['id'])

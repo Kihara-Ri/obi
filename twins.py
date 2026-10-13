@@ -36,7 +36,19 @@ def appearance(record):
 
 
 def same_appearance(record, snapshot):
-    return appearance(record) == snapshot
+    # Tasks created before the release-UUID field was added have no such key
+    # in their persisted appearance snapshot. Missing means "not confirmed",
+    # not "appearance changed". Preserve old published entities without
+    # rewriting the snapshot or touching their source assets.
+    if not isinstance(snapshot, dict):
+        return False
+    current = appearance(record)
+    old_release = snapshot.get('releaseInfo')
+    if isinstance(old_release, dict) and 'musicBrainzReleaseId' not in old_release:
+        if current['releaseInfo']['musicBrainzReleaseId']:
+            return False  # A newly confirmed edition *is* a material change.
+        current['releaseInfo'].pop('musicBrainzReleaseId')
+    return current == snapshot
 
 
 def release_id(value):
