@@ -4,7 +4,10 @@
 防止之后所有浏览器验收建立在悄悄漂移的样本上。
 """
 import importlib.util
+import json
 import sqlite3
+import subprocess
+import sys
 import tempfile
 import unittest
 from decimal import Decimal
@@ -128,6 +131,32 @@ class SampleLibraryTests(unittest.TestCase):
         self.assertEqual(len(after['records']), len(before['records']))
         self.assertEqual(len(after['sales']), len(before['sales']))
 
+    def test_model_samples_publish_only_synthetic_entities_and_are_idempotent(self):
+        with tempfile.TemporaryDirectory() as folder:
+            ids = self.seed.seed(folder)
+            self.seed.seed_models(folder)
+            store = self.seed.open_store(folder)
+            jobs = store.twin_index()['jobs']
+            self.assertEqual(set(jobs), {ids[key] for key in ('lift-fists', 'loveless', 'illinois')})
+            for job in jobs.values():
+                self.assertEqual(job['status'], 'succeeded')
+                self.assertIn('合成', job['message'])
+                self.assertEqual(store.published_twin_asset(job['id'], 'photo-0.png').read_bytes()[:8], b'\x89PNG\r\n\x1a\n')
+            self.assertEqual(jobs[ids['lift-fists']]['entity']['packaging']['pocketOpening'], 'inner')
+            faces = jobs[ids['lift-fists']]['entity']['surfaces']
+            self.assertEqual(faces['front']['region'], self.seed.MODEL_SAMPLE_REGIONS['front'])
+            self.assertNotEqual(faces['front']['region'], faces['back']['region'])
+            self.assertEqual(faces['insideRight']['warpRows'], self.seed.MODEL_SAMPLE_WARP)
+            pixels = self.seed.model_sample_pixels()
+            self.assertEqual(pixels[:4], bytes([245, 245, 245, 255]))
+            self.assertNotEqual(pixels[(32 * 128 + 32) * 4:(32 * 128 + 32) * 4 + 3],
+                                pixels[(32 * 128 + 96) * 4:(32 * 128 + 96) * 4 + 3])
+            self.assertEqual(jobs[ids['loveless']]['entity']['packaging']['structure'], 'card-sleeve')
+            before = store.state()
+            self.seed.seed_models(folder)
+            self.assertEqual(store.twin_index()['jobs'], jobs)
+            self.assertEqual(store.state()['records'], before['records'])
+
     def test_guards_refuse_foreign_and_repo_targets(self):
         with self.assertRaises(SystemExit):
             self.seed.seed(ROOT / 'data')
@@ -137,6 +166,62 @@ class SampleLibraryTests(unittest.TestCase):
             con.commit(); con.close()
             with self.assertRaises(SystemExit):
                 self.seed.seed(other)
+
+
+class EngineFixtureExportTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.seed = load_seed_module()
+
+    def test_cli_exports_existing_model_samples_without_database(self):
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / 'fixtures'
+            result = subprocess.run(
+                [sys.executable, str(ROOT / 'tools' / 'seed_samples.py'),
+                 '--export-engine-fixtures', str(target)],
+                cwd=ROOT, capture_output=True, text=True, check=False)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual({p.name for p in target.iterdir()},
+                             {'entities.json', 'sample-scan.png', 'pixels.json'})
+            entities = json.loads((target / 'entities.json').read_text())
+            self.assertEqual([e['key'] for e in entities], ['lift-fists', 'loveless', 'illinois'])
+            self.assertEqual([e['title'] for e in entities],
+                             ['Lift Your Skinny Fists Like Antennas to Heaven', 'Loveless', 'Illinois'])
+            for entity in entities:
+                self.assertEqual(set(entity), {'schemaVersion', 'key', 'title', 'packaging', 'surfaces'})
+                self.assertEqual(entity['schemaVersion'], 1)
+                self.assertEqual(entity['packaging'], self.seed.MODEL_SAMPLES[entity['key']])
+                self.assertEqual(set(entity['surfaces']),
+                                 {'front', 'back', 'insideLeft', 'insideRight', 'disc', 'disc2'})
+                for role, surface in entity['surfaces'].items():
+                    self.assertEqual(surface['asset'], 'sample-scan.png')
+                    self.assertEqual(surface['origin'], 'synthetic-sample')
+                    self.assertEqual(surface['sourceUrl'], '')
+                    if role in self.seed.MODEL_SAMPLE_REGIONS:
+                        self.assertEqual(surface['region'], self.seed.MODEL_SAMPLE_REGIONS[role])
+                    else:
+                        self.assertNotIn('region', surface)
+                    if role == 'insideRight':
+                        self.assertEqual(surface['warpRows'],
+                                         [[.5, .5, .9375, .5], [.51, .72, .92, .74],
+                                          [.5, .9375, .9375, .9375]])
+                    else:
+                        self.assertNotIn('warpRows', surface)
+            self.assertEqual((target / 'sample-scan.png').read_bytes(), self.seed.model_sample_png())
+            pixels = json.loads((target / 'pixels.json').read_text())
+            self.assertEqual((pixels['width'], pixels['height'], pixels['channels']), (128, 128, 4))
+            self.assertEqual(len(pixels['pixels']), 128 * 128 * 4)
+            self.assertEqual(pixels['pixels'][:4], [245, 245, 245, 255])
+            offset = (32 * 128 + 32) * 4
+            self.assertEqual(pixels['pixels'][offset:offset + 4], [45, 95, 130, 255])
+            self.assertEqual(bytes(pixels['pixels']), self.seed.model_sample_pixels())
+            before = {p.name: p.read_bytes() for p in target.iterdir()}
+            self.seed.export_engine_fixtures(target)
+            self.assertEqual({p.name: p.read_bytes() for p in target.iterdir()}, before)
+
+    def test_export_refuses_real_repo_data_directory(self):
+        with self.assertRaises(SystemExit):
+            self.seed.export_engine_fixtures(ROOT / 'data')
 
 
 if __name__ == '__main__':

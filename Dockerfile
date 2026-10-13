@@ -5,6 +5,7 @@
 FROM node:22-alpine AS web
 WORKDIR /build
 COPY web/package.json web/package-lock.json ./
+COPY web/vendor/ vendor/
 RUN npm ci
 COPY web/ ./
 # vite outDir=../static → 产物输出到 /static
@@ -20,6 +21,7 @@ COPY server/ server/
 COPY static/ static/
 COPY --from=web /static/index.html static/index.html
 COPY --from=web /static/assets/ static/assets/
+COPY --from=web /static/models/packaging/ static/models/packaging/
 
 ENV HOST=0.0.0.0 PORT=8765 DATA_DIR=/data TZ=Asia/Shanghai
 VOLUME /data

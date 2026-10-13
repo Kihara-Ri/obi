@@ -33,6 +33,8 @@ export function twinViewerRecord(record: AlbumRecord, job?: TwinJob): AlbumRecor
     if (surface.region) packaging.photoRegions[role] = surface.region;
   }
   return {...record, packaging, modelTextures: textures,
+    modelSources: Object.fromEntries(Object.entries(job.entity.surfaces).filter(([, value]) => !!value)
+      .map(([role, value]) => [role, {sourceUrl: value!.sourceUrl, origin: value!.origin}])),
     ...(Object.keys(warpRows).length ? {modelWarpRows: warpRows} : {}),
     ...(job.entity.calibration ? {modelCalibration: {spine: {...job.entity.calibration.spine,
       ...(job.entity.calibration.spine.reliefMm ? {reliefMm: [...job.entity.calibration.spine.reliefMm]} : {})}}} : {})};

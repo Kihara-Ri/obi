@@ -8,14 +8,10 @@ export type ShipmentStatus = 'transit' | 'arrived' | 'cancelled';
 export type Currency = 'JPY' | 'CNY';
 export type SortMode = 'new' | 'cost' | 'artist';
 
-export type PackagingStructure = 'jewel' | 'card-sleeve' | 'gatefold' | 'digipak' | 'digibook' | 'rigid-box' | 'unknown';
-export type PackagingPhotoRole = 'front' | 'back' | 'spine' | 'insideSpine' | 'insideLeft' | 'insideRight' | 'insideCenter' | 'insideExtra' | 'disc' | 'disc2' | 'disc3' | 'disc4' | 'outer';
-/** Original-image coordinates: top left, top right, bottom right, bottom left. */
-export type PackagingPhotoRegion = [number, number, number, number, number, number, number, number];
-export type PackagingWarpRow = [number, number, number, number];
-export interface TwinCalibration {
-  spine: {widthRatio: number; basis: 'image-estimate'; asset: string; sourceUrl: string; origin: string; reliefMm?: number[]};
-}
+import type {PackagingSpec as EntityPackagingSpec, PackagingPhotoRole,
+  PackagingPhotoRegion, PackagingWarpRow, AlbumCalibration} from '@diedu/album-engine/schema';
+export type {PackagingStructure, PackagingPhotoRole, PackagingPhotoRegion, PackagingWarpRow} from '@diedu/album-engine/schema';
+export type TwinCalibration = AlbumCalibration;
 export interface TwinEntity {
   packaging: PackagingSpec;
   surfaces: Partial<Record<PackagingPhotoRole, {asset: string; region?: PackagingPhotoRegion | null; warpRows?: PackagingWarpRow[]; sourceUrl: string; origin: string}>>;
@@ -56,19 +52,7 @@ export interface TwinReleaseCandidate {
     previewStatus?: 'available' | 'unavailable' | 'not_loaded'}[];
   artworkStatus: 'available' | 'missing' | 'unavailable';
 }
-export interface PackagingSpec {
-  structure?: PackagingStructure;
-  thickness?: 'slim' | 'standard' | 'thick';
-  panels?: 2 | 3 | 4;
-  pockets?: 'left' | 'right' | 'both';
-  pocketOpening?: 'outer' | 'inner';
-  holder?: 'tray' | 'pocket';
-  tray?: 'clear' | 'black' | 'white';
-  discs?: 1 | 2 | 3 | 4;
-  finish?: 'uncoated' | 'matte' | 'gloss';
-  miniLP?: boolean;
-  slipcase?: boolean;
-  size?: {width: number; height: number; depth: number};
+export interface PackagingSpec extends EntityPackagingSpec {
   photos?: Partial<Record<PackagingPhotoRole, number>>;
   photoRegions?: Partial<Record<PackagingPhotoRole, PackagingPhotoRegion>>;
 }
@@ -81,6 +65,7 @@ export interface CoverSource {
 
 export interface AlbumRecord {
   /** Viewer-only task assets, never submitted as ledger data. */
+  modelSources?: Partial<Record<PackagingPhotoRole, {sourceUrl: string; origin: string}>>;
   modelTextures?: Partial<Record<PackagingPhotoRole, string>>;
   modelWarpRows?: Partial<Record<PackagingPhotoRole, PackagingWarpRow[]>>;
   modelCalibration?: TwinCalibration;

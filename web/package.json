@@ -4,13 +4,14 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "prebuild": "node scripts/clean.mjs && node scripts/gallery-fan.mjs",
+    "prebuild": "node scripts/clean.mjs && node scripts/gallery-fan.mjs && node scripts/album-engine-models.mjs",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
     "dev": "vite"
   },
   "dependencies": {
+    "@diedu/album-engine": "file:vendor/diedu-album-engine-0.1.1.tgz",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "three": "^0.186.1"

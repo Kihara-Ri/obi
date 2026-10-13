@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {after, test} from 'node:test';
-import {mkdtempSync, rmSync, writeFileSync} from 'node:fs';
+import {mkdtempSync, rmSync, writeFileSync, symlinkSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
@@ -21,6 +21,7 @@ try {
   }));
   assert.equal(program.emit().emitSkipped, false);
   writeFileSync(join(output, 'package.json'), '{"type":"commonjs"}');
+  symlinkSync(fileURLToPath(new URL('../node_modules', import.meta.url)), join(output, 'node_modules'), 'dir');
   packaging = createRequire(import.meta.url)(join(output, 'core/album-packaging.js'));
   assets = createRequire(import.meta.url)(join(output, 'core/album-model-assets.js'));
 } catch (error) {rmSync(output, {recursive: true, force: true}); throw error;}

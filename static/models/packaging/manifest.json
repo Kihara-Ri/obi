@@ -1,4 +1,6 @@
 {
+  "schemaVersion": 1,
+  "rigVersion": 1,
   "generator": "Blender",
   "units": "metres",
   "dimensions": "nominal millimetres; not measurements",

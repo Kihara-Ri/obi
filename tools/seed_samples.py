@@ -6,13 +6,18 @@
 再运行验证。不要另造测试专辑，也不要在一次性脚本中临时补造贴图或发布任务。
 
     python3 tools/seed_samples.py --data-dir /tmp/diedu-samples
+    python3 tools/seed_samples.py --export-engine-fixtures /tmp/album-engine-fixtures
     python3 app.py --port 8791 --data-dir /tmp/diedu-samples --no-seed
 
 脱敏边界：样本骨架取自真实收藏的结构特征（日版/侧标、多副本、日元/人民币、
 在途/售出中/已售/回收站、新式包装资料），但金额、日期、渠道、订单号、备注、
-存放位置全部为虚构；专辑名与艺人属公开音乐资料。不含照片、封面、条码与
-数字实体任务；相关场景测试前须先将可复用素材、初始化方法与期望结果纳入
-本样本库，并明确合成素材与实物参考的区别。
+存放位置全部为虚构；专辑名与艺人属公开音乐资料。默认不含照片、封面、条码与
+数字实体任务。--with-models 可为现有 lift-fists / loveless / illinois 副本发布合成
+双袋 Gatefold / 单口 Card Sleeve / Jewel Case 样本，复用 seed_models() 离线初始化。
+纹理为带白边、四色分区的纯代码棋盘格，含裁切与弯纸投影，包装仅供动画及贴图验收，
+不代表这些发行版的实物核对结果。
+--export-engine-fixtures 只导出这三种合成实体、相同棋盘 PNG 与原始 RGBA 像素，
+不创建数据库或任务；独立引擎和 Studio 使用同一组样本定义。
 
 安全约束：只能写入 --data-dir 指定的目录；拒绝指向仓库 data/，拒绝覆盖已存在
 且非样本库的 albums.sqlite3；已灌过的目录幂等跳过。写入全部走 storage.py 的
@@ -20,8 +25,11 @@
 汇率用内置假汇率（离线确定值），不发网络请求。
 """
 import argparse
+import json
+import struct
 import sqlite3
 import sys
+import zlib
 from decimal import Decimal
 from pathlib import Path
 
@@ -29,7 +37,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from rates import RateService  # noqa: E402
-from storage import Store  # noqa: E402
+from storage import Store, uid  # noqa: E402
 
 # 每 100 日元兑人民币的假汇率（离线确定值）：07 月 4.75 / 08 月 4.72 / 09 月 4.70。
 # 利润等精确断言依赖这些值，改动须同步 tests/test_sample_library.py。
@@ -212,11 +220,113 @@ def existing_ids(data_dir):
     return ids
 
 
+MODEL_SAMPLES = {
+    'lift-fists': {'structure': 'gatefold', 'panels': 2, 'holder': 'pocket',
+                   'pockets': 'both', 'pocketOpening': 'inner', 'discs': 2},
+    'loveless': {'structure': 'card-sleeve', 'discs': 1},
+    'illinois': {'structure': 'jewel', 'tray': 'clear', 'discs': 1},
+}
+
+# One scan contains four different printed planes and an unprinted border.
+MODEL_SAMPLE_REGIONS = {
+    'front': [.0625, .0625, .5, .0625, .5, .5, .0625, .5],
+    'back': [.5, .0625, .9375, .0625, .9375, .5, .5, .5],
+    'insideLeft': [.0625, .5, .5, .5, .5, .9375, .0625, .9375],
+    'insideRight': [.5, .5, .9375, .5, .9375, .9375, .5, .9375],
+}
+MODEL_SAMPLE_WARP = [[.5, .5, .9375, .5], [.51, .72, .92, .74], [.5, .9375, .9375, .9375]]
+
+
+def model_sample_pixels():
+    """Shared scan pixels for image projection tests; four distinct faces."""
+    pixels = bytearray()
+    colors = [(45, 95, 130), (170, 65, 45), (75, 120, 60), (145, 90, 155)]
+    for y in range(128):
+        for x in range(128):
+            color = (245, 245, 245) if min(x, y, 127 - x, 127 - y) < 8 else colors[(y // 64) * 2 + x // 64]
+            light = 12 if (x // 16 + y // 16) % 2 and color[0] != 245 else 0
+            pixels.extend((*[n + light for n in color], 255))
+    return bytes(pixels)
+
+
+def model_sample_png():
+    """可复用合成棋盘纹理；无网络、无真实照片。"""
+    def chunk(kind, raw):
+        return struct.pack('>I', len(raw)) + kind + raw + struct.pack('>I', zlib.crc32(kind + raw))
+    pixels = model_sample_pixels()
+    rows = []
+    for y in range(128):
+        row = bytearray(b'\x00')
+        for x in range(128):
+            at = (y * 128 + x) * 4
+            row.extend(pixels[at:at + 3])
+        rows.append(row)
+    return (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', 128, 128, 8, 2, 0, 0, 0))
+            + chunk(b'IDAT', zlib.compress(b''.join(rows))) + chunk(b'IEND', b''))
+
+
+def model_sample_surfaces(asset):
+    """数据库样本与独立引擎共用的逐面映射，资产名由使用方指定。"""
+    roles = ('front', 'back', 'insideLeft', 'insideRight', 'disc', 'disc2')
+    return {role: {'asset': asset, 'origin': 'synthetic-sample', 'sourceUrl': '',
+                   **({'region': MODEL_SAMPLE_REGIONS[role]} if role in MODEL_SAMPLE_REGIONS else {}),
+                   **({'warpRows': MODEL_SAMPLE_WARP} if role == 'insideRight' else {})}
+            for role in roles}
+
+
+def export_engine_fixtures(directory):
+    """导出无数据库的固定合成样本；可重复生成，不读写任何收藏资料。"""
+    target = Path(directory).resolve()
+    repo_data = (ROOT / 'data').resolve()
+    if target == repo_data or repo_data in target.parents:
+        raise SystemExit('拒绝写入仓库 data/（真实数据目录）；请换样本导出目录')
+    titles = {key: record['title'] for key, record in RECORDS}
+    entities = [{'schemaVersion': 1, 'key': key, 'title': titles[key],
+                 'packaging': dict(packaging), 'surfaces': model_sample_surfaces('sample-scan.png')}
+                for key, packaging in MODEL_SAMPLES.items()]
+    target.mkdir(parents=True, exist_ok=True)
+    (target / 'entities.json').write_text(json.dumps(entities, ensure_ascii=False, indent=2) + '\n',
+                                         encoding='utf-8')
+    (target / 'sample-scan.png').write_bytes(model_sample_png())
+    pixels = {'width': 128, 'height': 128, 'channels': 4, 'pixels': list(model_sample_pixels())}
+    (target / 'pixels.json').write_text(json.dumps(pixels, separators=(',', ':')) + '\n',
+                                       encoding='utf-8')
+    return entities
+
+
+def seed_models(data_dir):
+    """只给固定样本发布离线合成模型；默认 seed 不生成任务，重复调用幂等。"""
+    ids = seed(data_dir)
+    store = open_store(data_dir)
+    records = {r['id']: r for r in store.state()['records']}
+    for key, packaging in MODEL_SAMPLES.items():
+        rid = ids[key]
+        if rid in store.twin_index()['jobs']:
+            continue
+        job = store.start_twin({'recordId': rid, 'recordRevision': records[rid]['revision'],
+                                'requestId': uid()})['job']
+        claimed = store.claim_twin('sample-library')
+        assert claimed['id'] == job['id']
+        store.write_twin_source(job['id'], claimed['claim'], 'photo-0.png', model_sample_png())
+        entity = {'packaging': dict(packaging),
+                  'surfaces': model_sample_surfaces('photo-0.png')}
+        store.update_twin(job['id'], claimed['claim'], status='succeeded', phase='published',
+                          message='合成模型样本：仅用于动画验收，未核对实物发行版', entity=entity)
+    return ids
+
+
 def main():
     p = argparse.ArgumentParser(description='灌入固定测试样本库')
-    p.add_argument('--data-dir', required=True, help='目标数据目录（须为空目录或已灌过的样本库）')
+    target = p.add_mutually_exclusive_group(required=True)
+    target.add_argument('--data-dir', help='目标数据目录（须为空目录或已灌过的样本库）')
+    target.add_argument('--export-engine-fixtures', help='只导出固定合成实体及纹理，不创建数据库')
+    p.add_argument('--with-models', action='store_true', help='为三张已有样本发布离线合成模型（非实物参考）')
     args = p.parse_args()
-    ids = seed(args.data_dir)
+    if args.export_engine_fixtures:
+        entities = export_engine_fixtures(args.export_engine_fixtures)
+        print(f'固定引擎样本已导出：{Path(args.export_engine_fixtures).resolve()}（{len(entities)} 实体）')
+        return
+    ids = seed_models(args.data_dir) if args.with_models else seed(args.data_dir)
     print(f'固定样本库已就绪：{Path(args.data_dir).resolve()}（{len(ids)} 副本）')
     print('启动：python3 app.py --port <空闲端口> --data-dir '
           f'{Path(args.data_dir).resolve()} --no-seed')

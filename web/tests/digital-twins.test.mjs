@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {after, test} from 'node:test';
-import {mkdtempSync, rmSync, writeFileSync} from 'node:fs';
+import {mkdtempSync, rmSync, writeFileSync, symlinkSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
@@ -14,6 +14,8 @@ const program = ts.createProgram([join(source, 'core/digital-twins.ts'), join(so
 });
 assert.equal(ts.getPreEmitDiagnostics(program).length, 0); assert.equal(program.emit().emitSkipped, false);
 writeFileSync(join(output, 'package.json'), '{"type":"commonjs"}');
+symlinkSync(fileURLToPath(new URL('../node_modules', import.meta.url)), join(output, 'node_modules'), 'dir');
+
 const {mergeTwinIndex, twinViewerRecord, twinBusy, twinBarcodeMatches} = createRequire(import.meta.url)(join(output, 'core/digital-twins.js'));
 const {albumTextureSource} = createRequire(import.meta.url)(join(output, 'core/album-model-assets.js'));
 after(() => rmSync(output, {recursive: true, force: true}));
