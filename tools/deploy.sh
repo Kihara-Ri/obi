@@ -148,7 +148,9 @@ for i in 1 2 3 4 5; do
   if H="$(health)" && python3 -c 'import json,sys; h=json.loads(sys.argv[1]); sys.exit(0 if h.get("ok") is True and h.get("version")==sys.argv[2] else 1)' "$H" "$EXPECTED_VERSION"; then
     say "健康检查通过：$H"
     say "发布完成：$BASE/releases/${STAMP}（上一版：${PREV:-无}）"
-    remote "cd '$BASE/releases' && ls -1d */ | grep -v legacy | sort | head -n -$KEEP_RELEASES | xargs -r rm -rf"
+    # 只清理命名规范的过期 release；运行服务会创建其他属主的 __pycache__，
+# 必须以 sudo 删除，否则主服务已成功发布却会因末尾清理失败而返回非零码。
+remote "cd '$BASE/releases' && ls -1d [0-9]*-[0-9]*/ | grep -E '^[0-9]{8}-[0-9]{6}/$' | sort | head -n -$KEEP_RELEASES | xargs -r sudo -n rm -rf --"
     exit 0
   fi
   say "等待服务就绪（$i/5）…"; sleep 3
