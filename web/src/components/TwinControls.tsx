@@ -4,6 +4,8 @@ import {useApp} from '../state/AppContext';
 import {ApiError} from '../core/api';
 import {twinBusy, twinViewerRecord} from '../core/digital-twins';
 import {spineCalibrationFit} from '../core/album-spine-fit';
+import {GuidedTwinEditor} from './GuidedTwinEditor';
+import {TwinAccessoriesEditor} from './TwinAccessoriesEditor';
 
 /** Edition lookup is owned by RecordForm; this control only generates the already-confirmed release. */
 export function TwinControls({record, releaseId, unsaved = false, saving = false, stale = false}: {
@@ -14,6 +16,7 @@ export function TwinControls({record, releaseId, unsaved = false, saving = false
   const [sending, setSending] = useState(false);
   const [uncertain, setUncertain] = useState(false);
   const [error, setError] = useState('');
+  const [editingAccessories,setEditingAccessories] = useState(false);
   const gate = useRef(false);
   const blocked = unsaved || saving || stale;
   const busy = twinBusy(job);
@@ -32,10 +35,10 @@ export function TwinControls({record, releaseId, unsaved = false, saving = false
       if (exc instanceof ApiError && exc.status === 409) await app.refresh().catch(() => {});
     } finally {gate.current = false; setSending(false);}
   };
-  const start = () => {
-    if (!confirmed || blocked || busy || !app.twins.configured) return;
+  const start = (mode: 'ai' | 'guided') => {
+    if (!confirmed || blocked || busy || (mode === 'ai' && !app.twins.configured)) return;
     void act(() => app.startTwin({recordId: record.id,
-      recordRevision: record.revision, expectedJobId: job?.id ?? null}));
+      recordRevision: record.revision, expectedJobId: job?.id ?? null,mode}));
   };
 
   return <section className="twin-controls" aria-label="生成数字实体"
@@ -47,7 +50,9 @@ export function TwinControls({record, releaseId, unsaved = false, saving = false
     {app.twinSyncError ? <p className="small-note" role="status">{app.twinSyncError}</p> : null}
     {error ? <p className="twin-error" role="alert">{error}</p> : null}
     {uncertain ? <button type="button" disabled={sending} onClick={() => void act(app.refreshTwins)}>同步任务状态</button> : null}
-    {busy ? <>
+    {job?.generationMode==='guided' && job.status==='needs_input' && job.phase==='awaiting_art_selection' ?
+      <GuidedTwinEditor job={job} record={record} disabled={blocked||sending} onSaved={app.refreshTwins}/>
+    : busy ? <>
       <p className="twin-status" role="status">{job?.message || '数字实体生成中，关闭编辑页面不会中断任务'}</p>
       <button type="button" className="quiet twin-cancel" disabled={sending}
         onClick={() => job && void act(() => app.cancelTwin(job.id))}>取消任务</button>
@@ -57,12 +62,21 @@ export function TwinControls({record, releaseId, unsaved = false, saving = false
         <p className="small-note">书脊宽度由图像估计，约 {fit.requestedMm.toFixed(2)} mm，并非实测尺寸。</p>
         {fit.status === 'minimum-cd-fit' ? <p className="small-note">为保留 CD 间隙，展示采用约 {fit.appliedMm.toFixed(2)} mm 的参考书脊宽度。</p> : null}
       </> : null}
+      <button type="button" className="quiet" onClick={()=>setEditingAccessories(value=>!value)}>
+        {editingAccessories?'收起附件编辑':'补充或移除独立附件'}
+      </button>
+      {editingAccessories && job?.entity ? <TwinAccessoriesEditor record={record} job={job}
+        onSaved={app.refreshTwins} onClose={()=>setEditingAccessories(false)}/> : null}
       {job?.entity?.warnings.length ? <details><summary>生成说明</summary>{job.entity.warnings.map((warning,i) => <p key={i}>{warning}</p>)}</details> : null}
     </> : <>
       {job?.error ? <p className="twin-status" role="status">{job.error}</p> : null}
-      {!app.twins.configured ? <p className="small-note">图集预览无需模型。要生成可交互的数字实体，请先在设置中配置视觉模型。</p> : null}
-      <button type="button" className="primary twin-start" disabled={sending || !confirmed || blocked || !app.twins.configured}
-        onClick={start}>{sending ? '正在提交' : job ? '重新生成数字实体' : '生成数字实体'}</button>
+      {!app.twins.configured ? <p className="small-note">图集预览无需模型。AI 生成需要配置视觉模型；人工选图可直接使用已核验原图与包装结构。</p> : null}
+      <div className="twin-generate-actions">
+        <button type="button" className="primary twin-start" disabled={sending || !confirmed || blocked || !app.twins.configured}
+          onClick={()=>start('ai')}>{sending?'正在提交':job?'重新生成数字实体':'生成数字实体'}</button>
+        <button type="button" className="quiet twin-start" disabled={sending || !confirmed || blocked}
+          onClick={()=>start('guided')}>{sending?'正在提交':'人工选图生成（无需 AI）'}</button>
+      </div>
     </>}
   </section>;
 }

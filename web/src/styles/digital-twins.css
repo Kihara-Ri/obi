@@ -30,3 +30,15 @@
 .twin-tracks ol{margin:6px 0;padding-left:24px}
 .twin-change-barcode .twin-barcode{margin:6px 0}
 .twin-error{color:var(--red)}
+
+/* Guided, verified-reference art selection stays inside album editing. */
+.twin-generate-actions{display:flex;flex-wrap:wrap;gap:8px}
+.twin-guided{display:grid;gap:13px;min-width:0;max-width:100%}
+.twin-guided-packaging,.twin-guided-mapping{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:10px}
+.twin-guided label{display:flex;flex-direction:column;gap:5px;min-width:0}
+.twin-guided-packaging label:has(input[type=checkbox]){flex-direction:row;align-items:center}
+.twin-guided select{width:100%;min-width:0;max-width:100%;padding:7px;background:var(--panel,var(--surface,#242630));color:inherit;border:1px solid var(--border,#666);border-radius:8px}
+.twin-guided-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));max-height:360px;overflow:auto;gap:8px;padding:8px;border:1px solid var(--border,#666);border-radius:10px}
+.twin-guided-gallery figure{margin:0;min-width:0}
+.twin-guided-gallery img{width:100%;height:110px;object-fit:contain;background:#191a20;border-radius:5px}
+.twin-guided-gallery figcaption{font-size:11px;line-height:1.3;overflow-wrap:anywhere}

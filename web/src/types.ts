@@ -13,8 +13,10 @@ import type {PackagingSpec as EntityPackagingSpec, PackagingPhotoRole,
   PackagingPhotoRegion, PackagingWarpRow, AlbumCalibration} from '@diedu/album-engine/schema';
 export type {PackagingStructure, PackagingPhotoRole, PackagingPhotoRegion, PackagingWarpRow} from '@diedu/album-engine/schema';
 export type TwinCalibration = AlbumCalibration;
+export interface TwinAccessory {id: string; kind: 'obi' | 'booklet' | 'inner-sleeve'; asset: string; origin: string; sourceUrl: string; sourceReleaseId?: string}
 export interface TwinEntity {
   packaging: PackagingSpec;
+  components?: TwinAccessory[];
   surfaces: Partial<Record<PackagingPhotoRole, {asset: string; region?: PackagingPhotoRegion | null; warpRows?: PackagingWarpRow[]; discCalibration?: DiscCalibration; sourceUrl: string; origin: string}>>;
   release?: {id: string; title: string; url: string};
   calibration?: TwinCalibration;
@@ -28,6 +30,7 @@ export interface TwinJob {
   createdAt: string; updatedAt: string;
   instructions?: string; releaseId?: string;
   barcode?: string; barcodeSource?: 'manual' | 'photo' | 'record' | '';
+  generationMode?: 'ai' | 'guided';
   candidates?: TwinReleaseCandidate[]; entity?: TwinEntity | null;
 }
 export interface TwinIndex {
@@ -36,7 +39,7 @@ export interface TwinIndex {
 }
 export interface TwinStart {
   recordId: string; recordRevision: number; expectedJobId: string | null;
-  barcode?: string;
+  barcode?: string; mode?: 'ai' | 'guided';
 }
 export interface TwinConfirm {id: string; releaseId: string;}
 /** Exact-barcode release review; separate from name-based recognition suggestions. */
@@ -47,6 +50,7 @@ export interface TwinReleaseCandidate {
   editionReferences?: {origin: 'discogs'; status: 'verified' | 'missing' | 'unavailable' | 'mismatched' | 'ambiguous';
     id?: string; url?: string; title?: string; barcode?: string; catalogNumbers?: string[]; notes?: string;
     images?: {sourceId: string; url: string; type: string; width?: number; height?: number}[]}[];
+  compatibleArtwork?: {releaseId: string; images: {sourceId: string; types: string[]}[]}[];
   media: {position: number; format: string; tracks: {position: number; title: string; length?: number}[]}[];
   url: string;
   artwork: {id: string; types: string[]; comment: string; previewUrl?: string;
@@ -70,6 +74,7 @@ export interface AlbumRecord {
   modelTextures?: Partial<Record<PackagingPhotoRole, string>>;
   modelWarpRows?: Partial<Record<PackagingPhotoRole, PackagingWarpRow[]>>;
   modelDiscCalibrations?: Partial<Record<PackagingPhotoRole, DiscCalibration>>;
+  modelAccessories?: (TwinAccessory & {source: string})[];
   modelCalibration?: TwinCalibration;
   id: string;
   title: string;

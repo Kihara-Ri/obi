@@ -71,3 +71,22 @@ test('成功实体沿用已保存版本，估计尺寸不会冒充实测', () =>
   assert.match(html, /并非实测尺寸/);
   assert.doesNotMatch(html, /生成数字实体<\/button>/);
 });
+
+
+test('无模型也提供人工选图，AI 路径仍需已配置的模型', () => {
+  const html=render({},false);
+  assert.match(button(html,'生成数字实体'),/disabled/);
+  assert.doesNotMatch(button(html,'人工选图生成（无需 AI）'),/disabled/);
+});
+test('已确认人工选图任务有来源受限的映射界面',()=>{
+  const job={id:'a'.repeat(32),status:'needs_input',generationMode:'guided',
+    phase:'awaiting_art_selection',releaseId:id,
+    candidates:[{id,packaging:'Cardboard/Paper Sleeve',discCount:1,
+      artwork:[{id:'101',types:['Front']},{id:'102',types:['Back']},{id:'103',types:['Medium']}],
+      editionReferences:[{status:'verified',images:[{sourceId:'discogs:42:0'}]}]}]};
+  const html=render({},false,job);
+  assert.match(html,/人工确认数字实体素材/);
+  assert.match(html,/discogs:42:0/);
+  assert.match(html,/确认图片与包装，生成 3D 实体/);
+  assert.doesNotMatch(html,/请先配置视觉模型/);
+});

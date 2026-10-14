@@ -35,6 +35,116 @@ class DigitalTwinService:
         result = self.store.confirm_twin(body.get('id'), body.get('releaseId'), self.vision.public_config()['configured'])
         self.wake.set(); return result
 
+    def update_accessories(self, body):
+        """Enrich an already published entity without regenerating its main case."""
+        from contextlib import closing
+        from server.twin_guided import candidate_images, KINDS
+        from twins import TWIN_KEY, image_type
+        if not isinstance(body, dict) or not isinstance(body.get('id'), str):
+            raise ValidationError('附件更新任务无效')
+        parts = body.get('components')
+        if not isinstance(parts, list) or len(parts) > 8:
+            raise ValidationError('最多支持八个附件')
+        with closing(self.store.connect()) as db:
+            registry = self.store.meta_get(db, TWIN_KEY) or {}
+            job = registry.get('jobs', {}).get(body['id'])
+            if not job or job['status'] != 'succeeded' or registry.get('latest', {}).get(job['recordId']) != job['id']:
+                raise ValidationError('只能更新当前已发布的数字实体')
+            catalog = job.get('confirmedCatalog') or {}
+            allowed = {i['sourceId'] for i in candidate_images(catalog)} | set(job.get('sources', {}))
+            release_id = job['releaseId']
+            # Images refer to the frozen catalog; not client-supplied URLs.
+            selected = []
+            for index, part in enumerate(parts):
+                if (not isinstance(part, dict) or set(part) != {'kind','sourceId'}
+                        or part['kind'] not in KINDS or part['sourceId'] not in allowed):
+                    raise ValidationError('附件图片没有经过版本校验')
+                selected.append({'id':part['kind']+'-'+str(index+1),'kind':part['kind'],
+                                 'sourceId':part['sourceId']})
+        # Do not hold the DB writer lock during external image fetches.
+        cached = {}
+        for part in selected:
+            sid = part['sourceId']
+            if sid in cached: continue
+            if sid in job.get('sources', {}):
+                original = job['sources'][sid]
+                raw = self.store.twin_source(job['id'], original['asset']).read_bytes()
+                cached[sid] = (original, raw)
+            elif sid.startswith('caa:'):
+                ident = sid[4:]
+                raw = self.art.image(release_id, ident)
+                ext, mime = image_type(raw)
+                cached[sid] = ({'asset':'caa-'+ident+'.'+ext,'mime':mime,'origin':'edition-reference',
+                                'sourceUrl':'https://coverartarchive.org/release/'+release_id+'/'+ident+'.jpg'},raw)
+            elif sid.startswith('discogs:'):
+                image = next((item for ref in catalog.get('editionReferences', []) if ref.get('status') == 'verified'
+                              for item in ref.get('images', []) if item['sourceId'] == sid),None)
+                if not image: raise ValidationError('同版图片资料不完整')
+                raw = self.discogs.image(image['url'])
+                ext, mime = image_type(raw)
+                _, ident, index = sid.split(':')
+                cached[sid] = ({'asset':'discogs-'+ident+'-'+index+'.'+ext,'mime':mime,
+                                'origin':'edition-reference','sourceUrl':image['url']},raw)
+            elif sid.startswith('related-caa:'):
+                _, rid, ident = sid.split(':')
+                if not any(ref['releaseId'] == rid and any(i['sourceId'] == sid for i in ref['images'])
+                           for ref in catalog.get('compatibleArtwork', [])):
+                    raise ValidationError('跨版附件缺少封装一致性证据')
+                raw = self.art.image(rid, ident)
+                ext, mime = image_type(raw)
+                cached[sid] = ({'asset':'caa-'+ident+'.'+ext,'mime':mime,
+                                'origin':'compatible-edition-reference',
+                                'sourceReleaseId':rid,
+                                'sourceUrl':'https://coverartarchive.org/release/'+rid+'/'+ident+'.jpg'},raw)
+            else: raise ValidationError('图片来源无效')
+        result = self.store.set_twin_accessories(job['id'], selected, cached)
+        return result
+
+    def guided_image(self, ident, ordinal, source_id=None):
+        """Authenticated, bounded preview of one source frozen during review.
+
+        Exact edition and compatible edition artwork is never inferred from
+        titles or user-supplied URLs.
+        """
+        from server.twin_guided import candidate_images
+        from twins import image_type
+        from domain import ValidationError
+        from contextlib import closing
+        from twins import TWIN_KEY
+        with closing(self.store.connect()) as db:
+            registry = self.store.meta_get(db, TWIN_KEY)
+            job = (registry or {}).get('jobs', {}).get(ident)
+            if not job or (job.get('generationMode') != 'guided' and job.get('status') != 'succeeded') or (registry or {}).get('latest', {}).get(job['recordId']) != ident:
+                raise ValidationError('图片预览任务不可用')
+            if not job.get('confirmedRelease'):
+                raise ValidationError('请先确认发行版本')
+            options = candidate_images(job.get('confirmedCatalog') or {})
+            if source_id is not None:
+                if not isinstance(source_id,str) or len(source_id)>128 or source_id not in {i['sourceId'] for i in options}:
+                    raise ValidationError('图片来源不在已核验图集中')
+            else:
+                if type(ordinal) is not int or not 0 <= ordinal < len(options):
+                    raise ValidationError('图片编号无效')
+                source_id = options[ordinal]['sourceId']
+            edition = job['releaseId']
+            references = job['confirmedCatalog'].get('editionReferences', [])
+            related = job['confirmedCatalog'].get('compatibleArtwork', [])
+        if source_id.startswith('caa:'):
+            raw = self.art.image(edition, source_id[4:], preview=True)
+        elif source_id.startswith('discogs:'):
+            image = next((i for ref in references if ref.get('status') == 'verified'
+                          for i in ref.get('images', []) if i['sourceId'] == source_id), None)
+            if not image: raise ValidationError('图片来源尚未经过同版验证')
+            raw = self.discogs.image(image['url'])
+        elif source_id.startswith('related-caa:'):
+            ref_id = source_id.split(':')[1]; image_id = source_id.split(':')[-1]
+            if not any(ref['releaseId'] == ref_id and any(i['sourceId'] == source_id for i in ref['images']) for ref in related):
+                raise ValidationError('跨版图片没有兼容性证据')
+            raw = self.art.image(ref_id, image_id, preview=True)
+        else: raise ValidationError('预览图片来源无效')
+        image_type(raw)
+        return raw
+
     def cancel(self, ident):
         return self.store.cancel_twin(ident)
 
@@ -66,7 +176,10 @@ class DigitalTwinService:
             if self.stop_event.is_set() or not self.store.update_twin(job['id'], job['claim'], phase=phase, message=message): raise Stopped()
         try:
             if job.get('confirmedRelease'):
-                entity = self.generate(job, step)
+                if job.get('generationMode') == 'guided' and not job.get('guidedSelection'):
+                    raise NeedsInput('请核对封装和图片表面，确认后再组装', 'awaiting_art_selection')
+                entity = (self.generate_guided(job, step) if job.get('generationMode') == 'guided'
+                          else self.generate(job, step))
                 step('validating', '正在核对贴图、包装和副本版本')
                 self.store.update_twin(job['id'], job['claim'], status='succeeded', phase='ready', message='数字实体已生成', entity=entity)
             else:
@@ -74,10 +187,11 @@ class DigitalTwinService:
                 selected = job.get('selectedReleaseId')
                 if selected:
                     # Edition was confirmed in the album form and persisted before this job.
-                    if not self.vision.public_config()['configured']:
+                    if job.get('generationMode') != 'guided' and not self.vision.public_config()['configured']:
                         raise NeedsInput('请先配置视觉模型，再重新生成数字实体', 'awaiting_generation')
                     self.store.update_twin(job['id'], job['claim'], **review,
-                        status='queued', phase='queued_generation',
+                        status='needs_input' if job.get('generationMode') == 'guided' else 'queued',
+                        phase='awaiting_art_selection' if job.get('generationMode') == 'guided' else 'queued_generation',
                         message='已复用已确认的发行版，等待生成数字实体', error='',
                         releaseId=selected, confirmedRelease=review['releaseData'][selected],
                         confirmedCatalog=review['artData'].get(selected, {}))
@@ -99,6 +213,10 @@ class DigitalTwinService:
             done.set()
             with self.current_lock: self.current = None
         return True
+
+    def generate_guided(self, job, step):
+        from server.twin_guided import generate_guided
+        return generate_guided(self._discovery(), job, step)
 
     @staticmethod
     def _barcode(value):

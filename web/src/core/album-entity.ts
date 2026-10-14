@@ -22,11 +22,13 @@ export function toAlbumEntity(record: AlbumRecord): AlbumEntity {
       ...(discCalibration ? {discCalibration: structuredClone(discCalibration)} : {})};
   }
   return {schemaVersion: 1, key: record.id, title: record.title, packaging, surfaces,
+    ...(record.modelAccessories?.length ? {components: record.modelAccessories.map(({source, ...part}) => ({...part, asset: source}))} : {}),
     placeholderHue: [...record.artist].reduce((sum, char) => sum + char.charCodeAt(0), 0) % 4 as 0 | 1 | 2 | 3,
     ...(record.modelCalibration ? {calibration: structuredClone(record.modelCalibration)} : {})};
 }
 
 export function resolveAlbumAsset(record: AlbumRecord, asset: string): string {
+  if (record.modelAccessories?.some(item => item.source === asset)) return asset;
   if (!asset.startsWith('surface:')) return '';
   const role = asset.slice(8) as PackagingPhotoRole;
   return PACKAGING_PHOTO_ROLES.some(item => item.value === role) ? albumTextureSource(record, role) : '';

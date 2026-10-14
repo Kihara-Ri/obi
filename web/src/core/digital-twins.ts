@@ -36,6 +36,8 @@ export function twinViewerRecord(record: AlbumRecord, job?: TwinJob): AlbumRecor
     if (surface.region) packaging.photoRegions[role] = surface.region;
   }
   return {...record, packaging, modelTextures: textures,
+    ...(job.entity.components?.length ? {modelAccessories: job.entity.components.map(item => ({...item,
+      source: '/api/twin-assets/' + job.id + '/' + item.asset}))} : {}),
     modelSources: Object.fromEntries(Object.entries(job.entity.surfaces).filter(([, value]) => !!value)
       .map(([role, value]) => [role, {sourceUrl: value!.sourceUrl, origin: value!.origin}])),
     ...(Object.keys(warpRows).length ? {modelWarpRows: warpRows} : {}),

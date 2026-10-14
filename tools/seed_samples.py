@@ -304,6 +304,12 @@ def export_engine_fixtures(directory):
                 for key, packaging in MODEL_SAMPLES.items()]
     # A single disc is oblique, while the surrounding synthetic spread stays unchanged.
     entities[0]['surfaces']['disc']['asset'] = 'sample-disc.png'
+    # Synthetic book/obi parts exercise independent geometry and controls; no claim about the original album.
+    entities[0]['components'] = [
+        {'id':'synthetic-obi','kind':'obi','asset':'sample-scan.png','origin':'synthetic-sample','sourceUrl':''},
+        {'id':'synthetic-booklet','kind':'booklet','asset':'sample-scan.png','origin':'synthetic-sample','sourceUrl':''},
+        {'id':'synthetic-inner','kind':'inner-sleeve','asset':'sample-scan.png','origin':'synthetic-sample','sourceUrl':''},
+    ]
     target.mkdir(parents=True, exist_ok=True)
     (target / 'sample-disc.png').write_bytes(model_sample_disc_png())
     (target / 'entities.json').write_text(json.dumps(entities, ensure_ascii=False, indent=2) + '\n',
@@ -335,6 +341,15 @@ def seed_models(data_dir):
             surfaces['disc']['asset'] = 'photo-1.png'
         entity = {'packaging': dict(packaging),
                   'surfaces': surfaces}
+        if key == 'lift-fists':
+            entity['components'] = [
+                {'id':'synthetic-obi','kind':'obi','asset':'photo-0.png',
+                 'origin':'synthetic-sample','sourceUrl':''},
+                {'id':'synthetic-booklet','kind':'booklet','asset':'photo-0.png',
+                 'origin':'synthetic-sample','sourceUrl':''},
+                {'id':'synthetic-inner','kind':'inner-sleeve','asset':'photo-0.png',
+                 'origin':'synthetic-sample','sourceUrl':''},
+            ]
         store.update_twin(job['id'], claimed['claim'], status='succeeded', phase='published',
                           message='合成模型样本：仅用于动画验收，未核对实物发行版', entity=entity)
     return ids

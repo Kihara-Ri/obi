@@ -146,6 +146,8 @@ class SampleLibraryTests(unittest.TestCase):
             self.assertEqual(jobs[ids['lift-fists']]['entity']['surfaces']['disc']['asset'], 'photo-1.png')
             self.assertTrue(store.published_twin_asset(jobs[ids['lift-fists']]['id'], 'photo-1.png').read_bytes().startswith(b'\x89PNG'))
 
+            parts = jobs[ids['lift-fists']]['entity']['components']
+            self.assertEqual([part['kind'] for part in parts],['obi','booklet','inner-sleeve'])
             faces = jobs[ids['lift-fists']]['entity']['surfaces']
             self.assertEqual(faces['front']['region'], self.seed.MODEL_SAMPLE_REGIONS['front'])
             self.assertNotEqual(faces['front']['region'], faces['back']['region'])
@@ -191,7 +193,11 @@ class EngineFixtureExportTests(unittest.TestCase):
             self.assertEqual([e['title'] for e in entities],
                              ['Lift Your Skinny Fists Like Antennas to Heaven', 'Loveless', 'Illinois'])
             for entity in entities:
-                self.assertEqual(set(entity), {'schemaVersion', 'key', 'title', 'packaging', 'surfaces'})
+                expected = {'schemaVersion', 'key', 'title', 'packaging', 'surfaces'}
+                if entity['key'] == 'lift-fists':
+                    expected.add('components')
+                    self.assertEqual(len(entity['components']),3)
+                self.assertEqual(set(entity), expected)
                 self.assertEqual(entity['schemaVersion'], 1)
                 self.assertEqual(entity['packaging'], self.seed.MODEL_SAMPLES[entity['key']])
                 self.assertEqual(set(entity['surfaces']),

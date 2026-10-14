@@ -141,9 +141,37 @@ def clean_disc_calibration(value):
             'source': value['source'], **({'confidence': confidence} if confidence is not None else {})}
 
 
+ACCESSORY_KINDS = frozenset(('obi', 'booklet', 'inner-sleeve'))
+
+def clean_accessories(value, sources):
+    """Each physical insert owns its own source and cannot masquerade as a fold surface."""
+    if value is None: return []
+    if not isinstance(value, list) or len(value) > 8:
+        raise ValidationError('数字实体最多支持 8 个独立附件')
+    cleaned = []
+    for entry in value:
+        if not isinstance(entry, dict) or set(entry) != {'id', 'kind', 'sourceId'}:
+            raise ValidationError('独立附件格式无效')
+        kind, ident, source_id = (entry[k] for k in ('kind', 'id', 'sourceId'))
+        if kind not in ACCESSORY_KINDS or not isinstance(ident, str) or not re.fullmatch(r'[a-z][a-z0-9-]{0,39}', ident):
+            raise ValidationError('附件种类或标识无效')
+        if any(other['id'] == ident for other in cleaned):
+            raise ValidationError('附件编号不能重复')
+        if not isinstance(source_id, str) or source_id not in sources:
+            raise ValidationError('附件图片必须来自已确认的图集')
+        source = sources[source_id]
+        if not ASSET.fullmatch(str(source.get('asset', ''))): raise ValidationError('附件图片名称无效')
+        cleaned.append({'id': ident, 'kind': kind, 'asset': source['asset'],
+                        'origin': source.get('origin', 'record-photo'), 'sourceUrl': source.get('sourceUrl', ''),
+                        **({'sourceReleaseId': source['sourceReleaseId']} if source.get('origin') == 'compatible-edition-reference' and
+                           UUID.fullmatch(str(source.get('sourceReleaseId',''))) else {})})
+    return cleaned
+
+
 def entity_assets(entity):
     """Include calibration evidence even when it is not used as a surface texture."""
     assets = {source['asset'] for source in entity.get('surfaces', {}).values()}
+    assets.update(part['asset'] for part in entity.get('components', []))
     spine = entity.get('calibration', {}).get('spine')
     if spine: assets.add(spine['asset'])
     return assets
@@ -195,6 +223,7 @@ def clean_entity(value, sources):
     if not isinstance(warnings, list) or any(not isinstance(w, str) or len(w) > 1000 for w in warnings):
         raise ValidationError('agent 的核对说明无效')
     result = {'packaging': package, 'surfaces': cleaned, 'warnings': warnings[:20]}
+    if value.get('components'): result['components'] = clean_accessories(value['components'], sources)
     if 'calibration' in value: result['calibration'] = clean_spine_calibration(value['calibration'], sources, package)
     return result
 
@@ -216,12 +245,14 @@ def clean_registry(value):
             if not isinstance(entity, dict) or not isinstance(entity.get('surfaces'), dict) or any(not isinstance(s, dict) for s in entity['surfaces'].values()):
                 raise ValidationError('数字实体结果备份无效')
             candidate = {'sameAlbum': True, 'packaging': entity.get('packaging'),
+                         **({'components': [{'id': c['id'], 'kind': c['kind'], 'sourceId': c['asset']} for c in entity['components']]} if entity.get('components') else {}),
                          'surfaces': {r: {'sourceId': r, 'region': s.get('region'),
                                          **({'warpRows': s['warpRows']} if 'warpRows' in s else {}),
                                          **({'discCalibration': s['discCalibration']} if 'discCalibration' in s else {})}
                                       for r, s in entity.get('surfaces', {}).items()},
                          'warnings': entity.get('warnings', [])}
             sources = dict(entity['surfaces'])
+            sources.update({c['asset']: c for c in entity.get('components', [])})
             if 'calibration' in entity:
                 calibration = entity['calibration']
                 if not isinstance(calibration, dict) or set(calibration) != {'spine'} or not isinstance(calibration['spine'], dict):

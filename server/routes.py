@@ -354,6 +354,11 @@ def twins(svc):
 def api_twins(h, svc): h.send(twins(svc).index())
 def api_twin_start(h, svc, body): h.send(twins(svc).start_task(body))
 def api_twin_confirm(h, svc, body): h.send(twins(svc).confirm(body))
+def api_twin_accessories(h, svc, body): h.send(twins(svc).update_accessories(body))
+
+def api_twin_guided(h, svc, body):
+    h.send(svc.store.select_twin_art(body)); twins(svc).wake.set()
+
 def api_twin_disc_calibration(h, svc, body): h.send(svc.store.set_twin_disc_calibration(body))
 
 def api_twin_cancel(h, svc, body): h.send(twins(svc).cancel(body.get('id')))
@@ -362,6 +367,15 @@ def api_twin_review_asset(h, svc):
     if len(parts) != 5: raise ValidationError('发行资料预览地址无效')
     path = svc.store.review_twin_asset(parts[3], parts[4])
     h.send(path.read_bytes(), mime=mimetypes.guess_type(path.name)[0] or 'image/jpeg', cache='private, max-age=31536000, immutable')
+def api_twin_source_preview(h, svc):
+    parts = urlsplit(h.path).path.split('/')
+    if len(parts) != 5 or not parts[4].isdigit() or len(parts[4]) > 2:
+        raise ValidationError('人工选图预览地址无效')
+    raw = twins(svc).guided_image(parts[3], int(parts[4]), query(h).get('source'))
+    from twins import image_type
+    _, mime = image_type(raw)
+    h.send(raw, mime=mime, cache='private, max-age=3600')
+
 def api_twin_asset(h, svc):
     parts = urlsplit(h.path).path.split('/')
     if len(parts) != 5: raise ValidationError('数字实体资源地址无效')
@@ -403,6 +417,7 @@ GET = {
     '/api/imports': api_imports,
     '/api/imports/draft': api_import_draft,
     '/api/twins': api_twins,
+    '/api/twin-source-preview/': api_twin_source_preview,
 }
 PUBLIC_GET = {  # 免登录（监控与部署探测）
     '/api/health',
@@ -453,6 +468,8 @@ POST = {
     '/api/twins/start': (api_twin_start, True, True),
     '/api/twins/confirm': (api_twin_confirm, True, True),
     '/api/twins/cancel': (api_twin_cancel, True, True),
+    '/api/twins/accessories': (api_twin_accessories, True, True),
+    '/api/twins/guided': (api_twin_guided, True, True),
     '/api/twins/disc-calibration': (api_twin_disc_calibration, True, True),
 }
 
