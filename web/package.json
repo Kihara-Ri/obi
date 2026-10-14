@@ -11,7 +11,7 @@
     "dev": "vite"
   },
   "dependencies": {
-    "@diedu/album-engine": "file:vendor/diedu-album-engine-0.1.4.tgz",
+    "@diedu/album-engine": "file:vendor/diedu-album-engine-0.1.5.tgz",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "three": "^0.186.1"
