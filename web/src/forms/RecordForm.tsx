@@ -447,7 +447,7 @@ export function RecordForm({id}: {id?: string}) {
                 ++lookupSequence.current;
                 setBarcode(next); setBarcodeCandidates([]); setBarcodeMessage('');
                 if (next !== v.releaseInfo.barcode) {
-                  set({releaseInfo: {...v.releaseInfo, barcode: '', musicBrainzReleaseId: '', tracklist: []}});
+                  set({releaseInfo: {...v.releaseInfo, barcode: '', musicBrainzReleaseId: '', tracklist: [], media: []}});
                   setCoverStatus('条形码已更改，等待确认新版封面'); dirty();
                 }
               }}

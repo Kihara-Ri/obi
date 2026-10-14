@@ -1,0 +1,30 @@
+/* Media-aware track list in the detail drawer; restrained, no duplicate 1-01 prefixes. */
+.record-tracklist{margin-top:16px;min-width:0}
+.record-tracklist-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.record-tracklist-head h4{font-size:14px;font-weight:650;color:var(--text)}
+.record-tracklist-head h4 span{font-size:12px;font-weight:450;color:var(--muted)}
+.record-tracklist-all{padding:5px 6px;border:0;background:none;color:var(--muted);font-size:11.5px;white-space:nowrap;transition:none}
+.record-tracklist-all:hover{color:var(--text);background:none}
+.record-tracklist-all:active{transform:none}
+.record-tracklist-discs{display:grid;gap:9px}
+.record-track-disc{overflow:hidden;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface)}
+.record-track-disc-toggle{display:flex;align-items:center;gap:10px;width:100%;min-height:52px;padding:9px 12px;background:var(--surface-2);border:0;border-radius:0;text-align:left;white-space:normal;transition:none}
+.record-track-disc-toggle:hover{background:var(--surface-3);border:0}
+.record-track-disc-toggle:active{transform:none}
+.record-track-disc-icon{display:grid;place-items:center;width:30px;height:30px;flex:none;border-radius:7px;background:var(--surface);color:var(--muted)}
+.record-track-disc-heading{display:flex;flex:1;min-width:0;flex-direction:column;gap:1px}
+.record-track-disc-heading strong{font-size:12.5px;font-weight:650;color:var(--text)}
+.record-track-disc-heading small{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.record-track-disc-count{flex:none;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.record-track-chevron{flex:none;color:var(--muted);transition:transform .15s ease}
+.record-track-chevron.is-open{transform:rotate(180deg)}
+.record-track-rows{margin:0;padding:4px 12px 6px;list-style:none;min-width:0}
+.record-track-row{display:flex;align-items:baseline;min-height:34px;gap:12px;padding:7px 2px;border-bottom:1px solid var(--hairline);font-size:12.5px;line-height:1.55}
+.record-track-row:last-child{border-bottom:0}
+.record-track-number{flex:none;width:22px;text-align:right;color:var(--faint);font-size:11px;font-variant-numeric:tabular-nums}
+.record-track-title{flex:1;min-width:0;color:var(--text);overflow-wrap:anywhere}
+.record-track-duration{flex:none;min-width:35px;color:var(--muted);font-size:11px;text-align:right;font-variant-numeric:tabular-nums}
+.record-track-single{border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);overflow:hidden}
+.record-track-medium-name{padding:10px 14px 0;color:var(--muted);font-size:11.5px}
+@media(max-width:480px){.record-track-rows{padding-inline:9px}.record-track-row{gap:9px}.record-track-disc-toggle{padding:9px 10px}}
+@media(prefers-reduced-motion:reduce){.record-track-chevron{transition:none}}

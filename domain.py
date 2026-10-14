@@ -48,6 +48,41 @@ def clean_release_info(value):
     if not isinstance(tracks, list) or len(tracks) > 500 or any(not isinstance(t, str) or len(t) > 500 for t in tracks):
         raise ValidationError('曲目资料格式不正确')
     result['tracklist'] = [t.strip() for t in tracks if t.strip()]
+    # Keep the actual MusicBrainz media hierarchy alongside legacy flat tracklist.
+    # Unknown durations are omitted rather than represented as guessed zeroes.
+    if 'media' in value:
+        media = value['media']
+        if not isinstance(media, list) or len(media) > 40:
+            raise ValidationError('发行介质资料格式不正确')
+        normalized, total = [], 0
+        for i, disc in enumerate(media):
+            if not isinstance(disc, dict): raise ValidationError('发行介质资料格式不正确')
+            position = disc.get('position', i + 1)
+            if type(position) is not int or not 1 <= position <= 99:
+                raise ValidationError('发行介质编号不正确')
+            fmt, title = disc.get('format', ''), disc.get('title', '')
+            if not isinstance(fmt, str) or len(fmt) > 80 or not isinstance(title, str) or len(title) > 200:
+                raise ValidationError('发行介质名称格式不正确')
+            disc_tracks = disc.get('tracks', [])
+            if not isinstance(disc_tracks, list) or total + len(disc_tracks) > 500:
+                raise ValidationError('曲目数量超出限制')
+            normalized_tracks = []
+            for j, track in enumerate(disc_tracks):
+                if not isinstance(track, dict): raise ValidationError('曲目资料格式不正确')
+                number, name = track.get('position', j + 1), track.get('title', '')
+                if type(number) is not int or not 1 <= number <= 999 or not isinstance(name, str) or len(name) > 500:
+                    raise ValidationError('曲目资料格式不正确')
+                if not name.strip(): continue
+                row = {'position': number, 'title': name.strip()}
+                ms = track.get('lengthMs')
+                if ms is not None:
+                    if type(ms) is not int or not 0 <= ms <= 86400000:
+                        raise ValidationError('曲目时长格式不正确')
+                    row['lengthMs'] = ms
+                normalized_tracks.append(row)
+            total += len(disc_tracks)
+            normalized.append({'position': position, 'format': fmt.strip(), 'title': title.strip(), 'tracks': normalized_tracks})
+        result['media'] = normalized
     return result
 
 

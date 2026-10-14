@@ -155,12 +155,15 @@ class RecognitionTests(unittest.TestCase):
         ident='11111111-1111-1111-1111-111111111111'
         release={'barcode':'1234567890123','country':'JP','date':'2001-02-03',
                  'label-info':[{'catalog-number':'TEST-002','label':{'name':'Fixture Label'}}],
-                 'media':[{'format':'CD','position':1,'tracks':[{'number':'1','title':'First track'}]},
+                 'media':[{'format':'CD','position':1,'title':'Part I', 'tracks':[{'number':'1','title':'First track','length':241000}]},
                           {'format':'CD','position':2,'tracks':[{'number':'1','recording':{'title':'Second disc'}}]}]}
         with patch('server.recognition.read_json',return_value=release) as request:
             details=self.service.release_details(ident)
             self.assertEqual(details['tracklist'],['1-1 First track','2-1 Second disc'])
             self.assertEqual(details['discCount'],'2');self.assertEqual(details['catalogNumber'],'TEST-002')
+            self.assertEqual(details['media'][0]['title'],'Part I')
+            self.assertEqual(details['media'][0]['tracks'][0]['lengthMs'],241000)
+            self.assertEqual(details['media'][1]['tracks'][0]['position'],1)
             self.assertEqual(self.service.release_details(ident),details);self.assertEqual(request.call_count,1)
         with self.assertRaises(ValidationError):self.service.release_details('../outside')
         with patch('server.recognition.read_json',return_value={'media':[{'format':'Vinyl'}]}):

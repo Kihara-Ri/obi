@@ -109,10 +109,23 @@ export interface AlbumRecord {
   recognition?: Pick<RecognitionResult, 'model' | 'at' | 'evidence' | 'sources' | 'warnings'>;
 }
 
+export interface ReleaseTrack {
+  position: number;
+  title: string;
+  lengthMs?: number;
+}
+
+export interface ReleaseMedium {
+  position: number;
+  format: string;
+  title: string;
+  tracks: ReleaseTrack[];
+}
+
 export interface ReleaseInfo {
   catalogNumber?: string; barcode?: string; musicBrainzReleaseId?: string; label?: string; country?: string;
   releaseDate?: string; edition?: string; format?: string; discCount?: string;
-  matrix?: string; extras?: string; observations?: string; tracklist?: string[];
+  matrix?: string; extras?: string; observations?: string; tracklist?: string[]; media?: ReleaseMedium[];
 }
 
 export interface RecognitionFields {

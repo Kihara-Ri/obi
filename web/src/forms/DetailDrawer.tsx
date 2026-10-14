@@ -13,6 +13,7 @@ import {openListingForm} from './ListingForm';
 import {bulkAction} from './shared';
 import {releaseLabels} from '../core/recognition';
 import {formatPackagingName} from '../core/album-packaging';
+import {Tracklist} from '../components/Tracklist';
 
 export interface DetailBack {
   label?: string;
@@ -95,8 +96,11 @@ function DetailBody({id, back}: {id: string; back?: DetailBack}) {
       {r.note ? <><h3 className="section-title">备注 · 这张副本</h3><p className="note-text">{r.note}</p></> : null}
       {r.releaseInfo && Object.values(r.releaseInfo).some(v => Array.isArray(v) ? v.length : v) ? <>
         <h3 className="section-title">发行资料</h3>
-        <dl className="detail-grid">{releaseLabels.map(([key,label]) => r.releaseInfo?.[key] ? <div key={key}><dt>{label}</dt><dd>{r.releaseInfo[key]}</dd></div> : null)}</dl>
-        {r.releaseInfo.tracklist?.length ? <details className="adv"><summary>曲目 · {r.releaseInfo.tracklist.length} 首</summary><p className="note-text">{r.releaseInfo.tracklist.join('\n')}</p></details> : null}
+        <dl className="detail-grid">{releaseLabels.map(([key,label]) => {
+          const value = r.releaseInfo?.[key];
+          return typeof value === 'string' && value ? <div key={key}><dt>{label}</dt><dd>{value}</dd></div> : null;
+        })}</dl>
+        <Tracklist releaseInfo={r.releaseInfo}/>
       </> : null}
       {r.recognition ? <details className="adv"><summary>识别依据与资料来源</summary>
         <p className="small-note">{r.recognition.model} · {r.recognition.at.replace('T',' ')}</p>

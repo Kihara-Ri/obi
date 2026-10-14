@@ -272,15 +272,29 @@ class VisionService:
             media=r.get('media',[])
             if not any('CD' in str(m.get('format','')) for m in media): raise ValidationError('这一发行版本没有 CD 介质，请选择正确版本')
             labels=r.get('label-info',[])
-            tracks=[]
-            for disc in media:
-                for track in disc.get('tracks',[]):
-                    name=track.get('title') or track.get('recording',{}).get('title','')
-                    if name: tracks.append(f"{disc.get('position',1)}-{track.get('number','')} {name}"[:500])
+            tracks, discs = [], []
+            for i, disc in enumerate(media):
+                disc_position = disc.get('position') if type(disc.get('position')) is int else i + 1
+                disc_tracks = []
+                for j, track in enumerate(disc.get('tracks') or []):
+                    name = track.get('title') or (track.get('recording') or {}).get('title', '')
+                    if not isinstance(name, str) or not name.strip(): continue
+                    track_position = track.get('position') if type(track.get('position')) is int else j + 1
+                    # Some MB CD releases have 'number' but omit 'position'.
+                    if 'position' not in track and str(track.get('number', '')).isdigit():
+                        track_position = int(track['number'])
+                    row = {'position': track_position, 'title': name[:500]}
+                    length = track.get('length')
+                    if type(length) is not int: length = (track.get('recording') or {}).get('length')
+                    if type(length) is int and 0 <= length <= 86400000: row['lengthMs'] = length
+                    disc_tracks.append(row)
+                    if len(tracks) < 500: tracks.append(f"{disc_position}-{track_position} {name}"[:500])
+                discs.append({'position': disc_position, 'format': disc.get('format') or '',
+                              'title': disc.get('title') or '', 'tracks': disc_tracks})
             info=clean_release_info({'catalogNumber':' / '.join(l.get('catalog-number','') for l in labels if l.get('catalog-number')),
                 'barcode':r.get('barcode',''),'label':' / '.join(l.get('label',{}).get('name','') for l in labels if l.get('label')),
                 'country':r.get('country',''),'releaseDate':r.get('date',''),'edition':r.get('disambiguation',''),
-                'format':' + '.join(str(m.get('format','')) for m in media),'discCount':str(len(media)), 'tracklist':tracks[:500]})
+                'format':' + '.join(str(m.get('format','')) for m in media),'discCount':str(len(media)), 'tracklist':tracks[:500], 'media':discs})
             if len(self.release_cache)>=200: self.release_cache.clear()
             self.release_cache[ident]=info
             return info

@@ -34,3 +34,8 @@
 - 新购买渠道：保存成功后由 `server/shop_brands.py` 异步通过 Pi CLI 补全可能的官方 favicon，未识别保留首字图标；元数据缓存于 `shop-brand-cache-v1`，图标数据在数据目录的 `shop-icons/`。OAuth/API Key 由 Pi 用户目录管理；配置细节见 `docs/PI_SHOP_BRANDS.md`。
 - ChatGPT OAuth 本机已存在 Pi 登录凭据，但调用在账户额度限制处失败，不能宣称完全端到端正常。
 - Album Engine 0.1.2 已解耦模型查看器和材质/动作，但生成工作流目前仍在碟渡 `server/digital_twins.py`；该边界不能混淆。
+
+## 2026-10-14 分碟曲目展示
+- 专辑详情采用 `web/src/components/Tracklist.tsx` 的分碟折叠列表，按 CD / DVD 等 Media 实际顺序分块；两碟默认都展开，3+ 碟默认只展开第一张，单碟没有多余的折叠标题。支持逐碟展开、全部展开/收起；曲目序号独立为 01、02，已知时长显示在右侧。
+- `web/src/core/tracklist.ts` 优先使用 `releaseInfo.media`，老数据按 `releaseInfo.tracklist` 的 `1-1 歌名` 前缀解析；老数据无需重新同步。
+- MusicBrainz 的 `/vision/release` 路径在 `server/recognition.py` 保留 `media: [{position,format,title,tracks:[{position,title,lengthMs?}]}]`，同时保留兼容字符串 `tracklist`。`domain.clean_release_info` 验证并保存，`ReleaseInfo` 增加可选 `media`。不可凭空构造曲目时长。新条码清空旧介质与曲目，避免版本混用。

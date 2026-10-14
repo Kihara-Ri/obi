@@ -14,7 +14,7 @@ export function ReleaseEditor({value, onChange, prefix}: {
     </div>)}
     <div className="field full"><label htmlFor={`${prefix}-tracks`}>曲目（每行一首）</label>
       <textarea id={`${prefix}-tracks`} value={(value.tracklist ?? []).join('\n')}
-        onChange={e => onChange({...value,tracklist:e.target.value.split('\n')})}/></div>
+        onChange={e => onChange({...value, tracklist: e.target.value.split('\n'), media: []})}/></div>
   </div>;
 }
 
