@@ -105,4 +105,4 @@ python3 app.py --port <空闲端口> --data-dir /private/tmp/diedu-samples --no-
 - **文档即真相**：`README.md`、`使用说明.md`、`部署说明.md` 与实际行为必须同步，不同步视为未完成；文档不写具体个人的域名/路径/账号。
 
 - 购买渠道模型图标：仅在新名称成功保存后异步调用 Pi CLI，无工具调用，不改用户文本；认证留在服务端 Pi 用户目录，失败可显式重试。参见 `docs/PI_SHOP_BRANDS.md`。
-- Album Engine 0.1.3 管 3D 渲染/模型/动作；`server/digital_twins.py` 当前仍管生成任务/发布，勿把模型生成已迁移到引擎当作事实。
+- Album Engine 0.1.4 管 3D 渲染/模型/动作；`server/digital_twins.py` 当前仍管生成任务/发布，勿把模型生成已迁移到引擎当作事实。
