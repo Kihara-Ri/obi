@@ -779,7 +779,7 @@ class EntityCalibrationTests(unittest.TestCase):
 class DiscogsClientTests(unittest.TestCase):
     def test_image_fetch_rejects_nonallowlisted_urls_before_network(self):
         client = DiscogsClient()
-        with patch('server.digital_twins.build_opener', side_effect=AssertionError('must not fetch')):
+        with patch('server.twin_sources.build_opener', side_effect=AssertionError('must not fetch')):
             for url in ('http://i.discogs.com/photo.jpg', 'https://arbitrary.example/photo.jpg',
                         'https://i.discogs.com.arbitrary.example/photo.jpg', 'https://i.discogs.com:8443/photo.jpg',
                         'https://user:pass@i.discogs.com/photo.jpg'):
@@ -796,12 +796,12 @@ class DiscogsClientTests(unittest.TestCase):
             def open(self, request, timeout):
                 calls.append(('url', request.full_url))
                 return Response(b'{"id":2485482,"identifiers":[],"labels":[],"formats":[],"images":[]}')
-        with patch('server.digital_twins.build_opener', return_value=Opener()):
+        with patch('server.twin_sources.build_opener', return_value=Opener()):
             self.assertEqual(DiscogsClient().release('2485482')['id'], 2485482)
         self.assertEqual(calls, [('url', 'https://api.discogs.com/releases/2485482'), ('limit', 2 * 1024 * 1024 + 1)])
         class LargeOpener:
             def open(self, *_args, **_kwargs): return Response(b'x' * (24 * 1024 * 1024 + 1))
-        with patch('server.digital_twins.build_opener', return_value=LargeOpener()), self.assertRaises(ValidationError):
+        with patch('server.twin_sources.build_opener', return_value=LargeOpener()), self.assertRaises(ValidationError):
             DiscogsClient().image('https://i.discogs.com/photo.jpg')
 
     def test_redirect_cannot_move_an_image_or_api_request_to_another_host(self):
