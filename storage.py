@@ -1104,6 +1104,63 @@ class Store:
             return {'epoch':registry['epoch'],'revision':registry['revision'],
                     'job':self._public_twin(job,record)}
 
+    def set_twin_spine_surface(self, body):
+        """Bind an already-published cover's *actual* narrow printed edge.
+
+        Coordinates refer to the complete, existing task image. This changes
+        presentation metadata only; no mutable record, external URL, image
+        bytes, task identity or model generation is involved.
+        """
+        from domain import clean_packaging
+        if not isinstance(body, dict) or not isinstance(body.get('id'), str) or not TWIN_ID.fullmatch(body['id']):
+            raise ValidationError('数字实体书脊任务编号无效')
+        region = body.get('region')
+        source_role = body.get('sourceRole')
+        if region is not None:
+            if source_role not in ('front', 'back'):
+                raise ValidationError('书脊只能从当前实体已验证的正面或背面图源裁取')
+            normalized = clean_packaging({'photoRegions': {'spine': region}})['photoRegions']['spine']
+            width = max(normalized[0::2]) - min(normalized[0::2])
+            height = max(normalized[1::2]) - min(normalized[1::2])
+            if (not (.003 <= width <= .09 and height >= .65)
+                    or normalized[0] >= normalized[2] or normalized[6] >= normalized[4]
+                    or normalized[1] >= normalized[7] or normalized[3] >= normalized[5]
+                    or abs(normalized[1] - normalized[3]) > .05
+                    or abs(normalized[5] - normalized[7]) > .05):
+                raise ValidationError('书脊必须是原图中自上而下的狭长连续印刷边')
+        with closing(self.connect()) as db, db:
+            db.execute('BEGIN IMMEDIATE'); self.require_module('showcase', db)
+            registry = self._twins(db)
+            job = registry['jobs'].get(body['id'])
+            if not job or job['status'] != 'succeeded' or registry['latest'].get(job['recordId']) != job['id']:
+                raise ConflictError('书脊对应的数字实体已更新')
+            record = self.get(db, 'records', job['recordId'])
+            if not same_appearance(record, job['input']):
+                raise ConflictError('数字实体对应的实物资料已发生变化')
+            entity = job['entity']
+            if region is None:
+                entity['surfaces'].pop('spine', None)
+            else:
+                source = entity['surfaces'].get(source_role)
+                if not isinstance(source, dict) or not TWIN_ASSET.fullmatch(str(source.get('asset', ''))):
+                    raise ValidationError('没有可以引用的正面或背面原始图片')
+                if not (self._twin_folder(job['id']) / source['asset']).is_file():
+                    raise ValidationError('原始图片缺失，不允许创建无效书脊')
+                entity['surfaces']['spine'] = {
+                    'asset': source['asset'],
+                    'region': normalized,
+                    'sourceUrl': source.get('sourceUrl', ''),
+                    'origin': source.get('origin', 'record-photo'),
+                    **({'sourceReleaseId': source['sourceReleaseId']} if source.get('sourceReleaseId') else {}),
+                }
+            if not all((self._twin_folder(job['id']) / asset).is_file() for asset in entity_assets(entity)):
+                raise ValidationError('数字实体关联资源不完整')
+            self._write_twins(db, registry, job)
+            self.audit(db, '修正数字实体书脊', {'id': job['recordId'], 'taskId': job['id'],
+                                              'sourceRole': source_role if region is not None else ''})
+            return {'epoch': registry['epoch'], 'revision': registry['revision'],
+                    'job': self._public_twin(job, record)}
+
     def set_twin_disc_calibration(self, body):
         from twins import clean_disc_calibration
         if not isinstance(body, dict): raise ValidationError('盘面校准请求无效')

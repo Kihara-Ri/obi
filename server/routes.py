@@ -360,6 +360,7 @@ def api_twin_guided(h, svc, body):
     h.send(svc.store.select_twin_art(body)); twins(svc).wake.set()
 
 def api_twin_disc_calibration(h, svc, body): h.send(svc.store.set_twin_disc_calibration(body))
+def api_twin_spine(h, svc, body): h.send(svc.store.set_twin_spine_surface(body))
 
 def api_twin_cancel(h, svc, body): h.send(twins(svc).cancel(body.get('id')))
 def api_twin_review_asset(h, svc):
@@ -471,6 +472,7 @@ POST = {
     '/api/twins/accessories': (api_twin_accessories, True, True),
     '/api/twins/guided': (api_twin_guided, True, True),
     '/api/twins/disc-calibration': (api_twin_disc_calibration, True, True),
+    '/api/twins/spine': (api_twin_spine, True, True),
 }
 
 # 允许跨站（外部页面）调用的写接口；当前为空，保留豁免管线供未来令牌鉴权回调使用
