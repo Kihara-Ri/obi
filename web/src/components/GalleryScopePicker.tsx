@@ -4,8 +4,9 @@ import {isCollectedRecord} from '../core/gallery';
 import type {GalleryScope, ShowcaseGroup} from '../core/gallery';
 import {Seg} from './ui/Seg';
 
-export function GalleryScopePicker({records, groups, scope, onSelect, onCreate, onEdit}: {
+export function GalleryScopePicker({records, groups, scope, favorites, onSelect, onCreate, onEdit}: {
   records: AlbumRecord[]; groups: ShowcaseGroup[]; scope: GalleryScope;
+  favorites: Readonly<Record<string, boolean>>;
   onSelect(scope: GalleryScope): void; onCreate(): void; onEdit(group: ShowcaseGroup): void;
 }) {
   const [section, setSection] = useState(scope.kind === 'group' ? 'groups' : 'artists');
@@ -22,6 +23,10 @@ export function GalleryScopePicker({records, groups, scope, onSelect, onCreate, 
     <button type="button" className={`gallery-scope-row${scope.kind === 'all' ? ' is-selected' : ''}`}
             aria-pressed={scope.kind === 'all'} onClick={() => onSelect({kind: 'all'})}>
       <strong>全部收藏</strong><span>{eligible.length} 张</span>
+    </button>
+    <button type="button" className={`gallery-scope-row${scope.kind === 'favorites' ? ' is-selected' : ''}`}
+            aria-pressed={scope.kind === 'favorites'} onClick={() => onSelect({kind: 'favorites'})}>
+      <strong>♥ 我喜欢</strong><span>{eligible.filter(r => favorites[r.id] === true).length} 张</span>
     </button>
     <Seg options={[{value: 'artists', label: '艺人'}, {value: 'groups', label: '自定义组'}]}
          value={section} onValue={setSection} ariaLabel="展示范围类别"/>

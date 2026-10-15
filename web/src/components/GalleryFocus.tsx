@@ -9,6 +9,8 @@ import {twinViewerRecord} from '../core/digital-twins';
 import {commitAnimationOpacity, containedImageRect, coverRectFrames} from '../core/gallery-zoom';
 import type {ZoomRect} from '../core/gallery-zoom';
 import {ChevLeftIco, ChevRightIco} from './icons';
+import {AlbumFlipCard} from './AlbumFlipCard';
+import {Seg} from './ui/Seg';
 
 const ZOOM_MS = 260;
 const ZOOM_EASE = 'cubic-bezier(.2,.7,.3,1)';
@@ -31,13 +33,15 @@ function reducedMotion(): boolean {
 }
 
 /** Full-screen photo-style focus for a model and album title, with shared cover zoom. */
-export function GalleryFocus({record, records, originElement, permission, onNavigate, onClose}: {
+export function GalleryFocus({record, records, originElement, permission, onNavigate, onClose, liked, collectedAt}: {
   record: AlbumRecord;
   records: AlbumRecord[];
   originElement: HTMLElement | null;
   permission: Promise<AlbumOrientationPermission>;
   onNavigate(id: string): void;
   onClose(): void;
+  liked: boolean;
+  collectedAt?: string;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const visual = useRef<HTMLDivElement>(null);
@@ -51,6 +55,8 @@ export function GalleryFocus({record, records, originElement, permission, onNavi
   const closing = useRef(false);
   const [transitionStatus, setTransitionStatus] = useState('');
   const [calibrating,setCalibrating] = useState(false);
+  const [flipped, setFlipped] = useState(false);
+  const [showing3D, setShowing3D] = useState(false);
   const currentRecordId = useRef(record.id);
   const thumbnailOrigin = useRef(originElement);
   const current = useRef({record, records, onNavigate, onClose});
@@ -96,9 +102,10 @@ export function GalleryFocus({record, records, originElement, permission, onNavi
   const expandedCover = (aspect: number): ZoomRect | null => {
     const root = visual.current;
     if (!root) return null;
-    const image = root.querySelector<HTMLElement>('.gallery-focus-cover img');
+    const card = root.querySelector<HTMLElement>('.album-flip-card');
+    const image = root.querySelector<HTMLElement>('img.gallery-focus-cover, .gallery-focus-cover img');
     const scene = root.querySelector<HTMLElement>('.album-model-scene');
-    const container = image || scene;
+    const container = card || image || scene;
     if (!container) return null;
     const bounds = container.getBoundingClientRect();
     if (!bounds.width || !bounds.height) return null;
@@ -223,6 +230,7 @@ export function GalleryFocus({record, records, originElement, permission, onNavi
   requestClose.current = () => {
     if (closing.current) return;
     closing.current = true;
+    setFlipped(false);
     switching.current = false;
     setTransitionStatus('');
     animateOut(currentRecordId.current, () => current.current.onClose(), true);
@@ -235,6 +243,8 @@ export function GalleryFocus({record, records, originElement, permission, onNavi
     const next = list[index + by];
     if (!next) return;
     switching.current = true;
+    setFlipped(false);
+    setShowing3D(false);
     setTransitionStatus('正在切换到：' + next.title);
     animateOut(currentRecordId.current, () => current.current.onNavigate(next.id));
   };
@@ -248,7 +258,7 @@ export function GalleryFocus({record, records, originElement, permission, onNavi
     const x = window.scrollX, y = window.scrollY;
     html.style.overflow = 'hidden';
     element.showModal();
-    element.querySelector<HTMLElement>('.album-model-scene, .gallery-focus-cover')?.focus({preventScroll: true});
+    element.focus({preventScroll: true});
     const lock = () => {if (window.scrollX !== x || window.scrollY !== y) window.scrollTo(x, y);};
     const onHistoryBack = () => requestClose.current();
     window.addEventListener('scroll', lock, {passive: true});
@@ -268,6 +278,7 @@ export function GalleryFocus({record, records, originElement, permission, onNavi
   useLayoutEffect(() => {
     const changed = currentRecordId.current !== record.id;
     currentRecordId.current = record.id;
+    setFlipped(false); setShowing3D(false);
     playIntro(record.id, changed && switching.current);
   }, [record.id]);
 
@@ -275,7 +286,7 @@ export function GalleryFocus({record, records, originElement, permission, onNavi
   const previous = index > 0;
   const next = index >= 0 && index < records.length - 1;
 
-  return createPortal(<dialog id="gallery-focus" className="gallery-focus" ref={dialog}
+  return createPortal(<dialog id="gallery-focus" className="gallery-focus" ref={dialog} tabIndex={-1}
     aria-labelledby="gallery-focus-title" data-task-id={job?.id ?? ''} onCancel={event => {event.preventDefault(); requestClose.current();}}
     onKeyDown={event => {
       if (event.defaultPrevented || calibrating) return;
@@ -291,13 +302,19 @@ export function GalleryFocus({record, records, originElement, permission, onNavi
       }
     }}>
     <div className="gallery-focus-shade" ref={shade} aria-hidden="true" onClick={() => requestClose.current()}/>
-    <div className="gallery-focus-visual" ref={visual}>
-      {modelRecord ? <AlbumModel key={job?.id + ':' + job?.seq} record={modelRecord} permission={permission} onDismiss={() => requestClose.current()}/>
-        : <div className="gallery-focus-cover" tabIndex={0} role="group" aria-label={'专辑封面：' + record.title}>
-          {record.cover ? <img src={record.cover} alt={record.title + '封面'}/> : <span>暂无封面</span>}
-        </div>}
+    <div className={'gallery-focus-visual' + (showing3D ? ' gallery-focus-visual--model' : '')} ref={visual}>
+      {modelRecord && showing3D ?
+        <AlbumModel key={job?.id + ':' + job?.seq} record={modelRecord} permission={permission}
+          onDismiss={() => requestClose.current()}/>
+        : <AlbumFlipCard record={record} flipped={flipped} liked={liked} collectedAt={collectedAt}
+            onFlip={() => {if (!closing.current && !switching.current) setFlipped(v => !v);}}/>}
       <h2 id="gallery-focus-title">{record.title}</h2>
     </div>
+    {modelRecord ? <div className="gallery-renderer-switch">
+      <Seg ariaLabel="专辑显示" options={[{value: '2d', label: '2D'}, {value: '3d', label: '3D'}]}
+        value={showing3D ? '3d' : '2d'}
+        onValue={value => {setFlipped(false); setShowing3D(value === '3d');}}/>
+    </div> : null}
     {modelRecord && job?.entity && Object.keys(job.entity.surfaces).some(role=>role.startsWith('disc')) ?
       <button type="button" className="disc-calibration-launch" onClick={()=>setCalibrating(true)}>校准盘面</button>:null}
     {calibrating&&job?.entity?<DiscCalibrationEditor job={job} onClose={()=>setCalibrating(false)}

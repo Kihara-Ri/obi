@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {after, afterEach, beforeEach, test} from 'node:test';
-import {mkdtempSync, rmSync, writeFileSync} from 'node:fs';
+import {mkdtempSync, rmSync, writeFileSync, readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
@@ -154,4 +154,45 @@ test('旧展示偏好默认为全部范围，新组范围和组内排序可恢�
   gallery.saveGalleryPreferences(prefs);
   assert.deepEqual(gallery.readGalleryPreferences(), prefs);
   assert.deepEqual(gallery.showcaseGroups({}), {revision: 0, groups: []});
+});
+
+test('我喜欢范围仅包含被标记的在库副本，所有展示模式共享筛选结果', () => {
+  const records = [
+    record('liked-a','domestic'),
+    record('liked-b','transit',{title:'另一张'}),
+    record('unliked','overseas',{title:'未喜欢'}),
+    record('sold-liked','sold',{title:'已售'}),
+    record('trash-liked','trash',{title:'回收站'}),
+  ];
+  const favorites = {'liked-a':true,'liked-b':true,'sold-liked':true,'trash-liked':true};
+  const scope = {kind:'favorites'};
+  assert.deepEqual(gallery.galleryRecords(records,'','recent',scope,[],favorites).map(r=>r.id),
+    ['liked-a','liked-b']);
+  assert.deepEqual(gallery.galleryRecords(records,'另一张','recent',scope,[],favorites).map(r=>r.id),
+    ['liked-b']);
+  assert.deepEqual(gallery.galleryRecords(records,'未喜欢','recent',scope,[],favorites),[]);
+  assert.deepEqual(gallery.galleryRecords(records,'','recent',scope,[],{}),[]);
+  for (const mode of gallery.GALLERY_MODES) {
+    // Stage receives this same filtered array in every mode.
+    const prefs = {...gallery.readGalleryPreferences(), mode:mode.value,scope};
+    gallery.saveGalleryPreferences(prefs);
+    assert.deepEqual(gallery.readGalleryPreferences().scope,scope);
+    assert.deepEqual(gallery.galleryRecords(records,'',prefs.sort,prefs.scope,[],favorites).map(r=>r.id),
+      ['liked-a','liked-b']);
+  }
+});
+
+test('我喜欢展示范围刷新后仍记住，旧偏好保持兼容', () => {
+  const p={...gallery.readGalleryPreferences(),scope:{kind:'favorites'}};
+  gallery.saveGalleryPreferences(p);
+  assert.deepEqual(gallery.readGalleryPreferences().scope,{kind:'favorites'});
+  storage.set('album-gallery-v1',JSON.stringify({mode:'tiles',scope:{kind:'nonsense'}}));
+  assert.deepEqual(gallery.readGalleryPreferences().scope,{kind:'all'});
+});
+
+test('展示范围选择器提供独立我喜欢入口，且使用收藏中的真实数量', () => {
+  const file = readFileSync(new URL('../src/components/GalleryScopePicker.tsx', import.meta.url),'utf8');
+  assert.match(file, /scope\.kind === 'favorites'/);
+  assert.match(file, /onSelect\(\{kind: 'favorites'\}\)/);
+  assert.match(file, /eligible\.filter\(r => favorites\[r\.id\] === true\)\.length/);
 });

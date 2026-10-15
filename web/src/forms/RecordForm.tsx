@@ -71,6 +71,33 @@ export function RecordForm({id}: {id?: string}) {
   const set = (patch: Partial<typeof v>) => setV(prev => ({...prev, ...patch}));
   const liveValues = useRef(v); liveValues.current = v;
   const dirty = () => app.setDrawerDirty(true);
+  // Work-level preference: deliberately separate from the copy's save payload.
+  // The user changes it only in album editing; all copies of the work share it.
+  const [liked, setLiked] = useState(false);
+  const [likedLoading, setLikedLoading] = useState(Boolean(id));
+  const [likedSaving, setLikedSaving] = useState(false);
+  const [likedError, setLikedError] = useState('');
+  useEffect(() => {
+    if (!id) return;
+    let alive = true;
+    void api<{favorites: Record<string, boolean>}>('album-favorites')
+      .then(data => {if (alive) setLiked(Boolean(data.favorites[id]));})
+      .catch(error => {if (alive) setLikedError(error instanceof Error ? error.message : String(error));})
+      .finally(() => {if (alive) setLikedLoading(false);});
+    return () => {alive = false;};
+  }, [id]);
+  const toggleLiked = async () => {
+    if (!id || likedSaving || likedLoading) return;
+    setLikedSaving(true); setLikedError('');
+    try {
+      const data = await api<{favorites: Record<string, boolean>}>('album-favorites',
+        {recordId: id, liked: !liked});
+      setLiked(Boolean(data.favorites[id]));
+    } catch (error) {
+      setLikedError(error instanceof Error ? error.message : String(error));
+    } finally {setLikedSaving(false);}
+  };
+
   // 新建时先以真实条码确定发行版。名称/艺人/曲目由 MusicBrainz 填充，
   // 多个候选必须由用户选择，不推断精确版次。
   const [barcode, setBarcode] = useState(r?.releaseInfo?.barcode || '');
@@ -411,6 +438,20 @@ export function RecordForm({id}: {id?: string}) {
           data-status={where || r?.status} data-cur={v.currency}>
       <div className="drawer-body">
         <div className="error" role="alert">{error}</div>
+        {id ? <section className="album-preference-editor form-section" aria-label="专辑偏好">
+          <div className="album-preference-copy">
+            <strong>专辑偏好</strong>
+            <small>对整张专辑生效，所有副本共享。切换后立即保存。</small>
+          </div>
+          <button type="button" className={'album-like-toggle'+(liked ? ' is-liked' : '')}
+            aria-pressed={liked} aria-label={liked ? '取消我喜欢' : '将专辑标记为我喜欢'}
+            disabled={likedLoading || likedSaving} onClick={() => void toggleLiked()}>
+            <span className="album-like-heart" aria-hidden="true">{liked ? '♥' : '♡'}</span>
+            <span>我喜欢</span>
+            <span className="album-like-switch" aria-hidden="true"><span/></span>
+          </button>
+          {likedError ? <p className="album-preference-error" role="alert">{likedError}</p> : null}
+        </section> : null}
         <section className="record-photo-entry" onDragOver={e => e.preventDefault()}
           onDrop={e => {e.preventDefault();const files=[...e.dataTransfer.files];if(files.length){photos.addFiles(files);clearRecognition();dirty();}}}>
           <div className="record-photo-head"><strong>实物照片</strong><small>可拖入或多选 · 每张副本最多 {MAX_PHOTOS} 张</small></div>

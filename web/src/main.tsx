@@ -28,6 +28,7 @@ import './styles/gallery-continuous.css';
 import './styles/gallery-film-navigator.css';
 import './styles/gallery-groups.css';
 import './styles/gallery-focus.css';
+import './styles/album-flip-card.css';
 import './styles/gallery-case.css';
 import './styles/album-model.css';
 import './styles/digital-twins.css';

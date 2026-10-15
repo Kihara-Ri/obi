@@ -1,0 +1,144 @@
+/* Brushed-metal album keepsake, separate from the real CD renderer. */
+.album-flip-card{
+  --card-tilt-x:0deg;--card-tilt-y:0deg;
+  --pointer-x:50%;--pointer-y:50%;--pointer-strength:0;
+  position:relative;flex:none;width:min(72dvh,82vw,680px);
+  aspect-ratio:1;perspective:1400px;pointer-events:auto;isolation:isolate;
+  touch-action:pan-y;
+}
+.album-flip-rotor{
+  appearance:none;display:block;position:absolute;inset:0;width:100%;height:100%;
+  border:0;padding:0;background:transparent;color:inherit;cursor:pointer;
+  transform-style:preserve-3d;
+  transform:rotateX(var(--card-tilt-x)) rotateY(var(--card-tilt-y));
+  /* filter on a preserve-3d element forces flat rendering in Chrome. */
+  transition:transform 690ms cubic-bezier(.22,.8,.18,1);
+}
+.album-flip-card.is-flipped .album-flip-rotor{
+  transform:rotateX(var(--card-tilt-x)) rotateY(calc(180deg + var(--card-tilt-y)));
+}
+.album-flip-rotor:focus-visible{outline:2px solid var(--accent);outline-offset:8px;border-radius:13px}
+.album-flip-face{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  border-radius:13px;overflow:hidden;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.20),0 18px 40px rgba(0,0,0,.38);
+}
+.album-flip-front{background:#15191e}
+.album-flip-front .gallery-focus-cover{
+  width:100%;height:100%;max-width:none;max-height:none;object-fit:contain;
+  pointer-events:none;border-radius:0;
+}
+.album-flip-front .gallery-focus-cover.gallery-artwork{width:100%;height:100%}
+/* The front uses the same cursor-centered light as the reverse; keep it
+   understated so printed artwork retains its original contrast and color.
+   No fixed top-left softbox or diagonal sheen. */
+.album-flip-front-gloss{
+  position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(circle min(26vw, 160px) at var(--pointer-x) var(--pointer-y),
+    rgba(255,255,255,.11) 0%,rgba(255,255,255,.055) 28%,
+    rgba(255,255,255,.017) 62%,rgba(255,255,255,0) 100%);
+  opacity:var(--pointer-strength);
+  transition:opacity 240ms ease;
+}
+.album-flip-back{
+  --metal-edge:rgba(58,70,82,.42);--metal-ink:#414954;
+  --metal-shine:rgba(255,255,255,.88);
+  color:var(--metal-ink);
+  transform:rotateY(180deg);
+  flex-direction:column;justify-content:space-between;text-align:center;
+  padding:clamp(20px,5%,36px);
+  /* Static fallback only, not an artificial striped metal simulation. */
+  background:linear-gradient(140deg,#9ba4af 0%,#e9edf1 48%,#9aa4b1 100%);
+}
+.album-flip-card.is-liked .album-flip-back{
+  --metal-edge:rgba(103,71,18,.55);--metal-ink:#5b411f;
+  --metal-shine:rgba(255,244,185,.88);
+  background:linear-gradient(140deg,#9e752d 0%,#f3db91 48%,#a98236 100%);
+}
+
+/* Small diffuse bounce highlight, tracking the pointer over the physical
+   PBR spotlight. Feather to full transparency before reaching the card edge;
+   it never replaces the studio's reflective metallic material. */
+.album-flip-back::before{
+  content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:radial-gradient(circle min(26vw, 160px) at var(--pointer-x) var(--pointer-y),
+    rgba(255,255,255,.15) 0%,rgba(255,255,255,.085) 28%,
+    rgba(255,255,255,.025) 62%,rgba(255,255,255,0) 100%);
+  opacity:var(--pointer-strength);
+  transition:opacity 240ms ease;
+}
+.album-flip-card.is-liked .album-flip-back::before{
+  background:radial-gradient(circle min(26vw, 160px) at var(--pointer-x) var(--pointer-y),
+    rgba(255,245,217,.15) 0%,rgba(255,240,195,.085) 28%,
+    rgba(255,240,195,.025) 62%,rgba(255,240,195,0) 100%);
+}
+/* Metal is rendered by Three.js MeshPhysicalMaterial + a local CC0 HDRI.
+   This canvas must sit behind sharp, selectable DOM lettering. */
+.album-metal-canvas{
+  position:absolute;inset:0;width:100%;height:100%;display:block;
+  pointer-events:none;z-index:0;
+}
+.album-flip-back::after{
+  content:"";position:absolute;inset:12px;border:1px solid var(--metal-edge);border-radius:7px;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.22),0 0 12px rgba(255,255,255,.08);
+  pointer-events:none;
+}
+.album-flip-back-center{position:absolute;z-index:1;left:7%;right:7%;top:38%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;gap:clamp(9px,2vh,20px)}
+.album-flip-album-title{font-size:clamp(17px,2.45vw,29px);line-height:1.25;font-weight:650;max-width:100%;overflow-wrap:anywhere;text-shadow:0 1px 0 rgba(255,255,255,.64)}
+.album-flip-artist-name{font-size:clamp(12px,1.5vw,15px);letter-spacing:.12em;opacity:.76}
+.album-flip-back-bottom{position:absolute;z-index:1;left:0;right:0;top:72%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;gap:3px}
+.album-flip-date-label{font-family:Georgia,serif;font-style:italic;font-size:clamp(12px,1.4vw,17px);letter-spacing:.04em;opacity:.8}
+.album-flip-handwritten{
+  font-family:"Bradley Hand","Segoe Print","Chalkboard SE",cursive;
+  font-size:clamp(24px,4vw,45px);line-height:1.35;transform:rotate(-5deg);
+  text-shadow:0 1px 0 var(--metal-shine);
+}
+.album-flip-hint{
+  position:absolute;z-index:1;left:50%;bottom:11px;transform:translateX(-50%);
+  white-space:nowrap;pointer-events:none;background:rgba(14,17,21,.58);
+  color:rgba(255,255,255,.86);font-size:11px;letter-spacing:.06em;
+  padding:5px 9px;border-radius:20px;opacity:0;transition:opacity .18s;
+}
+.album-flip-card:hover .album-flip-hint{opacity:1}
+@media(hover:none){.album-flip-hint{display:none}}
+@media(prefers-reduced-motion:reduce){
+  .album-flip-rotor,.album-flip-hint,.album-flip-front-gloss,.album-flip-back::before{transition-duration:.01ms!important}
+}
+@media(max-width:650px){
+  .album-flip-card{width:min(82vw,69dvh)}
+  .album-flip-back{padding:18px}
+  .album-flip-back::after{inset:7px}
+}
+
+/* Album preferences belong exclusively to the edit form, not the flip view.
+   Red is the liked control colour; the presentation card still uses gold metal. */
+.album-preference-editor{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+  gap:12px;padding:15px 16px;border-radius:13px;
+  border:1px solid var(--hairline);background:var(--surface-2,rgba(128,128,128,.055));
+}
+.album-preference-copy{display:flex;flex-direction:column;gap:4px}
+.album-preference-copy strong{font-size:14px}
+.album-preference-copy small{color:var(--muted);line-height:1.5;font-size:11px}
+.album-like-toggle{
+  display:inline-flex;align-items:center;gap:8px;min-width:135px;
+  border:1px solid var(--hairline);border-radius:32px;padding:8px 11px;
+  color:var(--text);background:var(--surface,transparent);font-size:13px;
+  font-weight:600;cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease;
+}
+.album-like-heart{font-size:19px;line-height:1;color:var(--muted)}
+.album-like-switch{margin-left:auto;display:flex;align-items:center;width:29px;height:17px;
+  padding:2px;border-radius:16px;background:rgba(122,128,141,.33);transition:background .16s}
+.album-like-switch>span{width:13px;height:13px;border-radius:50%;background:#f7f7f8;
+  box-shadow:0 1px 2px rgba(0,0,0,.18);transition:transform .16s}
+.album-like-toggle.is-liked{border-color:rgba(219,48,68,.55);
+  color:#f25e70;background:rgba(214,39,59,.095)}
+.album-like-toggle.is-liked .album-like-heart{color:#e1394c}
+.album-like-toggle.is-liked .album-like-switch{background:#d83049}
+.album-like-toggle.is-liked .album-like-switch>span{transform:translateX(12px)}
+.album-like-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.album-like-toggle:disabled{cursor:wait;opacity:.55}
+.album-preference-error{flex:0 0 100%;font-size:12px;color:var(--danger,#e1394c);margin:0}
+@media(prefers-reduced-motion:reduce){
+  .album-like-toggle,.album-like-switch,.album-like-switch>span{transition:none!important}
+}

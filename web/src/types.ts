@@ -68,6 +68,22 @@ export interface CoverSource {
   year?: string;
 }
 
+/** Persistent musical Album, independent of any owned physical CD copies. */
+export interface AlbumEntity {
+  id: string;
+  title: string;
+  artist: string;
+  musicBrainzReleaseGroupId: string | null;
+  liked: boolean;
+  createdAt: string;
+}
+export interface AlbumCatalog {
+  albums: Record<string, AlbumEntity>;
+  recordAlbumIds: Record<string, string>;
+  favorites: Record<string, boolean>;
+  collectedAt: Record<string, string>;
+}
+
 export interface AlbumRecord {
   /** Viewer-only task assets, never submitted as ledger data. */
   modelSources?: Partial<Record<PackagingPhotoRole, {sourceUrl: string; origin: string}>>;
