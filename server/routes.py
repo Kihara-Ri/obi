@@ -101,6 +101,14 @@ def api_cover(h, svc):
     return h.send(path.read_bytes(), mime=mime, cache='private, max-age=31536000, immutable')
 
 
+def api_album_favorites(h, svc):
+    h.send(svc.store.album_favorites())
+
+
+def api_album_favorite(h, svc, body):
+    h.send(svc.store.set_album_favorite(body))
+
+
 def api_backup(h, svc):
     h.send(svc.store.backup(), filename='album-ledger-backup.json')
 
@@ -405,6 +413,7 @@ def api_import_preview(h, svc, body):
 GET = {
     '/api/health': api_health,
     '/api/state': api_state,
+    '/api/album-favorites': api_album_favorites,
     '/api/rate': api_rate,
     '/api/shop-brands': api_shop_brands,
     '/api/backup': api_backup,
@@ -446,6 +455,7 @@ POST = {
     '/api/artists/work-link': (api_artists_work_link, True, False),
     '/api/artists/work-unlink': (api_artists_work_unlink, True, False),
     '/api/records': (api_records, True, True),
+    '/api/album-favorites': (api_album_favorite, True, True),
     '/api/bulk': (api_bulk, True, True),
     '/api/sales': (api_sales, True, True),
     '/api/sale-action': (api_sale_action, True, True),

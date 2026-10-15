@@ -190,6 +190,191 @@ class Store:
                 item['profit']=money(p) if p is not None else None
         if self.rates: b['rateService']=self.rates.status()
         return b
+    @staticmethod
+    def album_identity(record):
+        """One album, however many copies/editions are held. Not a copy flag.
+
+        An explicit release group is not required for old imports, which often
+        have title/artist only. Normalize editorial title brackets and spacing.
+        """
+        import unicodedata
+        def norm(value):
+            text = unicodedata.normalize('NFKC', str(value or '')).strip()
+            if text.startswith('[') and text.endswith(']') and text.count('[') == 1:
+                text = text[1:-1].strip()
+            return ' '.join(text.split()).casefold()
+        return norm(record.get('artist')) + '\u001f' + norm(record.get('title'))
+
+    @staticmethod
+    def _valid_work_group(record, work_links):
+        link = work_links.get(record['id'])
+        if not isinstance(link, dict): return None
+        group = link.get('releaseGroupMbid')
+        if (not isinstance(group,str) or not MBID_RE.fullmatch(group)
+                or link.get('recordArtist') != record.get('artist')
+                or link.get('recordTitle') != record.get('title')):
+            return None
+        return group.lower()
+
+    def _album_catalog(self, db):
+        """Idempotent Album entity/relation reconciliation, entirely transactional.
+
+        Album IDs are permanent once assigned; editable titles are display data.
+        Confirmed release groups override an ambiguous title match. Legacy
+        favorite flags migrate only once and are preserved when groups split.
+        """
+        records = self.rows(db, 'records')
+        existing_entities = self.meta_get(db, 'album-entities-v1')
+        entities = existing_entities if existing_entities is not None else {}
+        membership = self.meta_get(db, 'album-copy-links-v1') or {}
+        old_likes = (self.meta_get(db, 'album-favorites-v1') or {}) if existing_entities is None else {}
+        work_links = self.meta_get(db, 'record-work-links-v1') or {}
+        if not isinstance(entities, dict) or not isinstance(membership, dict):
+            raise ValidationError('专辑归档数据无效')
+        entities = {k:dict(v) for k,v in entities.items()}
+        membership = dict(membership)
+        by_id = {r['id']:r for r in records}
+        # Only valid, current snapshot work associations may control an identity.
+        rgs = {r['id']:self._valid_work_group(r,work_links) for r in records}
+        groups_by_name = {}
+        for r in records:
+            if rgs[r['id']]:
+                groups_by_name.setdefault(self.album_identity(r),set()).add(rgs[r['id']])
+        changed = False
+        # Keep existing name-group associations on edits, except a newly
+        # verified RG disambiguates it. Never merge two verified RGs.
+        def create(record, rg=None, favorite=False):
+            aid = uid()
+            entities[aid] = {'id':aid,'title':record['title'],'artist':record['artist'],
+                             'musicBrainzReleaseGroupId':rg,'liked':bool(favorite),
+                             'createdAt':now()}
+            return aid
+        def find_rg(rg):
+            return next((k for k,v in entities.items()
+                         if v.get('musicBrainzReleaseGroupId') == rg),None)
+        def find_name(r):
+            key = self.album_identity(r)
+            # If exactly one verified release group has this name, an unlinked
+            # old record can tentatively share it. Ambiguity stays separate.
+            unique = groups_by_name.get(key,set())
+            if len(unique) == 1:
+                candidate = find_rg(next(iter(unique)))
+                if candidate: return candidate
+            return next((k for k,v in entities.items()
+                         if not v.get('musicBrainzReleaseGroupId') and
+                         self.album_identity(v) == key),None)
+        # Snapshot group conflicts before changing any copy assignment:
+        # otherwise processing one RG first could make another appear safe
+        # to reuse the old name-only Album entity.
+        original_group_ids = {}
+        for rid, aid in membership.items():
+            if rid in rgs and rgs[rid]:
+                original_group_ids.setdefault(aid, set()).add(rgs[rid])
+        # Process verified records first so legacy unlinked copies can join a
+        # unique group but never conflate two different release groups.
+        sorted_records = sorted(records,key=lambda r:rgs[r['id']] is None)
+        for r in sorted_records:
+            rid=r['id']; rg=rgs[rid]; old_id=membership.get(rid)
+            old_album = entities.get(old_id)
+            target = None
+            if rg:
+                if old_album and old_album.get('musicBrainzReleaseGroupId') == rg:
+                    target=old_id
+                else:
+                    target=find_rg(rg)
+                    if not target and old_album and not old_album.get('musicBrainzReleaseGroupId'):
+                        # Reuse an old album ID only when no other copy has a
+                        # different confirmed group; preserve its liked flag.
+                        if original_group_ids.get(old_id,set()) <= {rg}:
+                            target = old_id
+                            old_album['musicBrainzReleaseGroupId'] = rg
+                            changed=True
+                if not target:
+                    old_favorite = bool(old_album and old_album.get('liked'))
+                    target=create(r,rg,old_favorite or self.album_identity(r) in old_likes)
+                    changed=True
+            else:
+                if old_album:
+                    # If this unlinked record belongs to a *verified* different
+                    # work by title, don't silently assign it to another work.
+                    target=old_id
+                else:
+                    target=find_name(r)
+                if not target:
+                    target=create(r,None,self.album_identity(r) in old_likes)
+                    changed=True
+            if membership.get(rid) != target:
+                membership[rid]=target
+                changed=True
+        # An edition title correction never changes albumId. Update the
+        # descriptive label when all its extant copies now agree.
+        members={}
+        for r in records:
+            members.setdefault(membership[r['id']],[]).append(r)
+        for aid,copies in members.items():
+            names={self.album_identity(r) for r in copies}
+            if len(names)==1:
+                display=copies[0]
+                if (entities[aid].get('title'),entities[aid].get('artist')) != (
+                        display['title'],display['artist']):
+                    entities[aid]['title']=display['title']
+                    entities[aid]['artist']=display['artist']
+                    changed=True
+        # Prune removed copy references, preserve orphan album entities for
+        # backups and future restoration; preference is never lost by deletion.
+        for rid in list(membership):
+            if rid not in by_id:
+                del membership[rid]; changed=True
+        if changed or existing_entities is None:
+            db.execute('INSERT OR REPLACE INTO meta(key,data) VALUES(?,?)',
+                       ('album-entities-v1',dumps(entities)))
+            db.execute('INSERT OR REPLACE INTO meta(key,data) VALUES(?,?)',
+                       ('album-copy-links-v1',dumps(membership)))
+            # Legacy title-keyed favorites have now been folded into stable
+            # Album IDs. Retaining that old preference key could incorrectly
+            # re-apply 'liked' to a newly split or explicitly unliked album.
+            if existing_entities is None:
+                db.execute("DELETE FROM meta WHERE key='album-favorites-v1'")
+        return entities,membership,records
+
+    def album_favorites(self):
+        """Compatibility view plus durable Album entities and copy relationships."""
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            entities,links,records = self._album_catalog(db)
+        dates = {}
+        for r in records:
+            date=r.get('date') or ''
+            album_id=links[r['id']]
+            if isinstance(date,str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}',date):
+                if album_id not in dates or date<dates[album_id]:
+                    dates[album_id]=date
+        return {'albums':entities,'recordAlbumIds':links,
+                'favorites':{rid:True for rid,aid in links.items() if entities[aid].get('liked') is True},
+                'collectedAt':{rid:dates[aid] for rid,aid in links.items() if aid in dates}}
+
+    def set_album_favorite(self, body):
+        if not isinstance(body,dict) or set(body) != {'recordId','liked'}:
+            raise ValidationError('专辑喜好请求格式不正确')
+        if not isinstance(body['recordId'],str) or not RECORD_ID_RE.fullmatch(body['recordId']):
+            raise ValidationError('专辑记录编号无效')
+        if type(body['liked']) is not bool:
+            raise ValidationError('我喜欢只能是开或关')
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            entities,links,records = self._album_catalog(db)
+            if body['recordId'] not in links:
+                raise ValidationError('记录不存在，请刷新页面')
+            aid=links[body['recordId']]
+            album=entities[aid]
+            if album.get('liked') is not body['liked']:
+                album['liked']=body['liked']
+                db.execute('INSERT OR REPLACE INTO meta(key,data) VALUES(?,?)',
+                           ('album-entities-v1',dumps(entities)))
+                self.audit(db,'设置专辑喜欢状态',
+                           {'recordId':body['recordId'],'albumId':aid,'liked':body['liked']})
+        return self.album_favorites()
+
     def set_modules(self, enabled, start_page=None):
         enabled = clean_modules(enabled)
         if start_page is not None: start_page = clean_start_page(start_page)
@@ -287,6 +472,7 @@ class Store:
         self.checkpoint()
         with self.connect() as db:
             for r in preview['records']: self.put(db,'records',r)
+            self._album_catalog(db)
             self.audit(db,'导入专辑',{'count':len(preview['records']),'skipped':preview['skipped']})
         return {'count':len(preview['records']),'skipped':preview['skipped']}
     def prepare_photos(self, rid, entries):
@@ -401,6 +587,9 @@ class Store:
                 if item.get('id') and 'noteAlbum' in item:
                     cur=db.execute("UPDATE records SET data=json_set(data,'$.noteAlbum',?) WHERE id!=? AND json_extract(data,'$.title')=? AND json_extract(data,'$.artist')=?",(r.get('noteAlbum',''),r['id'],r['title'],r['artist']))
                     if cur.rowcount:self.audit(db,'同步专辑笔记',{'id':r['id'],'title':r['title'],'siblings':cur.rowcount})
+            # Persist Album entities alongside newly added/edited copies.
+            # Editing a copy's title does not rekey an existing album.
+            self._album_catalog(db)
         for rid,plan in plans:self.apply_photos(rid,plan)
         return {'ids':result}
     # 批量照片草稿只存数据目录；不占账本记录，也不混入设置/凭据导出。
@@ -779,6 +968,36 @@ class Store:
         settings = dict(b.get('settings', {}))
         if 'modules-v1' in settings: settings['modules-v1'] = clean_modules(settings['modules-v1'])
         if 'start-page-v1' in settings: settings['start-page-v1'] = clean_start_page(settings['start-page-v1'])
+        if 'album-favorites-v1' in settings:
+            likes = settings['album-favorites-v1']
+            if (not isinstance(likes,dict) or len(likes)>50000 or any(
+                not isinstance(k,str) or len(k)>1200 or '\u001f' not in k or v is not True
+                for k,v in likes.items())):
+                raise ValidationError('备份的专辑喜好数据无效')
+        if 'album-entities-v1' in settings:
+            albums=settings['album-entities-v1']
+            if (not isinstance(albums,dict) or len(albums)>100000 or any(
+                not isinstance(aid,str) or not re.fullmatch(r'[0-9a-f]{32}',aid)
+                or not isinstance(album,dict) or album.get('id') != aid
+                or not isinstance(album.get('title'),str) or len(album['title'])>500
+                or not isinstance(album.get('artist'),str) or len(album['artist'])>500
+                or type(album.get('liked')) is not bool
+                or not isinstance(album.get('createdAt'),str) or len(album['createdAt'])>40
+                or (album.get('musicBrainzReleaseGroupId') is not None and (
+                    not isinstance(album['musicBrainzReleaseGroupId'],str)
+                    or not MBID_RE.fullmatch(album['musicBrainzReleaseGroupId'])))
+                for aid,album in albums.items())):
+                raise ValidationError('备份的专辑实体数据无效')
+        if 'album-copy-links-v1' in settings:
+            links=settings['album-copy-links-v1']
+            if (not isinstance(links,dict) or len(links)>100000 or any(
+                not isinstance(rid,str) or not RECORD_ID_RE.fullmatch(rid)
+                or not isinstance(aid,str) or not re.fullmatch(r'[0-9a-f]{32}',aid)
+                for rid,aid in links.items())):
+                raise ValidationError('备份的专辑副本关联无效')
+            if 'album-entities-v1' in settings and any(
+                    aid not in settings['album-entities-v1'] for aid in links.values()):
+                raise ValidationError('备份的专辑副本关联无效')
         if 'showcase-groups-v1' in settings:
             settings['showcase-groups-v1'] = clean_showcase_groups(settings['showcase-groups-v1'])
         if TWIN_KEY in settings:
