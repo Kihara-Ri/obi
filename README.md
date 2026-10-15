@@ -121,6 +121,8 @@ python3 -m unittest discover -s tests -v
 npm --prefix web run typecheck && npm --prefix web run build
 ```
 
+应用图标的矢量源为 `static/favicon.svg`；修改后运行 `python3 tools/build_icons.py`（开发机需安装 ImageMagick），同步生成 192/512 像素普通与 maskable 图标。卡片铺满下半部，自适应版保留不透明底色并将唱片和标记收进裁切安全区。
+
 每次 push 由 GitHub Actions 自动执行同样的测试 + **数据泄漏扫描**（个人数据文件与身份串不得入库）。本地开发请先执行一次 `tools/setup-hooks.sh` 启用 commit/push 拦截钩子——仓库不含任何个人数据，这条红线靠上面三层防线保证。
 
 ---
