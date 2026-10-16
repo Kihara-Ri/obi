@@ -1,28 +1,14 @@
+import {compiledSources} from './helpers/compiled-sources.mjs';
 import assert from 'node:assert/strict';
-import {after, test} from 'node:test';
-import {mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync} from 'node:fs';
-import {createRequire} from 'node:module';
-import {tmpdir} from 'node:os';
+import {test} from 'node:test';
+import {readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import ts from 'typescript';
 import {createElement} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 
-const output = mkdtempSync(join(tmpdir(), 'diedu-vision-settings-test-'));
-const source = fileURLToPath(new URL('../src/', import.meta.url));
-const program = ts.createProgram([join(source, 'components/VisionSettings.tsx')], {
-  target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS,
-  jsx: ts.JsxEmit.ReactJSX, strict: true, skipLibCheck: true, types: [],
-  esModuleInterop: true, rootDir: source, outDir: output,
-});
-assert.equal(ts.getPreEmitDiagnostics(program).length, 0);
-assert.equal(program.emit().emitSkipped, false);
-writeFileSync(join(output, 'package.json'), '{"type":"commonjs"}');
-symlinkSync(fileURLToPath(new URL('../node_modules', import.meta.url)), join(output, 'node_modules'), 'dir');
-const require = createRequire(import.meta.url);
+const {output, source, require} = compiledSources();
 const {VisionSettings} = require(join(output, 'components/VisionSettings.js'));
-after(() => rmSync(output, {recursive: true, force: true}));
 
 test('视觉模型设置默认折叠且不要求填写 API Key 才能录入条形码', () => {
   const markup = renderToStaticMarkup(createElement(VisionSettings));

@@ -1,34 +1,13 @@
+import {compiledSources} from './helpers/compiled-sources.mjs';
 import assert from 'node:assert/strict';
-import {after, afterEach, beforeEach, test} from 'node:test';
-import {mkdtempSync, rmSync, writeFileSync, readFileSync} from 'node:fs';
-import {createRequire} from 'node:module';
-import {tmpdir} from 'node:os';
+import {afterEach, beforeEach, test} from 'node:test';
+import {readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import ts from 'typescript';
 
 // 编译真实源文件与依赖；产物在临时目录，测试不维护第二份图库实现。
-const output = mkdtempSync(join(tmpdir(), 'diedu-gallery-test-'));
-let gallery;
-try {
-  const source = fileURLToPath(new URL('../src/', import.meta.url));
-  const program = ts.createProgram([join(source, 'core/gallery.ts')], {
-    target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS,
-    moduleResolution: ts.ModuleResolutionKind.Node10,
-    strict: true, skipLibCheck: true, types: [], rootDir: source, outDir: output,
-  });
-  const diagnostics = ts.getPreEmitDiagnostics(program);
-  assert.equal(diagnostics.length, 0, ts.formatDiagnosticsWithColorAndContext(diagnostics, {
-    getCurrentDirectory: () => source, getCanonicalFileName: name => name, getNewLine: () => '\n',
-  }));
-  assert.equal(program.emit().emitSkipped, false);
-  writeFileSync(join(output, 'package.json'), '{"type":"commonjs"}');
-  gallery = createRequire(import.meta.url)(join(output, 'core/gallery.js'));
-} catch (error) {
-  rmSync(output, {recursive: true, force: true});
-  throw error;
-}
-after(() => rmSync(output, {recursive: true, force: true}));
+const {output, source, require} = compiledSources();
+const gallery = require(join(output, 'core/gallery.js'));
 
 const originalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
 let storage;

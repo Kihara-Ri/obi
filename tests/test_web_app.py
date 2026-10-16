@@ -28,6 +28,19 @@ class WebTests(unittest.TestCase):
   self.assertEqual(self.req('/api/state',cookie=cookie)[0],200)
   self.assertEqual(self.req('/api/logout',{},cookie=cookie)[0],200)
   self.assertEqual(self.req('/api/state',cookie=cookie)[0],401)
+ def test_album_favorite_api_shares_state_between_copies(self):
+  a=self.store.save({'title':'Kind of Blue','artist':'Miles Davis','date':'2026-10-10'})['ids'][0]
+  b=self.store.save({'title':'Kind of Blue','artist':'Miles Davis','date':'2025-01-15'})['ids'][0]
+  self.assertEqual(self.req('/api/album-favorites')[0],401)
+  _,h,_=self.req('/api/login',{'password':'test-password-12345'});cookie=h['Set-Cookie']
+  before=self.store.state()['records']
+  status,_,body=self.req('/api/album-favorites',{'recordId':a,'liked':True},cookie=cookie)
+  self.assertEqual(status,200)
+  self.assertEqual(set(json.loads(body)['favorites']),{a,b})
+  self.assertEqual(json.loads(body)['collectedAt'][a],'2025-01-15')
+  self.assertEqual(self.store.state()['records'],before)
+  self.assertEqual(self.req('/api/album-favorites',{'recordId':b,'liked':False},cookie=cookie)[0],200)
+  self.assertEqual(json.loads(self.req('/api/album-favorites',cookie=cookie)[2])['favorites'],{})
  def test_module_settings_api_and_disabled_operation(self):
   flags={'acquisition':False,'trading':False,'circulation':False,'showcase':False}
   self.assertEqual(self.req('/api/modules',{'enabled':flags})[0],401)
@@ -65,6 +78,20 @@ class WebTests(unittest.TestCase):
   # Host 正确但未登录：页面不返回应用本体，服务端 302 到登录页
   status,h,_=self.req('/',host='albums.example.test')
   self.assertEqual(status,302);self.assertEqual(h['Location'],'/login')
+ def test_external_link_navigation_does_not_disable_csrf_protection(self):
+  # Links opened from ChatGPT or another site advertise cross-site even when
+  # they are a harmless GET navigation to the app's own HTML.
+  navigation={'Sec-Fetch-Site':'cross-site','Sec-Fetch-Mode':'navigate','Sec-Fetch-Dest':'document'}
+  status,headers,_=self.req('/',**navigation)
+  self.assertEqual(status,302)
+  self.assertEqual(headers['Location'],'/login')
+  self.assertEqual(self.req('/login',**navigation)[0],200)
+  # API requests, background asset fetches and spoofed navigation remain blocked.
+  self.assertEqual(self.req('/api/health',**navigation)[0],403)
+  self.assertEqual(self.req('/assets/index.js',**navigation)[0],403)
+  self.assertEqual(self.req('/',**{'Sec-Fetch-Site':'cross-site'})[0],403)
+  self.assertEqual(self.req('/',origin='https://evil.test',**navigation)[0],403)
+  self.assertEqual(self.req('/api/login',{'password':'test-password-12345'},**navigation)[0],403)
  def test_sale_costs_update_api_auth_and_lifecycle(self):
   body={'fees':'2.10','postage':'5.56'}
   self.assertEqual(self.req('/api/sale-update',body)[0],401)

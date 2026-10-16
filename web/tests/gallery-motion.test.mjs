@@ -1,27 +1,12 @@
+import {compiledSources} from './helpers/compiled-sources.mjs';
 import assert from 'node:assert/strict';
-import {after, test} from 'node:test';
-import {mkdtempSync, rmSync, writeFileSync} from 'node:fs';
-import {createRequire} from 'node:module';
-import {tmpdir} from 'node:os';
+import {test} from 'node:test';
+
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import ts from 'typescript';
 
-const output = mkdtempSync(join(tmpdir(), 'diedu-gallery-motion-'));
-let motion;
-try {
-  const source = fileURLToPath(new URL('../src/core/gallery-motion.ts', import.meta.url));
-  const program = ts.createProgram([source], {target: ts.ScriptTarget.ES2022,
-    module: ts.ModuleKind.CommonJS, strict: true, skipLibCheck: true, types: [], outDir: output});
-  const diagnostics = ts.getPreEmitDiagnostics(program);
-  assert.equal(diagnostics.length, 0, ts.formatDiagnosticsWithColorAndContext(diagnostics, {
-    getCurrentDirectory: () => output, getCanonicalFileName: name => name, getNewLine: () => '\n',
-  }));
-  assert.equal(program.emit().emitSkipped, false);
-  writeFileSync(join(output, 'package.json'), '{"type":"commonjs"}');
-  motion = createRequire(import.meta.url)(join(output, 'gallery-motion.js'));
-} catch (error) {rmSync(output, {recursive: true, force: true}); throw error;}
-after(() => rmSync(output, {recursive: true, force: true}));
+const {output, source, require} = compiledSources();
+const motion = require(join(output, 'core/gallery-motion.js'));
 
 function advanceAtRate(initial, rate, seconds, snap = true) {
   let state = initial;

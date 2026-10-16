@@ -22,7 +22,7 @@ class SpineSurfaceBindingTests(unittest.TestCase):
                                   'releaseInfo':{'barcode':BARCODE,'musicBrainzReleaseId':EDITION}})['ids'][0]
         record=next(r for r in self.store.state()['records'] if r['id']==self.rid)
         created=self.store.start_twin({'recordId':self.rid,'recordRevision':record['revision'],
-                                      'requestId':uid(),'barcode':BARCODE})['job']
+                                      'requestId':uid()})['job']
         claim=self.store.claim_twin('test-spine')
         self.assertEqual(claim['id'],created['id'])
         self.jid=claim['id']

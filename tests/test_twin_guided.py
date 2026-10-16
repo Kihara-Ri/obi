@@ -110,7 +110,9 @@ class GuidedTests(unittest.TestCase):
         job=self.launch()
         self.store.select_twin_art({'id':job['id'],'selection':self.selection()})
         self.service.run_one()
-        with self.assertRaisesRegex(ValidationError,'版本校验'):
+        # The shared engine validates catalogue ownership before any update
+        # transaction; this is more precise than the old generic version error.
+        with self.assertRaisesRegex(ValidationError,'附件图片必须来自已确认的图集'):
             self.service.update_accessories({'id':job['id'],
                 'components':[{'kind':'obi','sourceId':'https://not-a-verified-source.invalid'}]})
         self.assertEqual(self.store.twin_index()['jobs'][self.rid]['status'],'succeeded')

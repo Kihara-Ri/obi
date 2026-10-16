@@ -1,27 +1,12 @@
+import {compiledSources} from './helpers/compiled-sources.mjs';
 import assert from 'node:assert/strict';
-import {after, test} from 'node:test';
-import {mkdtempSync, rmSync, writeFileSync} from 'node:fs';
-import {createRequire} from 'node:module';
-import {tmpdir} from 'node:os';
+import {test} from 'node:test';
+
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import ts from 'typescript';
 
-const output = mkdtempSync(join(tmpdir(), 'diedu-gallery-zoom-'));
-let zoom;
-try {
-  const source = fileURLToPath(new URL('../src/core/gallery-zoom.ts', import.meta.url));
-  const program = ts.createProgram([source], {target: ts.ScriptTarget.ES2022,
-    module: ts.ModuleKind.CommonJS, strict: true, skipLibCheck: true, types: [], outDir: output});
-  const diagnostics = ts.getPreEmitDiagnostics(program);
-  assert.equal(diagnostics.length, 0, ts.formatDiagnosticsWithColorAndContext(diagnostics, {
-    getCurrentDirectory: () => output, getCanonicalFileName: name => name, getNewLine: () => '\n',
-  }));
-  assert.equal(program.emit().emitSkipped, false);
-  writeFileSync(join(output, 'package.json'), '{"type":"commonjs"}');
-  zoom = createRequire(import.meta.url)(join(output, 'gallery-zoom.js'));
-} catch (error) {rmSync(output, {recursive: true, force: true}); throw error;}
-after(() => rmSync(output, {recursive: true, force: true}));
+const {output, source, require} = compiledSources();
+const zoom = require(join(output, 'core/gallery-zoom.js'));
 
 test('缩略图过渡按元素中心与实际宽高计算，并按横向缩放修正角半径', () => {
   const full = {left: 100, top: 50, width: 400, height: 600};

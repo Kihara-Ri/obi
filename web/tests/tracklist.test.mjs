@@ -1,32 +1,15 @@
+import {compiledSources} from './helpers/compiled-sources.mjs';
 import assert from 'node:assert/strict';
-import {after, test} from 'node:test';
-import {mkdtempSync, rmSync, symlinkSync, writeFileSync} from 'node:fs';
-import {createRequire} from 'node:module';
-import {tmpdir} from 'node:os';
+import {test} from 'node:test';
+
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import ts from 'typescript';
 import {createElement} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 
-const output = mkdtempSync(join(tmpdir(), 'diedu-tracklist-test-'));
-const source = fileURLToPath(new URL('../src/', import.meta.url));
-const program = ts.createProgram([join(source, 'components/Tracklist.tsx')], {
-  target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS,
-  jsx: ts.JsxEmit.ReactJSX, strict: true, skipLibCheck: true, types: [],
-  esModuleInterop: true, rootDir: source, outDir: output,
-});
-const diagnostics = ts.getPreEmitDiagnostics(program);
-assert.equal(diagnostics.length, 0, ts.formatDiagnosticsWithColorAndContext(diagnostics, {
-  getCurrentDirectory: () => source, getCanonicalFileName: name => name, getNewLine: () => '\n',
-}));
-assert.equal(program.emit().emitSkipped, false);
-writeFileSync(join(output, 'package.json'), '{"type":"commonjs"}');
-symlinkSync(fileURLToPath(new URL('../node_modules', import.meta.url)), join(output, 'node_modules'), 'dir');
-const require = createRequire(import.meta.url);
+const {output, source, require} = compiledSources();
 const {trackDiscs, trackDuration} = require(join(output, 'core/tracklist.js'));
 const {Tracklist} = require(join(output, 'components/Tracklist.js'));
-after(() => rmSync(output, {recursive: true, force: true}));
 const render = info => renderToStaticMarkup(createElement(Tracklist, {releaseInfo: info}));
 
 test('旧 1-1 / 2-1 字符串按实体 CD 分碟，不污染曲名', () => {

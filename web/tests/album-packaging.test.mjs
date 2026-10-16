@@ -1,31 +1,13 @@
+import {compiledSources} from './helpers/compiled-sources.mjs';
 import assert from 'node:assert/strict';
-import {after, test} from 'node:test';
-import {mkdtempSync, rmSync, writeFileSync, symlinkSync} from 'node:fs';
-import {createRequire} from 'node:module';
-import {tmpdir} from 'node:os';
+import {test} from 'node:test';
+
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import ts from 'typescript';
 
-const output = mkdtempSync(join(tmpdir(), 'diedu-packaging-test-'));
-const source = fileURLToPath(new URL('../src/', import.meta.url));
-let packaging, assets;
-try {
-  const program = ts.createProgram([join(source, 'core/album-packaging.ts'), join(source, 'core/album-model-assets.ts')], {
-    target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, strict: true,
-    skipLibCheck: true, types: [], rootDir: source, outDir: output,
-  });
-  const diagnostics = ts.getPreEmitDiagnostics(program);
-  assert.equal(diagnostics.length, 0, ts.formatDiagnosticsWithColorAndContext(diagnostics, {
-    getCurrentDirectory: () => source, getCanonicalFileName: name => name, getNewLine: () => '\n',
-  }));
-  assert.equal(program.emit().emitSkipped, false);
-  writeFileSync(join(output, 'package.json'), '{"type":"commonjs"}');
-  symlinkSync(fileURLToPath(new URL('../node_modules', import.meta.url)), join(output, 'node_modules'), 'dir');
-  packaging = createRequire(import.meta.url)(join(output, 'core/album-packaging.js'));
-  assets = createRequire(import.meta.url)(join(output, 'core/album-model-assets.js'));
-} catch (error) {rmSync(output, {recursive: true, force: true}); throw error;}
-after(() => rmSync(output, {recursive: true, force: true}));
+const {output, source, require} = compiledSources();
+const packaging = require(join(output, 'core/album-packaging.js'));
+const assets = require(join(output, 'core/album-model-assets.js'));
 
 test('真实模型按结构和托盘选择，2CD 不使用 Fatbox，未知不使用塑料盒', () => {
   assert.equal(assets.albumModelAsset(packaging.albumPackaging('2CD Jewel Case')), '/models/packaging/jewel-swing-2.glb');

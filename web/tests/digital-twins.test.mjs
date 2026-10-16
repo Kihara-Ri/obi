@@ -1,24 +1,14 @@
+import {compiledSources} from './helpers/compiled-sources.mjs';
 import assert from 'node:assert/strict';
-import {after, test} from 'node:test';
-import {mkdtempSync, rmSync, writeFileSync, symlinkSync} from 'node:fs';
-import {createRequire} from 'node:module';
-import {tmpdir} from 'node:os';
+import {test} from 'node:test';
+
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import ts from 'typescript';
 
-const output = mkdtempSync(join(tmpdir(), 'diedu-twin-state-test-'));
-const source = fileURLToPath(new URL('../src/', import.meta.url));
-const program = ts.createProgram([join(source, 'core/digital-twins.ts'), join(source, 'core/album-model-assets.ts')], {
-  target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, strict: true, skipLibCheck: true, types: [], rootDir: source, outDir: output,
-});
-assert.equal(ts.getPreEmitDiagnostics(program).length, 0); assert.equal(program.emit().emitSkipped, false);
-writeFileSync(join(output, 'package.json'), '{"type":"commonjs"}');
-symlinkSync(fileURLToPath(new URL('../node_modules', import.meta.url)), join(output, 'node_modules'), 'dir');
+const {output, source, require} = compiledSources();
 
-const {mergeTwinIndex, twinViewerRecord, twinBusy, twinBarcodeMatches} = createRequire(import.meta.url)(join(output, 'core/digital-twins.js'));
-const {albumTextureSource} = createRequire(import.meta.url)(join(output, 'core/album-model-assets.js'));
-after(() => rmSync(output, {recursive: true, force: true}));
+const {mergeTwinIndex, twinViewerRecord, twinBusy, twinBarcodeMatches} = require(join(output, 'core/digital-twins.js'));
+const {albumTextureSource} = require(join(output, 'core/album-model-assets.js'));
 
 const ready = {id: 'task2', recordId: 'copy', seq: 9, status: 'succeeded', error: '', entity: {
   packaging: {structure: 'gatefold', discs: 2}, warnings: [],
