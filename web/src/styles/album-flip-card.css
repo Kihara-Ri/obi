@@ -1,7 +1,6 @@
 /* Brushed-metal album keepsake, separate from the real CD renderer. */
 .album-flip-card{
   --card-tilt-x:0deg;--card-tilt-y:0deg;
-  --pointer-x:50%;--pointer-y:50%;--pointer-strength:0;
   position:relative;flex:none;width:min(72dvh,82vw,680px);
   aspect-ratio:1;perspective:1400px;pointer-events:auto;isolation:isolate;
   touch-action:pan-y;
@@ -29,17 +28,6 @@
   pointer-events:none;border-radius:0;
 }
 .album-flip-front .gallery-focus-cover.gallery-artwork{width:100%;height:100%}
-/* The front uses the same cursor-centered light as the reverse; keep it
-   understated so printed artwork retains its original contrast and color.
-   No fixed top-left softbox or diagonal sheen. */
-.album-flip-front-gloss{
-  position:absolute;inset:0;pointer-events:none;
-  background:radial-gradient(circle min(26vw, 160px) at var(--pointer-x) var(--pointer-y),
-    rgba(255,255,255,.11) 0%,rgba(255,255,255,.055) 28%,
-    rgba(255,255,255,.017) 62%,rgba(255,255,255,0) 100%);
-  opacity:var(--pointer-strength);
-  transition:opacity 240ms ease;
-}
 .album-flip-back{
   --metal-edge:rgba(58,70,82,.42);--metal-ink:#414954;
   --metal-shine:rgba(255,255,255,.88);
@@ -47,32 +35,20 @@
   transform:rotateY(180deg);
   flex-direction:column;justify-content:space-between;text-align:center;
   padding:clamp(20px,5%,36px);
-  /* Static fallback only, not an artificial striped metal simulation. */
-  background:linear-gradient(140deg,#9ba4af 0%,#e9edf1 48%,#9aa4b1 100%);
+  /* Directional base in browsers where WebGL is unavailable. */
+  background:
+    radial-gradient(ellipse 78% 49% at 50% 0%,rgba(255,255,255,.42),transparent 86%),
+    linear-gradient(90deg,#52606d 0%,#a0acba 24%,#e1e9ef 49%,#9baab8 73%,#465360 100%);
 }
 .album-flip-card.is-liked .album-flip-back{
   --metal-edge:rgba(103,71,18,.55);--metal-ink:#5b411f;
   --metal-shine:rgba(255,244,185,.88);
-  background:linear-gradient(140deg,#9e752d 0%,#f3db91 48%,#a98236 100%);
+  background:
+    radial-gradient(ellipse 78% 49% at 50% 0%,rgba(255,245,196,.34),transparent 86%),
+    linear-gradient(90deg,#74532e 0%,#c8a363 24%,#f1d392 49%,#bc9451 73%,#6f4c23 100%);
 }
 
-/* Small diffuse bounce highlight, tracking the pointer over the physical
-   PBR spotlight. Feather to full transparency before reaching the card edge;
-   it never replaces the studio's reflective metallic material. */
-.album-flip-back::before{
-  content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
-  background:radial-gradient(circle min(26vw, 160px) at var(--pointer-x) var(--pointer-y),
-    rgba(255,255,255,.15) 0%,rgba(255,255,255,.085) 28%,
-    rgba(255,255,255,.025) 62%,rgba(255,255,255,0) 100%);
-  opacity:var(--pointer-strength);
-  transition:opacity 240ms ease;
-}
-.album-flip-card.is-liked .album-flip-back::before{
-  background:radial-gradient(circle min(26vw, 160px) at var(--pointer-x) var(--pointer-y),
-    rgba(255,245,217,.15) 0%,rgba(255,240,195,.085) 28%,
-    rgba(255,240,195,.025) 62%,rgba(255,240,195,0) 100%);
-}
-/* Metal is rendered by Three.js MeshPhysicalMaterial + a local CC0 HDRI.
+/* Metal is rendered by procedural CanvasTextures with subtle PBR HDR.
    This canvas must sit behind sharp, selectable DOM lettering. */
 .album-metal-canvas{
   position:absolute;inset:0;width:100%;height:100%;display:block;
@@ -83,9 +59,27 @@
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.22),0 0 12px rgba(255,255,255,.08);
   pointer-events:none;
 }
-.album-flip-back-center{position:absolute;z-index:1;left:7%;right:7%;top:38%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;gap:clamp(9px,2vh,20px)}
-.album-flip-album-title{font-size:clamp(17px,2.45vw,29px);line-height:1.25;font-weight:650;max-width:100%;overflow-wrap:anywhere;text-shadow:0 1px 0 rgba(255,255,255,.64)}
-.album-flip-artist-name{font-size:clamp(12px,1.5vw,15px);letter-spacing:.12em;opacity:.76}
+/* Button default white-space can be nowrap; force true multiline layout.
+   An explicit bounded width prevents flex items from expanding the title box
+   beyond the card, including for Japanese and unbroken release names. */
+.album-flip-back-center{
+  position:absolute;z-index:1;left:7%;right:7%;width:86%;min-width:0;
+  box-sizing:border-box;top:38%;transform:translateY(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:clamp(9px,2vh,20px);
+  text-align:center;white-space:normal;
+}
+.album-flip-album-title{
+  display:block;flex:none;width:100%;min-width:0;max-width:100%;
+  font-size:clamp(17px,2.45vw,29px);line-height:1.25;font-weight:650;
+  text-align:center;white-space:normal;overflow-wrap:anywhere;
+  word-break:normal;hyphens:auto;text-wrap:balance;
+  text-shadow:0 1px 0 rgba(255,255,255,.64);
+}
+.album-flip-artist-name{
+  display:block;max-width:100%;min-width:0;
+  font-size:clamp(12px,1.5vw,15px);letter-spacing:.12em;opacity:.76;
+  white-space:normal;overflow-wrap:anywhere;text-align:center;
+}
 .album-flip-back-bottom{position:absolute;z-index:1;left:0;right:0;top:72%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;gap:3px}
 .album-flip-date-label{font-family:Georgia,serif;font-style:italic;font-size:clamp(12px,1.4vw,17px);letter-spacing:.04em;opacity:.8}
 .album-flip-handwritten{
@@ -102,7 +96,7 @@
 .album-flip-card:hover .album-flip-hint{opacity:1}
 @media(hover:none){.album-flip-hint{display:none}}
 @media(prefers-reduced-motion:reduce){
-  .album-flip-rotor,.album-flip-hint,.album-flip-front-gloss,.album-flip-back::before{transition-duration:.01ms!important}
+  .album-flip-rotor,.album-flip-hint{transition-duration:.01ms!important}
 }
 @media(max-width:650px){
   .album-flip-card{width:min(82vw,69dvh)}

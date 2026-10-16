@@ -1,20 +1,19 @@
 import {useEffect, useRef} from 'react';
+import {createBrushedMetalMaps} from './BrushedMetalTexture';
 
 /** Imperative pointer coordinates avoid React renders while tilting the card. */
 export interface MetalSurfaceController {
   setTilt(x: number, y: number): void;
-  setPointer(x: number, y: number, active: boolean): void;
   setGold(liked: boolean): void;
 }
 
 /**
- * Real anisotropic metallic reflection, with a bundled CC0 studio HDRI.
- * WebGL runs only while the reverse face is open. The DOM handles lettering,
- * flipping, focus and dismissal; this canvas is strictly decorative.
+ * Procedural brushed metal is the main image, augmented by subtle PBR HDR
+ * reflections. Canvas and all GPU resources exist only while the lightbox
+ * card is open; the DOM owns flip, text, focus and dismissal.
  *
- * The plane remains flat in local canvas space. Its environment is rotated by
- * the inverse of the CSS card tilt, so reflections change with world-space
- * orientation without applying the card's CSS transform a second time.
+ * The environment responds to CSS card tilt. It does not follow the pointer
+ * as an independent spotlight.
  */
 export function MetalBackCanvas({liked, onController}: {
   liked: boolean;
@@ -58,40 +57,42 @@ export function MetalBackCanvas({liked, onController}: {
       renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.25));
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.0;
+      renderer.toneMappingExposure = 1.18;
       renderer.setClearColor(0x000000, 0);
 
       const scene = new THREE.Scene();
-      // The HDR is a subdued studio fill; local illumination handles the
-      // small specular focal point next to the pointer.
-      scene.environmentIntensity = 0.90;
+      // Brushed texture is the main appearance; HDR is subtle supplemental
+      // metal reflection, not a bright rectangular softbox.
+      scene.environmentIntensity = 0.20;
       // PBR flat plates NEED a perspective view: orthographic rays have the
       // same direction at every pixel and thus sample the same HDR reflection.
       // Perspective makes the studio softboxes visible across a flat surface.
       const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 10);
       camera.position.z = 3;
       const geometry = new THREE.PlaneGeometry(2, 2);
+      // One complete texture pair is allocated at a time. Toggling the
+      // Album-level preference replaces and releases the previous maps.
+      let brushedTone = liked;
+      let brushed = createBrushedMetalMaps(THREE, liked ? 'gold' : 'silver');
       const material = new THREE.MeshPhysicalMaterial({
-        color: liked ? 0xd3a34f : 0xbac1cb,
+        map: brushed.color,
+        roughnessMap: brushed.roughness,
+        anisotropyMap: brushed.anisotropy,
+        emissiveMap: brushed.color,
+        color: 0xffffff,
         metalness: 1,
-        roughness: 0.26,
-        anisotropy: 0.06,
-        anisotropyRotation: Math.PI / 2,
-        envMapIntensity: 1.08,
+        roughness: 0.40,
+        anisotropy: 0.48,
+        anisotropyRotation: 0,
+        envMapIntensity: 0.17,
+        // A faint textured self-lit component preserves the visible brushed
+        // sheet even when the HDR happens to face a dark studio direction.
+        emissive: liked ? 0xb39c71 : 0xbcc9d9,
+        emissiveIntensity: 1.12,
         side: THREE.FrontSide,
       });
       const plane = new THREE.Mesh(geometry, material);
       scene.add(plane);
-
-      // A real local light produces a physically evaluated PBR highlight.
-      // Kept separate from HDR ambient reflections to avoid broad sweeping
-      // studio bands when moving the pointer over the metal.
-      const focusLight = new THREE.SpotLight(0xfffaf2, 0, 8, Math.PI / 12, 0.96, 2);
-      const focusTarget = new THREE.Object3D();
-      focusLight.position.set(0, 0, 2.7);
-      focusTarget.position.set(0, 0, 0);
-      focusLight.target = focusTarget;
-      scene.add(focusLight, focusTarget);
 
       let hdr: import('three').DataTexture | undefined;
       let fallbackEnv: import('three').Texture | undefined;
@@ -102,16 +103,6 @@ export function MetalBackCanvas({liked, onController}: {
       let currentY = 0;
       let targetX = 0;
       let targetY = 0;
-      // Pointer is normalized to [-.5, .5] on the card plane. Luminance
-      // and position both ease, including when the mouse exits the card.
-      let pointerX = 0;
-      let pointerY = 0;
-      let targetPointerX = 0;
-      let targetPointerY = 0;
-      let targetFocus = 0;
-      let currentFocus = 0;
-      let surfaceWidth = 2.18;
-      let surfaceHeight = 2.18;
       let active = true;
       let environmentTexture: import('three').Texture | undefined;
 
@@ -119,35 +110,19 @@ export function MetalBackCanvas({liked, onController}: {
         if (!active || disposed) return;
         currentX += (targetX - currentX) * .16;
         currentY += (targetY - currentY) * .16;
-        pointerX += (targetPointerX - pointerX) * .18;
-        pointerY += (targetPointerY - pointerY) * .18;
-        currentFocus += (targetFocus - currentFocus) * .14;
-        // A tight, feathered spotlight tracks the card's local pointer.
-        // Position is offset from the target so a metal surface reflects
-        // it into the viewer at approximately the pointed location.
-        const px = pointerX * surfaceWidth;
-        const py = -pointerY * surfaceHeight;
-        focusTarget.position.set(px, py, 0);
-        // A near-normal incidence minimizes the oblong pool created when
-        // the light intersects the flat plate at a very steep angle.
-        focusLight.position.set(px * 1.2, py * 1.2, 2.7);
-        focusLight.intensity = currentFocus;
-        // Near frontal appearance is selected so the HDR softboxes remain
-        // visible at rest; pointer-driven yaw/pitch changes their reflection.
+        // Reflect the HDR studio light as the card tilts. Its apparent
+        // movement comes from surface orientation, never cursor position.
         scene.environmentRotation.set(
-          .26 + currentY * -.22,
-          -.54 + currentX * -.25,
-          -.06 + currentX * .04,
+          .26 + currentY * -1.1,
+          -.54 + currentX * -1.35,
+          -.06 + currentX * .13,
           'XYZ',
         );
         if (environmentTexture && element.clientWidth && element.clientHeight) {
           renderer.render(scene, camera);
           element.dataset.metalStatus = 'rendered';
         }
-        if (Math.abs(targetX - currentX) > .0006 || Math.abs(targetY - currentY) > .0006
-          || Math.abs(targetPointerX - pointerX) > .0006
-          || Math.abs(targetPointerY - pointerY) > .0006
-          || Math.abs(targetFocus - currentFocus) > .015)
+        if (Math.abs(targetX - currentX) > .0006 || Math.abs(targetY - currentY) > .0006)
           frame = requestAnimationFrame(render);
         else frame = 0;
       };
@@ -164,8 +139,6 @@ export function MetalBackCanvas({liked, onController}: {
         // Fill the viewport exactly, including while resizing on mobile.
         const halfHeight = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))
           * camera.position.z;
-        surfaceWidth = 2 * halfHeight * camera.aspect;
-        surfaceHeight = 2 * halfHeight;
         plane.scale.set(halfHeight * camera.aspect, halfHeight, 1);
         renderer.setSize(width, height, false);
         schedule();
@@ -177,14 +150,19 @@ export function MetalBackCanvas({liked, onController}: {
 
       const api: MetalSurfaceController = {
         setGold(gold) {
-          material.color.set(gold ? 0xd3a34f : 0xbac1cb);
-          focusLight.color.setHex(gold ? 0xfff0ce : 0xfffaf2);
-          schedule();
-        },
-        setPointer(x, y, isActive) {
-          targetPointerX = Math.max(-.5, Math.min(.5, x));
-          targetPointerY = Math.max(-.5, Math.min(.5, y));
-          targetFocus = isActive ? 8.0 : 0;
+          if (brushedTone !== gold) {
+            const next = createBrushedMetalMaps(THREE, gold ? 'gold' : 'silver');
+            const previous = brushed;
+            brushed = next;
+            brushedTone = gold;
+            material.map = next.color;
+            material.roughnessMap = next.roughness;
+            material.anisotropyMap = next.anisotropy;
+            material.emissiveMap = next.color;
+            material.emissive.setHex(gold ? 0xb39c71 : 0xbcc9d9);
+            material.needsUpdate = true;
+            previous.dispose();
+          }
           schedule();
         },
         setTilt(x,y) {
@@ -206,10 +184,9 @@ export function MetalBackCanvas({liked, onController}: {
         if (frame) cancelAnimationFrame(frame);
         resizeObserver?.disconnect();
         scene.environment = null;
-        scene.remove(focusLight, focusTarget);
-        focusLight.dispose();
         geometry.dispose();
         material.dispose();
+        brushed.dispose();
         hdr?.dispose();
         fallbackEnv?.dispose();
         fallbackPMREM?.dispose();
@@ -222,41 +199,9 @@ export function MetalBackCanvas({liked, onController}: {
         // Bundled locally: an album card must never depend on a remote asset.
         const texture = await hdrLoader.loadAsync('/metal/studio_small_05_1k.hdr');
         if (disposed || !active) { texture.dispose(); return; }
-        // The studio HDR includes an actual rectangular softbox. A specular
-        // metal plate reproduces that box with its hard corners: exposure
-        // compression cannot remove the geometry. Integrate its light energy
-        // into a low-frequency, nearly isotropic bounce environment instead.
-        // The local PBR spotlight below is now the *only* distinct light pool.
-        // This retains a real radiance environment without any square imprints.
-        const data = texture.image.data as Float32Array;
-        const width = texture.image.width as number;
-        const height = texture.image.height as number;
-        const pixels = width * height;
-        const ambient = [0, 0, 0];
-        const floor = [.29, .30, .32];
-        for (let i = 0; i < data.length; i += 4) {
-          for (let channel = 0; channel < 3; channel++) {
-            const value = Math.max(data[i + channel], floor[channel]);
-            ambient[channel] += floor[channel]
-              + 1.35 * (1 - Math.exp(-(value - floor[channel]) / 2.2));
-          }
-        }
-        for (let channel = 0; channel < 3; channel++) {
-          ambient[channel] = Math.max(.33, Math.min(.58, ambient[channel] / pixels));
-        }
-        for (let y = 0; y < height; y++) {
-          const latitude = (y + .5) / height;
-          // Only a subtle overhead-to-horizon variation, continuous across
-          // azimuth; never a second shape resembling a lightbox.
-          const level = .94 + .06 * Math.cos((latitude - .3) * Math.PI);
-          for (let x = 0; x < width; x++) {
-            const index = (y * width + x) * 4;
-            for (let channel = 0; channel < 3; channel++) {
-              data[index + channel] = ambient[channel] * level;
-            }
-          }
-        }
-        texture.needsUpdate = true;
+        // Keep the HDR photographic lighting intact, at deliberately low
+        // intensity. The image's highlights are no longer the main design.
+        // No cursor spotlight or synthetic rectangular lighting is created.
         texture.mapping = THREE.EquirectangularReflectionMapping;
         hdr = texture;
         environmentTexture = texture;
