@@ -25,6 +25,7 @@ files = [root / n for n in ['app.py', 'domain.py', 'storage.py', 'covers.py', 'c
                             'musicbrainz.py', 'rates.py', 'security.py', 'backups.py', 'twins.py',
                             'README.md', '使用说明.md', '部署说明.md', 'CHANGELOG.md']]
 files += list((root / 'server').rglob('*.py'))
+files += [p for p in (root / 'vendor' / 'album_engine').rglob('*') if p.is_file() and '__pycache__' not in p.parts and p.suffix not in ('.pyc', '.pyo')]
 files += [p for p in (root / 'server' / 'skills').rglob('*') if '__pycache__' not in p.parts and p.suffix != '.py']
 files += list((root / 'static').rglob('*'))
 files += list((root / 'deploy').glob('*'))

@@ -24,6 +24,7 @@ from server.routes import WRITE_LOCK
 from server.version import version
 from server.recognition import VisionService
 from server.digital_twins import DigitalTwinService
+from server.album_engine_adapter import check_engine_installation
 from server.shop_brands import ShopBrandService
 from storage import Store
 
@@ -32,6 +33,7 @@ ROOT = Path(__file__).resolve().parent
 
 def build(data_dir, public_origin=None):
     """从数据目录组装全部服务；无全局单例，测试可用临时目录构建。"""
+    check_engine_installation(ROOT)
     data = Path(data_dir)
     rates = RateService(data / 'rates.sqlite3')
     store = Store(data / 'albums.sqlite3', rates)

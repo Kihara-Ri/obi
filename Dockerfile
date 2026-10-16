@@ -8,6 +8,7 @@ COPY web/package.json web/package-lock.json ./
 COPY web/vendor/ vendor/
 RUN npm ci
 COPY web/ ./
+COPY vendor/album_engine/runtime-manifest.json /vendor/album_engine/runtime-manifest.json
 # vite outDir=../static → 产物输出到 /static
 RUN npm run build
 
@@ -18,6 +19,7 @@ RUN apt-get update -qq && apt-get install -y --no-install-recommends tzdata \
 WORKDIR /app
 COPY app.py domain.py storage.py covers.py cjkvariants.py musicbrainz.py rates.py security.py backups.py twins.py ./
 COPY server/ server/
+COPY vendor/album_engine/ vendor/album_engine/
 COPY static/ static/
 COPY --from=web /static/index.html static/index.html
 COPY --from=web /static/assets/ static/assets/

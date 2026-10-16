@@ -16,3 +16,7 @@ vision-config.json
 *.md
 docs
 !server/skills/**
+
+!vendor/album_engine/**
+**/__pycache__
+**/*.pyc

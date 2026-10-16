@@ -1,0 +1,610 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://diedu.example/schema/album-document-v2.schema.json",
+  "title": "Album Engine canonical physical assembly v2",
+  "description": "Structural wire schema. Engine validates model sockets, parent graph, physical containment, complete disc allocation and provenance against model-set.json.",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "title": {
+      "type": "string"
+    },
+    "modelSet": {
+      "const": "album-rig-1"
+    },
+    "assembly": {
+      "type": "object",
+      "properties": {
+        "root": {
+          "const": "package"
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/package"
+              },
+              {
+                "$ref": "#/$defs/insert"
+              }
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 32
+        }
+      },
+      "required": [
+        "root",
+        "components"
+      ],
+      "additionalProperties": false
+    },
+    "assets": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/provenance"
+      },
+      "maxProperties": 64
+    },
+    "preview": {
+      "$ref": "#/$defs/surface"
+    },
+    "calibration": {
+      "type": "object",
+      "properties": {
+        "spine": {
+          "$ref": "#/$defs/spine"
+        }
+      },
+      "required": [
+        "spine"
+      ],
+      "additionalProperties": false
+    },
+    "placeholderHue": {
+      "enum": [
+        0,
+        1,
+        2,
+        3
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "key",
+    "title",
+    "modelSet",
+    "assembly",
+    "assets"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "surface": {
+      "type": "object",
+      "properties": {
+        "asset": {
+          "type": "string",
+          "pattern": "^(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+        },
+        "region": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "minItems": 8,
+              "maxItems": 8
+            }
+          ]
+        },
+        "warpRows": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "minItems": 4,
+            "maxItems": 4
+          },
+          "minItems": 2,
+          "maxItems": 17
+        },
+        "discCalibration": {
+          "$ref": "#/$defs/discCalibration"
+        },
+        "origin": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "sourceUrl": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "sourceReleaseId": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "asset"
+      ],
+      "additionalProperties": false
+    },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "origin": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "sourceUrl": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "sourceReleaseId": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "ellipse": {
+      "type": "object",
+      "properties": {
+        "cx": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "cy": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "rx": {
+          "type": "number",
+          "minimum": 0.025,
+          "maximum": 1
+        },
+        "ry": {
+          "type": "number",
+          "minimum": 0.025,
+          "maximum": 1
+        },
+        "angle": {
+          "type": "number",
+          "minimum": -3.141592653589793,
+          "maximum": 3.141592653589793
+        }
+      },
+      "required": [
+        "cx",
+        "cy",
+        "rx",
+        "ry",
+        "angle"
+      ],
+      "additionalProperties": false
+    },
+    "discCalibration": {
+      "type": "object",
+      "properties": {
+        "outer": {
+          "$ref": "#/$defs/ellipse"
+        },
+        "inner": {
+          "$ref": "#/$defs/ellipse"
+        },
+        "source": {
+          "enum": [
+            "auto",
+            "manual"
+          ]
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "outer",
+        "source"
+      ],
+      "additionalProperties": false
+    },
+    "dimensions": {
+      "type": "object",
+      "properties": {
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 700
+        },
+        "height": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 700
+        },
+        "depth": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 700
+        },
+        "basis": {
+          "enum": [
+            "template",
+            "measured"
+          ]
+        },
+        "source": {
+          "type": "string",
+          "maxLength": 1000
+        }
+      },
+      "required": [
+        "width",
+        "height",
+        "depth",
+        "basis"
+      ],
+      "additionalProperties": false
+    },
+    "package": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "const": "package"
+        },
+        "definition": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parent": {
+          "type": "null"
+        },
+        "mount": {
+          "type": "null"
+        },
+        "dimensions": {
+          "$ref": "#/$defs/dimensions"
+        },
+        "surfaces": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/surface"
+          }
+        },
+        "kind": {
+          "const": "package"
+        },
+        "configuration": {
+          "type": "object",
+          "properties": {
+            "structure": {
+              "enum": [
+                "jewel",
+                "card-sleeve",
+                "gatefold",
+                "digipak",
+                "digibook",
+                "rigid-box",
+                "unknown"
+              ]
+            },
+            "thickness": {
+              "enum": [
+                "slim",
+                "standard",
+                "thick"
+              ]
+            },
+            "panels": {
+              "enum": [
+                2,
+                3,
+                4
+              ]
+            },
+            "discs": {
+              "enum": [
+                1,
+                2,
+                3,
+                4
+              ]
+            },
+            "pockets": {
+              "enum": [
+                "left",
+                "right",
+                "both"
+              ]
+            },
+            "pocketOpening": {
+              "enum": [
+                "outer",
+                "inner"
+              ]
+            },
+            "holder": {
+              "enum": [
+                "tray",
+                "pocket"
+              ]
+            },
+            "tray": {
+              "enum": [
+                "clear",
+                "black",
+                "white"
+              ]
+            },
+            "finish": {
+              "enum": [
+                "uncoated",
+                "matte",
+                "gloss"
+              ]
+            },
+            "miniLP": {
+              "type": "boolean"
+            },
+            "slipcase": {
+              "type": "boolean"
+            },
+            "size": {
+              "type": "object",
+              "properties": {
+                "width": {
+                  "type": "number",
+                  "minimum": 50,
+                  "maximum": 500
+                },
+                "height": {
+                  "type": "number",
+                  "minimum": 50,
+                  "maximum": 700
+                },
+                "depth": {
+                  "type": "number",
+                  "minimum": 0.1,
+                  "maximum": 300
+                }
+              },
+              "required": [
+                "width",
+                "height",
+                "depth"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "id",
+        "definition",
+        "parent",
+        "mount",
+        "dimensions",
+        "surfaces",
+        "kind",
+        "configuration"
+      ],
+      "additionalProperties": false
+    },
+    "insert": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ordinary-insert"
+        },
+        {
+          "$ref": "#/$defs/booklet"
+        }
+      ]
+    },
+    "spine": {
+      "type": "object",
+      "properties": {
+        "widthRatio": {
+          "type": "number",
+          "minimum": 0.001,
+          "maximum": 0.2
+        },
+        "basis": {
+          "const": "image-estimate"
+        },
+        "asset": {
+          "type": "string",
+          "pattern": "^(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+        },
+        "origin": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "sourceUrl": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "sourceReleaseId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "reliefMm": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": -0.15,
+            "maximum": 0.15
+          },
+          "minItems": 3,
+          "maxItems": 17
+        }
+      },
+      "required": [
+        "widthRatio",
+        "basis",
+        "asset"
+      ],
+      "additionalProperties": false
+    },
+    "ordinary-insert": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,99}$"
+        },
+        "definition": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parent": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,99}$"
+        },
+        "mount": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dimensions": {
+          "$ref": "#/$defs/dimensions"
+        },
+        "surfaces": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/surface"
+          }
+        },
+        "kind": {
+          "enum": [
+            "tray",
+            "pocket",
+            "disc",
+            "obi",
+            "inner-sleeve"
+          ]
+        },
+        "contains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,99}$"
+          },
+          "uniqueItems": true,
+          "maxItems": 4
+        }
+      },
+      "required": [
+        "id",
+        "definition",
+        "parent",
+        "mount",
+        "dimensions",
+        "surfaces",
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    "booklet": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,99}$"
+        },
+        "definition": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parent": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,99}$"
+        },
+        "mount": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dimensions": {
+          "$ref": "#/$defs/dimensions"
+        },
+        "surfaces": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/surface"
+          }
+        },
+        "kind": {
+          "const": "booklet"
+        },
+        "contains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,99}$"
+          },
+          "uniqueItems": true,
+          "maxItems": 4
+        },
+        "fold": {
+          "$ref": "#/$defs/paper-fold"
+        }
+      },
+      "required": [
+        "id",
+        "definition",
+        "parent",
+        "mount",
+        "dimensions",
+        "surfaces",
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    "paper-fold": {
+      "type": "object",
+      "description": "Nominal accordion sheet, with folded dimensions carried by its booklet component.",
+      "properties": {
+        "pattern": {
+          "const": "accordion"
+        },
+        "panels": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 6
+        }
+      },
+      "required": [
+        "pattern",
+        "panels"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -2,10 +2,11 @@ import {useRef, useState} from 'react';
 import type {AlbumRecord} from '../types';
 import {useApp} from '../state/AppContext';
 import {ApiError} from '../core/api';
-import {twinBusy, twinViewerRecord} from '../core/digital-twins';
-import {spineCalibrationFit} from '../core/album-spine-fit';
+import {twinBusy} from '../core/digital-twins';
+import {spineCalibrationFit, spineCalibrationFitForEntity} from '@diedu/album-engine/calibration';
 import {GuidedTwinEditor} from './GuidedTwinEditor';
 import {TwinAccessoriesEditor} from './TwinAccessoriesEditor';
+import {DiscCalibrationEditor} from './DiscCalibrationEditor';
 
 /** Edition lookup is owned by RecordForm; this control only generates the already-confirmed release. */
 export function TwinControls({record, releaseId, unsaved = false, saving = false, stale = false}: {
@@ -17,13 +18,13 @@ export function TwinControls({record, releaseId, unsaved = false, saving = false
   const [uncertain, setUncertain] = useState(false);
   const [error, setError] = useState('');
   const [editingAccessories,setEditingAccessories] = useState(false);
+  const [calibrating, setCalibrating] = useState(false);
   const gate = useRef(false);
   const blocked = unsaved || saving || stale;
   const busy = twinBusy(job);
-  const confirmed = !!releaseId && !!record.releaseInfo?.barcode &&
-    record.releaseInfo.musicBrainzReleaseId === releaseId;
+  const confirmed = !!releaseId && record.releaseInfo?.musicBrainzReleaseId === releaseId;
   const current = confirmed && job?.status === 'succeeded' && job.releaseId === releaseId;
-  const fit = spineCalibrationFit(twinViewerRecord(record, current ? job : undefined) ?? record);
+  const fit = current && job?.entity ? (job.entity.document ? spineCalibrationFitForEntity(job.entity.document) : spineCalibrationFit({packaging: job.entity.packaging, modelCalibration: job.entity.calibration})) : null;
 
   const act = async (fn: () => Promise<void>) => {
     if (gate.current) return;
@@ -43,8 +44,8 @@ export function TwinControls({record, releaseId, unsaved = false, saving = false
 
   return <section className="twin-controls" aria-label="生成数字实体"
     data-task-id={job?.id ?? ''} data-status={job?.status ?? 'none'} data-phase={job?.phase ?? ''}>
-    {!confirmed ? <p className="small-note">请先确认上方条形码对应的发行版本，并保存这张专辑。</p>
-      : <p className="small-note">已绑定 MusicBrainz 发行版。数字实体直接使用此版本的 Cover Art Archive 正反面、内页和盘面，无需再次输入条码或选择版本。</p>}
+    {!confirmed ? <p className="small-note">请先通过条码或唱片编号确认发行版本，并保存这张专辑。</p>
+      : <p className="small-note">已绑定 MusicBrainz 发行版。数字实体直接使用此版本的 Cover Art Archive 正反面、内页和盘面，无需再次查找或选择版本。</p>}
     {stale ? <p className="twin-save-first" role="status">副本已在其他窗口更新，请关闭并重新打开编辑页面。</p>
       : blocked ? <p className="twin-save-first" role="status">请先保存本次修改，再生成数字实体。</p> : null}
     {app.twinSyncError ? <p className="small-note" role="status">{app.twinSyncError}</p> : null}
@@ -67,7 +68,10 @@ export function TwinControls({record, releaseId, unsaved = false, saving = false
       </button>
       {editingAccessories && job?.entity ? <TwinAccessoriesEditor record={record} job={job}
         onSaved={app.refreshTwins} onClose={()=>setEditingAccessories(false)}/> : null}
-      {job?.entity?.warnings.length ? <details><summary>生成说明</summary>{job.entity.warnings.map((warning,i) => <p key={i}>{warning}</p>)}</details> : null}
+      {job?.entity && Object.keys(job.entity.surfaces).some(role => role.startsWith('disc')) ?
+        <button type="button" className="quiet" onClick={() => setCalibrating(true)}>校准盘面</button> : null}
+      {calibrating && job ? <DiscCalibrationEditor job={job} onSaved={app.refreshTwins} onClose={() => setCalibrating(false)}/> : null}
+      {job?.entity?.warnings?.length ? <details><summary>生成说明</summary>{job.entity.warnings.map((warning,i) => <p key={i}>{warning}</p>)}</details> : null}
     </> : <>
       {job?.error ? <p className="twin-status" role="status">{job.error}</p> : null}
       {!app.twins.configured ? <p className="small-note">图集预览无需模型。AI 生成需要配置视觉模型；人工选图可直接使用已核验原图与包装结构。</p> : null}

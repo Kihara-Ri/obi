@@ -242,6 +242,30 @@ def api_records(h, svc, body):
     from .shop_brands import normalize
     with svc.store.connect() as db:
         recorded = {normalize(r.get('location', '')) for r in svc.store.rows(db, 'records')}
+    for item in incoming:
+        if not isinstance(item, dict): continue
+        info = item.get('releaseInfo') or {}
+        if not isinstance(info, dict): continue
+        new_barcode = info.get('barcode') or ''
+        new_edition = info.get('musicBrainzReleaseId') or ''
+        old_barcode = old_edition = ''
+        if item.get('id'):
+            with svc.store.connect() as db:
+                previous = svc.store.get(db, 'records', item['id'])
+            previous_info = previous.get('releaseInfo') or {}
+            old_barcode = previous_info.get('barcode') or ''
+            old_edition = previous_info.get('musicBrainzReleaseId') or ''
+        if (new_barcode, new_edition) != (old_barcode, old_edition):
+            if new_barcode:
+                verify_barcode_release(svc, new_barcode, new_edition)
+            elif old_barcode and new_edition:
+                # Removing an existing barcode cannot silently retain a release
+                # that MusicBrainz documents as having one.
+                details = vision(svc).release_details(new_edition)
+                if details.get('barcode'):
+                    raise ValidationError('该发行版在 MusicBrainz 中有条码，不能直接清除；请重新选择发行版')
+            elif not new_edition and (old_edition or new_barcode):
+                raise ValidationError('条码或发行版本已修改，请重新查询并确认发行版')
     h.send(svc.store.save(body))
     if svc.shops:
         for name in proposed:
@@ -288,6 +312,42 @@ def api_barcode_lookup(h, svc, body):
     candidates = [c for c in candidates if c['identifierMatch']
                   and re.sub(r'\D', '', c['releaseInfo'].get('barcode', '')) == barcode]
     h.send({'barcode': barcode, 'candidates': candidates})
+
+
+def verify_barcode_release(svc, barcode, release_id):
+    """Check the full barcode against the exact MusicBrainz release, never by title."""
+    from twins import clean_barcode, UUID
+    barcode = clean_barcode(barcode)
+    if not barcode: raise ValidationError('请输入完整的条形码')
+    if not isinstance(release_id, str) or not UUID.fullmatch(release_id):
+        raise ValidationError('请先查询并选择对应的 MusicBrainz 发行版本')
+    published = vision(svc).release_details(release_id)
+    if clean_barcode(published.get('barcode', '')) != barcode:
+        raise ValidationError('MusicBrainz 中该条码不属于当前发行版本，请重新查询并选择正确版本')
+    return {'barcode': barcode, 'releaseId': release_id, 'valid': True}
+
+
+def api_verify_barcode(h, svc, body):
+    h.send(verify_barcode_release(svc, body.get('barcode'), body.get('releaseId')))
+
+
+def api_catalog_number_lookup(h, svc, body):
+    """Catalog number search; exact label catalog-number required, not a title guess."""
+    raw = body.get('catalogNumber', '')
+    if not isinstance(raw, str) or not 2 <= len(raw.strip()) <= 80:
+        raise ValidationError('请输入完整的唱片编号')
+    number = raw.strip()
+    if not re.fullmatch(r'[\w ./+\-]+', number, re.UNICODE):
+        raise ValidationError('唱片编号包含不支持的字符')
+    candidates = vision(svc).catalog({'title': '', 'artist': '',
+        'releaseInfo': {'barcode': '', 'catalogNumber': number}})
+    normalized = lambda value: re.sub(r'[^\w]', '', str(value)).casefold()
+    # A MusicBrainz release may have multiple labels; compare each independently.
+    exact = [item for item in candidates
+             if any(normalized(part) == normalized(number)
+                    for part in item.get('releaseInfo', {}).get('catalogNumber', '').split(' / '))]
+    h.send({'catalogNumber': number, 'candidates': exact})
+
 
 
 def api_release_artwork(h, svc):
@@ -361,7 +421,6 @@ def twins(svc):
 
 def api_twins(h, svc): h.send(twins(svc).index())
 def api_twin_start(h, svc, body): h.send(twins(svc).start_task(body))
-def api_twin_confirm(h, svc, body): h.send(twins(svc).confirm(body))
 def api_twin_accessories(h, svc, body): h.send(twins(svc).update_accessories(body))
 
 def api_twin_guided(h, svc, body):
@@ -447,6 +506,8 @@ POST = {
     '/api/logout': (api_logout, True, False),
     '/api/password': (api_password, True, True),
     '/api/catalog/barcode': (api_barcode_lookup, True, False),
+    '/api/catalog/barcode/verify': (api_verify_barcode, True, False),
+    '/api/catalog/number': (api_catalog_number_lookup, True, False),
     '/api/shops/retry': (api_shop_retry, True, False),
     '/api/covers/search': (api_covers_search, True, False),
     '/api/covers/download': (api_covers_download, True, False),
@@ -477,7 +538,6 @@ POST = {
     '/api/imports/commit': (api_import_commit, True, True),
     '/api/imports/delete': (api_import_delete, True, False),
     '/api/twins/start': (api_twin_start, True, True),
-    '/api/twins/confirm': (api_twin_confirm, True, True),
     '/api/twins/cancel': (api_twin_cancel, True, True),
     '/api/twins/accessories': (api_twin_accessories, True, True),
     '/api/twins/guided': (api_twin_guided, True, True),

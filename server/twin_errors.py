@@ -1,10 +1,6 @@
-"""Pipeline exceptions; no network or persistence dependency."""
+"""Compatibility exception names for the engine-owned generation runtime."""
 from domain import ValidationError
+from vendor.album_engine.errors import NeedsInput, Stopped
+from vendor.album_engine.errors import ArtNotFound as EngineArtNotFound
 
-class NeedsInput(Exception):
-    def __init__(self, message, phase='needs_material'):
-        super().__init__(message); self.phase = phase
-
-
-class Stopped(Exception): pass
-class ArtNotFound(ValidationError): pass
+class ArtNotFound(ValidationError, EngineArtNotFound): pass

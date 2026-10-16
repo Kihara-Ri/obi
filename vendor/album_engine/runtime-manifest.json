@@ -1,0 +1,31 @@
+{
+  "modelSet": "album-rig-1",
+  "package": "album-engine-runtime",
+  "rigVersion": 1,
+  "schemaVersion": 2,
+  "sha256": {
+    "__init__.py": "1c3c9a1322840254cf53294de30344ba6e9b3f725bfd35748733ca5955a0a845",
+    "album-document-v2.schema.json": "dd1d9611867d9c288cea6d35f89696f3cadeab89ae8304f79f4787b9ef95abab",
+    "artwork.py": "0b5d9148d4ce67d687996db737745c33e93f0c6a92cc583618855c0f4adb748e",
+    "assembly.py": "e7ce134bfdee9240238c71de48ac59bd9dcc598482709be5c088ca8b04507ccf",
+    "contracts.py": "f6df7cc245c41675b4e0457d102131077440d41a110203a84cac4fefa479e9a8",
+    "document.py": "7ba6d96a4779705f02e673c1ad5cdbfa9f0db9477caa6db0bc6248aa55ec6e00",
+    "errors.py": "cb311af421e78724708ba4f3128bd9cfd52b76642b8b4b1e5e1d4ffcaa76012d",
+    "guided.py": "c2d0b2e4e53557ce45e0610d6218190a3d7858dc27a8378335275e5ab947cfb6",
+    "model-set.json": "71831c8a7e1d4bcac09f8cc4dc78711eb3313db2598c4ccb83304090a6b1c550",
+    "packaging.py": "3d47b0503e3f0ea11a74a9763eefabdfd275ed4c26e24848421318f56b0e2023",
+    "ports.py": "359eece890b81f7d5d7b3f00c2bc6d6e765523e81289e84bb0b9fbebeabb882e",
+    "schema_validation.py": "c3a7d1da7f530e6a79843af3b54f3f899bae03fe4be09f03e6ad67b62ab8c83d",
+    "skill/SKILL.md": "64a99b8692637ad9002db0070fe8c3c9dff3a73f2ab152260ea8e761cd51dca3",
+    "skill/agents/openai.yaml": "e94a99939be7995a619e43c7bd4c484802b6662767f27b48e41c90831557a9e8",
+    "skill/references/diedu-integration.md": "17924f669cd30c5be1c2506305f049cee3dd6c83a6c6ab2c9f1df133fed61402",
+    "skill/references/runtime-agent.md": "5ce41eb67b09582926382643c1c30ea886fa14403c5324747d6a26cd38d61e3c",
+    "skill/references/spine-calibration.md": "39efa06c1c11369153421d92c60c5e890b1e716b03ed7cebfefc146946d1b972",
+    "skill/scripts/calibrate_spine.py": "cb5e550b4827ae64d1faa5a3f93b5ea02f65accf784a0f2414ac5d13b216992b",
+    "skill/scripts/fetch_release_art.py": "b3ffc0725dd005e858f1e0072116224679231b0860bb33f7b51ca70cdec5238d",
+    "sources.py": "a3ac5b9d8006bd20d37c61359c837ad00123c90d9bbf182ac8495611b22b678c",
+    "surfaces.py": "a7de38721272a03d411066f5756b577394f2b1e69f2343f96d392cf347a395dd",
+    "worker.py": "1bcbaead428200eef54b62b66c260b3a470385e508291e76db10056bcce572c8"
+  },
+  "version": "0.2.2"
+}
