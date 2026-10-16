@@ -11,6 +11,7 @@ import type {
   ProfileResponse, ResolveResult, SourceState, WorkLinkInfo,
 } from '../core/artists';
 import {statusName} from '../core/modules';
+import {copyEditionLabel} from '../core/copy-edition';
 import type {ModuleFlags} from '../types';
 
 export interface WorkLinkRow {
@@ -412,7 +413,7 @@ export function ArtistProfile(props: ArtistProfileProps) {
                                   <b>{record.title}</b>
                                   <small>
                                     {statusName(record.status, modules)}
-                                    {[record.pressing && (record.pressing === '日版' && record.obi ? `${record.pressing}·${record.obi}` : record.pressing),
+                                    {[copyEditionLabel(record.pressing, record.obi),
                                       record.version].filter(Boolean).join(' · ')}
                                   </small>
                                 </span>

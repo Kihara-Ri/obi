@@ -14,6 +14,7 @@ import {bulkAction} from './shared';
 import {releaseLabels} from '../core/recognition';
 import {formatPackagingName} from '../core/album-packaging';
 import {Tracklist} from '../components/Tracklist';
+import {releaseRegion, displayReleaseTitle} from '../core/release-metadata';
 
 export interface DetailBack {
   label?: string;
@@ -47,15 +48,14 @@ function DetailBody({id, back}: {id: string; back?: DetailBack}) {
     ['当日汇率', r.currency === 'JPY' && r.rate ? `100 円 = ¥${Number(r.rate).toFixed(2)}` : '—'],
     ['额外费用（含运费分摊）', r.fees && Number(r.fees) ? yuan(r.fees) : '—'],
     ] as [string, React.ReactNode][] : []),
-    ['包装（碟盒）', formatPackagingName(r.version, r.packaging) || '—'],
-    ['版次', r.pressing ? (r.pressing === '日版' && r.obi ? `${r.pressing}（${r.obi}）` : r.pressing) : '—'],
+    ...(r.obi ? [['侧标（OBI）', r.obi] as [string, React.ReactNode]] : []),
   ];
   return (
     <div>
       <div className="record-detail">
         <div className="big"><Cover r={r}/></div>
         <div>
-          <h2>{r.title}</h2>
+          <h2>{displayReleaseTitle(r.title)}</h2>
           <>{r.status === 'trash' ? <p className="artist">{r.artist}</p> : <ArtistButton artist={r.artist} onOpen={name => {
             if (back?.artist === name) back.run();
             else openArtistDrawer(app, name, {back: {label: '返回专辑详情', run: () => openDetail(app, id, back)}});
@@ -74,7 +74,7 @@ function DetailBody({id, back}: {id: string; back?: DetailBack}) {
           </dd></div>
         ))}
       </dl>
-      {r.packaging && formatPackagingName(r.version, r.packaging) !== r.version && r.version ? <p className="small-note">原碟盒记录：{r.version}</p> : null}
+
       {app.modules.trading && (r.listingChannel || r.listingUrl) ? <>
         <h3 className="section-title">上架资料</h3>
         <p className="small-note">{r.listingChannel || '未填写平台'}
@@ -94,13 +94,17 @@ function DetailBody({id, back}: {id: string; back?: DetailBack}) {
         </>
       ) : null}
       {r.note ? <><h3 className="section-title">备注 · 这张副本</h3><p className="note-text">{r.note}</p></> : null}
-      {r.releaseInfo && Object.values(r.releaseInfo).some(v => Array.isArray(v) ? v.length : v) ? <>
+      {r.releaseInfo && Object.values(r.releaseInfo).some(v => Array.isArray(v) ? v.length : v) || r.version || r.packaging ? <>
         <h3 className="section-title">发行资料</h3>
-        <dl className="detail-grid">{releaseLabels.map(([key,label]) => {
-          const value = r.releaseInfo?.[key];
-          return typeof value === 'string' && value ? <div key={key}><dt>{label}</dt><dd>{value}</dd></div> : null;
-        })}</dl>
-        <Tracklist releaseInfo={r.releaseInfo}/>
+        <dl className="detail-grid">
+          {(r.releaseInfo?.packaging || r.version || r.packaging) &&
+            <div><dt>包装</dt><dd>{r.releaseInfo?.packaging || formatPackagingName(r.version, r.packaging)}</dd></div>}
+          {releaseLabels.filter(([key]) => key !== 'packaging').map(([key,label]) => {
+            const value = key === 'country' ? releaseRegion(r.releaseInfo?.country, r.pressing) : r.releaseInfo?.[key];
+            return typeof value === 'string' && value ? <div key={key}><dt>{label}</dt><dd>{value}</dd></div> : null;
+          })}
+        </dl>
+        {r.releaseInfo ? <Tracklist releaseInfo={r.releaseInfo}/> : null}
       </> : null}
       {r.recognition ? <details className="adv"><summary>识别依据与资料来源</summary>
         <p className="small-note">{r.recognition.model} · {r.recognition.at.replace('T',' ')}</p>

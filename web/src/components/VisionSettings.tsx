@@ -12,7 +12,7 @@ export function VisionSettings() {
   const [message, setMessage] = useState('');
   const [failed, setFailed] = useState(false);
 
-  // No credential/config request on the normal barcode-first settings screen.
+  // No credential/config request on the normal release lookup settings screen.
   useEffect(() => {
     if (!expanded || config) return;
     let active = true;

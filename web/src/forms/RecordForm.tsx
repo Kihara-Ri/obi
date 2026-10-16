@@ -9,15 +9,19 @@ import {matchRecords, norm, artistSuggestions} from '../core/search';
 import {useApp} from '../state/AppContext';
 import type {AppCtx} from '../state/AppContext';
 import type {AlbumRecord, Currency, Status, RecognitionResult, RecognitionFields, ReleaseInfo, ReleaseCandidate, VisionConfig, PackagingSpec} from '../types';
-import {remapPackagingPhotos} from '../core/album-packaging';
+import {remapPackagingPhotos, PACKAGING_PRESETS} from '../core/album-packaging';
 import {TwinControls} from '../components/TwinControls';
 import {EditionArtwork} from '../components/EditionArtwork';
+import {CopyEditionFields} from '../components/CopyEditionFields';
+import {ReleaseMetadataFields} from '../components/ReleaseMetadataFields';
+import {displayReleaseTitle, exactDigitalCover, releaseRegion} from '../core/release-metadata';
 import {twinBusy} from '../core/digital-twins';
 import {listingText} from '../core/recognition';
 import {MAX_PHOTOS} from '../core/photos';
 import {RecognitionReview} from '../components/Recognition';
 import {statusName} from '../core/modules';
 import {Seg} from '../components/ui/Seg';
+import {Dropdown} from '../components/ui/Dropdown';
 import {ShopField} from '../components/ShopField';
 import {CamIco} from '../components/icons';
 import {Field, TextareaField} from './fields';
@@ -26,7 +30,7 @@ import {useFormSubmit} from './shared';
 
 interface CoverCandidate {
   token: string; title: string; artist: string; year?: string;
-  thumbnail: string; exact: boolean;
+  thumbnail: string; exact: boolean; provider?: string;
 }
 
 
@@ -49,7 +53,7 @@ export function RecordForm({id}: {id?: string}) {
   const where: Status | null = r ? null : !modules.circulation ? 'domestic' : (base.current.currency === 'CNY' ? 'domestic' : 'overseas');
 
   const [v, setV] = useState(() => ({
-    title: base.current.title || '',
+    title: displayReleaseTitle(base.current.title || ''),
     artist: base.current.artist || '',
     price: base.current.currency === 'JPY' && base.current.price !== ''
       ? String(Math.round(Number(base.current.price))) : (base.current.price || ''),
@@ -97,47 +101,150 @@ export function RecordForm({id}: {id?: string}) {
       setLikedError(error instanceof Error ? error.message : String(error));
     } finally {setLikedSaving(false);}
   };
-
   // 新建时先以真实条码确定发行版。名称/艺人/曲目由 MusicBrainz 填充，
   // 多个候选必须由用户选择，不推断精确版次。
   const [barcode, setBarcode] = useState(r?.releaseInfo?.barcode || '');
+  const [catalogNumber, setCatalogNumber] = useState(r?.releaseInfo?.catalogNumber || '');
+  const [lookupMode, setLookupMode] = useState<'barcode' | 'catalog'>(
+    r?.releaseInfo?.catalogNumber && !r?.releaseInfo?.barcode ? 'catalog' : 'barcode');
   const [barcodeCandidates, setBarcodeCandidates] = useState<ReleaseCandidate[]>([]);
   const [barcodeBusy, setBarcodeBusy] = useState(false);
   const [barcodeMessage, setBarcodeMessage] = useState('');
   const lookupSequence = useRef(0);
-  const lookupBarcode = async () => {
-    const value = barcode.trim();
+  // A modified barcode has no trusted release identity until MusicBrainz verifies
+  // the old UUID or the user confirms a candidate from the new barcode search.
+  const verifiedRelease = useRef(r?.releaseInfo?.musicBrainzReleaseId || '');
+  const [barcodeVerification, setBarcodeVerification] =
+    useState<'verified' | 'pending' | 'failed'>('verified');
+  const changeBarcode = (raw: string) => {
+    const next = raw.replace(/[^0-9]/g, '');
+    ++lookupSequence.current;
+    setBarcode(next);
+    setBarcodeCandidates([]);
+    setBarcodeVerification('pending');
+    setBarcodeMessage('条码已更改，正在校验 MusicBrainz 发行资料…');
+    // Preserve existing track metadata while this barcode is being checked;
+    // choosing another release replaces it with the new release's own tracks.
+    set({releaseInfo: {...liveValues.current.releaseInfo, barcode: next,
+      musicBrainzReleaseId: ''}});
+    dirty();
+  };
+  useEffect(() => {
+    if (barcodeVerification !== 'pending') return;
+    const number = barcode;
+    const releaseId = verifiedRelease.current;
     const seq = ++lookupSequence.current;
-    if (!/^(?:\d{8}|\d{12,14})$/.test(value)) {
+    const timer = window.setTimeout(async () => {
+      if (!number) {
+        setBarcodeVerification('failed');
+        setBarcodeMessage('条码已清空。如果此版本确实没有条码，请用唱片编号重新确认发行版本。');
+        return;
+      }
+      setBarcodeBusy(true);
+      try {
+        // Prefer exact-MBID comparison: correcting a typo that matches the
+        // existing edition must not silently reset the selected release.
+        if (releaseId) {
+          try {
+            await api('catalog/barcode/verify', {barcode: number, releaseId});
+            if (lookupSequence.current !== seq) return;
+            setV(prev => ({...prev, releaseInfo: {...prev.releaseInfo, barcode: number,
+              musicBrainzReleaseId: releaseId}}));
+            setBarcodeVerification('verified');
+            setBarcodeMessage('✓ 已通过 MusicBrainz 校验，条码属于当前发行版本');
+            return;
+          } catch {
+            // Different release, invalid checksum or temporarily unavailable:
+            // none can be saved as verified; query candidate editions next.
+          }
+        }
+        const result = await api<{candidates: ReleaseCandidate[]}>('catalog/barcode',
+          {barcode: number});
+        if (lookupSequence.current !== seq) return;
+        setBarcodeCandidates(result.candidates);
+        setBarcodeVerification('failed');
+        setBarcodeMessage(result.candidates.length
+          ? '当前条码需要重新确认发行版；请从下面的 MusicBrainz 候选中选择'
+          : '条码格式、校验位或 MusicBrainz 查询未通过；不能保存此条码');
+      } catch (error) {
+        if (lookupSequence.current === seq) {
+          setBarcodeVerification('failed');
+          setBarcodeMessage(error instanceof Error ? error.message : String(error));
+        }
+      } finally { if (lookupSequence.current === seq) setBarcodeBusy(false); }
+    }, 550);
+    return () => window.clearTimeout(timer);
+  }, [barcode, barcodeVerification]);
+  const lookupBarcode = async () => {
+    const value = (lookupMode === 'barcode' ? barcode : catalogNumber).trim();
+    const seq = ++lookupSequence.current;
+    if (lookupMode === 'barcode' && !/^(?:\d{8}|\d{12,14})$/.test(value)) {
       setBarcodeCandidates([]); setBarcodeMessage('请输入完整的 8、12、13 或 14 位数字条形码'); return;
+    }
+    if (lookupMode === 'catalog' && (value.length < 2 || value.length > 80)) {
+      setBarcodeCandidates([]); setBarcodeMessage('请输入完整的唱片编号'); return;
     }
     setBarcodeBusy(true); setBarcodeMessage('正在从 MusicBrainz 检索 CD 发行版…');
     setBarcodeCandidates([]);
     try {
-      const result = await api<{candidates: ReleaseCandidate[]}>('catalog/barcode', {barcode: value});
+      const result = await api<{candidates: ReleaseCandidate[]}>(
+        lookupMode === 'barcode' ? 'catalog/barcode' : 'catalog/number',
+        lookupMode === 'barcode' ? {barcode: value} : {catalogNumber: value});
       if (seq !== lookupSequence.current || !formRef.current?.isConnected) return;
       setBarcodeCandidates(result.candidates);
       setBarcodeMessage(result.candidates.length
         ? `找到 ${result.candidates.length} 个匹配发行版，请确认后带入`
-        : 'MusicBrainz 没有找到对应的 CD 发行版。请核对条码，无法精确匹配时暂不自动创建。');
+        : 'MusicBrainz 没有找到精确匹配的 CD 发行版。请核对编号，也可切换另一种方式查找。');
     } catch (err) {
       if (seq === lookupSequence.current) setBarcodeMessage(err instanceof Error ? err.message : String(err));
     } finally {
       if (seq === lookupSequence.current) setBarcodeBusy(false);
     }
   };
-  const chooseRelease = async (candidate: ReleaseCandidate) => {
+  const refreshReleaseMetadata = async () => {
+    const id = v.releaseInfo.musicBrainzReleaseId;
+    if (!id) return;
+    setBarcodeBusy(true); setBarcodeMessage('正在补全已确认发行版的元数据…');
+    try {
+      const result = await api<{releaseInfo: ReleaseInfo}>('vision/release?id=' + encodeURIComponent(id));
+      if (!formRef.current?.isConnected || liveValues.current.releaseInfo.musicBrainzReleaseId !== id) return;
+      const current = liveValues.current;
+      const merged = {...current.releaseInfo};
+      for (const [key, value] of Object.entries(result.releaseInfo)) {
+        const prior = merged[key as keyof ReleaseInfo];
+        if ((!prior || Array.isArray(prior) && prior.length === 0) && value)
+          Object.assign(merged, {[key]: value});
+      }
+      setBarcode(merged.barcode || '');
+      setCatalogNumber(merged.catalogNumber || '');
+      set({releaseInfo: merged, version: current.version || merged.packaging || '',
+        pressing: releaseRegion(merged.country, current.pressing)});
+      setBarcodeMessage('已补全缺失的元数据，已有人工修改的内容保持不变。请保存修改。');
+      dirty();
+    } catch (error) {
+      setBarcodeMessage(error instanceof Error ? error.message : String(error));
+    } finally { setBarcodeBusy(false); }
+  };
+    const chooseRelease = async (candidate: ReleaseCandidate) => {
     const seq = ++lookupSequence.current;
     setBarcodeBusy(true); setBarcodeMessage('正在补全发行资料与曲目…');
     try {
-      let releaseInfo: ReleaseInfo = {...candidate.releaseInfo, barcode: barcode.trim(), musicBrainzReleaseId: candidate.id};
+      let releaseInfo: ReleaseInfo = {...candidate.releaseInfo, musicBrainzReleaseId: candidate.id};
       let detailUnavailable = false;
       try {
         const detail = await api<{releaseInfo: ReleaseInfo}>('vision/release?id=' + encodeURIComponent(candidate.id));
-        releaseInfo = {...releaseInfo, ...detail.releaseInfo, barcode: barcode.trim(), musicBrainzReleaseId: candidate.id};
+        releaseInfo = {...releaseInfo, ...detail.releaseInfo, musicBrainzReleaseId: candidate.id};
       } catch { detailUnavailable = true; } // 曲目请求失败时保留精确匹配的基本资料。
       if (seq !== lookupSequence.current || !formRef.current?.isConnected) return;
-      set({title: candidate.title, artist: candidate.artist, releaseInfo});
+      setBarcode(releaseInfo.barcode || '');
+      setCatalogNumber(releaseInfo.catalogNumber || '');
+      verifiedRelease.current = candidate.id;
+      setBarcodeVerification('verified');
+      set({title: displayReleaseTitle(candidate.title), artist: candidate.artist,
+        version: releaseInfo.packaging || '',
+        // Region classification is metadata; OBI remains a physical-copy property.
+        pressing: releaseRegion(releaseInfo.country), releaseInfo,
+        ...(candidate.id !== v.releaseInfo.musicBrainzReleaseId ? {packaging: null} : {})});
       setBarcodeCandidates([]);
       setBarcodeMessage(`已确认发行版，保存后会记住此版本${detailUnavailable ? '（曲目详情暂不可用）' : ''}`);
       // Front cover and the digital twin must derive from the same selected release UUID.
@@ -147,18 +254,43 @@ export function RecordForm({id}: {id?: string}) {
         setHasCover(false);
         lastQuery.current = null;
         setCandidates([]);
-        setCoverStatus('正在获取已确认发行版的正面封面…');
+        setCoverStatus('优先查找 iTunes 数字封面…');
+        // Cover art is a display image, not proof of a physical pressing.
+        // Edition metadata and the digital twin still use the confirmed MBID.
+        let digitalCover = false;
         try {
-          const selected = await api<{cover: string; coverSource?: {title: string; artist: string}}>(
-            'catalog/front-cover?id=' + encodeURIComponent(candidate.id));
+          const found = await api<{candidates: CoverCandidate[]}>('covers/search',
+            {title: displayReleaseTitle(candidate.title), artist: candidate.artist, country: 'AUTO'});
           if (seq !== lookupSequence.current) return;
-          if (selected.cover) {
-            base.current = {...base.current, cover: selected.cover,
-              coverSource: {title: candidate.title, artist: candidate.artist}};
-            setHasCover(true);
-            setCoverStatus('已带入此发行版的正面封面');
-          } else setCoverStatus('此发行版没有正面图，可手动查找封面并核对');
-        } catch {setCoverStatus('此发行版封面暂不可用，可手动查找；发行资料仍能保存');}
+          const exact = exactDigitalCover(found.candidates);
+          if (exact) {
+            const image = await api<{cover: string; coverSource: AlbumRecord['coverSource']}>(
+              'covers/download', {token: exact.token});
+            if (seq !== lookupSequence.current) return;
+            if (image.cover) {
+              base.current = {...base.current, cover: image.cover, coverSource: image.coverSource};
+              setHasCover(true);
+              setCoverStatus('已匹配 iTunes 数字封面');
+              digitalCover = true;
+            }
+          }
+        } catch {
+          // Network or artwork errors do not invalidate an already-verified MBID.
+        }
+        if (!digitalCover) {
+          setCoverStatus('iTunes 没有准确的数字封面，尝试此版 Cover Art Archive…');
+          try {
+            const selected = await api<{cover: string; coverSource?: AlbumRecord['coverSource']}>(
+              'catalog/front-cover?id=' + encodeURIComponent(candidate.id));
+            if (seq !== lookupSequence.current) return;
+            if (selected.cover) {
+              base.current = {...base.current, cover: selected.cover,
+                coverSource: {title: candidate.title, artist: candidate.artist}};
+              setHasCover(true);
+              setCoverStatus('已带入此版 Cover Art Archive 封面');
+            } else setCoverStatus('暂未找到封面，可手动查找并核对');
+          } catch {setCoverStatus('封面暂不可用，可手动查找；发行资料仍能保存');}
+        }
       }
       dirty();
     } catch (err) {
@@ -402,10 +534,13 @@ export function RecordForm({id}: {id?: string}) {
     e.preventDefault();
     const names: [string, string][] = [['title', '专辑名'], ['artist', '艺人']];
     const miss = names.filter(([k]) => !String((v as Record<string, unknown>)[k] ?? '').trim());
-    if (miss.length) { setError(id ? '请先补全：' + miss.map(([, n]) => n).join('、') : '请先通过条形码匹配发行版'); return; }
-    if (!id && !v.releaseInfo.musicBrainzReleaseId) {setError('请先通过条形码确认发行版本');return;}
-    if (barcode !== (v.releaseInfo.barcode || '') || (v.releaseInfo.barcode && !v.releaseInfo.musicBrainzReleaseId && barcode !== (r?.releaseInfo?.barcode || ''))) {
-      setError('条形码已修改，请先确认对应的发行版本');return;
+    if (miss.length) { setError(id ? '请先补全：' + miss.map(([, n]) => n).join('、') : '请先通过条码或唱片编号匹配发行版'); return; }
+    if (!id && !v.releaseInfo.musicBrainzReleaseId) {setError('请先确认 MusicBrainz 发行版本');return;}
+    if (barcodeVerification !== 'verified' || barcode !== (v.releaseInfo.barcode || '')) {
+      setError('条码尚未通过 MusicBrainz 校验，请确认对应发行版本后保存');return;
+    }
+    if ((r?.releaseInfo?.musicBrainzReleaseId || '') && !v.releaseInfo.musicBrainzReleaseId) {
+      setError('发行版本已改变，请重新查询并选择 MusicBrainz 发行版');return;
     }
     if (barcodeBusy) {setError('正在检索发行资料或封面，请稍候');return;}
     if (photos.hasPending) { setError('还有照片在处理中，等缩略图就绪后再保存'); return; }
@@ -479,20 +614,27 @@ export function RecordForm({id}: {id?: string}) {
             }}/></details> : null}
         </section>
         <section className="record-barcode-entry form-section">
-          <label htmlFor="record-barcode">条形码编号</label>
+          <label>查找 MusicBrainz 发行版</label>
+          <Seg ariaLabel="发行版检索方式" value={lookupMode} onValue={mode => {
+            ++lookupSequence.current; setLookupMode(mode as 'barcode' | 'catalog');
+            setBarcodeCandidates([]); setBarcodeMessage('');
+          }} options={[{value: 'barcode', label: '条码'}, {value: 'catalog', label: '唱片编号（无条码）'}]}/>
           <div className="record-barcode-row">
-            <input id="record-barcode" type="text" inputMode="numeric" autoComplete="off"
+            {lookupMode === 'barcode' ? <input id="record-barcode" aria-label="条码" type="text" inputMode="numeric" autoComplete="off"
               placeholder="输入 CD 包装背面的条形码" value={barcode}
+              onChange={e => changeBarcode(e.target.value)}
+              onKeyDown={e => {if (e.key === 'Enter') {e.preventDefault();void lookupBarcode();}}}/>
+            : <input id="record-catalog-number" aria-label="唱片编号" type="text" autoComplete="off"
+              placeholder="例如 AMCY-2434" value={catalogNumber}
               onChange={e => {
-                const next = e.target.value.replace(/[^\d]/g, '');
                 ++lookupSequence.current;
-                setBarcode(next); setBarcodeCandidates([]); setBarcodeMessage('');
-                if (next !== v.releaseInfo.barcode) {
-                  set({releaseInfo: {...v.releaseInfo, barcode: '', musicBrainzReleaseId: '', tracklist: [], media: []}});
-                  setCoverStatus('条形码已更改，等待确认新版封面'); dirty();
+                setCatalogNumber(e.target.value); setBarcodeCandidates([]); setBarcodeMessage('');
+                if (e.target.value !== v.releaseInfo.catalogNumber) {
+                  set({releaseInfo: {...v.releaseInfo, musicBrainzReleaseId: '', tracklist: [], media: []}});
+                  dirty();
                 }
               }}
-              onKeyDown={e => {if (e.key === 'Enter') {e.preventDefault();void lookupBarcode();}}}/>
+              onKeyDown={e => {if (e.key === 'Enter') {e.preventDefault();void lookupBarcode();}}}/>}
             <button type="button" className="primary" onClick={() => void lookupBarcode()} disabled={barcodeBusy}>
               {barcodeBusy ? '查询中…' : '查询发行版'}
             </button>
@@ -507,7 +649,7 @@ export function RecordForm({id}: {id?: string}) {
           </div> : null}
           {v.title && v.artist ? <div className="record-barcode-result">
             <strong>{v.title}</strong><span>{v.artist}</span>
-            {v.releaseInfo.musicBrainzReleaseId && v.releaseInfo.barcode === barcode ? <>
+            {v.releaseInfo.musicBrainzReleaseId ? <>
               <small>✓ 已确认发行版 · {v.releaseInfo.country || '地区未收录'} · {v.releaseInfo.releaseDate || '日期未收录'}
                 {v.releaseInfo.catalogNumber ? ' · ' + v.releaseInfo.catalogNumber : ''}</small>
               <a href={'https://musicbrainz.org/release/' + v.releaseInfo.musicBrainzReleaseId}
@@ -515,9 +657,45 @@ export function RecordForm({id}: {id?: string}) {
             </> : <small>尚未确认发行版，请先查询并选择</small>}
           </div> : null}
         </section>
-        {id && !v.releaseInfo.musicBrainzReleaseId ? <div className="form-grid form-section">
+        {id && v.releaseInfo.musicBrainzReleaseId ? <button type="button" className="quiet record-refresh-release"
+          disabled={barcodeBusy} onClick={() => void refreshReleaseMetadata()}>从 MusicBrainz 补全缺失发行资料</button> : null}
+        {(id || v.releaseInfo.musicBrainzReleaseId) ? <ReleaseMetadataFields info={v.releaseInfo}
+          oldPressing={v.pressing} onChange={(key, value) => {
+            const next = {...v.releaseInfo, [key]: value};
+            if (key === 'barcode') { changeBarcode(value); return; }
+            if (key === 'catalogNumber') setCatalogNumber(value);
+            const preset = key === 'packaging' ? PACKAGING_PRESETS.find(p => p.label === value) : undefined;
+            set({releaseInfo: next,
+              ...(key === 'packaging' ? {version: value,
+                ...(preset ? {packaging: {...v.packaging, ...preset.spec}} : {})} : {}),
+              ...(key === 'country' ? {pressing: releaseRegion(value)} : {})});
+            dirty();
+          }}/> : null}
+        {(v.version === '待核对' || v.packaging?.structure === 'unknown') ? (
+          <div className="form-section field record-package-review">
+            <span className="field-label">包装结构待核对 · 原记录：{r?.legacyPackaging || r?.version || '未知'}</span>
+            <Dropdown id="record-package-review" value="__unknown"
+              label="确认实际包装结构"
+              options={[{value:'__unknown',label:'待核对（不猜测折叠结构）'},
+                ...PACKAGING_PRESETS.map(p => ({value:p.value,label:p.label}))]}
+              onPick={code => {
+                const preset=PACKAGING_PRESETS.find(p => p.value === code);
+                if (!preset) return;
+                const packaging={...v.packaging, ...preset.spec};
+                set({version:preset.label,packaging,
+                  releaseInfo:{...v.releaseInfo, packaging:preset.label}});
+                dirty();
+              }}/>
+          </div>
+        ) : null}
+        <CopyEditionFields obi={v.obi} onChange={change => {
+          set(change); dirty();
+        }}/>
+        {id ? <div className="form-grid form-section">
           <Field label="专辑名（更正用）" name="title" required autoComplete="off" value={v.title}
-                 onChange={e => onTitleInput(e.target.value)} onBlur={scheduleCover}/>
+                 onChange={e => v.releaseInfo.musicBrainzReleaseId
+                   ? (set({title: e.target.value}), dirty()) : onTitleInput(e.target.value)}
+                 onBlur={scheduleCover}/>
           <Field label="艺人" name="artist" required autoComplete="off" value={v.artist}
                  onChange={e => onArtistInput(e.target.value)} onBlur={scheduleCover}/>
         </div> : null}
@@ -542,7 +720,7 @@ export function RecordForm({id}: {id?: string}) {
                       onClick={() => chooseCover(c.token, coverKey())}>
                 <img src={c.thumbnail} alt=""/>
                 <span>{c.title}</span>
-                <small>{c.artist} · {c.year}</small>
+                <small>{c.artist} · {c.year}{c.provider ? ' · ' + c.provider : ''}</small>
               </button>
             ))}
           </div>
@@ -602,11 +780,11 @@ export function RecordForm({id}: {id?: string}) {
 
         {modules.showcase ? <details className="adv record-twin-entry">
           <summary>数字实体 · 同版 Cover Art Archive 图集{r && twinBusy(app.twins.jobs[r.id]) ? ' · 任务进行中' : r && app.twins.jobs[r.id]?.status === 'succeeded' ? ' · 已生成' : ''}</summary>
-          {v.releaseInfo.musicBrainzReleaseId && v.releaseInfo.barcode === barcode
+          {v.releaseInfo.musicBrainzReleaseId
             ? <EditionArtwork releaseId={v.releaseInfo.musicBrainzReleaseId}/>
-            : <p className="small-note">请先在上方输入条形码并确认 MusicBrainz 发行版本。</p>}
+            : <p className="small-note">请先在上方使用条码或唱片编号确认发行版本。</p>}
           {r && ['domestic', 'overseas', 'transit'].includes(r.status) ? <TwinControls record={r}
-            releaseId={v.releaseInfo.barcode === barcode ? v.releaseInfo.musicBrainzReleaseId || '' : ''}
+            releaseId={v.releaseInfo.musicBrainzReleaseId || ''}
             unsaved={edited || photos.hasPending} saving={saving}
             stale={r.revision !== base.current.revision}/> : null}
           {!r && v.releaseInfo.musicBrainzReleaseId ? <p className="small-note">保存入库后可根据已确认的发行版本生成数字实体，无需重复选版。</p> : null}

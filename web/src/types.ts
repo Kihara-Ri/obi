@@ -2,6 +2,7 @@ import type {DiscCalibration} from '@diedu/album-engine/disc-calibration';
 // API 数据模型：与 storage.py 的 state() 输出一一对应。
 // 金额一律是字符串（服务端 Decimal 量化到分），显示时再转 Number。
 import {formatPackagingName} from './core/album-packaging';
+import {copyEditionLabel} from './core/copy-edition';
 
 export type Status = 'overseas' | 'transit' | 'domestic' | 'shipping' | 'sold' | 'trash';
 export type SaleStatus = 'shipping' | 'complete' | 'cancelled' | 'returned' | 'refunded';
@@ -9,12 +10,13 @@ export type ShipmentStatus = 'transit' | 'arrived' | 'cancelled';
 export type Currency = 'JPY' | 'CNY';
 export type SortMode = 'new' | 'cost' | 'artist';
 
-import type {PackagingSpec as EntityPackagingSpec, PackagingPhotoRole,
+import type {AlbumDocument, PackagingSpec as EntityPackagingSpec, PackagingPhotoRole,
   PackagingPhotoRegion, PackagingWarpRow, AlbumCalibration} from '@diedu/album-engine/schema';
 export type {PackagingStructure, PackagingPhotoRole, PackagingPhotoRegion, PackagingWarpRow} from '@diedu/album-engine/schema';
 export type TwinCalibration = AlbumCalibration;
 export interface TwinAccessory {id: string; kind: 'obi' | 'booklet' | 'inner-sleeve'; asset: string; origin: string; sourceUrl: string; sourceReleaseId?: string}
 export interface TwinEntity {
+  document?: AlbumDocument;
   packaging: PackagingSpec;
   components?: TwinAccessory[];
   surfaces: Partial<Record<PackagingPhotoRole, {asset: string; region?: PackagingPhotoRegion | null; warpRows?: PackagingWarpRow[]; discCalibration?: DiscCalibration; sourceUrl: string; origin: string}>>;
@@ -41,7 +43,6 @@ export interface TwinStart {
   recordId: string; recordRevision: number; expectedJobId: string | null;
   barcode?: string; mode?: 'ai' | 'guided';
 }
-export interface TwinConfirm {id: string; releaseId: string;}
 /** Exact-barcode release review; separate from name-based recognition suggestions. */
 export interface TwinReleaseCandidate {
   id: string; title: string; artist: string; date: string; country: string;
@@ -66,6 +67,10 @@ export interface CoverSource {
   title: string;
   artist: string;
   year?: string;
+  provider?: string;
+  page?: string;
+  url?: string;
+  country?: string;
 }
 
 /** Persistent musical Album, independent of any owned physical CD copies. */
@@ -107,6 +112,7 @@ export interface AlbumRecord {
   coverSource?: CoverSource;
   location: string;
   version: string;
+  legacyPackaging?: string; // 历史包装归档
   packaging?: PackagingSpec;
   pressing: string;
   obi: string;
@@ -145,7 +151,7 @@ export interface ReleaseMedium {
 
 export interface ReleaseInfo {
   catalogNumber?: string; barcode?: string; musicBrainzReleaseId?: string; label?: string; country?: string;
-  releaseDate?: string; edition?: string; format?: string; discCount?: string;
+  releaseDate?: string; edition?: string; packaging?: string; format?: string; discCount?: string;
   matrix?: string; extras?: string; observations?: string; tracklist?: string[]; media?: ReleaseMedium[];
 }
 
@@ -290,8 +296,8 @@ export const SALE_NAMES: Record<SaleStatus, string> = {
   returned: '已退货', refunded: '已退款',
 };
 
-// 碟盒 + 版次合并成卡片小标签；日版带侧标时拼成「日版·带侧标」
+// 实物版次和侧标独立于 MusicBrainz 发行资料；未填写不代表无侧标。
 export function labelTags(r: AlbumRecord): string[] {
-  const p = r.pressing ? (r.pressing === '日版' && r.obi ? `${r.pressing}·${r.obi}` : r.pressing) : '';
+  const p = copyEditionLabel(r.pressing, r.obi);
   return [p, formatPackagingName(r.version, r.packaging)].filter(Boolean);
 }

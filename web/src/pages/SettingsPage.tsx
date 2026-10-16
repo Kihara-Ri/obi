@@ -85,7 +85,7 @@ export function SettingsPage() {
       <section className="settings-section">
         <h3>发行资料自动匹配</h3>
         <p>添加专辑时输入实物条形码，系统会从 MusicBrainz 搜索 CD 发行版本。确认对应版本后，自动填写专辑名、艺人、发行日期、厂牌及曲目，并记住该版本，无需重复选择。</p>
-        <p>封面与其他发行版图片优先从该版本的 Cover Art Archive 获取；如果未收录，可手动查找封面。<strong>这一流程无需配置 AI 模型或 API 密钥</strong>，但需要连接公开资料库。</p>
+        <p>展示封面优先使用 iTunes 的干净数字封面；没有准确匹配时使用已确认 MusicBrainz 发行版的 Cover Art Archive 正面图。数字实体的背面、内页与盘面仍只从已核对的发行版本获取。<strong>这一流程无需配置 AI 模型或 API 密钥</strong>，但需要连接公开资料库。</p>
         {app.modules.acquisition ? <p>日元成本按购买当天汇率自动折算，无需手动维护。</p> : null}
         <p className="small-note">
           版本 {state.service?.version || 'dev'}{app.modules.acquisition ? <> · 汇率缓存：{state.rateService
