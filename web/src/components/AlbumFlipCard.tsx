@@ -1,6 +1,7 @@
 import {useEffect, useRef, useState} from 'react';
 import type {PointerEvent} from 'react';
 import type {AlbumRecord} from '../types';
+import {GalleryArtwork} from './GalleryMedia';
 import {MetalBackCanvas} from './MetalBackCanvas';
 import type {MetalSurfaceController} from './MetalBackCanvas';
 
@@ -40,9 +41,7 @@ export function AlbumFlipCard({record, flipped, liked, collectedAt, onFlip}: {
       title={flipped ? '翻回封面' : '查看收藏卡背面'}
       onClick={onFlip}>
       <span className="album-flip-face album-flip-front" aria-hidden={flipped}>
-        {record.cover ? <img className="gallery-focus-cover" src={record.cover}
-          alt={record.title + '封面'} draggable={false}/>
-          : <span className="gallery-focus-cover gallery-artwork"><span className="cover-fallback">暂无封面</span></span>}
+        <GalleryArtwork record={record} focused/>
       </span>
       <span className="album-flip-face album-flip-back" aria-hidden={!flipped}>
         {metalMounted ? <MetalBackCanvas liked={liked} onController={instance => {

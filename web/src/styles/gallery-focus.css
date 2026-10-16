@@ -1,6 +1,6 @@
 /* An image lightbox, without drawer chrome or a sheet transition. */
 .gallery-focus{
-  position:fixed;inset:0;margin:0;padding:24px max(16px,env(safe-area-inset-right)) 24px max(16px,env(safe-area-inset-left));
+  position:fixed;inset:0;margin:0;padding:0;
   width:100%;height:100dvh;max-width:none;max-height:none;border:0;
   background:transparent;color:var(--album-plastic-light);overflow:hidden;cursor:default;
 }
@@ -11,15 +11,18 @@
 /* Shared-image animation sits in viewport coordinates; it never scales the title or model scene. */
 .gallery-focus-transition-image{position:fixed;z-index:3;left:0;top:0;width:1px;height:1px;
   opacity:0;object-fit:fill;pointer-events:none;transform:none;will-change:left,top,width,height}
-.gallery-focus .album-viewer{min-height:0;flex:1}
-.gallery-focus .album-model-scene{height:min(72dvh,82vw,680px);max-height:100%;border-radius:0;background:none;outline:none}
-.gallery-focus .album-model-ground{opacity:.35;bottom:8%}
-/* This read-only focus target is used to announce a 2D cover inside the dialog.
-   Mobile browsers otherwise draw their native blue ring around the whole cover. */
-.gallery-focus-cover{display:flex;align-items:center;justify-content:center;width:100%;height:min(72dvh,82vw,680px);outline:none;cursor:default}
-.gallery-focus-cover img{display:block;width:100%;height:100%;object-fit:contain}
-.gallery-focus-cover span{display:grid;place-items:center;width:min(70vw,400px);aspect-ratio:1;background:var(--surface-2);color:var(--muted)}
+/* 2D: the image itself is the hit target; empty space falls through to
+   the shade. Preserve intrinsic aspect ratio and thumbnail zoom geometry. */
+.gallery-focus-cover{display:block;flex:none;width:auto;height:auto;max-width:100%;max-height:min(72dvh,82vw,680px);object-fit:contain;pointer-events:auto;cursor:default;user-select:none;-webkit-user-drag:none}
+.gallery-focus-cover.gallery-artwork{width:min(72dvh,82vw,680px);height:min(72dvh,82vw,680px);background:transparent;overflow:hidden}
+.gallery-focus-cover .cover-fallback{height:100%;background:transparent}
+.gallery-focus-cover .gallery-art-message{bottom:12%;text-align:center}
 .gallery-focus h2{flex:none;max-width:min(100%,700px);margin:0;padding:0 8px;font-size:clamp(17px,2.4vw,25px);font-weight:500;line-height:1.5;text-align:center;white-space:normal;overflow-wrap:anywhere;max-height:20dvh;overflow:auto;cursor:default}
+/* Give the renderer the entire screen, not the old 1000 x 680 lightbox.
+   WebGL uses this element for both its canvas size and its camera aspect. */
+.gallery-focus-visual--model{position:absolute;inset:0;width:100%;height:100%;max-height:none;display:block;pointer-events:auto}
+.gallery-model-mount{position:absolute;inset:0;width:100%;height:100%}
+.gallery-focus-visual--model h2{position:absolute;left:72px;right:72px;bottom:max(22px,env(safe-area-inset-bottom));z-index:1;max-width:none;max-height:15dvh;pointer-events:none;text-shadow:0 2px 12px rgba(0,0,0,.8)}
 .gallery-focus-nav{position:fixed;top:50%;z-index:2;display:flex;align-items:center;justify-content:center;width:52px;height:64px;padding:0;border:1px solid var(--hairline);border-radius:var(--radius);background:color-mix(in srgb,var(--album-lightbox-bg) 65%,transparent);color:var(--album-plastic-light);transform:translateY(-50%);cursor:pointer;touch-action:manipulation;transition:background .18s ease,opacity .18s ease}
 .gallery-focus-nav svg{width:24px;height:24px}
 .gallery-focus-nav:hover:not(:disabled){background:color-mix(in srgb,var(--album-lightbox-bg) 90%,transparent)}
@@ -31,34 +34,9 @@
 @media(max-width:600px){.gallery-focus-nav{width:44px;height:56px;border-radius:12px}.gallery-focus-prev{left:max(8px,env(safe-area-inset-left))}.gallery-focus-next{right:max(8px,env(safe-area-inset-right))}}
 @media(prefers-reduced-motion:reduce){.gallery-focus-nav{transition:none}}
 
-/* Disc rectification editor: the source and result remain at their own aspect ratios. */
-.disc-calibration-launch{position:absolute;right:calc(50% - min(45vw,440px));bottom:18px;z-index:5;background:rgba(20,25,32,.8);border:1px solid #626b74;border-radius:20px;padding:8px 15px;color:#fff;cursor:pointer}
-.disc-calibration-overlay{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:rgba(5,7,12,.95);padding:16px;color:#f4f5f8;overflow:auto;overscroll-behavior:contain}
-.disc-calibration-panel{width:min(940px,100%);max-height:95svh;overflow:auto;display:flex;flex-direction:column;gap:12px;padding:18px;background:#171a21;border:1px solid #343b46;border-radius:18px}
-.disc-calibration-heading{display:flex;align-items:center;justify-content:space-between}
-.disc-calibration-heading strong{font-size:18px}
-.disc-calibration-heading-actions{display:flex;gap:10px;align-items:center;flex:none}
-.disc-calibration-roles,.disc-calibration-actions{display:flex;gap:8px;flex-wrap:wrap}
-.disc-calibration-roles button.selected{background:#465267;color:white}
-.disc-calibration-workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.9fr);gap:16px;align-items:center}
-.disc-calibration-source{position:relative;width:100%;max-height:54svh;margin:auto;min-width:0;background:#080a0e;overflow:hidden}
-.disc-calibration-source img{width:100%;height:100%;display:block;object-fit:fill}
-.disc-calibration-source svg{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
-.disc-calibration-source svg circle{cursor:grab}
-.disc-calibration-source svg circle:active{cursor:grabbing}
-.disc-calibration-result{display:grid;justify-items:center;align-content:center;gap:9px;color:#b9c0cb}
-.disc-calibration-result canvas{display:block;aspect-ratio:1;max-width:100%;width:min(100%,380px);border-radius:50%;background:#333}
-.disc-calibration-settings{display:grid;gap:10px}
-.disc-calibration-settings label{display:flex;gap:10px;align-items:center}
-.disc-calibration-settings input[type=range]{flex:1}
-.disc-calibration-actions{justify-content:flex-end}
-.disc-calibration-error{color:#ffb3a2}
-@media(max-width:650px){.disc-calibration-workspace{grid-template-columns:1fr}.disc-calibration-source{max-height:35svh;max-width:65vw}.disc-calibration-result canvas{width:min(45vw,230px)}.disc-calibration-launch{right:14px;bottom:14px}}
-
-/* Lightbox's empty visual space allows the shade to dismiss the card. */
-.gallery-focus-visual--model{pointer-events:auto}
-.gallery-focus-visual--model .album-viewer{pointer-events:auto}
-.gallery-focus-visual:not(.gallery-focus-visual--model) h2{pointer-events:none}
-.gallery-renderer-switch{position:absolute;left:50%;top:max(18px,env(safe-area-inset-top));transform:translateX(-50%);z-index:4;pointer-events:auto}
+.gallery-renderer-switch{position:absolute;left:50%;top:max(18px,env(safe-area-inset-top));transform:translateX(-50%);z-index:4;cursor:default}
 .gallery-renderer-switch .seg{background:var(--surface);border:1px solid var(--border-strong)}
 .gallery-renderer-switch .seg button{min-width:54px;min-height:44px}
+.gallery-engine-loading{display:grid;place-items:center;position:absolute;inset:0;color:var(--muted);pointer-events:none}
+.gallery-engine-unavailable{position:absolute;left:50%;top:76px;transform:translateX(-50%);z-index:4;margin:0;color:var(--muted);font-size:13px}
+@media(max-width:600px){.gallery-focus-visual--model h2{left:42px;right:42px;bottom:max(16px,env(safe-area-inset-bottom))}}

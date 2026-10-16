@@ -11,8 +11,8 @@
         125.0,
         10.4
       ],
-      "bytes": 596252,
-      "primitives": 15,
+      "bytes": 597188,
+      "primitives": 16,
       "triangles": 19712,
       "animated": true
     },
@@ -22,8 +22,8 @@
         125.0,
         10.4
       ],
-      "bytes": 745180,
-      "primitives": 19,
+      "bytes": 746120,
+      "primitives": 20,
       "triangles": 25558,
       "animated": true
     },
@@ -33,8 +33,8 @@
         125.0,
         10.4
       ],
-      "bytes": 1002460,
-      "primitives": 26,
+      "bytes": 1003404,
+      "primitives": 27,
       "triangles": 35010,
       "animated": true
     },
@@ -44,8 +44,8 @@
         125,
         22
       ],
-      "bytes": 1361168,
-      "primitives": 39,
+      "bytes": 1362864,
+      "primitives": 41,
       "triangles": 51304,
       "animated": true
     },
@@ -235,6 +235,58 @@
       "primitives": 61,
       "triangles": 75152,
       "animated": true
+    },
+    "component-obi": {
+      "nominal_mm": [
+        23.0,
+        123.5,
+        5.0
+      ],
+      "bytes": 226428,
+      "primitives": 3,
+      "triangles": 28,
+      "animated": false,
+      "component": true,
+      "source": "Blender"
+    },
+    "component-booklet": {
+      "nominal_mm": [
+        116.0,
+        118.0,
+        0.8
+      ],
+      "bytes": 4264,
+      "primitives": 3,
+      "triangles": 12,
+      "animated": false,
+      "component": true,
+      "source": "Blender"
+    },
+    "component-inner-sleeve": {
+      "nominal_mm": [
+        122.0,
+        122.0,
+        1.9
+      ],
+      "bytes": 10868,
+      "primitives": 7,
+      "triangles": 60,
+      "animated": false,
+      "component": true,
+      "source": "Blender"
+    },
+    "component-foldout": {
+      "nominal_mm": [
+        116.0,
+        118.0,
+        0.8
+      ],
+      "bytes": 62448,
+      "primitives": 60,
+      "triangles": 240,
+      "animated": false,
+      "component": true,
+      "source": "Blender"
     }
   }
 }

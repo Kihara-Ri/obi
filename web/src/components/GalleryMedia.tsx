@@ -1,14 +1,29 @@
-import {useState} from 'react';
+import {useCallback, useState} from 'react';
+import {AlbumCover} from '@diedu/album-engine/preview';
 import type {AlbumRecord} from '../types';
 import {Cover} from './Cover';
+import {useApp} from '../state/AppContext';
 
 /** 仍复用共同封面组件；失效的图片保留与缺封面不同的可见说明。 */
-export function GalleryArtwork({record}: {record: AlbumRecord}) {
+export function GalleryArtwork({record, focused = false}: {record: AlbumRecord; focused?: boolean}) {
   const [failedSource, setFailedSource] = useState<string | null>(null);
-  const failed = !!record.cover && failedSource === record.cover;
-  return <span className="gallery-artwork" onErrorCapture={() => setFailedSource(record.cover)}>
-    <Cover r={failed ? {...record, cover: ''} : record}/>
-    {!record.cover || failed ? <span className="gallery-art-message">
+  const job = useApp().twins.jobs[record.id];
+  const preview = !record.cover && job?.status === 'succeeded'
+    ? job.entity?.document?.preview ?? job.entity?.surfaces.front : undefined;
+  const source = record.cover || (preview ? job?.id + ':' + preview.asset : '');
+  const failed = !!source && failedSource === source;
+  const fail = useCallback(() => setFailedSource(source), [source]);
+  const resolveAsset = useCallback((asset: string) => preview?.asset === asset ? '/api/twin-assets/' + job!.id + '/' + asset : '', [job?.id, preview?.asset]);
+  // The focused 2D cover is a single painted image, not a full-width hitbox.
+  // Preserve the shared fallback/engine preview below when there is no image.
+  if (focused && record.cover && !failed)
+    return <img className="gallery-focus-cover" src={record.cover}
+      alt={record.title + '封面'} draggable={false} onError={fail}/>;
+  return <span className={focused ? 'gallery-focus-cover gallery-artwork' : 'gallery-artwork'}
+    onErrorCapture={fail}>
+    {preview && !failed ? <AlbumCover surface={preview} resolveAsset={resolveAsset} alt={record.title + '封面'} onError={fail}/>
+      : <Cover r={failed ? {...record, cover: ''} : record}/>}
+    {!source || failed ? <span className="gallery-art-message">
       {failed ? '封面载入失败' : '暂无封面'}
     </span> : null}
   </span>;

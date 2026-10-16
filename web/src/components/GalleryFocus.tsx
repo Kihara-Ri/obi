@@ -1,16 +1,23 @@
-import {useLayoutEffect, useMemo, useRef, useState} from 'react';
+import {Component, lazy, Suspense, useCallback, useLayoutEffect, useMemo, useRef, useState} from 'react';
+import type {ReactNode} from 'react';
 import {createPortal} from 'react-dom';
 import type {AlbumRecord} from '../types';
-import {AlbumModel} from './AlbumModel';
-import {DiscCalibrationEditor} from './DiscCalibrationEditor';
+import {requestAlbumOrientationPermission} from './useAlbumOrientation';
 import type {AlbumOrientationPermission} from './useAlbumOrientation';
 import {useApp} from '../state/AppContext';
-import {twinViewerRecord} from '../core/digital-twins';
+import {publishedAlbum} from '../core/published-album';
 import {commitAnimationOpacity, containedImageRect, coverRectFrames} from '../core/gallery-zoom';
 import type {ZoomRect} from '../core/gallery-zoom';
 import {ChevLeftIco, ChevRightIco} from './icons';
-import {AlbumFlipCard} from './AlbumFlipCard';
 import {Seg} from './ui/Seg';
+import {AlbumFlipCard} from './AlbumFlipCard';
+
+class EngineBoundary extends Component<{children: ReactNode; onUnavailable(): void}, {failed: boolean}> {
+  state = {failed: false};
+  static getDerivedStateFromError() {return {failed: true};}
+  componentDidCatch() {this.props.onUnavailable();}
+  render() {return this.state.failed ? null : this.props.children;}
+}
 
 const ZOOM_MS = 260;
 const ZOOM_EASE = 'cubic-bezier(.2,.7,.3,1)';
@@ -33,11 +40,10 @@ function reducedMotion(): boolean {
 }
 
 /** Full-screen photo-style focus for a model and album title, with shared cover zoom. */
-export function GalleryFocus({record, records, originElement, permission, onNavigate, onClose, liked, collectedAt}: {
+export function GalleryFocus({record, records, originElement, onNavigate, onClose, liked, collectedAt}: {
   record: AlbumRecord;
   records: AlbumRecord[];
   originElement: HTMLElement | null;
-  permission: Promise<AlbumOrientationPermission>;
   onNavigate(id: string): void;
   onClose(): void;
   liked: boolean;
@@ -54,16 +60,20 @@ export function GalleryFocus({record, records, originElement, permission, onNavi
   const switching = useRef(false);
   const closing = useRef(false);
   const [transitionStatus, setTransitionStatus] = useState('');
-  const [calibrating,setCalibrating] = useState(false);
+  const [modelSession, setModelSession] = useState<{id: string; permission: Promise<AlbumOrientationPermission>} | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
   const [flipped, setFlipped] = useState(false);
-  const [showing3D, setShowing3D] = useState(false);
+  // A failed lazy load belongs to this explicit attempt; the next click may retry.
+  const AlbumModel = useMemo(() => lazy(() => import('./AlbumModel').then(module => ({default: module.AlbumModel}))), [modelSession]);
   const currentRecordId = useRef(record.id);
   const thumbnailOrigin = useRef(originElement);
   const current = useRef({record, records, onNavigate, onClose});
   current.current = {record, records, onNavigate, onClose};
   const requestClose = useRef<() => void>(() => {});
   const app = useApp(), job = app.twins.jobs[record.id];
-  const modelRecord = useMemo(() => twinViewerRecord(record, job), [record, job]);
+  const published = useMemo(() => publishedAlbum(record, job), [record, job]);
+  const showing3D = !!published && modelSession?.id === record.id;
+  const engineUnavailable = useCallback(() => {setModelSession(null); setUnavailable(true);}, []);
 
   const playShade = (from: number, to: number) => {
     const element = shade.current;
@@ -102,9 +112,11 @@ export function GalleryFocus({record, records, originElement, permission, onNavi
   const expandedCover = (aspect: number): ZoomRect | null => {
     const root = visual.current;
     if (!root) return null;
+    // Use the untransformed card geometry, not the rotated inner face's
+    // bounding box. This also keeps the reverse zoom valid after a flip.
     const card = root.querySelector<HTMLElement>('.album-flip-card');
     const image = root.querySelector<HTMLElement>('img.gallery-focus-cover, .gallery-focus-cover img');
-    const scene = root.querySelector<HTMLElement>('.album-model-scene');
+    const scene = root.querySelector<HTMLElement>('.gallery-model-mount');
     const container = card || image || scene;
     if (!container) return null;
     const bounds = container.getBoundingClientRect();
@@ -237,14 +249,13 @@ export function GalleryFocus({record, records, originElement, permission, onNavi
   };
 
   const navigate = (by: -1 | 1) => {
-    if (closing.current || switching.current || calibrating) return;
+    if (closing.current || switching.current) return;
     const list = current.current.records;
     const index = list.findIndex(item => item.id === currentRecordId.current);
     const next = list[index + by];
     if (!next) return;
     switching.current = true;
     setFlipped(false);
-    setShowing3D(false);
     setTransitionStatus('正在切换到：' + next.title);
     animateOut(currentRecordId.current, () => current.current.onNavigate(next.id));
   };
@@ -278,7 +289,8 @@ export function GalleryFocus({record, records, originElement, permission, onNavi
   useLayoutEffect(() => {
     const changed = currentRecordId.current !== record.id;
     currentRecordId.current = record.id;
-    setFlipped(false); setShowing3D(false);
+    setFlipped(false);
+    setModelSession(null); setUnavailable(false);
     playIntro(record.id, changed && switching.current);
   }, [record.id]);
 
@@ -289,7 +301,7 @@ export function GalleryFocus({record, records, originElement, permission, onNavi
   return createPortal(<dialog id="gallery-focus" className="gallery-focus" ref={dialog} tabIndex={-1}
     aria-labelledby="gallery-focus-title" data-task-id={job?.id ?? ''} onCancel={event => {event.preventDefault(); requestClose.current();}}
     onKeyDown={event => {
-      if (event.defaultPrevented || calibrating) return;
+      if (event.defaultPrevented) return;
       if (event.key === 'Escape') {event.preventDefault(); event.stopPropagation(); requestClose.current();}
       else if (event.key === 'ArrowLeft') {event.preventDefault(); event.stopPropagation(); navigate(-1);}
       else if (event.key === 'ArrowRight') {event.preventDefault(); event.stopPropagation(); navigate(1);}
@@ -302,27 +314,34 @@ export function GalleryFocus({record, records, originElement, permission, onNavi
       }
     }}>
     <div className="gallery-focus-shade" ref={shade} aria-hidden="true" onClick={() => requestClose.current()}/>
-    <div className={'gallery-focus-visual' + (showing3D ? ' gallery-focus-visual--model' : '')} ref={visual}>
-      {modelRecord && showing3D ?
-        <AlbumModel key={job?.id + ':' + job?.seq} record={modelRecord} permission={permission}
-          onDismiss={() => requestClose.current()}/>
-        : <AlbumFlipCard record={record} flipped={flipped} liked={liked} collectedAt={collectedAt}
+    <div className={`gallery-focus-visual${showing3D ? ' gallery-focus-visual--model' : ''}`} ref={visual}>
+      {showing3D && published && modelSession ? <div className="gallery-model-mount">
+        <EngineBoundary onUnavailable={engineUnavailable}>
+          <Suspense fallback={<p className="gallery-engine-loading" role="status">正在加载 3D</p>}>
+            <AlbumModel entity={published.entity} resolveAsset={published.resolveAsset} permission={modelSession.permission}
+              onDismiss={() => requestClose.current()} onUnavailable={engineUnavailable}/>
+          </Suspense>
+        </EngineBoundary>
+      </div>
+        : <AlbumFlipCard record={record} flipped={flipped} liked={liked}
+            collectedAt={collectedAt}
             onFlip={() => {if (!closing.current && !switching.current) setFlipped(v => !v);}}/>}
       <h2 id="gallery-focus-title">{record.title}</h2>
     </div>
-    {modelRecord ? <div className="gallery-renderer-switch">
+    {published ? <div className="gallery-renderer-switch">
       <Seg ariaLabel="专辑显示" options={[{value: '2d', label: '2D'}, {value: '3d', label: '3D'}]}
-        value={showing3D ? '3d' : '2d'}
-        onValue={value => {setFlipped(false); setShowing3D(value === '3d');}}/>
+        value={showing3D ? '3d' : '2d'} onValue={mode => {
+          if (mode === '2d') setModelSession(null);
+          else {setFlipped(false); setUnavailable(false); setModelSession({id: record.id, permission: requestAlbumOrientationPermission()});}
+        }}/>
     </div> : null}
-    {modelRecord && job?.entity && Object.keys(job.entity.surfaces).some(role=>role.startsWith('disc')) ?
-      <button type="button" className="disc-calibration-launch" onClick={()=>setCalibrating(true)}>校准盘面</button>:null}
-    {calibrating&&job?.entity?<DiscCalibrationEditor job={job} onClose={()=>setCalibrating(false)}
-      onSaved={app.refreshTwins}/>:null}
+    {unavailable ? <p className="gallery-engine-unavailable" role="status">3D 暂不可用，可重试</p> : null}
     {record.cover ? <img ref={coverProxy} className="gallery-focus-transition-image" src={record.cover}
       alt="" aria-hidden="true" draggable={false}/> : null}
     <span className="gallery-visually-hidden" role="status" aria-live="polite">{transitionStatus}</span>
-    {records.length > 1 ? <>
+    {/* Keep the 3D paper/CD edge grips reachable; the 2D gallery navigation
+        arrows otherwise cover the left/right 52-pixel model interaction zone. */}
+    {records.length > 1 && !showing3D ? <>
       <button type="button" className="gallery-focus-nav gallery-focus-prev" aria-label="上一张专辑" disabled={!previous}
         onClick={event => {event.stopPropagation(); navigate(-1);}}>{ChevLeftIco}</button>
       <button type="button" className="gallery-focus-nav gallery-focus-next" aria-label="下一张专辑" disabled={!next}

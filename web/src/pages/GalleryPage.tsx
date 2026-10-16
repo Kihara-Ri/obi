@@ -14,8 +14,6 @@ import {Dropdown} from '../components/ui/Dropdown';
 import {Seg} from '../components/ui/Seg';
 import {ChevDownIco} from '../components/icons';
 import {openArtistDrawer} from '../forms/ArtistDrawer';
-import {requestAlbumOrientationPermission} from '../components/useAlbumOrientation';
-import type {AlbumOrientationPermission} from '../components/useAlbumOrientation';
 import {ShowcaseGroupForm} from '../forms/ShowcaseGroupForm';
 
 const SORTS = [
@@ -30,7 +28,7 @@ export function GalleryPage() {
   const [immersive, setImmersive] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
   const [roaming, setRoaming] = useState(false);
-  const [focused, setFocused] = useState<{id: string; originElement: HTMLElement | null; permission: Promise<AlbumOrientationPermission>} | null>(null);
+  const [focused, setFocused] = useState<{id: string; originElement: HTMLElement | null} | null>(null);
   const [albumLikes, setAlbumLikes] = useState<AlbumCatalog>({
     albums: {}, recordAlbumIds: {}, favorites: {}, collectedAt: {},
   });
@@ -176,29 +174,25 @@ export function GalleryPage() {
   }, []);
   useEffect(() => {
     if (focused && (!focusedRecord || !isCollectedRecord(focusedRecord)
-      || !records.some(r => r.id === focused.id))) closeFocus();
+        || !records.some(r => r.id === focused.id))) closeFocus();
   }, [focused, focusedRecord, records, closeFocus]);
   const focus = (id: string, source?: HTMLElement) => {
     if (focusEntry.current || focusClosing.current) return;
     const originElement = source?.matches('.gallery-cover-button') ? source
       : source?.closest('.gallery-item')?.querySelector<HTMLElement>('.gallery-cover-button') ?? null;
-    const permission = app.twins.jobs[id]?.status === 'succeeded'
-      ? requestAlbumOrientationPermission() : Promise.resolve('unavailable' as const);
     // Opening a cover pauses the track at its current pose; selecting here would
     // recenter looping layouts behind the dialog and change the return position.
     history.pushState({diedu: 'gallery-focus'}, ''); focusEntry.current = true;
-    setFocused({id, originElement, permission});
+    setFocused({id, originElement});
   };
   const navigateFocus = (id: string) => {
     const next = records.find(record => record.id === id);
     if (!next || !focused) return;
-    const permission = app.twins.jobs[id]?.status === 'succeeded'
-      ? requestAlbumOrientationPermission() : Promise.resolve('unavailable' as const);
-    pick(id); setFocused({id, originElement: null, permission});
+    pick(id); setFocused({id, originElement: null});
   };
 
   return <div className={`gallery-page${immersive ? ' is-immersive' : ''}`}>
-    {focused && focusedRecord ? <GalleryFocus record={focusedRecord} records={records} originElement={focused.originElement} permission={focused.permission}
+    {focused && focusedRecord ? <GalleryFocus record={focusedRecord} records={records} originElement={focused.originElement}
       onNavigate={navigateFocus} onClose={closeFocus}
       liked={Boolean(albumLikes.favorites[focusedRecord.id])}
       collectedAt={albumLikes.collectedAt[focusedRecord.id]}/> : null}
@@ -271,7 +265,7 @@ export function GalleryPage() {
           : '收藏中的封面、照片与感想会出现在这里。'}</p>
         {query.trim() ? <button type="button" onClick={() => setQuery('')}>清除搜索</button>
           : scope.kind === 'favorites' ? <button type="button"
-              onClick={() => updatePreference({scope: {kind: 'all'}})}>查看全部收藏</button>
+            onClick={() => updatePreference({scope: {kind: 'all'}})}>查看全部收藏</button>
           : <a className="link-button" href="#domestic">前往收藏</a>}
       </div>}
   </div>;
