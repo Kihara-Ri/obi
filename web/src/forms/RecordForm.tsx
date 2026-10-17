@@ -11,7 +11,6 @@ import type {AppCtx} from '../state/AppContext';
 import type {AlbumRecord, Currency, Status, ReleaseInfo, ReleaseCandidate, PackagingSpec} from '../types';
 import {remapPackagingPhotos, PACKAGING_PRESETS} from '../core/album-packaging';
 import {TwinControls} from '../components/TwinControls';
-import {EditionArtwork} from '../components/EditionArtwork';
 import {CopyEditionFields} from '../components/CopyEditionFields';
 import {ReleaseMetadataFields} from '../components/ReleaseMetadataFields';
 import {displayReleaseTitle, exactDigitalCover, releaseRegion} from '../core/release-metadata';
@@ -723,15 +722,11 @@ export function RecordForm({id}: {id?: string}) {
         </div>
 
         {modules.showcase ? <details className="adv record-twin-entry">
-          <summary>数字实体 · 同版 Cover Art Archive 图集{r && twinBusy(app.twins.jobs[r.id]) ? ' · 任务进行中' : r && app.twins.jobs[r.id]?.status === 'succeeded' ? ' · 已生成' : ''}</summary>
-          {v.releaseInfo.musicBrainzReleaseId
-            ? <EditionArtwork releaseId={v.releaseInfo.musicBrainzReleaseId}/>
-            : <p className="small-note">请先在上方使用条码或唱片编号确认发行版本。</p>}
+          <summary>数字实体{r && twinBusy(app.twins.jobs[r.id]) ? ' · 处理中' : r && app.twins.jobs[r.id]?.status === 'succeeded' ? ' · 已有' : ''}</summary>
           {r && ['domestic', 'overseas', 'transit'].includes(r.status) ? <TwinControls record={r}
             releaseId={v.releaseInfo.musicBrainzReleaseId || ''}
             unsaved={edited || photos.hasPending} saving={saving}
             stale={r.revision !== base.current.revision}/> : null}
-          {!r && v.releaseInfo.musicBrainzReleaseId ? <p className="small-note">保存入库后可根据已确认的发行版本生成数字实体，无需重复选版。</p> : null}
         </details> : null}
         <div className="form-grid form-section record-remarks">
           <TextareaField label="备注 · 这张副本" name="note" value={v.note}

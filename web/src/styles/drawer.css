@@ -233,12 +233,7 @@ details.adv:not([open]) > :not(summary){display:none}
 .record-remarks{margin-top:16px}
 
 /* 只展示确认过的 MusicBrainz 发行版对应的 Cover Art Archive 内容物。 */
-.edition-artwork{padding:8px 0 12px;min-width:0}
-.edition-artwork-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(82px,1fr));gap:9px;margin:10px 0}
-.edition-artwork-grid figure{margin:0;min-width:0}
-.edition-artwork-grid img,.edition-artwork-grid figure>span{width:100%;aspect-ratio:1;object-fit:contain;display:grid;place-items:center;background:var(--surface-2);border:1px solid var(--border);border-radius:8px}
-.edition-artwork-grid figcaption{font-size:11px;color:var(--muted);margin-top:3px;overflow-wrap:anywhere}
-.edition-artwork>a,.record-barcode-result>a{display:inline-block;font-size:12px;margin-top:6px}
+.record-barcode-result>a{display:inline-block;font-size:12px;margin-top:6px}
 
 /* Compact optional physical-copy fields; barcode lookup never overwrites these. */
 .record-copy-edition{min-width:0}
