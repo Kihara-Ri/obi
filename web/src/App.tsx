@@ -89,6 +89,7 @@ export default function App() {
   const [offline, setOffline] = useState(!navigator.onLine);
   const [installEvt, setInstallEvt] = useState<Event | null>(null);
   const [inventoryPage, setInventoryPage] = useState('domestic');
+  const shelfPageRef = useRef('');
   const modules = state?.modules?.needsSetup ? PRESETS[0].enabled
     : state ? normalizeModules(state.modules?.enabled ?? LEGACY_MODULES) : undefined;
   const home = modules ? homePage(state?.modules?.startPage, modules) : 'domestic';
@@ -109,8 +110,10 @@ export default function App() {
   useEffect(() => {
     setSelected(new Set());
     setQuery('');
-    setSort('new');
-    setShelfFilter('all');
+    // 国内 ↔ 海外是同一张库存页的子标签：保留已选的排序与上架筛选，换到其他页才重置
+    const sameShelf = (a: string, b: string) => (a === 'domestic' || a === 'overseas') && (b === 'domestic' || b === 'overseas');
+    if (!sameShelf(shelfPageRef.current, page)) { setSort('new'); setShelfFilter('all'); }
+    shelfPageRef.current = page;
     setMobileSelecting(false);
     if (page === 'domestic' || page === 'overseas') setInventoryPage(page);
   }, [page, modules?.acquisition, modules?.trading, modules?.circulation, modules?.showcase]);
