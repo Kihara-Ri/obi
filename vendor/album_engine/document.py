@@ -10,7 +10,7 @@ import re
 from .errors import ValidationError
 from .schema_validation import document_schema, validate_schema
 from .packaging import clean_packaging, PACKAGING_ROLES
-from .contracts import clean_warp_rows, clean_disc_calibration, clean_spine_geometry
+from .contracts import clean_warp_rows, clean_disc_calibration, clean_spine_geometry, clean_presentation
 
 
 def model_contract():
@@ -127,6 +127,10 @@ def compile_document(envelope, key, title):
             existing = assets.get(spine['asset'], {})
             if any(k in existing and existing[k] != value for k,value in provenance.items()): raise ValidationError('校准与贴图来源不一致')
             assets[spine['asset']] = {**existing, **provenance}
+    if 'presentation' in envelope:
+        document['presentation'] = clean_presentation(envelope['presentation'])
+    elif 'presentation' in envelope.get('document', {}):
+        document['presentation'] = clean_presentation(envelope['document']['presentation'])
     return validate_document(document)
 
 

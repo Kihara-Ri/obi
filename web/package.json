@@ -12,7 +12,6 @@
     "test:browser": "node tests/browser/showcase-acceptance.mjs"
   },
   "dependencies": {
-    "@diedu/album-engine": "file:vendor/diedu-album-engine-0.2.2.tgz",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "three": "^0.186.1"
@@ -24,6 +23,7 @@
     "@vitejs/plugin-react": "^4.5.0",
     "playwright": "^1.64.1",
     "typescript": "~5.8.3",
-    "vite": "^6.3.5"
+    "vite": "^6.3.5",
+    "@diedu/album-engine": "file:vendor/diedu-album-engine-0.3.0.tgz"
   }
 }

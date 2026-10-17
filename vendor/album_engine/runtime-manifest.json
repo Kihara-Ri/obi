@@ -5,11 +5,11 @@
   "schemaVersion": 2,
   "sha256": {
     "__init__.py": "1c3c9a1322840254cf53294de30344ba6e9b3f725bfd35748733ca5955a0a845",
-    "album-document-v2.schema.json": "dd1d9611867d9c288cea6d35f89696f3cadeab89ae8304f79f4787b9ef95abab",
+    "album-document-v2.schema.json": "137f9ab7b86cba3499e73ea1bdc03300316da7ca3fc6fb22e7cf146b8053bef6",
     "artwork.py": "0b5d9148d4ce67d687996db737745c33e93f0c6a92cc583618855c0f4adb748e",
     "assembly.py": "e7ce134bfdee9240238c71de48ac59bd9dcc598482709be5c088ca8b04507ccf",
-    "contracts.py": "f6df7cc245c41675b4e0457d102131077440d41a110203a84cac4fefa479e9a8",
-    "document.py": "7ba6d96a4779705f02e673c1ad5cdbfa9f0db9477caa6db0bc6248aa55ec6e00",
+    "contracts.py": "c35d25e5e3c5768130f2923af48b6dd9ba1669e0d0ddb2ce3434761a0780d42a",
+    "document.py": "266c989c81a58c32973b7a8293a6c980e3fb978181a71478a3554a8a5046148a",
     "errors.py": "cb311af421e78724708ba4f3128bd9cfd52b76642b8b4b1e5e1d4ffcaa76012d",
     "guided.py": "c2d0b2e4e53557ce45e0610d6218190a3d7858dc27a8378335275e5ab947cfb6",
     "model-set.json": "71831c8a7e1d4bcac09f8cc4dc78711eb3313db2598c4ccb83304090a6b1c550",
@@ -27,5 +27,5 @@
     "surfaces.py": "a7de38721272a03d411066f5756b577394f2b1e69f2343f96d392cf347a395dd",
     "worker.py": "1bcbaead428200eef54b62b66c260b3a470385e508291e76db10056bcce572c8"
   },
-  "version": "0.2.2"
+  "version": "0.3.0"
 }

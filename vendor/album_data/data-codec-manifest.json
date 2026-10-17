@@ -1,0 +1,17 @@
+{
+  "modelSet": "album-rig-1",
+  "package": "album-engine-data-codec",
+  "rigVersion": 1,
+  "schemaVersion": 2,
+  "sha256": {
+    "__init__.py": "61a422e429f04ef02d7d554a44d56415065d411c6f919fab0ad8d549b345552c",
+    "album-document-v2.schema.json": "137f9ab7b86cba3499e73ea1bdc03300316da7ca3fc6fb22e7cf146b8053bef6",
+    "contracts.py": "c35d25e5e3c5768130f2923af48b6dd9ba1669e0d0ddb2ce3434761a0780d42a",
+    "document.py": "266c989c81a58c32973b7a8293a6c980e3fb978181a71478a3554a8a5046148a",
+    "errors.py": "cb311af421e78724708ba4f3128bd9cfd52b76642b8b4b1e5e1d4ffcaa76012d",
+    "model-set.json": "71831c8a7e1d4bcac09f8cc4dc78711eb3313db2598c4ccb83304090a6b1c550",
+    "packaging.py": "3d47b0503e3f0ea11a74a9763eefabdfd275ed4c26e24848421318f56b0e2023",
+    "schema_validation.py": "c3a7d1da7f530e6a79843af3b54f3f899bae03fe4be09f03e6ad67b62ab8c83d"
+  },
+  "version": "0.3.0"
+}

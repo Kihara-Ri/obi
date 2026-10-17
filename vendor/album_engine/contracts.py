@@ -199,6 +199,14 @@ def entity_assets(entity):
     return assets
 
 
+def clean_presentation(value):
+    """Validate authored initial camera data without any scene implementation."""
+    from .schema_validation import document_schema, validate_schema
+    schema = document_schema()
+    validate_schema(value, {'$defs': schema['$defs'], **schema['$defs']['presentation']})
+    return deepcopy(value)
+
+
 def clean_entity(value, sources):
     if not isinstance(value, dict) or value.get('sameAlbum') is not True:
         raise ValidationError('素材与当前专辑无法确认一致，请核对发行版本')
@@ -247,6 +255,7 @@ def clean_entity(value, sources):
     result = {'packaging': package, 'surfaces': cleaned, 'warnings': warnings[:20]}
     if value.get('components'): result['components'] = clean_accessories(value['components'], sources)
     if 'calibration' in value: result['calibration'] = clean_spine_calibration(value['calibration'], sources, package)
+    if 'presentation' in value: result['presentation'] = clean_presentation(value['presentation'])
     return result
 
 
@@ -297,6 +306,7 @@ def validate_envelope(entity):
             raise ValidationError('数字实体校准备份无效')
         spine = calibration['spine']; sources['calibration:spine'] = spine
         candidate['calibration'] = {'spine': {**spine, 'sourceId': 'calibration:spine'}}
+    if 'presentation' in entity: candidate['presentation'] = entity['presentation']
     clean_entity(candidate, sources)
     if 'document' in entity:
         from .document import validate_document, compile_document

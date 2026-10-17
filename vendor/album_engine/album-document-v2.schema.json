@@ -80,6 +80,9 @@
         2,
         3
       ]
+    },
+    "presentation": {
+      "$ref": "#/$defs/presentation"
     }
   },
   "required": [
@@ -604,6 +607,50 @@
         "pattern",
         "panels"
       ],
+      "additionalProperties": false
+    },
+    "presentation": {
+      "type": "object",
+      "properties": {
+        "initialCamera": {
+          "$ref": "#/$defs/initial-camera"
+        }
+      },
+      "required": [
+        "initialCamera"
+      ],
+      "additionalProperties": false
+    },
+    "initial-camera": {
+      "type": "object",
+      "description": "Authored initial pose only. Angles in radians; framing fractions of visible width/height. Runtime dragging never rewrites this profile.",
+      "properties": {
+        "pitch": {
+          "type": "number",
+          "minimum": -1.2566370614359172,
+          "maximum": 1.2566370614359172
+        },
+        "yaw": {
+          "type": "number",
+          "minimum": -6.283185307179586,
+          "maximum": 6.283185307179586
+        },
+        "zoom": {
+          "type": "number",
+          "minimum": 0.7,
+          "maximum": 2
+        },
+        "framingX": {
+          "type": "number",
+          "minimum": -0.5,
+          "maximum": 0.5
+        },
+        "framingY": {
+          "type": "number",
+          "minimum": -0.5,
+          "maximum": 0.5
+        }
+      },
       "additionalProperties": false
     }
   }
