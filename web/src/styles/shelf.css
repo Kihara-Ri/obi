@@ -213,3 +213,6 @@
   .shelf-cards .tl-group + .tl-group,
   .shelf-cards .artist-group + .artist-group{padding-top:14px}
 }
+
+/* 列表卡片 overflow:hidden 会裁掉贴边按钮的外圈焦点环：改为内缩 */
+.album-list-card button:focus-visible{outline-offset:-3px}

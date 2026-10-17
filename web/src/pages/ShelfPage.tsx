@@ -87,8 +87,8 @@ export function ShelfPage() {
     if (page === 'trash') return <button onClick={() => bulkAction(app, 'restore', [r.id])}>恢复</button>;
     return (
       <>
-        {modules.trading && r.status !== 'transit' ? <button className="primary" onClick={() => openSaleForm(app, [r.id])}>记录售出</button> : null}
-        <button className="card-edit" onClick={() => openRecordForm(app, r.id)}>编辑</button>
+        {modules.trading && r.status !== 'transit' ? <button className="primary" aria-label={`记录售出：${r.title}`} onClick={() => openSaleForm(app, [r.id])}>记录售出</button> : null}
+        <button className="card-edit" aria-label={`编辑：${r.title}`} onClick={() => openRecordForm(app, r.id)}>编辑</button>
       </>
     );
   };
@@ -193,8 +193,8 @@ export function ShelfPage() {
         {!isTrash && (
           <>
             {modules.acquisition ? <span>总成本 <strong>{known.length ? yuan(sum(known, 'cost')) : '—'}</strong></span> : null}
-            {modules.acquisition && all.length - known.length ? <span className="hint">· {all.length - known.length} 张成本待补</span> : null}
-            {modules.trading ? <span className="hint">· 已上架 {listedCount} 张</span> : null}
+            {modules.acquisition && all.length - known.length ? <span className="hint">{all.length - known.length} 张成本待补</span> : null}
+            {modules.trading ? <span className="hint">已上架 {listedCount} 张</span> : null}
             {page === 'overseas' ? <span className="hint">✈ 勾选多张可打包为一趟运输</span> : null}
           </>
         )}

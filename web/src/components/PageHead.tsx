@@ -40,7 +40,7 @@ export function Ledger({mode = 'sidebar'}: {mode?: 'sidebar' | 'page'}) {
         <span>投入成本</span>
         <b>
           {known.length ? yuan(sum(known, 'cost')) : '—'}
-          {unknownCount ? <i className="hint"> {unknownCount} 待补</i> : null}
+          {unknownCount ? <i className="hint">{unknownCount} 张成本待补</i> : null}
         </b>
       </div> : null}
       {modules.trading ? <div className="sl-row">
