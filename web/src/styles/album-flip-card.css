@@ -1,8 +1,9 @@
 /* Brushed-metal album keepsake, separate from the real CD renderer. */
 .album-flip-card{
   --card-tilt-x:0deg;--card-tilt-y:0deg;
-  position:relative;flex:none;width:min(72dvh,82vw,680px);
-  aspect-ratio:1;perspective:1400px;pointer-events:auto;isolation:isolate;
+  --cover-ratio:1;   /* 封面 宽/高，由 AlbumFlipCard 按真实封面设置；高度不超过 72dvh */
+  position:relative;flex:none;width:min(82vw,680px,calc(72dvh * var(--cover-ratio)));
+  aspect-ratio:var(--cover-ratio);perspective:1400px;pointer-events:auto;isolation:isolate;
   touch-action:pan-y;
 }
 .album-flip-rotor{

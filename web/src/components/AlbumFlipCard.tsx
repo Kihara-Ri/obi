@@ -1,9 +1,10 @@
 import {useEffect, useRef, useState} from 'react';
-import type {PointerEvent} from 'react';
+import type {CSSProperties, PointerEvent} from 'react';
 import type {AlbumRecord} from '../types';
 import {GalleryArtwork} from './GalleryMedia';
 import {MetalBackCanvas} from './MetalBackCanvas';
 import type {MetalSurfaceController} from './MetalBackCanvas';
+import {useCoverAspect} from './useCoverAspect';
 
 /** One physical-looking card per album, independent of copy status and edition. */
 export function AlbumFlipCard({record, flipped, liked, collectedAt, onFlip}: {
@@ -12,6 +13,7 @@ export function AlbumFlipCard({record, flipped, liked, collectedAt, onFlip}: {
 }) {
   const card = useRef<HTMLDivElement>(null);
   const metal = useRef<MetalSurfaceController | null>(null);
+  const aspect = useCoverAspect(record.cover);   // 卡片按封面真实比例排版，封面填满、无灰边
   const [metalMounted, setMetalMounted] = useState(flipped);
   useEffect(() => {if (flipped) setMetalMounted(true);}, [flipped]);
   const move = (event: PointerEvent<HTMLDivElement>) => {
@@ -35,6 +37,7 @@ export function AlbumFlipCard({record, flipped, liked, collectedAt, onFlip}: {
   const date = collectedAt ? collectedAt.replace(/-/g, '.') : '日期未记录';
   return <div ref={card}
       className={'album-flip-card' + (flipped ? ' is-flipped' : '') + (liked ? ' is-liked' : '')}
+      style={{'--cover-ratio': aspect} as CSSProperties}
       onPointerMove={move} onPointerLeave={reset}>
     <button className="album-flip-rotor" type="button"
       aria-label={flipped ? '翻回专辑正面' : '翻到专辑背面'} aria-pressed={flipped}
