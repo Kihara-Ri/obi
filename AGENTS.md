@@ -34,7 +34,7 @@
 - 分层单向依赖：`core/` ← `components/` ← `pages/` 与 `forms/`；**禁止反向 import**。
 - 全局状态只经 `src/state/AppContext.ts`；禁止新增模块级可变全局。
 - 新页面 = `src/pages/` 加模块 + `App.tsx` 分发加一行；新表单 = `src/forms/` 加模块。
-- 样式只放 `src/styles/<模块>.css` 并在 `main.tsx` 按序 import（tokens → base → layout → components → 各页面模块）；`@media` 跟随所属模块；文件不超过一个职责。
+- 既有页面级样式放 `src/styles/<模块>.css` 并在 `main.tsx` 按序 import（**新建/重写的单元组件例外**：`components/ui/<Name>/<Name>.tsx + .css` 同目录，见 docs/DECISIONS.md D-003）（tokens → base → layout → components → 各页面模块）；`@media` 跟随所属模块；文件不超过一个职责。
 - **改完必须** `npm --prefix web run typecheck && npm --prefix web run build`——服务端只认 `static/assets/` 构建产物，改源码不构建等于没改。
 - `static/assets` 文件名保持稳定（不哈希）：服务端 `Cache-Control: no-store`，哈希无意义且测试断言固定路径。
 
@@ -108,3 +108,11 @@ DIEDU_DEV_HOME=/private/tmp/diedu-acceptance python3 tools/preview_samples.py --
 - Album Engine 0.2.0 拥有 canonical v2 文档/schema、语义槽位/毫米尺寸装配、素材处理、生成执行、校准与发布决策。宿主 `server/digital_twins.py` / `twin_*.py` 为兼容委托，`server/album_engine_adapter.py` 提供窄能力；业务、授权、去重/租约/并发、审计与实际落库只经 `storage.py`。npm tarball 与 `vendor/album_engine/` 纯标准库 runtime 必须同版本/协议，后者是引擎导出物，禁止手改。v1 只读兼容，附件归属含糊时保持 2D，不自动补归属、canonicalize 或重跑；详见[引擎归属规范](docs/superpowers/specs/2026-10-15-album-engine-complete-ownership.md)与[引擎更新](docs/模块扩展指南.md#唱片实体引擎与更新)。
 
 当前 3D 模型集只对 Blender 模板尺寸保证完整装配；实测尺寸与模板不同则保留原资料并使用 2D，待引擎增加对应模型与整件净空验收后再开放 3D，不能整体缩放光盘来适配。
+
+## ai-kit 纪律（2026-10-17 接入，v0.2.0）
+
+铁律见 [.ai-kit/rules.md](.ai-kit/rules.md)（R1–R12），本项目的取舍见 [docs/DECISIONS.md](docs/DECISIONS.md)。要点：
+- 开工前读 `docs/log/` 最近 3 条、`DECISIONS.md`、`KNOWN-ISSUES.md`；收工前新增 `docs/log/日期-slug.md`。
+- 新建 UI 前先查 [组件注册表](web/src/components/REGISTRY.md)，相似组件扩展 props，不新建近似品；新组件先登记。
+- 颜色只经 token（D-002）；单文件不超过 200 行；组件文件顶部写用途注释。存量文件见 `.ai-kit/legacy.txt`，动到时顺手拆分并移出。
+- 与本文件红线冲突时以本文件红线为准；提交前检查由 `tools/hooks/pre-commit` 依次执行数据泄漏扫描与 ai-kit 检查。
