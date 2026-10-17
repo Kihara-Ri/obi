@@ -1,8 +1,7 @@
 /* 通用组件：按钮、状态 pill、汇总条、工具栏、批量操作条、空态、
-   下拉选择（dd）、渠道组合框（shop）、toast / 连接提示 / 安装按钮、封面通用样式 */
-button,.link-button,.file-label{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 15px;border-radius:10px;background:var(--surface-2);border:1px solid var(--border);font-weight:550;font-size:13px;color:var(--text);transition:background .15s,border-color .15s,transform .1s;text-decoration:none;white-space:nowrap;cursor:pointer}
+   连接提示 / 安装按钮、封面通用样式（下拉 / 组合框 / toast 已迁入 components/ui/ 各自目录） */
+button,.link-button,.file-label{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 15px;border-radius:10px;background:var(--surface-2);border:1px solid var(--border);font-weight:550;font-size:13px;color:var(--text);transition:background .15s,border-color .15s;text-decoration:none;white-space:nowrap;cursor:pointer}
 button:hover,.link-button:hover,.file-label:hover{background:var(--surface-3);border-color:var(--border-strong)}
-button:active{transform:translateY(1px)}
 button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:650}
 button.primary:hover{background:var(--accent-strong);border-color:var(--accent-strong)}
 button.quiet{background:transparent;border-color:transparent;color:var(--muted)}

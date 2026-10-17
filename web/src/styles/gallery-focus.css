@@ -26,7 +26,6 @@
 .gallery-focus-nav{position:fixed;top:50%;z-index:2;display:flex;align-items:center;justify-content:center;width:52px;height:64px;padding:0;border:1px solid var(--hairline);border-radius:var(--radius);background:color-mix(in srgb,var(--album-lightbox-bg) 65%,transparent);color:var(--album-plastic-light);transform:translateY(-50%);cursor:pointer;touch-action:manipulation;transition:background .18s ease,opacity .18s ease}
 .gallery-focus-nav svg{width:24px;height:24px}
 .gallery-focus-nav:hover:not(:disabled){background:color-mix(in srgb,var(--album-lightbox-bg) 90%,transparent)}
-.gallery-focus-nav:active{transform:translateY(calc(-50% + 1px))}
 .gallery-focus-nav:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 .gallery-focus-nav:disabled{opacity:.28;cursor:default}
 .gallery-focus-prev{left:max(16px,env(safe-area-inset-left))}
