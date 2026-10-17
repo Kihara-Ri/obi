@@ -6,5 +6,5 @@ REGISTRY="web/src/components/REGISTRY.md"
 MAX_LINES=200
 LEGACY_FILE=".ai-kit/legacy.txt"         # 接入 ai-kit 之前就存在的、不满足新规则的文件，见 docs/DECISIONS.md D-001
 PACKAGE_JSONS="web/package.json"
-# 随产品发布的大文件（官方插件 ZIP、引擎 tarball）不受 R12 大文件/压缩包检查
-HYGIENE_ALLOW="^plugins/album-engine/|^web/vendor/.*\.tgz$"
+# 随产品发布的大文件（官方插件 ZIP、引擎 tarball、前端构建产物 static/assets）不受 R12 大文件/压缩包检查
+HYGIENE_ALLOW="^plugins/album-engine/|^web/vendor/.*\.tgz$|^static/assets/"
