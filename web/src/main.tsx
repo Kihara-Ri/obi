@@ -14,7 +14,6 @@ import './styles/settings.css';
 import './styles/more.css';
 import './styles/drawer.css';
 import './styles/photos.css';
-import './styles/recognition.css';
 import './styles/tracklist.css';
 import './styles/packaging-editor.css';
 import './styles/artists.css';

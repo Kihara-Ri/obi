@@ -11,7 +11,7 @@ import {openRecordForm} from './RecordForm';
 import {openSaleForm} from './SaleForm';
 import {openListingForm} from './ListingForm';
 import {bulkAction} from './shared';
-import {releaseLabels} from '../core/recognition';
+import {releaseLabels} from '../core/release-text';
 import {formatPackagingName} from '../core/album-packaging';
 import {Tracklist} from '../components/Tracklist';
 import {releaseRegion, displayReleaseTitle} from '../core/release-metadata';
@@ -106,11 +106,6 @@ function DetailBody({id, back}: {id: string; back?: DetailBack}) {
         </dl>
         {r.releaseInfo ? <Tracklist releaseInfo={r.releaseInfo}/> : null}
       </> : null}
-      {r.recognition ? <details className="adv"><summary>识别依据与资料来源</summary>
-        <p className="small-note">{r.recognition.model} · {r.recognition.at.replace('T',' ')}</p>
-        {r.recognition.evidence.map((e,i) => <p className="recognition-evidence" key={i}>照片 {e.photo} · {e.value || e.field}{e.note ? `：${e.note}` : ''}</p>)}
-        {r.recognition.sources.map((s,i) => <a className="recognition-source" key={i} href={s.url} target="_blank" rel="noopener noreferrer">{s.title} ↗</a>)}
-      </details> : null}
       {modules.trading && r.listingDescription ? <>
         <h3 className="section-title">上架描述草稿</h3><p className="note-text listing-description">{r.listingDescription}</p>
         <button type="button" className="quiet" onClick={async () => {try {await navigator.clipboard.writeText(r.listingDescription!);app.toast('上架描述已复制');}catch{app.toast('复制失败，可选中文字手动复制','warn');}}}>复制上架描述</button>

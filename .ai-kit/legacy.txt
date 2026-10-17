@@ -14,11 +14,9 @@ web/src/components/GalleryRoamingControls.tsx
 web/src/components/GalleryScopePicker.tsx
 web/src/components/GalleryStage.tsx
 web/src/components/GalleryWall.tsx
-web/src/components/GuidedTwinEditor.tsx
 web/src/components/MetalBackCanvas.tsx
 web/src/components/ModuleChooser.tsx
 web/src/components/PackagingEditor.tsx
-web/src/components/Recognition.tsx
 web/src/components/ReleaseMetadataFields.tsx
 web/src/components/Tracklist.tsx
 web/src/components/TwinAccessoriesEditor.tsx
@@ -30,7 +28,6 @@ web/src/core/artists.ts
 web/src/core/gallery-motion.ts
 web/src/core/photos.ts
 web/src/forms/ArtistDrawer.tsx
-web/src/forms/BatchForm.tsx
 web/src/forms/RecordForm.tsx
 web/src/pages/GalleryPage.tsx
 web/src/pages/SettingsPage.tsx
@@ -62,7 +59,6 @@ web/src/styles/more.css
 web/src/styles/packaging-editor.css
 web/src/styles/pagetransition.css
 web/src/styles/photos.css
-web/src/styles/recognition.css
 web/src/styles/sales.css
 web/src/styles/settings.css
 web/src/styles/shelf.css

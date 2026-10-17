@@ -11,7 +11,7 @@ export const source = fileURLToPath(new URL('../../src/', import.meta.url));
 const entries = ['core/album-engine-mount.ts', 'core/published-album.ts', 'core/gallery-motion.ts',
   'components/GalleryRoamingControls.tsx', 'core/gallery.ts', 'core/digital-twins.ts',
   'core/album-model-assets.ts', 'core/album-packaging.ts', 'components/CopyEditionFields.tsx',
-  'core/copy-edition.ts', 'components/TwinControls.tsx', 'components/VisionSettings.tsx',
+  'core/copy-edition.ts', 'components/TwinControls.tsx',
   'core/album-entity.ts', 'core/gallery-zoom.ts', 'core/release-metadata.ts', 'components/Tracklist.tsx',
   'components/ui/index.ts'];
 

@@ -5,7 +5,7 @@ import {createContext, useContext} from 'react';
 import type {AlbumEngineState} from './useAlbumEngine';
 import type {ReactNode} from 'react';
 import type {ThemePref} from '../core/theme';
-import type {AlbumRecord, AppState, ModuleFlags, SortMode, TwinIndex, TwinStart} from '../types';
+import type {AlbumRecord, AppState, ModuleFlags, SortMode, TwinIndex} from '../types';
 
 export interface DrawerSpec {
   title: string;
@@ -42,8 +42,6 @@ export interface AppCtx {
   twins: TwinIndex;
   twinSyncError: string;
   refreshTwins(): Promise<void>;
-  startTwin(input: TwinStart): Promise<void>;
-  cancelTwin(id: string): Promise<void>;
   toast(msg: string, kind?: ToastKind): void;
   openDrawer(spec: DrawerSpec): void;
   /** 请求关闭抽屉（脏表单会先弹确认）。返回 false = 被用户取消，抽屉保持打开。 */

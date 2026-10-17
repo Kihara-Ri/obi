@@ -15,7 +15,6 @@ import {useSlidingThumb} from '../components/ui/SlidingThumb';
 import {openRecordForm} from '../forms/RecordForm';
 import {openSaleForm} from '../forms/SaleForm';
 import {openShipForm} from '../forms/ShipForm';
-import {openBatchForm} from '../forms/BatchForm';
 import {openDetail} from '../forms/DetailDrawer';
 import {openArtistDrawer} from '../forms/ArtistDrawer';
 import {bulkAction} from '../forms/shared';
@@ -179,8 +178,6 @@ export function ShelfPage() {
       <PageHead title={titleNode} desc={keepDesc ? desc : undefined} label="COLLECTION" actions={isTrash ? null : (
         <>
           {modules.showcase ? <a className="link-button gallery-link" href="#gallery">展示收藏</a> : null}
-          <button className="head-text" aria-label="批量录入" onClick={() => openBatchForm(app)}>
-            <span className="btn-long">批量录入</span><span className="btn-short" aria-hidden="true">批量</span></button>
           <button className="primary head-add" aria-label="添加专辑" onClick={() => openRecordForm(app)}>
             <span className="btn-long">＋ 添加专辑</span><span className="btn-short" aria-hidden="true">＋</span></button>
         </>

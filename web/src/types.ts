@@ -40,10 +40,6 @@ export interface TwinIndex {
   epoch: string; revision: number; jobs: Record<string, TwinJob>;
   configured: boolean; skill: string;
 }
-export interface TwinStart {
-  recordId: string; recordRevision: number; expectedJobId: string | null;
-  barcode?: string; mode?: 'ai' | 'guided';
-}
 /** Exact-barcode release review; separate from name-based recognition suggestions. */
 export interface TwinReleaseCandidate {
   id: string; title: string; artist: string; date: string; country: string;
@@ -134,7 +130,6 @@ export interface AlbumRecord {
   storage?: string;         // 实物存放位置，与购买渠道 location 分开
   releaseInfo?: ReleaseInfo;
   listingDescription?: string;
-  recognition?: Pick<RecognitionResult, 'model' | 'at' | 'evidence' | 'sources' | 'warnings'>;
 }
 
 export interface ReleaseTrack {
@@ -156,7 +151,8 @@ export interface ReleaseInfo {
   matrix?: string; extras?: string; observations?: string; tracklist?: string[]; media?: ReleaseMedium[];
 }
 
-export interface RecognitionFields {
+/** 上架描述用到的专辑字段（原 RecognitionFields）。 */
+export interface ListingFields {
   title?: string; artist?: string; price?: string; version?: string; pressing?: string;
   obi?: string; note?: string; releaseInfo?: ReleaseInfo; listingDescription?: string;
   cover?: string; coverSource?: CoverSource;
@@ -165,30 +161,6 @@ export interface RecognitionFields {
 export interface ReleaseCandidate {
   id: string; title: string; artist: string; releaseInfo: ReleaseInfo;
   identifierMatch: boolean; url: string;
-}
-
-export interface RecognitionResult {
-  fields: RecognitionFields;
-  evidence: {field: string; value: string; photo: number; note: string}[];
-  warnings: string[]; sources: {title: string; url: string}[];
-  candidates: ReleaseCandidate[]; model: string; at: string;
-}
-
-export interface ImportGroup {
-  id: string; photoIds: string[]; fields: RecognitionFields; protected: string[];
-  status: 'idle' | 'queued' | 'running' | 'done' | 'error'; error?: string;
-  result?: RecognitionResult; excluded: boolean; reviewed: boolean; savedId?: string;
-}
-
-export interface ImportDraft {
-  id: string; revision: number; createdAt: string; updatedAt: string;
-  common: {date: string; currency: Currency; location: string; storage: string; status: 'domestic' | 'overseas'};
-  photos: {id: string; name: string; ext: string; url: string}[]; groups: ImportGroup[];
-}
-
-export interface VisionConfig {
-  baseUrl: string; model: string; concurrency: number; lookup: boolean;
-  hasKey: boolean; configured: boolean;
 }
 
 export interface SaleItem {

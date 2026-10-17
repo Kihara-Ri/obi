@@ -3,7 +3,7 @@ import {api} from '../core/api';
 import {useApp} from '../state/AppContext';
 import type {AppCtx} from '../state/AppContext';
 import {Field, TextareaField} from './fields';
-import {listingText} from '../core/recognition';
+import {listingText} from '../core/release-text';
 import {useFormSubmit} from './shared';
 
 export function openListingForm(app: AppCtx, id: string) {
