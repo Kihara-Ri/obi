@@ -124,12 +124,15 @@ class SampleLibraryTests(unittest.TestCase):
     def test_reference_publication_replaces_only_geometry_samples_and_is_idempotent(self):
         # Explicit offline transport mock; browser acceptance uses actual fetched originals.
         from tools import seed_reference_models as refs
-        from vendor.album_engine.contracts import clean_entity
+        from vendor.album_data.contracts import clean_entity
         with tempfile.TemporaryDirectory() as temp:
             directory = Path(temp) / 'samples'
             ids = self.seed.seed_models(directory)
             store = self.seed.open_store(directory)
             before = {r['id']: r for r in store.state()['records']}
+
+            fingerprint = ['offline-transport-mock']
+            with_profile = [True]
 
             def offline_reference(key, directory, fetcher):
                 plan = refs.REFERENCE_MODELS[key]
@@ -138,13 +141,21 @@ class SampleLibraryTests(unittest.TestCase):
                 sources = {s['sourceId']: {'asset': 'caa-' + str(n) + '.png',
                            'origin': 'edition-reference', 'sourceUrl': 'https://coverartarchive.org/mock'}
                            for n, s in enumerate(selections)}
-                entity = clean_entity({'sameAlbum': True, **{k:plan[k] for k in ('packaging','surfaces','components')}}, sources)
+                profile = self.seed.MODEL_SAMPLE_PRESENTATIONS.get(key) if with_profile[0] else None
+                entity = clean_entity({'sameAlbum': True, **{k:plan[k] for k in ('packaging','surfaces','components')},
+                    **({'presentation': profile} if profile else {})}, sources)
                 originals = {s['asset']: self.seed.model_sample_png() for s in sources.values()}
-                return {'id': plan['releaseId'], 'barcode': ''}, {}, entity, originals, 'offline-transport-mock'
+                return {'id': plan['releaseId'], 'barcode': ''}, {}, entity, originals, fingerprint[0]
 
             with patch.object(refs, 'load_reference', side_effect=offline_reference):
                 first = refs.run(directory)
                 second = refs.run(directory)
+                self.assertEqual(first, second)
+                fingerprint[0] = 'offline-transport-mock-updated-materials'
+                with_profile[0] = False
+                migrated = refs.run(directory)
+                self.assertEqual({key: value['jobId'] for key, value in first.items()},
+                                 {key: value['jobId'] for key, value in migrated.items()})
             self.assertEqual(first, second)
             jobs = store.twin_index()['jobs']
             after = {r['id']: r for r in store.state()['records']}
@@ -158,6 +169,8 @@ class SampleLibraryTests(unittest.TestCase):
                 self.assertEqual(jobs[rid]['entity']['document']['schemaVersion'], 2)
                 booklet = next(c for c in jobs[rid]['entity']['document']['assembly']['components'] if c['kind'] == 'booklet')
                 expected=next(c for c in refs.REFERENCE_MODELS[key]['components'] if c['kind']=='booklet')
+                if key in self.seed.MODEL_SAMPLE_PRESENTATIONS:
+                    self.assertEqual(jobs[rid]['entity']['document']['presentation'], self.seed.MODEL_SAMPLE_PRESENTATIONS[key])
                 self.assertEqual('back' in booklet['surfaces'],'back' in expected)
                 if expected.get('fold'):
                     self.assertEqual(booklet['fold'],expected['fold'])
@@ -258,6 +271,9 @@ class SampleLibraryTests(unittest.TestCase):
                 self.assertIn('合成', job['message'])
                 self.assertEqual(job['entity']['document']['schemaVersion'], 2)
                 self.assertEqual(store.published_twin_asset(job['id'], 'photo-0.png').read_bytes()[:8], b'\x89PNG\r\n\x1a\n')
+            camera = self.seed.MODEL_SAMPLE_PRESENTATIONS['illinois']
+            self.assertEqual(jobs[ids['illinois']]['entity']['presentation'], camera)
+            self.assertEqual(jobs[ids['illinois']]['entity']['document']['presentation'], camera)
             self.assertEqual(jobs[ids['lift-fists']]['entity']['packaging']['pocketOpening'], 'inner')
             self.assertEqual(jobs[ids['lift-fists']]['entity']['surfaces']['disc']['asset'], 'photo-1.png')
             self.assertTrue(store.published_twin_asset(jobs[ids['lift-fists']]['id'], 'photo-1.png').read_bytes().startswith(b'\x89PNG'))
@@ -317,6 +333,10 @@ class EngineFixtureExportTests(unittest.TestCase):
                 if entity['key'] == 'lift-fists':
                     expected.add('components')
                     self.assertEqual(len(entity['components']),3)
+                if entity['key'] in self.seed.MODEL_SAMPLE_PRESENTATIONS:
+                    expected.add('presentation')
+                    self.assertEqual(entity['presentation'], self.seed.MODEL_SAMPLE_PRESENTATIONS[entity['key']])
+                    self.assertEqual(entity['document']['presentation'], entity['presentation'])
                 self.assertEqual(set(entity), expected)
                 self.assertEqual(entity['schemaVersion'], 1)
                 self.assertEqual(entity['document']['schemaVersion'], 2)

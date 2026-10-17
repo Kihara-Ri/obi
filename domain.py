@@ -9,8 +9,8 @@ from datetime import date
 import re
 import math
 from urllib.parse import urlsplit
-from vendor.album_engine.errors import ValidationError as EngineValidationError, ConflictError as EngineConflictError
-from vendor.album_engine.packaging import PACKAGING_ROLES, clean_packaging as _engine_clean_packaging
+from vendor.album_data.errors import ValidationError as EngineValidationError, ConflictError as EngineConflictError
+from vendor.album_data.packaging import PACKAGING_ROLES, clean_packaging as _engine_clean_packaging
 
 # 落盘后的封面引用（storage.stash_cover 生成）；data URL 仅限备份恢复等旧数据通道
 COVER_URL_RE = re.compile(r'^/api/cover/[0-9a-f]{16}\.(jpg|png|webp)$')

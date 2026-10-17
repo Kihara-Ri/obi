@@ -1,8 +1,8 @@
 """Host task compatibility and appearance identity; entity rules belong to Album Engine."""
-from vendor.album_engine import contracts as _engine
+from vendor.album_data import contracts as _engine
 from functools import wraps
 from domain import ValidationError
-from vendor.album_engine.errors import ValidationError as EngineValidationError
+from vendor.album_data.errors import ValidationError as EngineValidationError
 
 
 def host_call(function):
@@ -34,9 +34,19 @@ clean_entity = host_call(_engine.clean_entity)
 clean_registry = host_call(_engine.clean_registry)
 
 
+def _appearance_packaging(value):
+    """Empty optional bindings carry no material identity; preserve real maps."""
+    if not isinstance(value, dict): return value
+    normalized = dict(value)
+    for key in ('photos', 'photoRegions'):
+        if normalized.get(key) == {}: normalized.pop(key)
+    return normalized
+
+
 def appearance(record):
     keys = ('title', 'artist', 'version', 'pressing', 'obi', 'packaging', 'cover', 'photoCount', 'photoRevision')
     result = {key: record.get(key) for key in keys}
+    result['packaging'] = _appearance_packaging(result['packaging'])
     result['releaseInfo'] = {key: record.get('releaseInfo', {}).get(key, '') for key in
                             ('barcode', 'catalogNumber', 'country', 'edition', 'packaging', 'label', 'releaseDate', 'discCount', 'format', 'matrix', 'musicBrainzReleaseId')}
     return result
@@ -50,6 +60,7 @@ def same_appearance(record, snapshot):
     if not isinstance(snapshot, dict):
         return False
     current = appearance(record)
+    snapshot = {**snapshot, 'packaging': _appearance_packaging(snapshot.get('packaging'))}
     old_release = snapshot.get('releaseInfo')
     if isinstance(old_release, dict) and 'packaging' not in old_release and not current['releaseInfo']['packaging']:
         # The packaging source was added after older 3D jobs were published.

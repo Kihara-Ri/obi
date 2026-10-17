@@ -8,11 +8,12 @@ No downloaded artwork is tracked or treated as a sample's physical photograph.
 import argparse
 import base64
 import hashlib
-import importlib.util
 import json
 import shutil
 import sys
 import tempfile
+import types
+import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,14 +21,38 @@ sys.path.insert(0, str(ROOT))
 
 from tools.sample_reference_models import REFERENCE_MODELS
 from tools.seed_samples import check_target, open_store, seed, uid
-from vendor.album_engine.contracts import clean_entity, image_type
+from vendor.album_data.contracts import clean_entity, image_type
+
+
+def engine_package():
+    """Read the official packaged tool without needing an installed instance."""
+    from server.engine_plugins import validate_manifest
+    catalog_dir = ROOT / 'plugins/album-engine'
+    catalog = json.loads((catalog_dir / 'catalog.json').read_text())
+    name = catalog['file']
+    if not isinstance(name, str) or Path(name).name != name:
+        raise ValueError('插件目录中的软件包路径无效')
+    archive = catalog_dir / name
+    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+    if digest != catalog['sha256']:
+        raise ValueError('官方插件软件包校验失败')
+    with zipfile.ZipFile(archive) as package:
+        manifest = validate_manifest(json.loads(package.read('manifest.json')))
+    if manifest['version'] != catalog['version']:
+        raise ValueError('插件目录版本不匹配')
+    return archive, manifest, digest
 
 
 def artwork_fetcher():
-    path = ROOT / 'vendor/album_engine/skill/scripts/fetch_release_art.py'
-    spec = importlib.util.spec_from_file_location('engine_reference_fetcher', path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    archive, manifest, _ = engine_package()
+    name = manifest['runtime'] + '/skill/scripts/fetch_release_art.py'
+    with zipfile.ZipFile(archive) as package:
+        raw = package.read(name)
+    if hashlib.sha256(raw).hexdigest() != manifest['sha256'].get(name):
+        raise ValueError('发行版素材工具校验失败')
+    module = types.ModuleType('engine_reference_fetcher')
+    module.__file__ = str(archive) + '/' + name
+    exec(compile(raw, module.__file__, 'exec'), module.__dict__)
     return module
 
 
@@ -78,7 +103,8 @@ def load_reference(key, directory, fetcher):
         originals[asset] = raw
     entity = clean_entity({'sameAlbum': True, 'packaging': plan['packaging'],
                            'surfaces': plan['surfaces'], 'components': plan.get('components', []),
-                           'warnings': ['固定样本的发行版图集参考；非实物副本照片，尺寸为标准比例。']}, sources)
+                           'warnings': ['固定样本的发行版图集参考；非实物副本照片，尺寸为标准比例。'],
+                           **({'presentation': plan['presentation']} if 'presentation' in plan else {})}, sources)
     fingerprint = hashlib.sha256(json.dumps(plan, sort_keys=True).encode())
     for asset, raw in sorted(originals.items()):
         fingerprint.update(asset.encode()); fingerprint.update(raw)
@@ -112,7 +138,8 @@ def run(data_dir, reference_cache=None):
         matching_cover = bool(record.get('cover')) and (record.get('coverSource') or {}).get('url') == cover_url
         prior = report.get(key, {})
         if (current and current['status'] == 'succeeded' and prior.get('fingerprint') == fingerprint
-                and prior.get('jobId') == current['id'] and matching_cover):
+                and prior.get('jobId') == current['id'] and matching_cover
+                and current.get('entity', {}).get('components', []) == entity.get('components', [])):
             print('REFERENCE_UNCHANGED', key, flush=True)
             continue
         if (current and current['status'] == 'succeeded' and matching_cover
@@ -124,8 +151,8 @@ def run(data_dir, reference_cache=None):
             selected, downloaded = [], {}
             for part in entity.get('components', []):
                 item = {'id': part['id'], 'kind': part['kind'], 'sourceId': part['asset']}
-                if 'region' in part:
-                    item['region'] = part['region']
+                for field in ('region', 'fold'):
+                    if field in part: item[field] = part[field]
                 sides = [part]
                 if part.get('back'):
                     back = part['back']; sides.append(back)
@@ -141,6 +168,10 @@ def run(data_dir, reference_cache=None):
             report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n')
             print('REFERENCE_UPDATED', key, len(originals), flush=True)
             continue
+        if current and current.get('releaseId') == release['id']:
+            presentation = current.get('entity', {}).get('document', {}).get('presentation')
+            if presentation is not None and 'presentation' not in entity:
+                entity['presentation'] = presentation
         info = dict(record.get('releaseInfo') or {})
         info.update(musicBrainzReleaseId=release['id'], barcode=release.get('barcode', ''))
         patch = {'id': rid, 'revision': record['revision'], 'releaseInfo': info, 'packaging': plan['packaging']}

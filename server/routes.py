@@ -350,15 +350,19 @@ def api_catalog_number_lookup(h, svc, body):
 
 
 
+def catalog_art(svc):
+    return getattr(svc, 'catalog_art', None) or twins(svc).art
+
+
 def api_release_artwork(h, svc):
     """Selected edition's CAA artwork metadata; never search other releases by title."""
     from twins import UUID
-    from server.digital_twins import ArtNotFound
+    from server.catalog_art import ArtNotFound
     ident = query(h).get('id', '')
     if not isinstance(ident, str) or not UUID.fullmatch(ident):
         raise ValidationError('发行版本编号不正确')
     try:
-        catalog = twins(svc).art.catalog(ident)
+        catalog = catalog_art(svc).catalog(ident)
     except ArtNotFound:
         return h.send({'id': ident, 'artwork': []})
     artwork = []
@@ -375,19 +379,19 @@ def api_release_artwork(h, svc):
 def api_release_front_cover(h, svc):
     """Use ONLY the front of the confirmed MB release, not title-matched unrelated editions."""
     from twins import UUID, image_type
-    from server.digital_twins import ArtNotFound
+    from server.catalog_art import ArtNotFound
     import base64
     ident = query(h).get('id', '')
     if not isinstance(ident, str) or not UUID.fullmatch(ident):
         raise ValidationError('发行版本编号不正确')
     try:
-        images = twins(svc).art.catalog(ident).get('images', [])
+        images = catalog_art(svc).catalog(ident).get('images', [])
     except ArtNotFound:
         return h.send({'cover': '', 'reason': 'no-artwork'})
     front = next((item for item in images if isinstance(item, dict) and str(item.get('id', '')).isdigit()
                   and 'Front' in item.get('types', [])), None)
     if front is None: return h.send({'cover': '', 'reason': 'no-front'})
-    raw = twins(svc).art.image(ident, str(front['id']), preview=True)
+    raw = catalog_art(svc).image(ident, str(front['id']), preview=True)
     if len(raw) > 2500000: raise ValidationError('这一发行版的封面预览过大，请手动选择封面')
     _, mime = image_type(raw)
     h.send({'cover': 'data:' + mime + ';base64,' + base64.b64encode(raw).decode('ascii'),
@@ -414,6 +418,23 @@ def api_import_photo(h, svc):
     h.send(path.read_bytes(),mime=mimetypes.guess_type(path.name)[0] or 'image/jpeg')
 
 
+def api_engine_plugin(h, svc): h.send(svc.plugins.status())
+def api_engine_install(h, svc, body): h.send(svc.plugins.install(body.get('expectedRevision')))
+def api_engine_uninstall(h, svc, body): h.send(svc.plugins.uninstall(body.get('expectedRevision')))
+def api_engine_asset(h, svc):
+    from urllib.parse import unquote
+    tail = unquote(urlsplit(h.path).path[len('/api/plugins/album-engine/assets/'):])
+    version, separator, name = tail.partition('/')
+    if not separator: raise ValidationError('插件资源地址无效')
+    path = svc.plugins.asset(name, version=version)
+    h.send(path.read_bytes(), mime=mimetypes.guess_type(path.name)[0] or 'application/octet-stream')
+def api_twin_model_asset(h, svc):
+    parts = urlsplit(h.path).path.split('/')
+    if len(parts) != 5: raise ValidationError('模型资源地址无效')
+    path = svc.store.published_twin_model_asset(parts[3], parts[4])
+    h.send(path.read_bytes(), mime=mimetypes.guess_type(parts[4])[0] or 'application/octet-stream', cache='private, max-age=31536000, immutable')
+
+
 def twins(svc):
     if svc.twins is None: raise ValidationError('数字实体服务未启动，请重启碟渡')
     return svc.twins
@@ -424,10 +445,15 @@ def api_twin_start(h, svc, body): h.send(twins(svc).start_task(body))
 def api_twin_accessories(h, svc, body): h.send(twins(svc).update_accessories(body))
 
 def api_twin_guided(h, svc, body):
+    if getattr(svc, 'plugins', None): svc.plugins.service()
     h.send(svc.store.select_twin_art(body)); twins(svc).wake.set()
 
-def api_twin_disc_calibration(h, svc, body): h.send(svc.store.set_twin_disc_calibration(body))
-def api_twin_spine(h, svc, body): h.send(svc.store.set_twin_spine_surface(body))
+def api_twin_disc_calibration(h, svc, body):
+    if getattr(svc, 'plugins', None): svc.plugins.service()
+    h.send(svc.store.set_twin_disc_calibration(body))
+def api_twin_spine(h, svc, body):
+    if getattr(svc, 'plugins', None): svc.plugins.service()
+    h.send(svc.store.set_twin_spine_surface(body))
 
 def api_twin_cancel(h, svc, body): h.send(twins(svc).cancel(body.get('id')))
 def api_twin_review_asset(h, svc):
@@ -485,6 +511,7 @@ GET = {
     '/api/catalog/front-cover': api_release_front_cover,
     '/api/imports': api_imports,
     '/api/imports/draft': api_import_draft,
+    '/api/plugins/album-engine': api_engine_plugin,
     '/api/twins': api_twins,
     '/api/twin-source-preview/': api_twin_source_preview,
 }
@@ -497,6 +524,8 @@ GET_PREFIX = {  # 带路径参数的接口
     '/api/shop-brand-icon/': api_shop_brand_icon,
     '/api/import-photo/': api_import_photo,
     '/api/artists/artwork/': api_artists_artwork,
+    '/api/plugins/album-engine/assets/': api_engine_asset,
+    '/api/twin-model-assets/': api_twin_model_asset,
     '/api/twin-assets/': api_twin_asset,
     '/api/twin-review-assets/': api_twin_review_asset,
 }
@@ -537,6 +566,8 @@ POST = {
     '/api/imports/start': (api_import_start, True, False),
     '/api/imports/commit': (api_import_commit, True, True),
     '/api/imports/delete': (api_import_delete, True, False),
+    '/api/plugins/album-engine/install': (api_engine_install, True, True),
+    '/api/plugins/album-engine/uninstall': (api_engine_uninstall, True, True),
     '/api/twins/start': (api_twin_start, True, True),
     '/api/twins/cancel': (api_twin_cancel, True, True),
     '/api/twins/accessories': (api_twin_accessories, True, True),

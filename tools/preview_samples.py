@@ -37,15 +37,25 @@ def backup(data_dir, output, asset_bundle=None, lock_path=bundle.LOCK):
     asset_bundle = Path(asset_bundle) if asset_bundle else data_dir.parent / 'bundle'
     # Archive the instance's original version before any upgrade replaces its lock.
     manifest = json.loads((asset_bundle / 'manifest.json').read_text())
-    bundle.verify_contents(asset_bundle, manifest)
     marker = json.loads((data_dir / 'sample-preview.json').read_text())
     if marker != {'sampleVersion':manifest['sampleVersion'], 'bundleDigest':bundle.digest(bundle.encoded(manifest))}:
-        raise ValueError('实例与原素材包不匹配；未创建混合版本归档')
+        # A contract-only package refresh retains the public prior manifest so
+        # --rebuild can still archive the old instance with its original lock.
+        digest = marker.get('bundleDigest')
+        if not isinstance(digest, str) or len(digest) != 64 or any(c not in '0123456789abcdef' for c in digest):
+            raise ValueError('实例与原素材包不匹配；未创建混合版本归档')
+        previous = asset_bundle / 'history' / (digest + '.json')
+        if not previous.is_file():
+            raise ValueError('实例与原素材包不匹配；未创建混合版本归档')
+        manifest = json.loads(previous.read_text())
+        if marker != {'sampleVersion':manifest['sampleVersion'], 'bundleDigest':bundle.digest(bundle.encoded(manifest))}:
+            raise ValueError('实例与原素材包不匹配；未创建混合版本归档')
+    bundle.verify_contents(asset_bundle, manifest)
     if check_target(data_dir):
         raise ValueError('只能备份固定开发样本')
     state = open_store(data_dir).backup()
     files, blobs = {}, {}
-    for folder in ('covers', 'photos', 'digital-twins'):
+    for folder in ('covers', 'photos', 'digital-twins', 'engine-models'):
         for path in sorted((data_dir / folder).rglob('*')):
             if path.is_file():
                 sha = bundle.digest(path.read_bytes())
@@ -105,7 +115,7 @@ def restore_snapshot(source, data_dir, asset_bundle, lock_path=bundle.LOCK):
             seed(staged)
             for name, sha in files.items():
                 parts = Path(name).parts
-                if (not parts or parts[0] not in ('covers','photos','digital-twins')
+                if (not parts or parts[0] not in ('covers','photos','digital-twins','engine-models')
                         or Path(name).is_absolute() or '..' in parts):
                     raise ValueError('快照素材路径非法')
                 raw = archive.extractfile('blobs/' + sha).read()

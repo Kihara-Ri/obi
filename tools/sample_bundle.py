@@ -15,9 +15,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from tools.seed_samples import RECORDS, check_target, existing_ids, open_store, seed
 from tools.sample_reference_models import REFERENCE_MODELS
-from tools.seed_reference_models import artwork_fetcher, run as publish_references
-from vendor.album_engine.contracts import image_type, clean_entity
-from vendor.album_engine import compile_document
+from tools.seed_reference_models import artwork_fetcher, engine_package, run as publish_references
+from vendor.album_data.contracts import image_type, clean_entity
+from vendor.album_data import compile_document
 
 LOCK = ROOT / 'tools/sample-bundle.json'
 
@@ -39,17 +39,37 @@ def guard(path):
 
 
 def contract():
-    from server.album_engine_adapter import check_engine_installation
-    check_engine_installation(ROOT)
-    model_manifest = ROOT / 'static/models/packaging/engine-manifest.json'
-    runtime_manifest = ROOT / 'vendor/album_engine/runtime-manifest.json'
-    dependency = json.loads((ROOT / 'web/package.json').read_text())['dependencies']['@diedu/album-engine']
-    archive = ROOT / 'web' / dependency.removeprefix('file:')
+    _, manifest, sha = engine_package()
+    codec = ROOT / 'vendor/album_data/data-codec-manifest.json'
+    codec_manifest = json.loads(codec.read_text())
+    for name, expected in codec_manifest['sha256'].items():
+        path = codec.parent / name
+        if Path(name).name != name or digest(path.read_bytes()) != expected:
+            raise ValueError('实体数据编解码器校验失败')
+    if codec_manifest['version'] != manifest['version']:
+        raise ValueError('插件与实体数据编解码器版本不匹配')
     return {'roster': digest(encoded(RECORDS)), 'plans': digest(encoded(REFERENCE_MODELS)),
-            'engineVersion': json.loads(runtime_manifest.read_text())['version'],
-            'runtime': digest(runtime_manifest.read_bytes()), 'viewer': digest(model_manifest.read_bytes()),
-            'package':digest(archive.read_bytes()),
-            'models':{p.name:digest(p.read_bytes()) for p in sorted(model_manifest.parent.glob('*.glb'))}}
+            'engineVersion': manifest['version'], 'package': sha,
+            'pluginManifest': digest(encoded(manifest)), 'dataCodec': digest(codec.read_bytes())}
+
+
+def refresh_contract(bundle, lock_path=LOCK):
+    """Re-lock existing public originals after an explicit engine package rebuild."""
+    bundle = guard(bundle)
+    value = json.loads(Path(lock_path).read_text())
+    existing = json.loads((bundle / 'manifest.json').read_text())
+    if existing != value:
+        raise ValueError('素材包与原锁不一致，未更新')
+    verify_contents(bundle, value)
+    history = bundle / 'history'
+    history.mkdir(exist_ok=True)
+    (history / (digest(encoded(value)) + '.json')).write_bytes(encoded(value))
+    value['sampleVersion'] = '2026-10-17.1'
+    value['contract'] = contract()
+    raw = encoded(value)
+    Path(lock_path).write_bytes(raw)
+    (bundle / 'manifest.json').write_bytes(raw)
+    return verify(bundle, lock_path)
 
 
 def canonical_image(raw, url):
@@ -112,7 +132,7 @@ def capture(data_dir, reference_cache, bundle, lock_path=LOCK):
         raise ValueError('请先准备完整的固定样本')
     ids = existing_ids(data_dir)
     records = {r['id']: r for r in open_store(data_dir).state()['records']}
-    manifest = {'schemaVersion': 1, 'sampleVersion': '2026-10-16.2',
+    manifest = {'schemaVersion': 1, 'sampleVersion': '2026-10-17.1',
                 'contract': contract(), 'assets': {}, 'covers': {}, 'references': {}}
     (bundle / 'assets').mkdir(parents=True, exist_ok=True)
 
@@ -245,6 +265,9 @@ def restore(bundle, data_dir, lock_path=LOCK):
         for filename, sha in reference['files'].items():
             shutil.copyfile(bundle / 'assets' / manifest['assets'][sha]['file'], folder / filename)
     publish_references(data_dir, cache)
+    # Publication is offline and data-only; install afterwards pins the user's GLBs.
+    from server.engine_plugins import PluginManager
+    PluginManager(store, None, None).install()
     shutil.rmtree(cache)  # Originals remain in bundle + frozen publication; no third cache copy.
     (data_dir / 'sample-preview.json').write_bytes(encoded({'sampleVersion': manifest['sampleVersion'],
                                                           'bundleDigest': digest(encoded(manifest))}))
@@ -266,6 +289,9 @@ def check(bundle, data_dir, lock_path=LOCK):
         if not source or digest((data_dir / 'covers' / source).read_bytes()) != cover['asset']:
             raise ValueError('开发实例封面缺失或损坏：' + key)
     jobs, models = store.twin_index()['jobs'], []
+    _, plugin_manifest, _ = engine_package()
+    prefix = plugin_manifest['models'] + '/'
+    expected_models = {name[len(prefix):]: sha for name, sha in plugin_manifest['sha256'].items() if name.startswith(prefix)}
     for key, reference in manifest['references'].items():
         record, job = records[ids[key]], jobs.get(ids[key])
         if not job or job['status'] != 'succeeded' or job['releaseId'] != REFERENCE_MODELS[key]['releaseId']:
@@ -281,6 +307,7 @@ def check(bundle, data_dir, lock_path=LOCK):
                             'origin': 'edition-reference', 'sourceUrl': item['sourceUrl']}
         plan = REFERENCE_MODELS[key]
         envelope = clean_entity({'sameAlbum':True, **{k:plan[k] for k in ('packaging','surfaces','components')}}, sources)
+        if 'presentation' in document: envelope['presentation'] = document['presentation']
         expected_document = compile_document(envelope, job['id'], record['title'])
         if document != expected_document:
             raise ValueError('发布模型印刷面绑定不符：' + key)
@@ -291,6 +318,16 @@ def check(bundle, data_dir, lock_path=LOCK):
             if digest(raw) != sha:
                 raise ValueError('发布模型贴图损坏：' + name)
             assets.append({'url': '/api/twin-assets/' + job['id'] + '/' + name, 'sha256': sha})
+        pinned = job.get('models')
+        if not pinned or pinned.get('version') != manifest['contract']['engineVersion']:
+            raise ValueError('发布模型缺少持久资源清单：' + key)
+        if (pinned.get('modelSet') != plugin_manifest['modelSet'] or set(pinned.get('files', {})) != set(expected_models)):
+            raise ValueError('发布模型资源清单不完整：' + key)
+        for name, sha in expected_models.items():
+            entry = pinned['files'][name]
+            path = store.published_twin_model_asset(job['id'], name)
+            if entry.get('sha256') != sha or digest(path.read_bytes()) != sha:
+                raise ValueError('发布模型资源损坏：' + name)
         models.append({'title': record['title'], 'recordId': record['id'], 'jobId': job['id'], 'assets': assets})
     cover_assets = [{'recordId':ids[key], 'url':records[ids[key]]['cover'], 'sha256':cover['asset']}
                     for key, cover in manifest['covers'].items()]

@@ -3,6 +3,7 @@ from copy import deepcopy
 import json
 from pathlib import Path
 import tempfile
+import tarfile
 import shutil
 import unittest
 from unittest.mock import patch
@@ -11,6 +12,7 @@ from tools import sample_bundle as workflow
 from tools.preview_samples import backup, restore_snapshot, prepare
 from tools.seed_samples import RECORDS, model_sample_png, open_store
 from tools.sample_reference_models import REFERENCE_MODELS
+from server.engine_plugins import PluginManager
 
 
 def offline_bundle(root):
@@ -61,16 +63,43 @@ class SampleBundleTests(unittest.TestCase):
                 self.assertEqual(first, second)
                 self.assertEqual(before, open_store(data).state()['records'])
                 self.assertEqual((first['covers'], len(first['models'])), (21, 3))
+                store = open_store(data)
+                manager = PluginManager(store, None, None)
+                self.assertTrue(manager.status()['installed'])
+                durable = deepcopy(store.twin_index()['jobs'])
+                manager.uninstall()
+                self.assertFalse(manager.status()['installed'])
+                self.assertEqual(durable, open_store(data).twin_index()['jobs'])
+                self.assertEqual(first, workflow.check(bundle, data, lock))
                 snapshot = backup(data, root / 'complete.tar.gz', bundle, lock)
+                with tarfile.open(snapshot) as archive:
+                    archived_files = json.load(archive.extractfile('files.json'))
+                    self.assertTrue(any(name.startswith('engine-models/') for name in archived_files))
+                    self.assertFalse(any(name.startswith('plugins/') for name in archived_files))
                 shutil.rmtree(bundle)
                 restored = restore_snapshot(snapshot, root / 'restored', bundle, lock)
                 self.assertEqual(first, restored)
+                restored_store = open_store(root / 'restored')
+                restored_manager = PluginManager(restored_store, None, None)
+                self.assertFalse(restored_manager.status()['installed'])
+                restored_manager.install()
+                self.assertEqual(durable, restored_store.twin_index()['jobs'])
+                self.assertEqual(first, workflow.check(bundle, root / 'restored', lock))
                 # A bad snapshot cannot leave a half-imported target blocking retry.
                 bad = root / 'truncated.tar.gz'; bad.write_bytes(snapshot.read_bytes()[:80])
                 with self.assertRaises(Exception):
                     restore_snapshot(bad, root / 'retry', bundle, lock)
                 self.assertFalse((root / 'retry').exists())
                 self.assertEqual(first, restore_snapshot(snapshot, root / 'retry', bundle, lock))
+                # Durable GLB integrity is checked even with executable files absent.
+                restored_manager.uninstall()
+                model_job = next(iter(restored_store.twin_index()['jobs'].values()))
+                name = next(name for name in model_job['models']['files'] if name.endswith('.glb'))
+                model_path = restored_store.published_twin_model_asset(model_job['id'], name)
+                raw = model_path.read_bytes(); model_path.write_bytes(b'corrupt GLB')
+                with self.assertRaisesRegex(ValueError, '模型资源'):
+                    workflow.check(bundle, root / 'restored', lock)
+                model_path.write_bytes(raw)
                 # Existing database rows are not enough: inspect published bytes too.
                 broken = first['models'][0]['assets'][0]['url'].split('/')[-1]
                 path = data / 'digital-twins' / first['models'][0]['jobId'] / broken
@@ -151,6 +180,22 @@ class SampleBundleTests(unittest.TestCase):
                 archive = next((home / 'backups').glob('*.tar.gz'))
                 restored = restore_snapshot(archive,home / 'old-instance',home / 'old-bundle',lock)
                 self.assertEqual(first,restored)
+
+    def test_contract_refresh_keeps_original_manifest_for_upgrade_archive(self):
+        with tempfile.TemporaryDirectory() as temp:
+            home = Path(temp); assets, lock, old = offline_bundle(home)
+            old_lock = home / 'old-lock.json'; old_lock.write_bytes(workflow.encoded(old))
+            fetcher = workflow.artwork_fetcher()
+            with (patch.object(fetcher, 'verify_discogs', return_value=True),
+                  patch('tools.seed_reference_models.artwork_fetcher', return_value=fetcher)):
+                first = workflow.restore(assets, home / 'instance', lock)
+            refreshed = workflow.refresh_contract(assets, lock)
+            self.assertEqual(refreshed['sampleVersion'], '2026-10-17.1')
+            self.assertEqual(old['assets'], refreshed['assets'])
+            self.assertEqual(old['covers'], refreshed['covers'])
+            self.assertEqual(old['references'], refreshed['references'])
+            snapshot = backup(home / 'instance', home / 'before-rebuild.tar.gz', assets, lock)
+            self.assertEqual(first, restore_snapshot(snapshot, home / 'original', home / 'original-bundle', old_lock))
 
     def test_real_data_guard_applies_to_bundle_and_instance(self):
         with self.assertRaises(ValueError):

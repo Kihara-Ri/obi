@@ -192,39 +192,12 @@
     }
   },
   "contract": {
-    "engineVersion": "0.2.2",
-    "models": {
-      "card-sleeve.glb": "b24d5adcbaf1a99d3a9247e7089832632bba54add65333160baa89680d7cbcbe",
-      "component-booklet.glb": "b813b47e7be3950d1cdf00564035b7d2b7405206b960bb3bfee1094abaa5a84c",
-      "component-foldout.glb": "263edd254f03acd5ed3ff37366d71ca7ba3b17d0e8cbb16899e2900414922077",
-      "component-inner-sleeve.glb": "aefff1362189789ea76502a0c85d1f97a52007f038f470a03b33c9185a86fa71",
-      "component-obi.glb": "12af1d9fe512b03337372e5b4f0d6ad10a743815cbec15d44a7f6736dddcd57f",
-      "digibook.glb": "924574cbaf66d5b5f03a68468853b40e0853053b91894db6ef6f8d1f32e836dd",
-      "digipak-2.glb": "0e207a12887f5bc388b6621bbd683b39c267721338695f17de82b5ffb3d758db",
-      "digipak-3.glb": "0124b688df7c8179de0e20dff799ba7c9f211b0c3baa54c0acf54e7419f3dbec",
-      "digipak-4.glb": "5f0aa21f4c2f3522e4bd4821faded7532c129917d77c0db39279c3ff4d105880",
-      "gatefold-2-inner.glb": "e5913f68e73fe8e051291d11179af0e622fc90a599bd6fb2b3a00e104d4f6351",
-      "gatefold-2-mini-lp.glb": "280cb119b713e291571d01ec3cb8e77050389893523e475e3ecefc50d0e63d12",
-      "gatefold-2.glb": "9757e87a0e1feb536b42b08a0ff881ececdde12b0e5b479449ff7ebe096bba36",
-      "gatefold-3-inner.glb": "79d4bba8ff0958603661d2c9a72f45e80a0a599a1e8ac904fd93cd3c2f5d5f08",
-      "gatefold-3.glb": "5eb8818bb6ed03e8552e12aa6b95d321946e7e46701be47e05b959b5177c076a",
-      "gatefold-4-inner.glb": "01e8a033df8cf6244466160f2da76f445791e0987e92840f083382ff3c1ba83c",
-      "gatefold-4.glb": "6918a86e348ccb1392bcd0c517a1464fa8cd3d201466b97d1d71febfe840eccc",
-      "jewel-case.glb": "873c89cad06aade35da5c54f1fc19181d824d3cb981f8a1e144c1c78e8d3ae64",
-      "jewel-fat.glb": "c87ee08ad3f1bd1a08d40704725f3bfc22d78beacade11cb9c9dbf09a33c383b",
-      "jewel-swing-2.glb": "9b62520ac2a60663ce6a910feb7de55613b83f9b60114d202c132d7f9a9092d1",
-      "jewel-swing-4.glb": "ea0e88251c111f6fc6d4557a7bc2972e4349e0d8f5842ee27432bee4512382f6",
-      "mini-lp-sleeve.glb": "c2489a4851585b5c6d5413d218eaa63bb524f8ebcdba45745e5312bcb1e25002",
-      "neutral.glb": "0503cd7c728685136788fa13591c16755f9a66e6545fa9e941e3d139bbfc166e",
-      "rigid-box.glb": "5a4fc0069e405d2ac0e590c1b0a18afb7279f272d9ca51a1667a01db1445d904",
-      "slimline-jewel.glb": "f0355e07de90056e86a5a34fd1c5dc73829f4602868d7e4e0eb97c9c6dbe7d35",
-      "slipcase.glb": "b66a312ca5f79b491c2dc85123a0d702fedd659745de67efa99330829a3749a8"
-    },
-    "package": "81dae2efc72e542f79daa1e67d0a769bcaeb4259bdf558b49199a2ed93bff949",
+    "dataCodec": "77625a765f3d4caf836d3928e8f8d12c685a812156074d95a65ae90d90890bf4",
+    "engineVersion": "0.3.0",
+    "package": "cf0859c4b4d42e88a481bac4e9aa625af3e91e5ba60853f4e6e5325df38776b6",
     "plans": "820f949fb11f3671246a9f5c30e546d986dce4a59064c4b959bd5e81628ccc88",
-    "roster": "bf78b329d2d39f3998ac3e18c5cd64781617d20a3919268a7d03ff5186771ad8",
-    "runtime": "9ed422f103b84bcee69a4c45c10fab39b3adac85b94db89c5afe931112acce3b",
-    "viewer": "a2f7fcace98ae48d3f5a0c3eca5a2d175dcf92a86658403032f5c00b58ed4ae3"
+    "pluginManifest": "8e444ed8f2170fd2e23d5fcdbe8e3ee9998766ade19d9c3bdcaf46358cc0b60e",
+    "roster": "bf78b329d2d39f3998ac3e18c5cd64781617d20a3919268a7d03ff5186771ad8"
   },
   "covers": {
     "avici": {
@@ -5881,6 +5854,6 @@
       }
     }
   },
-  "sampleVersion": "2026-10-16.5",
+  "sampleVersion": "2026-10-17.1",
   "schemaVersion": 1
 }

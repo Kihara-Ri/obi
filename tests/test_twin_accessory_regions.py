@@ -3,7 +3,7 @@ import unittest
 
 from domain import ValidationError
 from twins import clean_accessories
-from vendor.album_engine.contracts import clean_accessories as engine_clean_accessories
+from vendor.album_data.contracts import clean_accessories as engine_clean_accessories
 
 
 class AccessoryCompatibilityTests(unittest.TestCase):

@@ -239,6 +239,13 @@ MODEL_SAMPLES = {
     'illinois': {'structure': 'jewel', 'tray': 'clear', 'discs': 1},
 }
 
+# Authored camera fixture only for the isolated synthetic model set. Real
+# reference-edition previews keep their existing default camera.
+MODEL_SAMPLE_PRESENTATIONS = {
+    'illinois': {'initialCamera': {'pitch': -.1, 'yaw': -.2, 'zoom': 1.1,
+                                  'framingX': 0, 'framingY': .03}},
+}
+
 # Deliberately synthetic identities, never external catalog evidence or lookups.
 MODEL_SAMPLE_RELEASES = {
     'lift-fists': '00000000-0000-4000-8000-000000000001',
@@ -393,7 +400,8 @@ def export_engine_fixtures(directory):
         raise SystemExit('拒绝写入仓库 data/（真实数据目录）；请换样本导出目录')
     titles = {key: record['title'] for key, record in RECORDS}
     entities = [{'schemaVersion': 1, 'key': key, 'title': titles[key],
-                 'packaging': dict(packaging), 'surfaces': model_sample_surfaces('sample-scan.png')}
+                 'packaging': dict(packaging), 'surfaces': model_sample_surfaces('sample-scan.png'),
+                 **({'presentation': MODEL_SAMPLE_PRESENTATIONS[key]} if key in MODEL_SAMPLE_PRESENTATIONS else {})}
                 for key, packaging in MODEL_SAMPLES.items()]
     # A single disc is oblique, while the surrounding synthetic spread stays unchanged.
     entities[0]['surfaces']['disc']['asset'] = 'sample-disc.png'
@@ -403,7 +411,7 @@ def export_engine_fixtures(directory):
         {'id':'synthetic-booklet','kind':'booklet','asset':'sample-booklet.png','origin':'synthetic-sample','sourceUrl':''},
         {'id':'synthetic-inner','kind':'inner-sleeve','asset':'sample-inner-sleeve.png','origin':'synthetic-sample','sourceUrl':''},
     ]
-    from vendor.album_engine import compile_document
+    from server.album_engine_adapter import compile_document
     for entity in entities:
         entity['document'] = compile_document(entity, entity['key'], entity['title'])
     target.mkdir(parents=True, exist_ok=True)
@@ -458,6 +466,8 @@ def seed_models(data_dir):
             surfaces['disc']['asset'] = 'photo-1.png'
         entity = {'packaging': dict(packaging),
                   'surfaces': surfaces}
+        if key in MODEL_SAMPLE_PRESENTATIONS:
+            entity['presentation'] = {'initialCamera': dict(MODEL_SAMPLE_PRESENTATIONS[key]['initialCamera'])}
         if key == 'lift-fists':
             entity['components'] = []
             for number, kind, component_id in [(2, 'obi', 'synthetic-obi'),
