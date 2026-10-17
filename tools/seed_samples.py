@@ -5,17 +5,26 @@
 场景缺口先扩本样本库、可复用素材/初始化方法及 tests/test_sample_library.py，
 再运行验证。不要另造测试专辑，也不要在一次性脚本中临时补造贴图或发布任务。
 
-    python3 tools/seed_samples.py --data-dir /tmp/diedu-samples
+    python3 tools/seed_samples.py --data-dir /tmp/diedu-samples --fetch-covers
+    python3 tools/seed_samples.py --data-dir /tmp/diedu-samples --fetch-covers --with-reference-models
     python3 tools/seed_samples.py --export-engine-fixtures /tmp/album-engine-fixtures
     python3 app.py --port 8791 --data-dir /tmp/diedu-samples --no-seed
 
 脱敏边界：样本骨架取自真实收藏的结构特征（日版/侧标、多副本、日元/人民币、
 在途/售出中/已售/回收站、新式包装资料），但金额、日期、渠道、订单号、备注、
-存放位置全部为虚构；专辑名与艺人属公开音乐资料。默认不含照片、封面、条码与
-数字实体任务。--with-models 可为现有 lift-fists / loveless / illinois 副本发布合成
+存放位置全部为虚构；专辑名与艺人属公开音乐资料。默认不合成任何封面或
+模拟实物照片；需要真实资料时运行 tools/fetch_sample_covers.py，
+优先使用 iTunes 精确匹配的数字封面，再以 Cover Art Archive 为后备，
+不能确认确切发行版本时只使用明确标注来源的作品封面，不伪造内页和盘面。
+--with-models 可为现有 lift-fists / loveless / illinois 副本发布合成
 双袋 Gatefold / 单口 Card Sleeve / Jewel Case 样本，复用 seed_models() 离线初始化。
 纹理为带白边、四色分区的纯代码棋盘格，含裁切与弯纸投影，包装仅供动画及贴图验收，
-不代表这些发行版的实物核对结果。
+不代表这些发行版的实物核对结果。模型样本另使用明确虚构的固定发行版 ID，
+仅供编辑区已发布任务、来源选择和校准入口验收，不用于查询 MusicBrainz 或认定实物发行版。
+这些照片仅写入显式 --with-models 的固定样本，普通样本仍保持缺图。
+--with-reference-models 获取已核对的固定 CD 发行版原图，发布有来源的参考模型；
+与合成几何模式互斥。映射见 tools/sample_reference_models.py，原图只缓存到样本目录，
+不冒充实物照片，不进入仓库；失败保留原任务，不使用棋盘补面。
 --export-engine-fixtures 只导出这三种合成实体、相同棋盘 PNG 与原始 RGBA 像素，
 不创建数据库或任务；独立引擎和 Studio 使用同一组样本定义。
 
@@ -25,6 +34,7 @@
 汇率用内置假汇率（离线确定值），不发网络请求。
 """
 import argparse
+import base64
 import json
 import struct
 import sqlite3
@@ -71,13 +81,13 @@ RECORDS = [
                          version='Digipak', status='domestic')),
     ('larks', dict(title="Larks' Tongues in Aspic", artist='King Crimson', currency='JPY',
                    price='1210', fees='35', date='2026-07-18', location='示例唱片行·B 店',
-                   version='纸盒', pressing='日版', obi='带侧标', condition='近全新',
+                   version='Mini LP Sleeve', pressing='日版', obi='带侧标', condition='近全新',
                    status='domestic')),
     ('minecraft', dict(title='Minecraft: Volume Alpha', artist='C418', currency='JPY',
                        price='', date='2026-07-18', location='示例唱片行·B 店',
                        version='Digipak', status='domestic', note='示例：成本未知（null，不当 0）')),
     ('shall-we', dict(title='Shall We Dance? Shall We Talk!', artist='陈奕迅', currency='CNY',
-                      price='138', date='2026-07-25', location='示例二手平台', version='纸盒',
+                      price='138', date='2026-07-25', location='示例二手平台', version='Rigid Box',
                       status='domestic')),
     ('illinois', dict(title='Illinois', artist='Sufjan Stevens', currency='JPY', price='2800',
                       date='2026-08-02', location='示例唱片行·A 店', version='Jewel Case',
@@ -86,7 +96,7 @@ RECORDS = [
                                  'discs': 1, 'finish': 'matte'})),
     # 本副本包装/图片在现场核对；不把网上发行版资料冒充样本实物。
     ('islands-jp', dict(title='Islands', artist='King Crimson', currency='JPY', price='',
-                        date='2026-08-08', location='示例唱片行·A 店', version='纸盒',
+                        date='2026-08-08', location='示例唱片行·A 店', version='Mini LP Sleeve',
                         pressing='日版', status='domestic',
                         note='示例：从实物条形码核对 Mini LP 包装，成本未知')),
     # 海外库存 overseas（5）
@@ -95,7 +105,7 @@ RECORDS = [
                        pressing='外版', status='overseas')),
     ('loveless', dict(title='Loveless', artist='My Bloody Valentine', currency='JPY',
                       price='1500', date='2026-08-08', location='示例唱片行·C 店',
-                      version='纸盒', pressing='外版', status='overseas')),
+                      version='Card Sleeve', pressing='外版', status='overseas')),
     ('tasogare', dict(title='盗作', artist='ヨルシカ', currency='JPY', price='1980',
                       date='2026-08-08', location='示例唱片行·C 店', version='Jewel Case',
                       status='overseas')),
@@ -104,7 +114,7 @@ RECORDS = [
                   pressing='日版', obi='带侧标', status='overseas')),
     ('lift-fists', dict(title='Lift Your Skinny Fists Like Antennas to Heaven',
                         artist='Godspeed You! Black Emperor', currency='JPY', price='2860',
-                        date='2026-08-08', location='示例唱片行·C 店', version='纸盒',
+                        date='2026-08-08', location='示例唱片行·C 店', version='Gatefold Sleeve',
                         status='overseas')),
     # 在途 transit（3，同一条包裹，运费按 3 副本分摊）
     ('yehui', dict(title='叶惠美', artist='周杰伦', currency='JPY', price='4000',
@@ -162,7 +172,8 @@ def check_target(data_dir):
 def seed(data_dir):
     """灌入固定样本库；返回 {键名: 记录ID}。已灌过的目录幂等跳过（返回已存 ID）。"""
     if not check_target(data_dir):
-        return existing_ids(data_dir)
+        ids = existing_ids(data_dir)
+        return ids
     store = open_store(data_dir)
     store.set_modules({'acquisition': True, 'trading': True, 'circulation': True,
                        'showcase': True})
@@ -201,6 +212,7 @@ def seed(data_dir):
     return ids
 
 
+
 def existing_ids(data_dir):
     """已灌过的样本库：按（专辑、艺人、价格）唯一匹配出键名 → 记录ID（幂等复用）。
 
@@ -225,6 +237,20 @@ MODEL_SAMPLES = {
                    'pockets': 'both', 'pocketOpening': 'inner', 'discs': 2},
     'loveless': {'structure': 'card-sleeve', 'discs': 1},
     'illinois': {'structure': 'jewel', 'tray': 'clear', 'discs': 1},
+}
+
+# Authored camera fixture only for the isolated synthetic model set. Real
+# reference-edition previews keep their existing default camera.
+MODEL_SAMPLE_PRESENTATIONS = {
+    'illinois': {'initialCamera': {'pitch': -.1, 'yaw': -.2, 'zoom': 1.1,
+                                  'framingX': 0, 'framingY': .03}},
+}
+
+# Deliberately synthetic identities, never external catalog evidence or lookups.
+MODEL_SAMPLE_RELEASES = {
+    'lift-fists': '00000000-0000-4000-8000-000000000001',
+    'loveless': '00000000-0000-4000-8000-000000000002',
+    'illinois': '00000000-0000-4000-8000-000000000003',
 }
 
 # One scan contains four different printed planes and an unprinted border.
@@ -283,6 +309,43 @@ def model_sample_disc_png():
             + chunk(b'IDAT', zlib.compress(rows)) + chunk(b'IEND', b''))
 
 
+def model_sample_accessory_png(kind):
+    """Distinct, synthetic prints for the OBI, booklet and paper inner sleeve.
+
+    They deliberately are not the album cover, so a missing real-world source
+    cannot masquerade as an authentic photograph of a different object.
+    """
+    import math
+    width = height = 192
+    pixels = bytearray()
+    for y in range(height):
+        v = y / height
+        for x in range(width):
+            u = x / width
+            if kind == 'obi':
+                # Three continuous wrap zones: front / narrow spine / back.
+                spine = .36 < u < .60
+                bg = (35, 67, 82) if spine else (225, 208, 156)
+                line = (v < .14 or .25 < v < .265 or .72 < v < .735)
+                color = (238, 230, 209) if spine and line else (88, 57, 39) if line else bg
+            elif kind == 'booklet':
+                bg = (234, 222, 194)
+                bands = .14 < v < .18 or .73 < v < .77
+                strokes = .20 < u < .76 and any(abs(v - (.30 + j * .066)) < .004 for j in range(6))
+                color = (59, 86, 84) if bands or strokes else bg
+            else:
+                distance = math.hypot((u - .5) * 1.3, (v - .5) * 1.3)
+                color = (57, 92, 104) if .36 < distance < .40 else (
+                    (208, 202, 181) if u < .055 or v > .94 else (244, 239, 224))
+            pixels.extend(color)
+    def chunk(tag, data):
+        return struct.pack('>I', len(data)) + tag + data + struct.pack('>I', zlib.crc32(tag + data))
+    rows = b''.join(b'\x00' + pixels[y * width * 3:(y + 1) * width * 3] for y in range(height))
+    return (b'\x89PNG\r\n\x1a\n'
+        + chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0))
+        + chunk(b'IDAT', zlib.compress(rows)) + chunk(b'IEND', b''))
+
+
 def model_sample_surfaces(asset):
     """数据库样本与独立引擎共用的逐面映射，资产名由使用方指定。"""
     roles = ('front', 'back', 'insideLeft', 'insideRight', 'disc', 'disc2')
@@ -290,6 +353,43 @@ def model_sample_surfaces(asset):
                    **({'region': MODEL_SAMPLE_REGIONS[role]} if role in MODEL_SAMPLE_REGIONS else {}),
                    **({'warpRows': MODEL_SAMPLE_WARP} if role == 'insideRight' else {})}
             for role in roles}
+
+
+def engine_model_variants():
+    """All shipped base rigs, using only this library's fictional scan and packaging.
+
+    These are geometry fixtures, not additional ledger copies or edition evidence.
+    """
+    from vendor.album_engine.document import model_contract, compile_document
+    variants = []
+    for name in model_contract()['models']:
+        if name.startswith(('jewel', 'slimline')):
+            package = {'structure': 'jewel', 'discs': 4 if '4' in name else 2 if '2' in name else 1,
+                       'thickness': 'slim' if name.startswith('slimline') else 'thick' if name == 'jewel-fat' else 'standard'}
+        elif name.startswith(('gatefold', 'digipak')):
+            package = {'structure': name.split('-')[0], 'panels': int(name.split('-')[1]),
+                       'holder': 'pocket' if name.startswith('gatefold') else 'tray',
+                       'pockets': 'both', 'discs': int(name.split('-')[1]),
+                       'pocketOpening': 'inner' if name.endswith('inner') else 'outer'}
+            if name.endswith('mini-lp'): package['miniLP'] = True
+        else:
+            package = {'structure': 'card-sleeve' if 'sleeve' in name else name, 'discs': 1}
+            if name == 'mini-lp-sleeve': package['miniLP'] = True
+        surfaces = model_sample_surfaces('sample-scan.png')
+        for role in ('insideCenter', 'insideExtra', 'disc3', 'disc4'):
+            surfaces[role] = {'asset': 'sample-scan.png', 'origin': 'synthetic-sample', 'sourceUrl': ''}
+        item = {'schemaVersion': 1, 'key': 'rig-' + name, 'title': '合成包装样本 · ' + name,
+                'packaging': package, 'surfaces': surfaces}
+        if name == 'gatefold-2-mini-lp':
+            item['calibration'] = {'spine': {'widthRatio': .035, 'basis': 'image-estimate',
+                'asset': 'sample-scan.png', 'origin': 'synthetic-sample', 'sourceUrl': ''}}
+        if name in ('gatefold-2-inner','jewel-case'):
+            item['components']=[{'id':'synthetic-foldout','kind':'booklet','asset':'sample-booklet.png',
+                'origin':'synthetic-sample','sourceUrl':'','fold':{'pattern':'accordion','panels':4 if name=='gatefold-2-inner' else 6},
+                'back':{'asset':'sample-booklet.png','origin':'synthetic-sample','sourceUrl':''}}]
+        item['document'] = compile_document(item, item['key'], item['title'])
+        variants.append(item)
+    return variants
 
 
 def export_engine_fixtures(directory):
@@ -300,25 +400,40 @@ def export_engine_fixtures(directory):
         raise SystemExit('拒绝写入仓库 data/（真实数据目录）；请换样本导出目录')
     titles = {key: record['title'] for key, record in RECORDS}
     entities = [{'schemaVersion': 1, 'key': key, 'title': titles[key],
-                 'packaging': dict(packaging), 'surfaces': model_sample_surfaces('sample-scan.png')}
+                 'packaging': dict(packaging), 'surfaces': model_sample_surfaces('sample-scan.png'),
+                 **({'presentation': MODEL_SAMPLE_PRESENTATIONS[key]} if key in MODEL_SAMPLE_PRESENTATIONS else {})}
                 for key, packaging in MODEL_SAMPLES.items()]
     # A single disc is oblique, while the surrounding synthetic spread stays unchanged.
     entities[0]['surfaces']['disc']['asset'] = 'sample-disc.png'
     # Synthetic book/obi parts exercise independent geometry and controls; no claim about the original album.
     entities[0]['components'] = [
-        {'id':'synthetic-obi','kind':'obi','asset':'sample-scan.png','origin':'synthetic-sample','sourceUrl':''},
-        {'id':'synthetic-booklet','kind':'booklet','asset':'sample-scan.png','origin':'synthetic-sample','sourceUrl':''},
-        {'id':'synthetic-inner','kind':'inner-sleeve','asset':'sample-scan.png','origin':'synthetic-sample','sourceUrl':''},
+        {'id':'synthetic-obi','kind':'obi','asset':'sample-obi.png','origin':'synthetic-sample','sourceUrl':''},
+        {'id':'synthetic-booklet','kind':'booklet','asset':'sample-booklet.png','origin':'synthetic-sample','sourceUrl':''},
+        {'id':'synthetic-inner','kind':'inner-sleeve','asset':'sample-inner-sleeve.png','origin':'synthetic-sample','sourceUrl':''},
     ]
+    from server.album_engine_adapter import compile_document
+    for entity in entities:
+        entity['document'] = compile_document(entity, entity['key'], entity['title'])
     target.mkdir(parents=True, exist_ok=True)
     (target / 'sample-disc.png').write_bytes(model_sample_disc_png())
+    for kind in ('obi', 'booklet', 'inner-sleeve'):
+        (target / ('sample-' + kind + '.png')).write_bytes(model_sample_accessory_png(kind))
     (target / 'entities.json').write_text(json.dumps(entities, ensure_ascii=False, indent=2) + '\n',
                                          encoding='utf-8')
+    (target / 'model-variants.json').write_text(json.dumps(engine_model_variants(), ensure_ascii=False, indent=2) + '\n',
+                                              encoding='utf-8')
     (target / 'sample-scan.png').write_bytes(model_sample_png())
     pixels = {'width': 128, 'height': 128, 'channels': 4, 'pixels': list(model_sample_pixels())}
     (target / 'pixels.json').write_text(json.dumps(pixels, separators=(',', ':')) + '\n',
                                        encoding='utf-8')
     return entities
+
+
+def model_sample_catalog_artwork(key, job):
+    """Offline browser catalog response, explicitly synthetic, never source evidence."""
+    return {'id': MODEL_SAMPLE_RELEASES[key], 'source': 'synthetic-sample', 'artwork': [
+        {'id': 'synthetic-scan', 'types': ['合成测试图（非发行版证据）'],
+         'thumbnail': '/api/twin-assets/' + job['id'] + '/photo-0.png'}]}
 
 
 def seed_models(data_dir):
@@ -330,6 +445,16 @@ def seed_models(data_dir):
         rid = ids[key]
         if rid in store.twin_index()['jobs']:
             continue
+        # Only --with-models introduces fictional catalog bindings. The ordinary
+        # 21-copy sample library keeps all absence/provenance states unchanged.
+        release_info = dict(records[rid].get('releaseInfo') or {})
+        release_info['musicBrainzReleaseId'] = MODEL_SAMPLE_RELEASES[key]
+        originals = [model_sample_png()]
+        if key == 'lift-fists':
+            originals += [model_sample_disc_png()] + [model_sample_accessory_png(kind) for kind in ('obi','booklet','inner-sleeve')]
+        store.save({'id':rid,'revision':records[rid]['revision'], 'releaseInfo':release_info,
+                    'photos':['data:image/png;base64,' + base64.b64encode(raw).decode() for raw in originals]})
+        records[rid] = next(record for record in store.state()['records'] if record['id'] == rid)
         job = store.start_twin({'recordId': rid, 'recordRevision': records[rid]['revision'],
                                 'requestId': uid()})['job']
         claimed = store.claim_twin('sample-library')
@@ -341,17 +466,23 @@ def seed_models(data_dir):
             surfaces['disc']['asset'] = 'photo-1.png'
         entity = {'packaging': dict(packaging),
                   'surfaces': surfaces}
+        if key in MODEL_SAMPLE_PRESENTATIONS:
+            entity['presentation'] = {'initialCamera': dict(MODEL_SAMPLE_PRESENTATIONS[key]['initialCamera'])}
         if key == 'lift-fists':
-            entity['components'] = [
-                {'id':'synthetic-obi','kind':'obi','asset':'photo-0.png',
-                 'origin':'synthetic-sample','sourceUrl':''},
-                {'id':'synthetic-booklet','kind':'booklet','asset':'photo-0.png',
-                 'origin':'synthetic-sample','sourceUrl':''},
-                {'id':'synthetic-inner','kind':'inner-sleeve','asset':'photo-0.png',
-                 'origin':'synthetic-sample','sourceUrl':''},
-            ]
+            entity['components'] = []
+            for number, kind, component_id in [(2, 'obi', 'synthetic-obi'),
+                                                (3, 'booklet', 'synthetic-booklet'),
+                                                (4, 'inner-sleeve', 'synthetic-inner')]:
+                filename = 'photo-' + str(number) + '.png'
+                store.write_twin_source(job['id'], claimed['claim'], filename, model_sample_accessory_png(kind))
+                entity['components'].append({'id': component_id, 'kind': kind, 'asset': filename,
+                                             'origin': 'synthetic-sample', 'sourceUrl': ''})
         store.update_twin(job['id'], claimed['claim'], status='succeeded', phase='published',
-                          message='合成模型样本：仅用于动画验收，未核对实物发行版', entity=entity)
+                          message='合成模型样本：仅用于动画验收，未核对实物发行版',
+                          releaseId=MODEL_SAMPLE_RELEASES[key], entity=entity)
+    jobs = store.twin_index()['jobs']
+    artwork = {MODEL_SAMPLE_RELEASES[key]: model_sample_catalog_artwork(key, jobs[ids[key]]) for key in MODEL_SAMPLES}
+    (Path(data_dir) / 'sample-catalog-artwork.json').write_text(json.dumps(artwork, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     return ids
 
 
@@ -360,13 +491,26 @@ def main():
     target = p.add_mutually_exclusive_group(required=True)
     target.add_argument('--data-dir', help='目标数据目录（须为空目录或已灌过的样本库）')
     target.add_argument('--export-engine-fixtures', help='只导出固定合成实体及纹理，不创建数据库')
-    p.add_argument('--with-models', action='store_true', help='为三张已有样本发布离线合成模型（非实物参考）')
+    models = p.add_mutually_exclusive_group()
+    models.add_argument('--with-models', action='store_true', help='仅引擎专项测试：发布合成 3D 几何/纹理模型，普通样本不会生成')
+    models.add_argument('--with-reference-models', action='store_true', help='展示验收：获取同版真实图集并发布参考 3D（需要联网）')
+    p.add_argument('--reference-cache', help='复用已冻结的发行版图集目录，仅用于 --with-reference-models')
+    p.add_argument('--fetch-covers', action='store_true',
+                   help='优先 iTunes 精确匹配的数字封面，CAA 后备（需要联网）')
     args = p.parse_args()
+    if args.reference_cache and not args.with_reference_models:
+        p.error('--reference-cache 须与 --with-reference-models 一起使用')
     if args.export_engine_fixtures:
         entities = export_engine_fixtures(args.export_engine_fixtures)
         print(f'固定引擎样本已导出：{Path(args.export_engine_fixtures).resolve()}（{len(entities)} 实体）')
         return
     ids = seed_models(args.data_dir) if args.with_models else seed(args.data_dir)
+    if args.fetch_covers:
+        from tools.fetch_sample_covers import run as fetch_real_cover_art
+        fetch_real_cover_art(args.data_dir)
+    if args.with_reference_models:
+        from tools.seed_reference_models import run as publish_reference_models
+        publish_reference_models(args.data_dir, args.reference_cache)
     print(f'固定样本库已就绪：{Path(args.data_dir).resolve()}（{len(ids)} 副本）')
     print('启动：python3 app.py --port <空闲端口> --data-dir '
           f'{Path(args.data_dir).resolve()} --no-seed')

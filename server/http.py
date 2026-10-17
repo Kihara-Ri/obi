@@ -82,7 +82,16 @@ def make_handler(svc):
                     if onetloc not in allowed and not (loopback and onetloc == host):
                         self.send({'error': '不允许跨站请求'}, 403); return False
                 if self.headers.get('Sec-Fetch-Site') == 'cross-site':
-                    self.send({'error': '不允许跨站请求'}, 403); return False
+                    # Following an external link is a normal *top-level page navigation*,
+                    # not a cross-site API call. Keep the exception narrow: only the
+                    # two HTML entry points, GET, no Origin, and browser navigation
+                    # metadata. POST and every /api/ request remain CSRF-protected.
+                    page_navigation = (self.command == 'GET' and not origin
+                        and urlsplit(self.path).path in ('/', '/login')
+                        and self.headers.get('Sec-Fetch-Mode') == 'navigate'
+                        and self.headers.get('Sec-Fetch-Dest') == 'document')
+                    if not page_navigation:
+                        self.send({'error': '不允许跨站请求'}, 403); return False
             return True
 
         def logged_in(self):

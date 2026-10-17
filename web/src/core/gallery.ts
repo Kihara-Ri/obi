@@ -8,7 +8,7 @@ export const GALLERY_ROAMING_DEFAULTS: Readonly<Record<GalleryMode, number>> = {
 };
 export type GalleryDensity = 'small' | 'medium' | 'large';
 export type GallerySort = 'recent' | 'artist' | 'title' | 'group';
-export type GalleryScope = {kind: 'all'} | {kind: 'artist'; artist: string} | {kind: 'group'; groupId: string};
+export type GalleryScope = {kind: 'all'} | {kind: 'favorites'} | {kind: 'artist'; artist: string} | {kind: 'group'; groupId: string};
 export interface ShowcaseGroup {id: string; name: string; recordIds: string[]}
 export interface ShowcaseGroups {revision: number; groups: ShowcaseGroup[]}
 
@@ -70,9 +70,10 @@ export function readGalleryPreferences(): GalleryPreferences {
       showTitles: typeof p.showTitles === 'boolean' ? p.showTitles : fallback.showTitles,
       sort: ['recent', 'artist', 'title', 'group'].includes(p.sort || '') ? p.sort! : fallback.sort,
       currentId: typeof p.currentId === 'string' ? p.currentId : null,
-      scope: p.scope?.kind === 'artist' && typeof p.scope.artist === 'string' ? {kind: 'artist', artist: p.scope.artist}
-        : p.scope?.kind === 'group' && typeof p.scope.groupId === 'string' ? {kind: 'group', groupId: p.scope.groupId}
-          : {kind: 'all'},
+      scope: p.scope?.kind === 'favorites' ? {kind: 'favorites'}
+        : p.scope?.kind === 'artist' && typeof p.scope.artist === 'string' ? {kind: 'artist', artist: p.scope.artist}
+          : p.scope?.kind === 'group' && typeof p.scope.groupId === 'string' ? {kind: 'group', groupId: p.scope.groupId}
+            : {kind: 'all'},
     };
   } catch { return fallback; }
 }
@@ -89,12 +90,14 @@ export function isCollectedRecord(record: AlbumRecord): boolean {
 
 /** 一张实物一条结果，上架状态与是否有封面都不改变收藏范围。 */
 export function galleryRecords(records: AlbumRecord[], query: string, sort: GallerySort,
-                               scope: GalleryScope = {kind: 'all'}, groups: ShowcaseGroup[] = []): AlbumRecord[] {
+                               scope: GalleryScope = {kind: 'all'}, groups: ShowcaseGroup[] = [],
+                               favorites: Readonly<Record<string, boolean>> = {}): AlbumRecord[] {
   const q = query.trim().toLocaleLowerCase();
   const group = scope.kind === 'group' ? groups.find(g => g.id === scope.groupId) : undefined;
   const members = new Map(group?.recordIds.map((id, i) => [id, i]) ?? []);
   const eligible = records.filter(r => isCollectedRecord(r)
-    && (scope.kind === 'all' || scope.kind === 'artist' && r.artist.trim() === scope.artist
+    && (scope.kind === 'all' || scope.kind === 'favorites' && favorites[r.id] === true
+      || scope.kind === 'artist' && r.artist.trim() === scope.artist
       || scope.kind === 'group' && members.has(r.id)));
   const filtered = q ? eligible.filter(r => searchScore(r, q) > 0) : eligible;
   return filtered.sort((a, b) => {

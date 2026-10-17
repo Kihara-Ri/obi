@@ -190,6 +190,191 @@ class Store:
                 item['profit']=money(p) if p is not None else None
         if self.rates: b['rateService']=self.rates.status()
         return b
+    @staticmethod
+    def album_identity(record):
+        """One album, however many copies/editions are held. Not a copy flag.
+
+        An explicit release group is not required for old imports, which often
+        have title/artist only. Normalize editorial title brackets and spacing.
+        """
+        import unicodedata
+        def norm(value):
+            text = unicodedata.normalize('NFKC', str(value or '')).strip()
+            if text.startswith('[') and text.endswith(']') and text.count('[') == 1:
+                text = text[1:-1].strip()
+            return ' '.join(text.split()).casefold()
+        return norm(record.get('artist')) + '\u001f' + norm(record.get('title'))
+
+    @staticmethod
+    def _valid_work_group(record, work_links):
+        link = work_links.get(record['id'])
+        if not isinstance(link, dict): return None
+        group = link.get('releaseGroupMbid')
+        if (not isinstance(group,str) or not MBID_RE.fullmatch(group)
+                or link.get('recordArtist') != record.get('artist')
+                or link.get('recordTitle') != record.get('title')):
+            return None
+        return group.lower()
+
+    def _album_catalog(self, db):
+        """Idempotent Album entity/relation reconciliation, entirely transactional.
+
+        Album IDs are permanent once assigned; editable titles are display data.
+        Confirmed release groups override an ambiguous title match. Legacy
+        favorite flags migrate only once and are preserved when groups split.
+        """
+        records = self.rows(db, 'records')
+        existing_entities = self.meta_get(db, 'album-entities-v1')
+        entities = existing_entities if existing_entities is not None else {}
+        membership = self.meta_get(db, 'album-copy-links-v1') or {}
+        old_likes = (self.meta_get(db, 'album-favorites-v1') or {}) if existing_entities is None else {}
+        work_links = self.meta_get(db, 'record-work-links-v1') or {}
+        if not isinstance(entities, dict) or not isinstance(membership, dict):
+            raise ValidationError('专辑归档数据无效')
+        entities = {k:dict(v) for k,v in entities.items()}
+        membership = dict(membership)
+        by_id = {r['id']:r for r in records}
+        # Only valid, current snapshot work associations may control an identity.
+        rgs = {r['id']:self._valid_work_group(r,work_links) for r in records}
+        groups_by_name = {}
+        for r in records:
+            if rgs[r['id']]:
+                groups_by_name.setdefault(self.album_identity(r),set()).add(rgs[r['id']])
+        changed = False
+        # Keep existing name-group associations on edits, except a newly
+        # verified RG disambiguates it. Never merge two verified RGs.
+        def create(record, rg=None, favorite=False):
+            aid = uid()
+            entities[aid] = {'id':aid,'title':record['title'],'artist':record['artist'],
+                             'musicBrainzReleaseGroupId':rg,'liked':bool(favorite),
+                             'createdAt':now()}
+            return aid
+        def find_rg(rg):
+            return next((k for k,v in entities.items()
+                         if v.get('musicBrainzReleaseGroupId') == rg),None)
+        def find_name(r):
+            key = self.album_identity(r)
+            # If exactly one verified release group has this name, an unlinked
+            # old record can tentatively share it. Ambiguity stays separate.
+            unique = groups_by_name.get(key,set())
+            if len(unique) == 1:
+                candidate = find_rg(next(iter(unique)))
+                if candidate: return candidate
+            return next((k for k,v in entities.items()
+                         if not v.get('musicBrainzReleaseGroupId') and
+                         self.album_identity(v) == key),None)
+        # Snapshot group conflicts before changing any copy assignment:
+        # otherwise processing one RG first could make another appear safe
+        # to reuse the old name-only Album entity.
+        original_group_ids = {}
+        for rid, aid in membership.items():
+            if rid in rgs and rgs[rid]:
+                original_group_ids.setdefault(aid, set()).add(rgs[rid])
+        # Process verified records first so legacy unlinked copies can join a
+        # unique group but never conflate two different release groups.
+        sorted_records = sorted(records,key=lambda r:rgs[r['id']] is None)
+        for r in sorted_records:
+            rid=r['id']; rg=rgs[rid]; old_id=membership.get(rid)
+            old_album = entities.get(old_id)
+            target = None
+            if rg:
+                if old_album and old_album.get('musicBrainzReleaseGroupId') == rg:
+                    target=old_id
+                else:
+                    target=find_rg(rg)
+                    if not target and old_album and not old_album.get('musicBrainzReleaseGroupId'):
+                        # Reuse an old album ID only when no other copy has a
+                        # different confirmed group; preserve its liked flag.
+                        if original_group_ids.get(old_id,set()) <= {rg}:
+                            target = old_id
+                            old_album['musicBrainzReleaseGroupId'] = rg
+                            changed=True
+                if not target:
+                    old_favorite = bool(old_album and old_album.get('liked'))
+                    target=create(r,rg,old_favorite or self.album_identity(r) in old_likes)
+                    changed=True
+            else:
+                if old_album:
+                    # If this unlinked record belongs to a *verified* different
+                    # work by title, don't silently assign it to another work.
+                    target=old_id
+                else:
+                    target=find_name(r)
+                if not target:
+                    target=create(r,None,self.album_identity(r) in old_likes)
+                    changed=True
+            if membership.get(rid) != target:
+                membership[rid]=target
+                changed=True
+        # An edition title correction never changes albumId. Update the
+        # descriptive label when all its extant copies now agree.
+        members={}
+        for r in records:
+            members.setdefault(membership[r['id']],[]).append(r)
+        for aid,copies in members.items():
+            names={self.album_identity(r) for r in copies}
+            if len(names)==1:
+                display=copies[0]
+                if (entities[aid].get('title'),entities[aid].get('artist')) != (
+                        display['title'],display['artist']):
+                    entities[aid]['title']=display['title']
+                    entities[aid]['artist']=display['artist']
+                    changed=True
+        # Prune removed copy references, preserve orphan album entities for
+        # backups and future restoration; preference is never lost by deletion.
+        for rid in list(membership):
+            if rid not in by_id:
+                del membership[rid]; changed=True
+        if changed or existing_entities is None:
+            db.execute('INSERT OR REPLACE INTO meta(key,data) VALUES(?,?)',
+                       ('album-entities-v1',dumps(entities)))
+            db.execute('INSERT OR REPLACE INTO meta(key,data) VALUES(?,?)',
+                       ('album-copy-links-v1',dumps(membership)))
+            # Legacy title-keyed favorites have now been folded into stable
+            # Album IDs. Retaining that old preference key could incorrectly
+            # re-apply 'liked' to a newly split or explicitly unliked album.
+            if existing_entities is None:
+                db.execute("DELETE FROM meta WHERE key='album-favorites-v1'")
+        return entities,membership,records
+
+    def album_favorites(self):
+        """Compatibility view plus durable Album entities and copy relationships."""
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            entities,links,records = self._album_catalog(db)
+        dates = {}
+        for r in records:
+            date=r.get('date') or ''
+            album_id=links[r['id']]
+            if isinstance(date,str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}',date):
+                if album_id not in dates or date<dates[album_id]:
+                    dates[album_id]=date
+        return {'albums':entities,'recordAlbumIds':links,
+                'favorites':{rid:True for rid,aid in links.items() if entities[aid].get('liked') is True},
+                'collectedAt':{rid:dates[aid] for rid,aid in links.items() if aid in dates}}
+
+    def set_album_favorite(self, body):
+        if not isinstance(body,dict) or set(body) != {'recordId','liked'}:
+            raise ValidationError('专辑喜好请求格式不正确')
+        if not isinstance(body['recordId'],str) or not RECORD_ID_RE.fullmatch(body['recordId']):
+            raise ValidationError('专辑记录编号无效')
+        if type(body['liked']) is not bool:
+            raise ValidationError('我喜欢只能是开或关')
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            entities,links,records = self._album_catalog(db)
+            if body['recordId'] not in links:
+                raise ValidationError('记录不存在，请刷新页面')
+            aid=links[body['recordId']]
+            album=entities[aid]
+            if album.get('liked') is not body['liked']:
+                album['liked']=body['liked']
+                db.execute('INSERT OR REPLACE INTO meta(key,data) VALUES(?,?)',
+                           ('album-entities-v1',dumps(entities)))
+                self.audit(db,'设置专辑喜欢状态',
+                           {'recordId':body['recordId'],'albumId':aid,'liked':body['liked']})
+        return self.album_favorites()
+
     def set_modules(self, enabled, start_page=None):
         enabled = clean_modules(enabled)
         if start_page is not None: start_page = clean_start_page(start_page)
@@ -287,6 +472,7 @@ class Store:
         self.checkpoint()
         with self.connect() as db:
             for r in preview['records']: self.put(db,'records',r)
+            self._album_catalog(db)
             self.audit(db,'导入专辑',{'count':len(preview['records']),'skipped':preview['skipped']})
         return {'count':len(preview['records']),'skipped':preview['skipped']}
     def prepare_photos(self, rid, entries):
@@ -401,6 +587,9 @@ class Store:
                 if item.get('id') and 'noteAlbum' in item:
                     cur=db.execute("UPDATE records SET data=json_set(data,'$.noteAlbum',?) WHERE id!=? AND json_extract(data,'$.title')=? AND json_extract(data,'$.artist')=?",(r.get('noteAlbum',''),r['id'],r['title'],r['artist']))
                     if cur.rowcount:self.audit(db,'同步专辑笔记',{'id':r['id'],'title':r['title'],'siblings':cur.rowcount})
+            # Persist Album entities alongside newly added/edited copies.
+            # Editing a copy's title does not rekey an existing album.
+            self._album_catalog(db)
         for rid,plan in plans:self.apply_photos(rid,plan)
         return {'ids':result}
     # 批量照片草稿只存数据目录；不占账本记录，也不混入设置/凭据导出。
@@ -779,8 +968,41 @@ class Store:
         settings = dict(b.get('settings', {}))
         if 'modules-v1' in settings: settings['modules-v1'] = clean_modules(settings['modules-v1'])
         if 'start-page-v1' in settings: settings['start-page-v1'] = clean_start_page(settings['start-page-v1'])
+        if 'album-favorites-v1' in settings:
+            likes = settings['album-favorites-v1']
+            if (not isinstance(likes,dict) or len(likes)>50000 or any(
+                not isinstance(k,str) or len(k)>1200 or '\u001f' not in k or v is not True
+                for k,v in likes.items())):
+                raise ValidationError('备份的专辑喜好数据无效')
+        if 'album-entities-v1' in settings:
+            albums=settings['album-entities-v1']
+            if (not isinstance(albums,dict) or len(albums)>100000 or any(
+                not isinstance(aid,str) or not re.fullmatch(r'[0-9a-f]{32}',aid)
+                or not isinstance(album,dict) or album.get('id') != aid
+                or not isinstance(album.get('title'),str) or len(album['title'])>500
+                or not isinstance(album.get('artist'),str) or len(album['artist'])>500
+                or type(album.get('liked')) is not bool
+                or not isinstance(album.get('createdAt'),str) or len(album['createdAt'])>40
+                or (album.get('musicBrainzReleaseGroupId') is not None and (
+                    not isinstance(album['musicBrainzReleaseGroupId'],str)
+                    or not MBID_RE.fullmatch(album['musicBrainzReleaseGroupId'])))
+                for aid,album in albums.items())):
+                raise ValidationError('备份的专辑实体数据无效')
+        if 'album-copy-links-v1' in settings:
+            links=settings['album-copy-links-v1']
+            if (not isinstance(links,dict) or len(links)>100000 or any(
+                not isinstance(rid,str) or not RECORD_ID_RE.fullmatch(rid)
+                or not isinstance(aid,str) or not re.fullmatch(r'[0-9a-f]{32}',aid)
+                for rid,aid in links.items())):
+                raise ValidationError('备份的专辑副本关联无效')
+            if 'album-entities-v1' in settings and any(
+                    aid not in settings['album-entities-v1'] for aid in links.values()):
+                raise ValidationError('备份的专辑副本关联无效')
         if 'showcase-groups-v1' in settings:
             settings['showcase-groups-v1'] = clean_showcase_groups(settings['showcase-groups-v1'])
+        if 'twin-model-assets-v1' in settings:
+            self._validate_model_manifests(settings['twin-model-assets-v1'])
+        settings.pop('album-engine-plugin-v1', None)
         if TWIN_KEY in settings:
             registry = clean_registry(settings[TWIN_KEY])
             registry['epoch'] = uid(); registry['revision'] += 1
@@ -843,6 +1065,9 @@ class Store:
         for r in b['records']: self.stash_cover(r)  # 旧备份里的 data URL 封面一并落盘
         self.checkpoint()
         with self.connect() as db:
+            plugin_state = self.meta_get(db, 'album-engine-plugin-v1')
+            if plugin_state:
+                settings['album-engine-plugin-v1'] = {**plugin_state, 'revision':plugin_state['revision'] + 1}
             for table in ('records','sales','shipments','audit','meta'): db.execute(f'DELETE FROM {table}')
             for r in b['records']: self.put(db,'records',r)
             for s in b['sales']: self.put(db,'sales',s)
@@ -859,6 +1084,123 @@ class Store:
         row = db.execute('SELECT data FROM meta WHERE key=?',(key,)).fetchone()
         return json.loads(row['data']) if row else None
 
+    # Plugin state is executable installation metadata, independent of entities.
+    def plugin_state(self):
+        with closing(self.connect()) as db:
+            return self.meta_get(db, 'album-engine-plugin-v1') or {'version': None, 'revision': 0}
+
+    @staticmethod
+    def check_plugin_revision(state, expected):
+        if expected is not None and (type(expected) is not int or expected != state['revision']):
+            raise ConflictError('插件状态已在另一窗口更新，请刷新后重试')
+
+    def twin_busy(self, db=None):
+        if db is None:
+            with closing(self.connect()) as conn: return self.twin_busy(conn)
+        registry = self.meta_get(db, TWIN_KEY) or {}
+        return any(job.get('status') in ('queued', 'running') for job in registry.get('jobs', {}).values())
+
+    def change_plugin_state(self, version, expected_revision=None):
+        if version is not None and (not isinstance(version, str) or not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', version)):
+            raise ValidationError('插件版本无效')
+        with closing(self.connect()) as db, db:
+            db.execute('BEGIN IMMEDIATE')
+            state = self.meta_get(db, 'album-engine-plugin-v1') or {'version': None, 'revision': 0}
+            self.check_plugin_revision(state, expected_revision)
+            if self.twin_busy(db): raise ConflictError('数字实体任务正在排队或生成，请等待完成后再更改插件')
+            state = {'version': version, 'revision': state['revision'] + 1}
+            db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)', ('album-engine-plugin-v1', dumps(state)))
+            self.audit(db, '安装唱片实体引擎' if version else '卸载唱片实体引擎', {'version': version})
+            return state
+
+    def _pin_twin_models(self, db, ident, snapshot):
+        manifests = self.meta_get(db, 'twin-model-assets-v1') or {}
+        # Published jobs retain their exact model bytes across engine upgrades.
+        if ident in manifests: return manifests[ident]
+        files = {}
+        root = self.path.parent / 'engine-models'
+        root.mkdir(parents=True, exist_ok=True)
+        for name, source in snapshot['files'].items():
+            if not isinstance(name, str) or not re.fullmatch(r'[a-zA-Z0-9_.-]+', name):
+                raise ValidationError('模型文件名无效')
+            raw = Path(source).read_bytes()
+            digest = hashlib.sha256(raw).hexdigest()
+            target = root / digest
+            if not target.exists():
+                temp = root / ('.' + uid())
+                temp.write_bytes(raw)
+                temp.replace(target)
+            elif hashlib.sha256(target.read_bytes()).hexdigest() != digest:
+                raise ValidationError('用户模型资源校验失败，请恢复备份')
+            files[name] = {'sha256': digest, 'url': f'/api/twin-model-assets/{ident}/{name}'}
+        if not files: raise ValidationError('模型资源不完整')
+        result = {'version':snapshot['version'], 'modelSet':snapshot['modelSet'], 'files':files}
+        manifests[ident] = result
+        db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)', ('twin-model-assets-v1', dumps(manifests)))
+        return result
+
+    def interrupt_twin_tasks_on_startup(self):
+        """Recover a stopped process without replaying work or retaining claims.
+
+        The caller owns the per-data-directory application lifetime lock. That
+        lock prevents a second active application from interrupting its peer.
+        """
+        with closing(self.connect()) as db, db:
+            db.execute('BEGIN IMMEDIATE')
+            registry = self.meta_get(db, TWIN_KEY)
+            if not registry: return 0
+            count = 0
+            for job in registry.get('jobs', {}).values():
+                if job.get('status') in ('queued', 'running'):
+                    job.update(status='interrupted', error='生成服务中断，任务未继续执行；请手动重试', leaseUntil=0)
+                    job.pop('claim', None)
+                    self._write_twins(db, registry, job)
+                    count += 1
+            if count: self.audit(db, '恢复中断的数字实体任务', {'count':count})
+            return count
+
+    def published_twins_have_models(self):
+        with closing(self.connect()) as db:
+            registry = self.meta_get(db, TWIN_KEY) or {}
+            manifests = self.meta_get(db, 'twin-model-assets-v1') or {}
+            return all(ident in manifests for ident, job in registry.get('jobs', {}).items() if job.get('status') == 'succeeded')
+
+    def pin_published_twin_models(self, snapshot):
+        with closing(self.connect()) as db, db:
+            db.execute('BEGIN IMMEDIATE')
+            registry = self.meta_get(db, TWIN_KEY) or {}
+            existing = self.meta_get(db, 'twin-model-assets-v1') or {}
+            for ident, job in registry.get('jobs', {}).items():
+                if job.get('status') == 'succeeded' and ident not in existing:
+                    self._pin_twin_models(db, ident, snapshot)
+                    self._write_twins(db, registry, job)
+
+    @staticmethod
+    def _validate_model_manifests(manifests):
+        if not isinstance(manifests, dict) or len(manifests) > 100000: raise ValidationError('备份模型资源清单无效')
+        for ident, manifest in manifests.items():
+            if not isinstance(ident, str) or not TWIN_ID.fullmatch(ident) or not isinstance(manifest, dict): raise ValidationError('备份模型资源清单无效')
+            if not isinstance(manifest.get('version'), str) or not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', manifest['version']) or manifest.get('modelSet') != 'album-rig-1': raise ValidationError('备份模型版本无效')
+            files = manifest.get('files')
+            if not isinstance(files, dict) or not 1 <= len(files) <= 100: raise ValidationError('备份模型资源清单无效')
+            for name, item in files.items():
+                if not isinstance(name, str) or not re.fullmatch(r'[a-zA-Z0-9_.-]+', name) or not isinstance(item, dict) or not isinstance(item.get('sha256'), str) or not re.fullmatch(r'[0-9a-f]{64}', item['sha256']) or item.get('url') != f'/api/twin-model-assets/{ident}/{name}': raise ValidationError('备份模型资源清单无效')
+
+    def published_twin_model_asset(self, ident, name):
+        if not isinstance(ident, str) or not TWIN_ID.fullmatch(ident): raise ValidationError('生成任务编号无效')
+        with closing(self.connect()) as db:
+            registry = self.meta_get(db, TWIN_KEY) or {}
+            job = registry.get('jobs', {}).get(ident)
+            manifest = (self.meta_get(db, 'twin-model-assets-v1') or {}).get(ident, {})
+            item = manifest.get('files', {}).get(name)
+            if not job or job.get('status') != 'succeeded' or not item: raise ValidationError('模型资源不存在')
+            digest = item.get('sha256')
+            if not isinstance(digest, str) or not re.fullmatch(r'[0-9a-f]{64}', digest): raise ValidationError('模型资源清单无效')
+            path = self.path.parent / 'engine-models' / digest
+            if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+                raise ValidationError('模型资源文件缺失或损坏，请恢复数据目录')
+            return path
+
     # ── 数字实体任务：BEGIN IMMEDIATE 是跨请求/进程的唯一性与发布闸门 ──
     def _twins(self, db):
         return self.meta_get(db, TWIN_KEY) or {'epoch': uid(), 'revision': 0, 'jobs': {}, 'latest': {}}
@@ -872,8 +1214,13 @@ class Store:
         if not isinstance(ident, str) or not TWIN_ID.fullmatch(ident): raise ValidationError('生成任务编号无效')
         return self.path.parent / 'digital-twins' / ident
 
-    def _public_twin(self, job, record=None):
+    def _public_twin(self, job, record=None, db=None):
         result = {k: job.get(k) for k in ('id', 'recordId', 'status', 'phase', 'message', 'error', 'seq', 'createdAt', 'updatedAt', 'candidates', 'entity', 'instructions', 'releaseId', 'barcode', 'barcodeSource', 'generationMode')}
+        if db is None:
+            with closing(self.connect()) as model_db:
+                result['models'] = (self.meta_get(model_db, 'twin-model-assets-v1') or {}).get(job['id'])
+        else:
+            result['models'] = (self.meta_get(db, 'twin-model-assets-v1') or {}).get(job['id'])
         if record is not None and not same_appearance(record, job['input']):
             result.update(status='stale', error='包装、照片或发行资料已变更，请按当前资料重新生成', entity=None)
         elif job['status'] == 'succeeded':
@@ -887,7 +1234,7 @@ class Store:
             registry = self.meta_get(db, TWIN_KEY)
             if registry is None: return {'epoch': '', 'revision': 0, 'jobs': {}}
             records = {r['id']: r for r in self.rows(db, 'records')}
-            jobs = {rid: self._public_twin(registry['jobs'][jid], records[rid])
+            jobs = {rid: self._public_twin(registry['jobs'][jid], records[rid], db=db)
                     for rid, jid in registry['latest'].items() if rid in records}
             return {'epoch': registry['epoch'], 'revision': registry['revision'], 'jobs': jobs}
 
@@ -898,7 +1245,8 @@ class Store:
             raise ValidationError('请提供副本编号和生成请求编号')
         if type(body.get('recordRevision')) is not int: raise ValidationError('请提供有效的副本版本')
         if body.get('mode', 'ai') not in ('ai', 'guided'): raise ValidationError('数字实体生成方式无效')
-        barcode = clean_barcode(body.get('barcode', ''))
+        if body.get('barcode') not in (None, ''):
+            raise ValidationError('条码只能在专辑编辑页修改并验证；生成数字实体不得另传条码')
         with closing(self.connect()) as db, db:
             db.execute('BEGIN IMMEDIATE'); self.require_module('showcase', db)
             record = self.get(db, 'records', rid)
@@ -906,31 +1254,24 @@ class Store:
             # A confirmed MusicBrainz edition belongs to the copy, not to a transient twin job.
             release_info = record.get('releaseInfo') or {}
             selected_release = release_info.get('musicBrainzReleaseId') or ''
-            if selected_release:
-                from twins import UUID
-                if not UUID.fullmatch(selected_release): raise ValidationError('已保存的发行版本编号无效')
-                saved_barcode = clean_barcode(release_info.get('barcode', ''))
-                if not saved_barcode: raise ValidationError('已确认发行版缺少有效的条形码')
-                if barcode and barcode != saved_barcode: raise ValidationError('请先在编辑页面更新条形码与发行版本')
-                barcode = saved_barcode
+            from twins import UUID
+            if not UUID.fullmatch(selected_release):
+                raise ValidationError('请先在专辑编辑页通过条码或唱片编号确认 MusicBrainz 发行版本')
+            barcode = clean_barcode(release_info.get('barcode', ''))
             registry = self._twins(db)
             # A lost HTTP response cannot turn the same accepted request into another task.
             receipt = next((j for j in registry['jobs'].values() if j['recordId'] == rid and j['requestId'] == request_id), None)
-            if receipt: return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': self._public_twin(receipt, record)}
+            if receipt: return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': self._public_twin(receipt, record, db=db)}
             latest_id = registry['latest'].get(rid); latest = registry['jobs'].get(latest_id)
             if latest is None and body.get('expectedJobId') is not None:
                 raise ConflictError('任务历史已变化，请刷新状态后重新发起')
             if latest:
-                shown = self._public_twin(latest, record)
-                changed_barcode = bool(barcode and barcode != latest.get('barcode') and body.get('expectedJobId') == latest_id)
-                if (shown['status'] == 'needs_input' and latest.get('phase') == 'awaiting_confirmation'
-                        and not selected_release and (not barcode or barcode == latest.get('barcode'))):
-                    return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': shown}
+                shown = self._public_twin(latest, record, db=db)
                 changed_input = shown['status'] == 'stale' and body.get('expectedJobId') == latest_id
                 if latest['status'] in ('queued', 'running') and changed_input:
                     latest.update(status='stale', error='副本资料已变化，旧生成已停止', leaseUntil=0)
                     latest.pop('claim', None); latest['seq'] += 1
-                elif latest['status'] in ('queued', 'running') or (shown['status'] == 'succeeded' and not changed_barcode) or body.get('expectedJobId') != latest_id:
+                elif latest['status'] in ('queued', 'running') or shown['status'] == 'succeeded' or body.get('expectedJobId') != latest_id:
                     return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': shown}
             if body.get('recordRevision') != record['revision']: raise ConflictError('副本已在其他窗口修改，请刷新后再生成')
             ident = uid(); folder = self._twin_folder(ident); folder.mkdir(parents=True)
@@ -947,45 +1288,24 @@ class Store:
                 raw = (self.covers_dir / cover_name).read_bytes(); ext, mime = image_type(raw); name = 'cover.' + ext
                 (folder / name).write_bytes(raw); sources['cover'] = {'asset': name, 'mime': mime, 'origin': 'record-cover', 'sourceUrl': ''}
             job = {'id': ident, 'recordId': rid, 'requestId': request_id, 'skill': SKILL_VERSION,
-                   'status': 'queued', 'phase': 'locating_release' if barcode else 'reading_barcode', 'message': '等待核对条形码', 'error': '', 'seq': 0,
+                   'status': 'queued', 'phase': 'locating_release', 'message': '等待核对发行版', 'error': '', 'seq': 0,
                    'input': appearance(record), 'inputRevision': record['revision'], 'instructions': '',
-                   'workflow': 'barcode-first', 'generationMode': 'guided' if body.get('mode') == 'guided' else 'ai', 'barcode': barcode, 'barcodeSource': 'record' if selected_release else 'manual' if barcode else '',
+                   'workflow': 'confirmed-release', 'generationMode': 'guided' if body.get('mode') == 'guided' else 'ai', 'barcode': barcode, 'barcodeSource': 'record',
                    'selectedReleaseId': selected_release,
                    'releaseId': '', 'sources': sources, 'createdAt': now(), 'updatedAt': now(), 'leaseUntil': 0}
             registry['jobs'][ident] = job; registry['latest'][rid] = ident
             self._write_twins(db, registry, job); self.audit(db, '请求生成数字实体', {'id': rid, 'taskId': ident, 'skill': SKILL_VERSION})
-            return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': self._public_twin(job, record)}
-
-    def confirm_twin(self, ident, edition, configured=False):
-        if not isinstance(ident, str) or not TWIN_ID.fullmatch(ident): raise ValidationError('生成任务编号无效')
-        if not isinstance(edition, str) or not TWIN_RELEASE_ID.fullmatch(edition): raise ValidationError('发行版本编号无效')
-        with closing(self.connect()) as db, db:
-            db.execute('BEGIN IMMEDIATE'); self.require_module('showcase', db); registry = self._twins(db)
-            job = registry['jobs'].get(ident)
-            if not job: raise ValidationError('生成任务不存在')
-            record = self.get(db, 'records', job['recordId'])
-            if registry['latest'].get(job['recordId']) != ident or not same_appearance(record, job['input']):
-                raise ConflictError('副本或任务已变化，请保存并重新核对条形码')
-            # A response lost after confirmation must never queue a second paid generation.
-            if job.get('releaseId') == edition and job.get('confirmedRelease'):
-                return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': self._public_twin(job, record)}
-            if job['status'] != 'needs_input' or job.get('phase') != 'awaiting_confirmation':
-                raise ConflictError('当前任务没有可确认的发行资料，请刷新状态')
-            release = job.get('releaseData', {}).get(edition)
-            if not release or not any(c.get('id') == edition for c in job.get('candidates', [])):
-                raise ValidationError('只能确认这次条形码查询返回的发行版本')
-            if not configured and job.get('generationMode') != 'guided': raise ValidationError('请先在设置中配置视觉模型，发行资料会保留供确认')
-            guided = job.get('generationMode') == 'guided'
-            job.update(status='needs_input' if guided else 'queued',
-                       phase='awaiting_art_selection' if guided else 'queued_generation',
-                       message='已确认发行版，请为各部件选择图源' if guided else '已确认发行版，等待生成 agent', error='',
-                       releaseId=edition, confirmedRelease=release, confirmedCatalog=job.get('artData', {}).get(edition, {}), confirmedAt=now())
-            self._write_twins(db, registry, job); self.audit(db, '确认数字实体发行版', {'id': job['recordId'], 'taskId': ident, 'releaseId': edition})
-            return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': self._public_twin(job, record)}
+            return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': self._public_twin(job, record, db=db)}
 
     def select_twin_art(self, body):
         """A user-approved selection moves a reviewed guided task into the existing queue."""
-        from server.twin_guided import candidate_images, validated_mapping
+        helpers = getattr(self, 'guided_selection_helpers', None)
+        if helpers is None:
+            # Compatibility for standalone fixture tools; application instances
+            # receive these validation functions from their installed runtime.
+            from server.twin_guided import candidate_images, validated_mapping
+        else:
+            candidate_images, validated_mapping = helpers
         if not isinstance(body, dict) or not isinstance(body.get('id'), str) or not TWIN_ID.fullmatch(body['id']):
             raise ValidationError('选图任务编号无效')
         with closing(self.connect()) as db, db:
@@ -1006,7 +1326,7 @@ class Store:
             job.update(status='queued', phase='queued_generation', error='', message='等待按确认的图集组装实体')
             self._write_twins(db, registry, job)
             self.audit(db, '确认数字实体贴图', {'id': job['recordId'], 'taskId': job['id']})
-            return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': self._public_twin(job, record)}
+            return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': self._public_twin(job, record, db=db)}
 
     def claim_twin(self, owner, stamp=None):
         stamp = time.time() if stamp is None else stamp
@@ -1024,7 +1344,7 @@ class Store:
             if selected:
                 record = self.get(db, 'records', selected['recordId'])
                 if not same_appearance(record, selected['input']): selected.update(status='stale', error='生成前副本资料已变化')
-                elif selected.get('workflow') != 'barcode-first': selected.update(status='interrupted', error='请重新核对条形码并确认发行版后生成')
+                elif selected.get('workflow') != 'confirmed-release': selected.update(status='interrupted', error='旧条码识别任务已停用，请从专辑编辑页面确认发行版后重新生成')
                 else: selected.update(status='running', owner=owner, claim=uid(), leaseUntil=stamp + 90)
                 self._write_twins(db, registry, selected)
                 return selected if selected['status'] == 'running' else None
@@ -1050,9 +1370,13 @@ class Store:
                 self.require_module('showcase', db); record = self.get(db, 'records', job['recordId'])
                 if not same_appearance(record, job['input']): patch = {'status': 'stale', 'error': '生成期间副本资料已修改，旧结果未发布'}
                 else:
+                    from server.album_engine_adapter import prepare_publication
+                    patch['entity'] = prepare_publication(patch['entity'], ident, record['title'], context='generation')
                     folder = self._twin_folder(ident)
                     if not all((folder / name).is_file() for name in entity_assets(patch['entity'])):
                         raise ValidationError('生成资源不完整，结果未发布')
+                    provider = getattr(self, 'model_snapshot_provider', None)
+                    if provider: self._pin_twin_models(db, ident, provider())
                     self.audit(db, '完成数字实体', {'id': job['recordId'], 'taskId': ident})
             job.update(patch)
             if job['status'] != 'running': job.pop('claim', None); job['leaseUntil'] = 0
@@ -1067,7 +1391,7 @@ class Store:
             if job['status'] in ('queued', 'running', 'needs_input'):
                 job.update(status='cancelled', error='', message='已取消生成', leaseUntil=0); job.pop('claim', None)
                 self._write_twins(db, registry, job)
-            return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': self._public_twin(job)}
+            return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': self._public_twin(job, db=db)}
 
     def set_twin_accessories(self, ident, selected, downloaded):
         """Publish replacement accessory list while preserving existing main surfaces."""
@@ -1097,12 +1421,14 @@ class Store:
                     temp = path.with_suffix('.tmp'); temp.write_bytes(raw); temp.replace(path)
             if parts: job['entity']['components'] = parts
             else: job['entity'].pop('components',None)
+            from server.album_engine_adapter import prepare_publication
+            job['entity'] = prepare_publication(job['entity'], ident, record['title'], context='update')
             if not all((folder/name).is_file() for name in entity_assets(job['entity'])):
                 raise ValidationError('附件图片写入失败，实体未修改')
             self._write_twins(db,registry,job)
             self.audit(db,'更新数字实体附件',{'id':job['recordId'],'taskId':ident,'count':len(parts)})
             return {'epoch':registry['epoch'],'revision':registry['revision'],
-                    'job':self._public_twin(job,record)}
+                    'job':self._public_twin(job,record,db=db)}
 
     def set_twin_spine_surface(self, body):
         """Bind an already-published cover's *actual* narrow printed edge.
@@ -1111,23 +1437,12 @@ class Store:
         presentation metadata only; no mutable record, external URL, image
         bytes, task identity or model generation is involved.
         """
-        from domain import clean_packaging
         if not isinstance(body, dict) or not isinstance(body.get('id'), str) or not TWIN_ID.fullmatch(body['id']):
             raise ValidationError('数字实体书脊任务编号无效')
         region = body.get('region')
         source_role = body.get('sourceRole')
-        if region is not None:
-            if source_role not in ('front', 'back'):
-                raise ValidationError('书脊只能从当前实体已验证的正面或背面图源裁取')
-            normalized = clean_packaging({'photoRegions': {'spine': region}})['photoRegions']['spine']
-            width = max(normalized[0::2]) - min(normalized[0::2])
-            height = max(normalized[1::2]) - min(normalized[1::2])
-            if (not (.003 <= width <= .09 and height >= .65)
-                    or normalized[0] >= normalized[2] or normalized[6] >= normalized[4]
-                    or normalized[1] >= normalized[7] or normalized[3] >= normalized[5]
-                    or abs(normalized[1] - normalized[3]) > .05
-                    or abs(normalized[5] - normalized[7]) > .05):
-                raise ValidationError('书脊必须是原图中自上而下的狭长连续印刷边')
+        from twins import clean_spine_binding
+        normalized = clean_spine_binding(source_role, region)
         with closing(self.connect()) as db, db:
             db.execute('BEGIN IMMEDIATE'); self.require_module('showcase', db)
             registry = self._twins(db)
@@ -1153,13 +1468,15 @@ class Store:
                     'origin': source.get('origin', 'record-photo'),
                     **({'sourceReleaseId': source['sourceReleaseId']} if source.get('sourceReleaseId') else {}),
                 }
+            from server.album_engine_adapter import prepare_publication
+            entity = job['entity'] = prepare_publication(entity, job['id'], record['title'], context='update')
             if not all((self._twin_folder(job['id']) / asset).is_file() for asset in entity_assets(entity)):
                 raise ValidationError('数字实体关联资源不完整')
             self._write_twins(db, registry, job)
             self.audit(db, '修正数字实体书脊', {'id': job['recordId'], 'taskId': job['id'],
                                               'sourceRole': source_role if region is not None else ''})
             return {'epoch': registry['epoch'], 'revision': registry['revision'],
-                    'job': self._public_twin(job, record)}
+                    'job': self._public_twin(job, record, db=db)}
 
     def set_twin_disc_calibration(self, body):
         from twins import clean_disc_calibration
@@ -1182,9 +1499,11 @@ class Store:
                 raise ValidationError('当前光盘没有可校准的原始贴图')
             if calibration is None: surface.pop('discCalibration', None)
             else: surface['discCalibration'] = calibration
+            from server.album_engine_adapter import prepare_publication
+            job['entity'] = prepare_publication(job['entity'], ident, record['title'], context='update')
             self._write_twins(db, registry, job)
             self.audit(db, '校准数字实体盘面', {'id': job['recordId'], 'taskId': ident, 'role': role})
-            return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': self._public_twin(job, record)}
+            return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': self._public_twin(job, record, db=db)}
 
     def twin_source(self, ident, name):
         if not isinstance(name, str) or not TWIN_ASSET.fullmatch(name): raise ValidationError('数字实体资源名无效')

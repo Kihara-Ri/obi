@@ -1,28 +1,12 @@
+import {compiledSources} from './helpers/compiled-sources.mjs';
 import assert from 'node:assert/strict';
-import {after, test} from 'node:test';
-import {mkdtempSync, rmSync, writeFileSync, symlinkSync} from 'node:fs';
+import {test} from 'node:test';
+
 import {execFileSync} from 'node:child_process';
-import {createRequire} from 'node:module';
-import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import ts from 'typescript';
 
-const output = mkdtempSync(join(tmpdir(), 'diedu-entity-test-'));
-after(() => rmSync(output, {recursive: true, force: true}));
-const source = fileURLToPath(new URL('../src/', import.meta.url));
-const program = ts.createProgram([join(source, 'core/album-entity.ts'), join(source, 'core/digital-twins.ts')], {
-  target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, moduleResolution: ts.ModuleResolutionKind.Node10,
-  strict: true, skipLibCheck: true, types: [], esModuleInterop: true, rootDir: source, outDir: output,
-});
-const diagnostics = ts.getPreEmitDiagnostics(program);
-assert.equal(diagnostics.length, 0, ts.formatDiagnosticsWithColorAndContext(diagnostics, {
-  getCurrentDirectory: () => source, getCanonicalFileName: name => name, getNewLine: () => '\n',
-}));
-program.emit();
-writeFileSync(join(output, 'package.json'), '{"type":"commonjs"}');
-symlinkSync(fileURLToPath(new URL('../node_modules', import.meta.url)), join(output, 'node_modules'), 'dir');
-const require = createRequire(import.meta.url);
+const {output, source, require} = compiledSources();
 const {toAlbumEntity, resolveAlbumAsset} = require(join(output, 'core/album-entity.js'));
 const {twinViewerRecord} = require(join(output, 'core/digital-twins.js'));
 const fixture = JSON.parse(execFileSync('python3', ['-c', `
@@ -30,7 +14,7 @@ import json,sys
 from tools.seed_samples import seed_models,open_store
 ids=seed_models(sys.argv[1]);store=open_store(sys.argv[1]);rid=ids['lift-fists']
 print(json.dumps({'record':next(r for r in store.state()['records'] if r['id']==rid),'job':store.twin_index()['jobs'][rid]}))
-`, join(output, 'samples')], {cwd: fileURLToPath(new URL('../../', import.meta.url)), encoding: 'utf8'}));
+`, join(output, 'album-entity-samples')], {cwd: fileURLToPath(new URL('../../', import.meta.url)), encoding: 'utf8'}));
 const record = twinViewerRecord(fixture.record, fixture.job);
 
 test('发布实体转换为独立描述，保持每面投影且无账本或照片序号', () => {

@@ -48,3 +48,67 @@ jobs:
       - run: npm --prefix web test
       - run: npm --prefix web run typecheck
       - run: npm --prefix web run build
+
+  sample-browser:
+    name: 真实封面与模型贴图浏览器验收
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DIEDU_DEV_HOME: ${{ runner.temp }}/diedu-preview
+      DIEDU_PREVIEW_SCREENSHOTS: ${{ runner.temp }}/diedu-preview-screenshots
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm --prefix web ci
+      - run: npm --prefix web run build
+      - name: 安装 Chromium 与系统依赖
+        working-directory: web
+        run: npx --no-install playwright install --with-deps chromium
+      - name: 缓存锁定的公开素材包
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/diedu-preview/bundle
+          key: sample-bundle-${{ runner.os }}-${{ hashFiles('tools/sample-bundle.json') }}
+      - name: 准备并校验固定样本
+        run: |
+          python3 tools/preview_samples.py prepare --download
+          python3 tools/preview_samples.py check > "$RUNNER_TEMP/diedu-preview-check.json"
+      - name: 启动隔离预览并验证真实封面与贴图
+        run: |
+          python3 tools/preview_samples.py start --port 63282 > "$RUNNER_TEMP/diedu-preview-server.log" 2>&1 &
+          preview_pid=$!
+          trap 'kill "$preview_pid" 2>/dev/null || true; wait "$preview_pid" 2>/dev/null || true' EXIT
+          ready=false
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:63282/api/health > /dev/null; then
+              ready=true
+              break
+            fi
+            if ! kill -0 "$preview_pid" 2>/dev/null; then
+              cat "$RUNNER_TEMP/diedu-preview-server.log"
+              exit 1
+            fi
+            sleep 1
+          done
+          if [ "$ready" != true ]; then
+            cat "$RUNNER_TEMP/diedu-preview-server.log"
+            exit 1
+          fi
+          npm --prefix web run test:browser -- --url http://127.0.0.1:63282 --expectations "$RUNNER_TEMP/diedu-preview-check.json"
+      - name: 保存失败现场与样本诊断
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sample-browser-failure
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/diedu-preview-screenshots/
+            ${{ runner.temp }}/diedu-preview-check.json
+            ${{ runner.temp }}/diedu-preview-server.log

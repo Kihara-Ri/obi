@@ -101,6 +101,14 @@ def api_cover(h, svc):
     return h.send(path.read_bytes(), mime=mime, cache='private, max-age=31536000, immutable')
 
 
+def api_album_favorites(h, svc):
+    h.send(svc.store.album_favorites())
+
+
+def api_album_favorite(h, svc, body):
+    h.send(svc.store.set_album_favorite(body))
+
+
 def api_backup(h, svc):
     h.send(svc.store.backup(), filename='album-ledger-backup.json')
 
@@ -234,6 +242,30 @@ def api_records(h, svc, body):
     from .shop_brands import normalize
     with svc.store.connect() as db:
         recorded = {normalize(r.get('location', '')) for r in svc.store.rows(db, 'records')}
+    for item in incoming:
+        if not isinstance(item, dict): continue
+        info = item.get('releaseInfo') or {}
+        if not isinstance(info, dict): continue
+        new_barcode = info.get('barcode') or ''
+        new_edition = info.get('musicBrainzReleaseId') or ''
+        old_barcode = old_edition = ''
+        if item.get('id'):
+            with svc.store.connect() as db:
+                previous = svc.store.get(db, 'records', item['id'])
+            previous_info = previous.get('releaseInfo') or {}
+            old_barcode = previous_info.get('barcode') or ''
+            old_edition = previous_info.get('musicBrainzReleaseId') or ''
+        if (new_barcode, new_edition) != (old_barcode, old_edition):
+            if new_barcode:
+                verify_barcode_release(svc, new_barcode, new_edition)
+            elif old_barcode and new_edition:
+                # Removing an existing barcode cannot silently retain a release
+                # that MusicBrainz documents as having one.
+                details = vision(svc).release_details(new_edition)
+                if details.get('barcode'):
+                    raise ValidationError('该发行版在 MusicBrainz 中有条码，不能直接清除；请重新选择发行版')
+            elif not new_edition and (old_edition or new_barcode):
+                raise ValidationError('条码或发行版本已修改，请重新查询并确认发行版')
     h.send(svc.store.save(body))
     if svc.shops:
         for name in proposed:
@@ -282,15 +314,55 @@ def api_barcode_lookup(h, svc, body):
     h.send({'barcode': barcode, 'candidates': candidates})
 
 
+def verify_barcode_release(svc, barcode, release_id):
+    """Check the full barcode against the exact MusicBrainz release, never by title."""
+    from twins import clean_barcode, UUID
+    barcode = clean_barcode(barcode)
+    if not barcode: raise ValidationError('请输入完整的条形码')
+    if not isinstance(release_id, str) or not UUID.fullmatch(release_id):
+        raise ValidationError('请先查询并选择对应的 MusicBrainz 发行版本')
+    published = vision(svc).release_details(release_id)
+    if clean_barcode(published.get('barcode', '')) != barcode:
+        raise ValidationError('MusicBrainz 中该条码不属于当前发行版本，请重新查询并选择正确版本')
+    return {'barcode': barcode, 'releaseId': release_id, 'valid': True}
+
+
+def api_verify_barcode(h, svc, body):
+    h.send(verify_barcode_release(svc, body.get('barcode'), body.get('releaseId')))
+
+
+def api_catalog_number_lookup(h, svc, body):
+    """Catalog number search; exact label catalog-number required, not a title guess."""
+    raw = body.get('catalogNumber', '')
+    if not isinstance(raw, str) or not 2 <= len(raw.strip()) <= 80:
+        raise ValidationError('请输入完整的唱片编号')
+    number = raw.strip()
+    if not re.fullmatch(r'[\w ./+\-]+', number, re.UNICODE):
+        raise ValidationError('唱片编号包含不支持的字符')
+    candidates = vision(svc).catalog({'title': '', 'artist': '',
+        'releaseInfo': {'barcode': '', 'catalogNumber': number}})
+    normalized = lambda value: re.sub(r'[^\w]', '', str(value)).casefold()
+    # A MusicBrainz release may have multiple labels; compare each independently.
+    exact = [item for item in candidates
+             if any(normalized(part) == normalized(number)
+                    for part in item.get('releaseInfo', {}).get('catalogNumber', '').split(' / '))]
+    h.send({'catalogNumber': number, 'candidates': exact})
+
+
+
+def catalog_art(svc):
+    return getattr(svc, 'catalog_art', None) or twins(svc).art
+
+
 def api_release_artwork(h, svc):
     """Selected edition's CAA artwork metadata; never search other releases by title."""
     from twins import UUID
-    from server.digital_twins import ArtNotFound
+    from server.catalog_art import ArtNotFound
     ident = query(h).get('id', '')
     if not isinstance(ident, str) or not UUID.fullmatch(ident):
         raise ValidationError('发行版本编号不正确')
     try:
-        catalog = twins(svc).art.catalog(ident)
+        catalog = catalog_art(svc).catalog(ident)
     except ArtNotFound:
         return h.send({'id': ident, 'artwork': []})
     artwork = []
@@ -307,19 +379,19 @@ def api_release_artwork(h, svc):
 def api_release_front_cover(h, svc):
     """Use ONLY the front of the confirmed MB release, not title-matched unrelated editions."""
     from twins import UUID, image_type
-    from server.digital_twins import ArtNotFound
+    from server.catalog_art import ArtNotFound
     import base64
     ident = query(h).get('id', '')
     if not isinstance(ident, str) or not UUID.fullmatch(ident):
         raise ValidationError('发行版本编号不正确')
     try:
-        images = twins(svc).art.catalog(ident).get('images', [])
+        images = catalog_art(svc).catalog(ident).get('images', [])
     except ArtNotFound:
         return h.send({'cover': '', 'reason': 'no-artwork'})
     front = next((item for item in images if isinstance(item, dict) and str(item.get('id', '')).isdigit()
                   and 'Front' in item.get('types', [])), None)
     if front is None: return h.send({'cover': '', 'reason': 'no-front'})
-    raw = twins(svc).art.image(ident, str(front['id']), preview=True)
+    raw = catalog_art(svc).image(ident, str(front['id']), preview=True)
     if len(raw) > 2500000: raise ValidationError('这一发行版的封面预览过大，请手动选择封面')
     _, mime = image_type(raw)
     h.send({'cover': 'data:' + mime + ';base64,' + base64.b64encode(raw).decode('ascii'),
@@ -346,6 +418,23 @@ def api_import_photo(h, svc):
     h.send(path.read_bytes(),mime=mimetypes.guess_type(path.name)[0] or 'image/jpeg')
 
 
+def api_engine_plugin(h, svc): h.send(svc.plugins.status())
+def api_engine_install(h, svc, body): h.send(svc.plugins.install(body.get('expectedRevision')))
+def api_engine_uninstall(h, svc, body): h.send(svc.plugins.uninstall(body.get('expectedRevision')))
+def api_engine_asset(h, svc):
+    from urllib.parse import unquote
+    tail = unquote(urlsplit(h.path).path[len('/api/plugins/album-engine/assets/'):])
+    version, separator, name = tail.partition('/')
+    if not separator: raise ValidationError('插件资源地址无效')
+    path = svc.plugins.asset(name, version=version)
+    h.send(path.read_bytes(), mime=mimetypes.guess_type(path.name)[0] or 'application/octet-stream')
+def api_twin_model_asset(h, svc):
+    parts = urlsplit(h.path).path.split('/')
+    if len(parts) != 5: raise ValidationError('模型资源地址无效')
+    path = svc.store.published_twin_model_asset(parts[3], parts[4])
+    h.send(path.read_bytes(), mime=mimetypes.guess_type(parts[4])[0] or 'application/octet-stream', cache='private, max-age=31536000, immutable')
+
+
 def twins(svc):
     if svc.twins is None: raise ValidationError('数字实体服务未启动，请重启碟渡')
     return svc.twins
@@ -353,14 +442,18 @@ def twins(svc):
 
 def api_twins(h, svc): h.send(twins(svc).index())
 def api_twin_start(h, svc, body): h.send(twins(svc).start_task(body))
-def api_twin_confirm(h, svc, body): h.send(twins(svc).confirm(body))
 def api_twin_accessories(h, svc, body): h.send(twins(svc).update_accessories(body))
 
 def api_twin_guided(h, svc, body):
+    if getattr(svc, 'plugins', None): svc.plugins.service()
     h.send(svc.store.select_twin_art(body)); twins(svc).wake.set()
 
-def api_twin_disc_calibration(h, svc, body): h.send(svc.store.set_twin_disc_calibration(body))
-def api_twin_spine(h, svc, body): h.send(svc.store.set_twin_spine_surface(body))
+def api_twin_disc_calibration(h, svc, body):
+    if getattr(svc, 'plugins', None): svc.plugins.service()
+    h.send(svc.store.set_twin_disc_calibration(body))
+def api_twin_spine(h, svc, body):
+    if getattr(svc, 'plugins', None): svc.plugins.service()
+    h.send(svc.store.set_twin_spine_surface(body))
 
 def api_twin_cancel(h, svc, body): h.send(twins(svc).cancel(body.get('id')))
 def api_twin_review_asset(h, svc):
@@ -405,6 +498,7 @@ def api_import_preview(h, svc, body):
 GET = {
     '/api/health': api_health,
     '/api/state': api_state,
+    '/api/album-favorites': api_album_favorites,
     '/api/rate': api_rate,
     '/api/shop-brands': api_shop_brands,
     '/api/backup': api_backup,
@@ -417,6 +511,7 @@ GET = {
     '/api/catalog/front-cover': api_release_front_cover,
     '/api/imports': api_imports,
     '/api/imports/draft': api_import_draft,
+    '/api/plugins/album-engine': api_engine_plugin,
     '/api/twins': api_twins,
     '/api/twin-source-preview/': api_twin_source_preview,
 }
@@ -429,6 +524,8 @@ GET_PREFIX = {  # 带路径参数的接口
     '/api/shop-brand-icon/': api_shop_brand_icon,
     '/api/import-photo/': api_import_photo,
     '/api/artists/artwork/': api_artists_artwork,
+    '/api/plugins/album-engine/assets/': api_engine_asset,
+    '/api/twin-model-assets/': api_twin_model_asset,
     '/api/twin-assets/': api_twin_asset,
     '/api/twin-review-assets/': api_twin_review_asset,
 }
@@ -438,6 +535,8 @@ POST = {
     '/api/logout': (api_logout, True, False),
     '/api/password': (api_password, True, True),
     '/api/catalog/barcode': (api_barcode_lookup, True, False),
+    '/api/catalog/barcode/verify': (api_verify_barcode, True, False),
+    '/api/catalog/number': (api_catalog_number_lookup, True, False),
     '/api/shops/retry': (api_shop_retry, True, False),
     '/api/covers/search': (api_covers_search, True, False),
     '/api/covers/download': (api_covers_download, True, False),
@@ -446,6 +545,7 @@ POST = {
     '/api/artists/work-link': (api_artists_work_link, True, False),
     '/api/artists/work-unlink': (api_artists_work_unlink, True, False),
     '/api/records': (api_records, True, True),
+    '/api/album-favorites': (api_album_favorite, True, True),
     '/api/bulk': (api_bulk, True, True),
     '/api/sales': (api_sales, True, True),
     '/api/sale-action': (api_sale_action, True, True),
@@ -466,8 +566,9 @@ POST = {
     '/api/imports/start': (api_import_start, True, False),
     '/api/imports/commit': (api_import_commit, True, True),
     '/api/imports/delete': (api_import_delete, True, False),
+    '/api/plugins/album-engine/install': (api_engine_install, True, True),
+    '/api/plugins/album-engine/uninstall': (api_engine_uninstall, True, True),
     '/api/twins/start': (api_twin_start, True, True),
-    '/api/twins/confirm': (api_twin_confirm, True, True),
     '/api/twins/cancel': (api_twin_cancel, True, True),
     '/api/twins/accessories': (api_twin_accessories, True, True),
     '/api/twins/guided': (api_twin_guided, True, True),

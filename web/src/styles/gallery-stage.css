@@ -5,7 +5,11 @@
 .gallery-cover-button:hover{background:var(--surface-2)}
 .gallery-cover-button:focus-visible{outline-offset:4px}
 .gallery-artwork{display:block;width:100%;height:100%;position:relative;background:var(--surface-2);overflow:hidden}
-.gallery-artwork .cover{display:block;width:100%;height:100%;object-fit:contain;user-select:none;-webkit-user-drag:none}
+.gallery-artwork .cover{position:relative;display:block;width:100%;height:100%;object-fit:contain;user-select:none;-webkit-user-drag:none}
+/* 非正方形封面的空条：同一张封面的模糊放大版铺底（--art-url 由 GalleryArtwork 设置） */
+.gallery-artwork[style*="--art-url"]::before{content:"";position:absolute;inset:-8%;background:var(--art-url) center/cover;filter:blur(9px);pointer-events:none}
+/* 36px 的组管理小图空条几乎看不见，不值得为它多一层滤镜 */
+.showcase-group-record>.gallery-artwork::before,.showcase-group-add>.gallery-artwork::before{display:none!important}
 .gallery-artwork .cover-fallback{display:flex;align-items:center;justify-content:center;min-height:100%;color:var(--muted);font-size:clamp(28px,8vw,64px);background:var(--surface-2)}
 .gallery-art-message{position:absolute;bottom:10%;left:6%;right:6%;text-align:center;font-size:11px;color:var(--muted);font-weight:400}
 

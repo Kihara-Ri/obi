@@ -1,4 +1,4 @@
-const CACHE='album-shell-v21';
+const CACHE='album-shell-v22';
 // 离线兜底页与其固定依赖：壳文件在服务器侧 no-store，浏览器缓存不可依赖，
 // 全部随 SW 预缓存；其中任何文件改动后须递增 CACHE 版本，否则已装设备离线时仍用旧副本。
 const OFFLINE_SHELL=['/offline.html','/offline.css','/theme.js'];

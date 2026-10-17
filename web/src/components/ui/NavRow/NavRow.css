@@ -1,0 +1,12 @@
+/* NavRow：列表导航行。只用 token。 */
+.nav-row{display:flex;align-items:center;gap:14px;width:100%;min-height:56px;padding:10px 0;border:none;border-bottom:1px solid var(--border);border-radius:0;background:none;text-align:left;text-decoration:none;color:var(--text);font-size:15px;font-weight:600}
+a.nav-row,button.nav-row{cursor:pointer}
+a.nav-row:hover,button.nav-row:hover{background:none;border-color:transparent;border-bottom-color:var(--border);color:var(--accent-deep)}
+div.nav-row{cursor:default}
+.nav-row-icon{display:flex;align-items:center;justify-content:center;flex:none;width:24px;font-size:19px;color:var(--muted)}
+.nav-row-title{flex:1;min-width:0}
+.nav-row-value{flex:none;font-size:13px;font-weight:500;color:var(--muted);font-variant-numeric:tabular-nums}
+.nav-row-arrow{flex:none;font-size:24px;line-height:1;color:var(--faint)}
+@media (max-width:840px){
+  .nav-row{min-height:60px}
+}

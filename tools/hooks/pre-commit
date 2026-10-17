@@ -1,3 +1,7 @@
 #!/bin/sh
 # pre-commit：拦截把个人数据提交进暂存区（git commit -n 可绕过，CI 会兜底）。
-exec "$(dirname "$0")/../check-data-leak.sh" --cached
+# 数据扫描通过后，继续执行 ai-kit 的代码纪律检查（.githooks/pre-commit，只检查暂存文件）。
+here="$(dirname "$0")"
+"$here/../check-data-leak.sh" --cached || exit 1
+[ -x "$here/../../.githooks/pre-commit" ] && exec "$here/../../.githooks/pre-commit"
+exit 0

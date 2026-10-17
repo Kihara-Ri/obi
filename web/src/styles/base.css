@@ -29,7 +29,15 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
    自己的短过渡，让整页颜色同步渐变。窗口结束即移除。 */
 @media (prefers-reduced-motion:no-preference){
   .theme-fade,.theme-fade *,.theme-fade *::before,.theme-fade *::after{
-    transition:background-color .3s ease,color .3s ease,border-color .3s ease,fill .3s ease,stroke .3s ease,box-shadow .3s ease,outline-color .3s ease!important}
+    transition:background-color .5s ease-in-out,color .5s ease-in-out,border-color .5s ease-in-out,fill .5s ease-in-out,stroke .5s ease-in-out,box-shadow .5s ease-in-out,outline-color .5s ease-in-out!important}
+  /* 首选路径：View Transitions 整页交叉淡化（theme.js 给 <html> 加 .theme-vt）；比逐元素过渡更柔和，
+     渐变背景、阴影、图片也一起过渡。 */
+  ::view-transition-old(root),::view-transition-new(root){animation-duration:.5s;animation-timing-function:ease-in-out}
+  /* 上面的通配 !important 会顶掉滑块自己的位移过渡（点外观分段时滑块就「跳」过去）：
+     带滑动的元素在保留颜色渐变的同时，补回自己的 transform / width 过渡 */
+  .theme-fade .seg-thumb{
+    transition:transform var(--slide-ms) var(--slide-ease),width var(--slide-ms) var(--slide-ease),background-color .5s ease-in-out,box-shadow .5s ease-in-out!important}
+  .theme-fade .switch .knob{transition:transform .18s ease,background-color .5s ease-in-out,box-shadow .5s ease-in-out!important}
 }
 
 /* 手机：输入控件 16px 起步 —— iOS Safari 对小于 16px 的输入框聚焦时会自动放大页面；
@@ -38,3 +46,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   input,select,textarea{font-size:16px}
   body{overflow-x:clip}
 }
+
+/* 数字输入：不显示步进箭头（金额没人用它一格格点，还挤占宽度；滚轮误改见 App.tsx） */
+input[type=number]{-moz-appearance:textfield;appearance:textfield}
+input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}

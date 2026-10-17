@@ -1,34 +1,23 @@
+import {compiledSources} from './helpers/compiled-sources.mjs';
 import assert from 'node:assert/strict';
-import {after, test} from 'node:test';
-import {mkdtempSync, rmSync, symlinkSync, writeFileSync} from 'node:fs';
-import {createRequire} from 'node:module';
-import {tmpdir} from 'node:os';
+import {test} from 'node:test';
+
 import {join} from 'node:path';
-import {fileURLToPath} from 'node:url';
-import ts from 'typescript';
 import {createElement} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 
-const output = mkdtempSync(join(tmpdir(), 'diedu-twin-controls-test-'));
-const source = fileURLToPath(new URL('../src/', import.meta.url));
-const program = ts.createProgram([join(source, 'components/TwinControls.tsx')], {
-  target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX,
-  strict: true, skipLibCheck: true, types: [], esModuleInterop: true, rootDir: source, outDir: output,
-});
-assert.equal(ts.getPreEmitDiagnostics(program).length, 0);
-assert.equal(program.emit().emitSkipped, false);
-writeFileSync(join(output, 'package.json'), '{"type":"commonjs"}');
-symlinkSync(fileURLToPath(new URL('../node_modules', import.meta.url)), join(output, 'node_modules'), 'dir');
-const require = createRequire(import.meta.url);
+const {output, source, require} = compiledSources();
 const {TwinControls} = require(join(output, 'components/TwinControls.js'));
+const calibration = require('@diedu/album-engine/calibration');
+const editor = require('@diedu/album-engine/editor');
+const runtime = {...calibration, editionMaterialSources: editor.editionMaterialSources};
 const {AppContext} = require(join(output, 'state/AppContext.js'));
-after(() => rmSync(output, {recursive: true, force: true}));
 
 const id = 'e618bce6-8e08-4628-9574-2d8f53b20db7';
 const record = {id: 'copy', title: 'Islands', artist: 'King Crimson', version: 'Jewel Case', revision: 1,
   releaseInfo: {barcode: '4988013047105', musicBrainzReleaseId: id}};
-function render(props = {}, configured = true, job = null) {
-  const app = {twins: {jobs: job ? {copy: job} : {}, configured}, twinSyncError: ''};
+function render(props = {}, configured = true, job = null, installed = true) {
+  const app = {albumEngine: {runtime: installed ? runtime : null, status: {installed}}, twins: {jobs: job ? {copy: job} : {}, configured}, twinSyncError: ''};
   return renderToStaticMarkup(createElement(AppContext.Provider, {value: app},
     createElement(TwinControls, {record, releaseId: id, ...props})));
 }
@@ -45,6 +34,12 @@ test('只使用上方已保存的发行版编号；不再有第二组条形码�
   assert.doesNotMatch(html, /<input|添加背面照片|输入条形码|确认此版本并生成/);
   assert.doesNotMatch(button(html, '生成数字实体'), /disabled/);
 });
+test('无条码但已确认 MusicBrainz 发行版仍可生成数字实体', () => {
+  const html = render({record: {...record, releaseInfo: {barcode: '', musicBrainzReleaseId: id}}});
+  assert.match(html, /已绑定 MusicBrainz 发行版/);
+  assert.doesNotMatch(button(html, '生成数字实体'), /disabled/);
+});
+
 test('必须先保存发行版，并已配置模型才能生成', () => {
   assert.match(button(render({releaseId: ''}), '生成数字实体'), /disabled/);
   assert.match(button(render({unsaved: true}), '生成数字实体'), /disabled/);
@@ -85,8 +80,23 @@ test('已确认人工选图任务有来源受限的映射界面',()=>{
       artwork:[{id:'101',types:['Front']},{id:'102',types:['Back']},{id:'103',types:['Medium']}],
       editionReferences:[{status:'verified',images:[{sourceId:'discogs:42:0'}]}]}]};
   const html=render({},false,job);
-  assert.match(html,/人工确认数字实体素材/);
-  assert.match(html,/discogs:42:0/);
-  assert.match(html,/确认图片与包装，生成 3D 实体/);
+  assert.match(html,/album-engine-mount--guided-editor/);
+  assert.doesNotMatch(html, /<select/);
   assert.doesNotMatch(html,/请先配置视觉模型/);
+});
+
+test('历史已发布实体缺少可选说明时仍能在编辑中校准盘面',()=>{
+ const job={id:'job',status:'succeeded',releaseId:id,entity:{packaging:{structure:'jewel'},surfaces:{disc:{asset:'photo-0.png'}}}};
+ const html=render({},true,job);
+ assert.match(html,/数字实体已生成/);
+ assert.match(html,/校准盘面/);
+});
+
+test('插件缺席时保留历史任务，只提供安装入口，不发送生成与校准操作', () => {
+  const html = render({}, true, {id: 'saved-job', status: 'succeeded', releaseId: id}, false);
+  assert.match(html, /安装 Album Engine/);
+  assert.match(html, /已有实体资料与素材已保留/);
+  assert.match(html, /data-task-id="saved-job"/);
+  assert.match(html, /href="#settings"/);
+  assert.doesNotMatch(html, /<button|校准盘面|album-engine-mount/);
 });

@@ -1,8 +1,8 @@
 import type {AlbumRecord, PackagingPhotoRole} from '../types';
 import type {AlbumPackaging} from './album-packaging';
 
-import {albumModelAsset as engineModelAsset} from '@diedu/album-engine/packaging';
-export {albumPanelDiscs} from '@diedu/album-engine/packaging';
+import {albumModelAsset as engineModelAsset} from '../vendor/album-data/packaging';
+export {albumPanelDiscs} from '../vendor/album-data/packaging';
 
 export function albumModelAsset(model: AlbumPackaging, calibrated = false): string {
   return engineModelAsset(model, calibrated, {baseUrl:'/models/packaging/',rigVersion:1});

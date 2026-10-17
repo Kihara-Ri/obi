@@ -1,5 +1,5 @@
 // 库存页（海外 / 国内 / 回收站共用）：搜索、排序、时间线/艺人分组、批量操作条。
-import {useLayoutEffect, useRef} from 'react';
+import {useRef} from 'react';
 import {useApp} from '../state/AppContext';
 import type {AlbumRecord, SortMode} from '../types';
 import {fmtMonth, sum, yuan} from '../core/format';
@@ -9,6 +9,9 @@ import type {ModuleFlags} from '../types';
 import {PageHead} from '../components/PageHead';
 import {AlbumCard, CardGrid} from '../components/Cards';
 import {Dropdown} from '../components/ui/Dropdown';
+import {SearchField} from '../components/ui/SearchField';
+import {ShowcaseSwitch, useShowcaseSwitch} from '../components/ShowcaseSwitch';
+import {useSlidingThumb} from '../components/ui/SlidingThumb';
 import {openRecordForm} from '../forms/RecordForm';
 import {openSaleForm} from '../forms/SaleForm';
 import {openShipForm} from '../forms/ShipForm';
@@ -66,24 +69,9 @@ export function ShelfPage() {
     app.setSelected(next);
   };
 
-  // 国内/海外的滑动下划线：测量选中项的 offset 平移过去（同底栏胶囊 / Seg）。
-  // 每次渲染与窗口缩放后重算；首次落位先关过渡，避免重挂载时从左端滑入。
+  // 国内/海外的滑动下划线：与 Seg 共用 useSlidingThumb（测量选中项平移，首次不滑入，跨重挂保持）。
   const scopeNavRef = useRef<HTMLElement>(null);
-  useLayoutEffect(() => {
-    const paint = () => {
-      const thumb = scopeNavRef.current?.querySelector<HTMLElement>('.shelf-tab-thumb');
-      const on = scopeNavRef.current?.querySelector<HTMLElement>('a[aria-current=page]');
-      if (!thumb || !on) return;
-      const fresh = !thumb.style.width;
-      if (fresh) thumb.style.transition = 'none';
-      thumb.style.width = `${on.offsetWidth}px`;
-      thumb.style.transform = `translateX(${on.offsetLeft}px)`;
-      if (fresh) { void thumb.offsetWidth; thumb.style.transition = ''; }
-    };
-    paint();
-    window.addEventListener('resize', paint);
-    return () => window.removeEventListener('resize', paint);
-  });
+  useSlidingThumb(scopeNavRef, {thumb: '.shelf-tab-thumb', active: 'a[aria-current=page]', persistKey: 'shelf-location'});
 
   const title = page === 'domestic' && !modules.circulation ? '我的收藏' : page === 'overseas' ? '海外库存' : page === 'domestic' ? '国内库存' : '回收站';
   const desc = !modules.circulation && !isTrash ? '整理每张实物的版本和照片。'
@@ -94,14 +82,18 @@ export function ShelfPage() {
   const keepDesc = isTrash || (page === 'domestic' && !modules.circulation);
   // 与在途/售出中/已交易共用 align-list：内容列右缘统一 1147px，页头/汇总条/工具条跨页零位移。
   const alignList = !isTrash && modules.circulation;
+  const switchOn = useShowcaseSwitch() && !isTrash;
+  const baseTitle = modules.circulation && !isTrash ? <><span className="desktop-shelf-title">{title}</span><span className="mobile-shelf-title">库存</span></> : title;
+  // 以管理为主的用户：手机顶栏中间是「库存｜展示」切换（桌面仍是文字标题）
+  const titleNode = switchOn ? <><span className="head-title-text">{baseTitle}</span><span className="title-switch"><ShowcaseSwitch current="manage"/></span></> : baseTitle;
   const timeline = !searching && sort === 'new' && modules.acquisition;
 
   const cardActions = (r: AlbumRecord) => {
     if (page === 'trash') return <button onClick={() => bulkAction(app, 'restore', [r.id])}>恢复</button>;
     return (
       <>
-        {modules.trading && r.status !== 'transit' ? <button className="primary" onClick={() => openSaleForm(app, [r.id])}>记录售出</button> : null}
-        <button className="card-edit" onClick={() => openRecordForm(app, r.id)}>编辑</button>
+        {modules.trading && r.status !== 'transit' ? <button className="primary" aria-label={`记录售出：${r.title}`} onClick={() => openSaleForm(app, [r.id])}>记录售出</button> : null}
+        <button className="card-edit" aria-label={`编辑：${r.title}`} onClick={() => openRecordForm(app, r.id)}>编辑</button>
       </>
     );
   };
@@ -184,11 +176,13 @@ export function ShelfPage() {
 
   return (
     <div className={`shelf-page shelf-${app.shelfView}${alignList ? ' align-list' : ''}${app.mobileSelecting || curSelected.size ? ' is-selecting' : ''}`}>
-      <PageHead title={modules.circulation && !isTrash ? <><span className="desktop-shelf-title">{title}</span><span className="mobile-shelf-title">库存</span></> : title} desc={keepDesc ? desc : undefined} label="COLLECTION" actions={isTrash ? null : (
+      <PageHead title={titleNode} desc={keepDesc ? desc : undefined} label="COLLECTION" actions={isTrash ? null : (
         <>
-          {modules.showcase ? <a className="link-button" href="#gallery">展示收藏</a> : null}
-          <button onClick={() => openBatchForm(app)}>批量录入</button>
-          <button className="primary" onClick={() => openRecordForm(app)}>＋ 添加专辑</button>
+          {modules.showcase ? <a className="link-button gallery-link" href="#gallery">展示收藏</a> : null}
+          <button className="head-text" aria-label="批量录入" onClick={() => openBatchForm(app)}>
+            <span className="btn-long">批量录入</span><span className="btn-short" aria-hidden="true">批量</span></button>
+          <button className="primary head-add" aria-label="添加专辑" onClick={() => openRecordForm(app)}>
+            <span className="btn-long">＋ 添加专辑</span><span className="btn-short" aria-hidden="true">＋</span></button>
         </>
       )}/>
       {modules.circulation && !isTrash ? (
@@ -206,8 +200,8 @@ export function ShelfPage() {
         {!isTrash && (
           <>
             {modules.acquisition ? <span>总成本 <strong>{known.length ? yuan(sum(known, 'cost')) : '—'}</strong></span> : null}
-            {modules.acquisition && all.length - known.length ? <span className="hint">· {all.length - known.length} 张成本待补</span> : null}
-            {modules.trading ? <span className="hint">· 已上架 {listedCount} 张</span> : null}
+            {modules.acquisition && all.length - known.length ? <span className="hint">{all.length - known.length} 张成本待补</span> : null}
+            {modules.trading ? <span className="hint">已上架 {listedCount} 张</span> : null}
             {page === 'overseas' ? <span className="hint">✈ 勾选多张可打包为一趟运输</span> : null}
           </>
         )}
@@ -221,10 +215,8 @@ export function ShelfPage() {
             全选
           </label>
         )}
-        <div className="search">
-          <input aria-label="搜索专辑" placeholder={modules.acquisition ? '搜索专辑、艺人或渠道…' : '搜索专辑或艺人…'} value={query}
-                 onChange={e => app.setQuery(e.target.value)}/>
-        </div>
+        <SearchField ariaLabel="搜索专辑" placeholder={modules.acquisition ? '搜索专辑、艺人或渠道…' : '搜索专辑或艺人…'}
+                     value={query} onChange={app.setQuery}/>
         {modules.acquisition && sort === 'new' && !searching ? (
           <button className={`flip-btn${flip ? ' on' : ''}`} aria-label="倒转时间顺序"
                   title="倒转时间顺序（新↔旧）"

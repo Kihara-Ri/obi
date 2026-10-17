@@ -23,7 +23,8 @@ from server.artists import ArtistService
 from server.routes import WRITE_LOCK
 from server.version import version
 from server.recognition import VisionService
-from server.digital_twins import DigitalTwinService
+from server.engine_plugins import PluginManager
+from server.catalog_art import ArtClient
 from server.shop_brands import ShopBrandService
 from storage import Store
 
@@ -38,9 +39,10 @@ def build(data_dir, public_origin=None):
     mb = MusicBrainzClient()
     covers = CoverService(data / 'cover-cache.sqlite3', mb=mb)
     vision = VisionService(store, covers, mb=mb)
-    return Services(store=store, shops=ShopBrandService(store),
+    plugins = PluginManager(store, vision, mb)
+    return Services(store=store, shops=ShopBrandService(store), plugins=plugins, catalog_art=ArtClient(),
                     auth=Auth(data / 'auth.sqlite3'),
-                    covers=covers, vision=vision, twins=DigitalTwinService(store, vision, mb),
+                    covers=covers, vision=vision, twins=plugins.facade,
                     artists=ArtistService(store, mb, covers, write_lock=WRITE_LOCK),
                     rates=rates,
                     public_origin=public_origin)

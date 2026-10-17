@@ -1,0 +1,1622 @@
+{
+  "modelSet": "album-rig-1",
+  "rigVersion": 1,
+  "units": "mm",
+  "models": {
+    "jewel-case": {
+      "nominal_mm": [
+        142.0,
+        125.0,
+        10.4
+      ],
+      "sockets": {
+        "obi:spine": {
+          "kind": "obi",
+          "node": "$root",
+          "size_mm": [
+            24.14,
+            123.5,
+            0.15
+          ]
+        },
+        "booklet:panel:0": {
+          "kind": "booklet",
+          "node": "Lid_Hinge_Y",
+          "panel": 0,
+          "size_mm": [
+            119,
+            119,
+            0.8
+          ],
+          "opening": 1
+        },
+        "tray:0": {
+          "kind": "tray",
+          "node": "$root",
+          "panel": 0,
+          "size_mm": [
+            138.0,
+            122.0,
+            8.4
+          ]
+        }
+      }
+    },
+    "jewel-swing-2": {
+      "nominal_mm": [
+        142.0,
+        125.0,
+        10.4
+      ],
+      "sockets": {
+        "obi:spine": {
+          "kind": "obi",
+          "node": "$root",
+          "size_mm": [
+            24.14,
+            123.5,
+            0.15
+          ]
+        },
+        "booklet:panel:0": {
+          "kind": "booklet",
+          "node": "Lid_Hinge_Y",
+          "panel": 0,
+          "size_mm": [
+            119,
+            119,
+            0.8
+          ],
+          "opening": 1
+        },
+        "tray:0": {
+          "kind": "tray",
+          "node": "$root",
+          "panel": 0,
+          "size_mm": [
+            138.0,
+            122.0,
+            8.4
+          ]
+        }
+      }
+    },
+    "jewel-swing-4": {
+      "nominal_mm": [
+        142.0,
+        125.0,
+        10.4
+      ],
+      "sockets": {
+        "obi:spine": {
+          "kind": "obi",
+          "node": "$root",
+          "size_mm": [
+            24.14,
+            123.5,
+            0.15
+          ]
+        },
+        "booklet:panel:0": {
+          "kind": "booklet",
+          "node": "Lid_Hinge_Y",
+          "panel": 0,
+          "size_mm": [
+            119,
+            119,
+            0.8
+          ],
+          "opening": 1
+        },
+        "tray:0": {
+          "kind": "tray",
+          "node": "$root",
+          "panel": 0,
+          "size_mm": [
+            138.0,
+            122.0,
+            8.4
+          ]
+        }
+      }
+    },
+    "jewel-fat": {
+      "nominal_mm": [
+        142,
+        125,
+        22
+      ],
+      "sockets": {
+        "obi:spine": {
+          "kind": "obi",
+          "node": "$root",
+          "size_mm": [
+            24.14,
+            123.5,
+            0.15
+          ]
+        },
+        "booklet:panel:0": {
+          "kind": "booklet",
+          "node": "Lid_Hinge_Y",
+          "panel": 0,
+          "size_mm": [
+            119,
+            119,
+            0.8
+          ],
+          "opening": 1
+        },
+        "tray:0": {
+          "kind": "tray",
+          "node": "$root",
+          "panel": 0,
+          "size_mm": [
+            138,
+            122,
+            20
+          ]
+        }
+      }
+    },
+    "slimline-jewel": {
+      "nominal_mm": [
+        142.0,
+        125.0,
+        5.2
+      ],
+      "sockets": {
+        "obi:spine": {
+          "kind": "obi",
+          "node": "$root",
+          "size_mm": [
+            24.14,
+            123.5,
+            0.15
+          ]
+        },
+        "booklet:panel:0": {
+          "kind": "booklet",
+          "node": "Lid_Hinge_Y",
+          "panel": 0,
+          "size_mm": [
+            119,
+            119,
+            0.8
+          ],
+          "opening": 1
+        },
+        "tray:0": {
+          "kind": "tray",
+          "node": "$root",
+          "panel": 0,
+          "size_mm": [
+            138.0,
+            122.0,
+            3.2
+          ]
+        }
+      }
+    },
+    "card-sleeve": {
+      "nominal_mm": [
+        130.0,
+        130.0,
+        3.5
+      ],
+      "sockets": {
+        "obi:spine": {
+          "kind": "obi",
+          "node": "$root",
+          "size_mm": [
+            22.1,
+            128.5,
+            0.15
+          ]
+        },
+        "pocket:1": {
+          "kind": "pocket",
+          "node": "$root",
+          "panel": 1,
+          "size_mm": [
+            126.0,
+            126.0,
+            2.5
+          ],
+          "opening": 1
+        },
+        "booklet:panel:0": {
+          "kind": "booklet",
+          "node": "$root",
+          "panel": 0,
+          "size_mm": [
+            119,
+            119,
+            0.8
+          ],
+          "opening": 1
+        }
+      }
+    },
+    "mini-lp-sleeve": {
+      "nominal_mm": [
+        135.0,
+        135.0,
+        3.5
+      ],
+      "sockets": {
+        "obi:spine": {
+          "kind": "obi",
+          "node": "$root",
+          "size_mm": [
+            22.95,
+            133.5,
+            0.15
+          ]
+        },
+        "pocket:1": {
+          "kind": "pocket",
+          "node": "$root",
+          "panel": 1,
+          "size_mm": [
+            131.0,
+            131.0,
+            2.5
+          ],
+          "opening": 1
+        },
+        "booklet:panel:0": {
+          "kind": "booklet",
+          "node": "$root",
+          "panel": 0,
+          "size_mm": [
+            119,
+            119,
+            0.8
+          ],
+          "opening": 1
+        }
+      }
+    },
+    "digibook": {
+      "nominal_mm": [
+        140,
+        140,
+        16
+      ],
+      "sockets": {
+        "obi:spine": {
+          "kind": "obi",
+          "node": "$root",
+          "size_mm": [
+            23.8,
+            138.5,
+            0.15
+          ]
+        },
+        "booklet:panel:0": {
+          "kind": "booklet",
+          "node": "Panel_Left",
+          "panel": 0,
+          "size_mm": [
+            116,
+            118,
+            0.8
+          ],
+          "opening": 1
+        },
+        "pocket:0": {
+          "kind": "pocket",
+          "node": "Pocket_0",
+          "panel": 0,
+          "size_mm": [
+            138,
+            138,
+            7.6
+          ],
+          "opening": 1
+        },
+        "tray:0": {
+          "kind": "tray",
+          "node": "Tray_0",
+          "panel": 0,
+          "size_mm": [
+            138,
+            138,
+            7.6
+          ]
+        },
+        "sleeve:panel:0": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_0",
+          "panel": 0,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        },
+        "pocket:1": {
+          "kind": "pocket",
+          "node": "Pocket_1",
+          "panel": 1,
+          "size_mm": [
+            138,
+            138,
+            7.6
+          ],
+          "opening": 1
+        },
+        "tray:1": {
+          "kind": "tray",
+          "node": "Tray_1",
+          "panel": 1,
+          "size_mm": [
+            138,
+            138,
+            7.6
+          ]
+        },
+        "sleeve:panel:1": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_1",
+          "panel": 1,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        }
+      }
+    },
+    "rigid-box": {
+      "nominal_mm": [
+        145,
+        145,
+        24
+      ],
+      "sockets": {
+        "obi:spine": {
+          "kind": "obi",
+          "node": "$root",
+          "size_mm": [
+            24.65,
+            143.5,
+            0.15
+          ]
+        },
+        "pocket:1": {
+          "kind": "pocket",
+          "node": "Pocket_1",
+          "panel": 1,
+          "size_mm": [
+            141,
+            141,
+            23
+          ],
+          "opening": 1
+        }
+      }
+    },
+    "gatefold-2": {
+      "nominal_mm": [
+        135,
+        135,
+        5
+      ],
+      "sockets": {
+        "obi:spine": {
+          "kind": "obi",
+          "node": "$root",
+          "size_mm": [
+            22.95,
+            133.5,
+            0.15
+          ]
+        },
+        "booklet:panel:0": {
+          "kind": "booklet",
+          "node": "Panel_Left",
+          "panel": 0,
+          "size_mm": [
+            116,
+            118,
+            0.8
+          ],
+          "opening": 1
+        },
+        "pocket:0": {
+          "kind": "pocket",
+          "node": "Pocket_0",
+          "panel": 0,
+          "size_mm": [
+            133,
+            133,
+            2.1
+          ],
+          "opening": 1
+        },
+        "tray:0": {
+          "kind": "tray",
+          "node": "Tray_0",
+          "panel": 0,
+          "size_mm": [
+            133,
+            133,
+            2.1
+          ]
+        },
+        "sleeve:panel:0": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_0",
+          "panel": 0,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        },
+        "pocket:1": {
+          "kind": "pocket",
+          "node": "Pocket_1",
+          "panel": 1,
+          "size_mm": [
+            133,
+            133,
+            2.1
+          ],
+          "opening": 1
+        },
+        "tray:1": {
+          "kind": "tray",
+          "node": "Tray_1",
+          "panel": 1,
+          "size_mm": [
+            133,
+            133,
+            2.1
+          ]
+        },
+        "sleeve:panel:1": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_1",
+          "panel": 1,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        }
+      }
+    },
+    "gatefold-3": {
+      "nominal_mm": [
+        135,
+        135,
+        10
+      ],
+      "sockets": {
+        "obi:spine": {
+          "kind": "obi",
+          "node": "$root",
+          "size_mm": [
+            22.95,
+            133.5,
+            0.15
+          ]
+        },
+        "booklet:panel:0": {
+          "kind": "booklet",
+          "node": "Panel_Left",
+          "panel": 0,
+          "size_mm": [
+            116,
+            118,
+            0.8
+          ],
+          "opening": 1
+        },
+        "pocket:0": {
+          "kind": "pocket",
+          "node": "Pocket_0",
+          "panel": 0,
+          "size_mm": [
+            133,
+            133,
+            2.9333333333333336
+          ],
+          "opening": 1
+        },
+        "tray:0": {
+          "kind": "tray",
+          "node": "Tray_0",
+          "panel": 0,
+          "size_mm": [
+            133,
+            133,
+            2.9333333333333336
+          ]
+        },
+        "sleeve:panel:0": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_0",
+          "panel": 0,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        },
+        "pocket:1": {
+          "kind": "pocket",
+          "node": "Pocket_1",
+          "panel": 1,
+          "size_mm": [
+            133,
+            133,
+            2.9333333333333336
+          ],
+          "opening": 1
+        },
+        "tray:1": {
+          "kind": "tray",
+          "node": "Tray_1",
+          "panel": 1,
+          "size_mm": [
+            133,
+            133,
+            2.9333333333333336
+          ]
+        },
+        "sleeve:panel:1": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_1",
+          "panel": 1,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        },
+        "pocket:2": {
+          "kind": "pocket",
+          "node": "Pocket_2",
+          "panel": 2,
+          "size_mm": [
+            133,
+            133,
+            2.9333333333333336
+          ],
+          "opening": 1
+        },
+        "tray:2": {
+          "kind": "tray",
+          "node": "Tray_2",
+          "panel": 2,
+          "size_mm": [
+            133,
+            133,
+            2.9333333333333336
+          ]
+        },
+        "sleeve:panel:2": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_2",
+          "panel": 2,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        }
+      }
+    },
+    "gatefold-4": {
+      "nominal_mm": [
+        135,
+        135,
+        15
+      ],
+      "sockets": {
+        "obi:spine": {
+          "kind": "obi",
+          "node": "$root",
+          "size_mm": [
+            22.95,
+            133.5,
+            0.15
+          ]
+        },
+        "booklet:panel:0": {
+          "kind": "booklet",
+          "node": "Panel_Left",
+          "panel": 0,
+          "size_mm": [
+            116,
+            118,
+            0.8
+          ],
+          "opening": 1
+        },
+        "pocket:0": {
+          "kind": "pocket",
+          "node": "Pocket_0",
+          "panel": 0,
+          "size_mm": [
+            133,
+            133,
+            3.35
+          ],
+          "opening": 1
+        },
+        "tray:0": {
+          "kind": "tray",
+          "node": "Tray_0",
+          "panel": 0,
+          "size_mm": [
+            133,
+            133,
+            3.35
+          ]
+        },
+        "sleeve:panel:0": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_0",
+          "panel": 0,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        },
+        "pocket:1": {
+          "kind": "pocket",
+          "node": "Pocket_1",
+          "panel": 1,
+          "size_mm": [
+            133,
+            133,
+            3.35
+          ],
+          "opening": 1
+        },
+        "tray:1": {
+          "kind": "tray",
+          "node": "Tray_1",
+          "panel": 1,
+          "size_mm": [
+            133,
+            133,
+            3.35
+          ]
+        },
+        "sleeve:panel:1": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_1",
+          "panel": 1,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        },
+        "pocket:2": {
+          "kind": "pocket",
+          "node": "Pocket_2",
+          "panel": 2,
+          "size_mm": [
+            133,
+            133,
+            3.35
+          ],
+          "opening": 1
+        },
+        "tray:2": {
+          "kind": "tray",
+          "node": "Tray_2",
+          "panel": 2,
+          "size_mm": [
+            133,
+            133,
+            3.35
+          ]
+        },
+        "sleeve:panel:2": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_2",
+          "panel": 2,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        },
+        "pocket:3": {
+          "kind": "pocket",
+          "node": "Pocket_3",
+          "panel": 3,
+          "size_mm": [
+            133,
+            133,
+            3.35
+          ],
+          "opening": 1
+        },
+        "tray:3": {
+          "kind": "tray",
+          "node": "Tray_3",
+          "panel": 3,
+          "size_mm": [
+            133,
+            133,
+            3.35
+          ]
+        },
+        "sleeve:panel:3": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_3",
+          "panel": 3,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        }
+      }
+    },
+    "digipak-2": {
+      "nominal_mm": [
+        139,
+        125,
+        9
+      ],
+      "sockets": {
+        "obi:spine": {
+          "kind": "obi",
+          "node": "$root",
+          "size_mm": [
+            23.63,
+            123.5,
+            0.15
+          ]
+        },
+        "booklet:panel:0": {
+          "kind": "booklet",
+          "node": "Panel_Left",
+          "panel": 0,
+          "size_mm": [
+            116,
+            118,
+            0.8
+          ],
+          "opening": 1
+        },
+        "pocket:0": {
+          "kind": "pocket",
+          "node": "Pocket_0",
+          "panel": 0,
+          "size_mm": [
+            137,
+            123,
+            4.1
+          ],
+          "opening": 1
+        },
+        "tray:0": {
+          "kind": "tray",
+          "node": "Tray_0",
+          "panel": 0,
+          "size_mm": [
+            137,
+            123,
+            4.1
+          ]
+        },
+        "sleeve:panel:0": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_0",
+          "panel": 0,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        },
+        "pocket:1": {
+          "kind": "pocket",
+          "node": "Pocket_1",
+          "panel": 1,
+          "size_mm": [
+            137,
+            123,
+            4.1
+          ],
+          "opening": 1
+        },
+        "tray:1": {
+          "kind": "tray",
+          "node": "Tray_1",
+          "panel": 1,
+          "size_mm": [
+            137,
+            123,
+            4.1
+          ]
+        },
+        "sleeve:panel:1": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_1",
+          "panel": 1,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        }
+      }
+    },
+    "digipak-3": {
+      "nominal_mm": [
+        139,
+        125,
+        18
+      ],
+      "sockets": {
+        "obi:spine": {
+          "kind": "obi",
+          "node": "$root",
+          "size_mm": [
+            23.63,
+            123.5,
+            0.15
+          ]
+        },
+        "booklet:panel:0": {
+          "kind": "booklet",
+          "node": "Panel_Left",
+          "panel": 0,
+          "size_mm": [
+            116,
+            118,
+            0.8
+          ],
+          "opening": 1
+        },
+        "pocket:0": {
+          "kind": "pocket",
+          "node": "Pocket_0",
+          "panel": 0,
+          "size_mm": [
+            137,
+            123,
+            5.6
+          ],
+          "opening": 1
+        },
+        "tray:0": {
+          "kind": "tray",
+          "node": "Tray_0",
+          "panel": 0,
+          "size_mm": [
+            137,
+            123,
+            5.6
+          ]
+        },
+        "sleeve:panel:0": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_0",
+          "panel": 0,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        },
+        "pocket:1": {
+          "kind": "pocket",
+          "node": "Pocket_1",
+          "panel": 1,
+          "size_mm": [
+            137,
+            123,
+            5.6
+          ],
+          "opening": 1
+        },
+        "tray:1": {
+          "kind": "tray",
+          "node": "Tray_1",
+          "panel": 1,
+          "size_mm": [
+            137,
+            123,
+            5.6
+          ]
+        },
+        "sleeve:panel:1": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_1",
+          "panel": 1,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        },
+        "pocket:2": {
+          "kind": "pocket",
+          "node": "Pocket_2",
+          "panel": 2,
+          "size_mm": [
+            137,
+            123,
+            5.6
+          ],
+          "opening": 1
+        },
+        "tray:2": {
+          "kind": "tray",
+          "node": "Tray_2",
+          "panel": 2,
+          "size_mm": [
+            137,
+            123,
+            5.6
+          ]
+        },
+        "sleeve:panel:2": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_2",
+          "panel": 2,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        }
+      }
+    },
+    "digipak-4": {
+      "nominal_mm": [
+        139,
+        125,
+        27
+      ],
+      "sockets": {
+        "obi:spine": {
+          "kind": "obi",
+          "node": "$root",
+          "size_mm": [
+            23.63,
+            123.5,
+            0.15
+          ]
+        },
+        "booklet:panel:0": {
+          "kind": "booklet",
+          "node": "Panel_Left",
+          "panel": 0,
+          "size_mm": [
+            116,
+            118,
+            0.8
+          ],
+          "opening": 1
+        },
+        "pocket:0": {
+          "kind": "pocket",
+          "node": "Pocket_0",
+          "panel": 0,
+          "size_mm": [
+            137,
+            123,
+            6.35
+          ],
+          "opening": 1
+        },
+        "tray:0": {
+          "kind": "tray",
+          "node": "Tray_0",
+          "panel": 0,
+          "size_mm": [
+            137,
+            123,
+            6.35
+          ]
+        },
+        "sleeve:panel:0": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_0",
+          "panel": 0,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        },
+        "pocket:1": {
+          "kind": "pocket",
+          "node": "Pocket_1",
+          "panel": 1,
+          "size_mm": [
+            137,
+            123,
+            6.35
+          ],
+          "opening": 1
+        },
+        "tray:1": {
+          "kind": "tray",
+          "node": "Tray_1",
+          "panel": 1,
+          "size_mm": [
+            137,
+            123,
+            6.35
+          ]
+        },
+        "sleeve:panel:1": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_1",
+          "panel": 1,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        },
+        "pocket:2": {
+          "kind": "pocket",
+          "node": "Pocket_2",
+          "panel": 2,
+          "size_mm": [
+            137,
+            123,
+            6.35
+          ],
+          "opening": 1
+        },
+        "tray:2": {
+          "kind": "tray",
+          "node": "Tray_2",
+          "panel": 2,
+          "size_mm": [
+            137,
+            123,
+            6.35
+          ]
+        },
+        "sleeve:panel:2": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_2",
+          "panel": 2,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        },
+        "pocket:3": {
+          "kind": "pocket",
+          "node": "Pocket_3",
+          "panel": 3,
+          "size_mm": [
+            137,
+            123,
+            6.35
+          ],
+          "opening": 1
+        },
+        "tray:3": {
+          "kind": "tray",
+          "node": "Tray_3",
+          "panel": 3,
+          "size_mm": [
+            137,
+            123,
+            6.35
+          ]
+        },
+        "sleeve:panel:3": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_3",
+          "panel": 3,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        }
+      }
+    },
+    "gatefold-2-inner": {
+      "nominal_mm": [
+        138.0,
+        125.0,
+        5.0
+      ],
+      "sockets": {
+        "obi:spine": {
+          "kind": "obi",
+          "node": "$root",
+          "size_mm": [
+            23.46,
+            123.5,
+            0.15
+          ]
+        },
+        "booklet:panel:0": {
+          "kind": "booklet",
+          "node": "Panel_Left",
+          "panel": 0,
+          "size_mm": [
+            116,
+            118,
+            0.8
+          ],
+          "opening": 1
+        },
+        "pocket:0": {
+          "kind": "pocket",
+          "node": "Pocket_0",
+          "panel": 0,
+          "size_mm": [
+            136.0,
+            123.0,
+            2.1
+          ],
+          "opening": 1
+        },
+        "tray:0": {
+          "kind": "tray",
+          "node": "Tray_0",
+          "panel": 0,
+          "size_mm": [
+            136.0,
+            123.0,
+            2.1
+          ]
+        },
+        "sleeve:panel:0": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_0",
+          "panel": 0,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        },
+        "pocket:1": {
+          "kind": "pocket",
+          "node": "Pocket_1",
+          "panel": 1,
+          "size_mm": [
+            136.0,
+            123.0,
+            2.1
+          ],
+          "opening": -1
+        },
+        "tray:1": {
+          "kind": "tray",
+          "node": "Tray_1",
+          "panel": 1,
+          "size_mm": [
+            136.0,
+            123.0,
+            2.1
+          ]
+        },
+        "sleeve:panel:1": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_1",
+          "panel": 1,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": -1
+        }
+      }
+    },
+    "gatefold-3-inner": {
+      "nominal_mm": [
+        138.0,
+        125.0,
+        10.0
+      ],
+      "sockets": {
+        "obi:spine": {
+          "kind": "obi",
+          "node": "$root",
+          "size_mm": [
+            23.46,
+            123.5,
+            0.15
+          ]
+        },
+        "booklet:panel:0": {
+          "kind": "booklet",
+          "node": "Panel_Left",
+          "panel": 0,
+          "size_mm": [
+            116,
+            118,
+            0.8
+          ],
+          "opening": 1
+        },
+        "pocket:0": {
+          "kind": "pocket",
+          "node": "Pocket_0",
+          "panel": 0,
+          "size_mm": [
+            136.0,
+            123.0,
+            2.9333333333333336
+          ],
+          "opening": 1
+        },
+        "tray:0": {
+          "kind": "tray",
+          "node": "Tray_0",
+          "panel": 0,
+          "size_mm": [
+            136.0,
+            123.0,
+            2.9333333333333336
+          ]
+        },
+        "sleeve:panel:0": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_0",
+          "panel": 0,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        },
+        "pocket:1": {
+          "kind": "pocket",
+          "node": "Pocket_1",
+          "panel": 1,
+          "size_mm": [
+            136.0,
+            123.0,
+            2.9333333333333336
+          ],
+          "opening": -1
+        },
+        "tray:1": {
+          "kind": "tray",
+          "node": "Tray_1",
+          "panel": 1,
+          "size_mm": [
+            136.0,
+            123.0,
+            2.9333333333333336
+          ]
+        },
+        "sleeve:panel:1": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_1",
+          "panel": 1,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": -1
+        },
+        "pocket:2": {
+          "kind": "pocket",
+          "node": "Pocket_2",
+          "panel": 2,
+          "size_mm": [
+            136.0,
+            123.0,
+            2.9333333333333336
+          ],
+          "opening": 1
+        },
+        "tray:2": {
+          "kind": "tray",
+          "node": "Tray_2",
+          "panel": 2,
+          "size_mm": [
+            136.0,
+            123.0,
+            2.9333333333333336
+          ]
+        },
+        "sleeve:panel:2": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_2",
+          "panel": 2,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        }
+      }
+    },
+    "gatefold-4-inner": {
+      "nominal_mm": [
+        138.0,
+        125.0,
+        15.0
+      ],
+      "sockets": {
+        "obi:spine": {
+          "kind": "obi",
+          "node": "$root",
+          "size_mm": [
+            23.46,
+            123.5,
+            0.15
+          ]
+        },
+        "booklet:panel:0": {
+          "kind": "booklet",
+          "node": "Panel_Left",
+          "panel": 0,
+          "size_mm": [
+            116,
+            118,
+            0.8
+          ],
+          "opening": 1
+        },
+        "pocket:0": {
+          "kind": "pocket",
+          "node": "Pocket_0",
+          "panel": 0,
+          "size_mm": [
+            136.0,
+            123.0,
+            3.35
+          ],
+          "opening": 1
+        },
+        "tray:0": {
+          "kind": "tray",
+          "node": "Tray_0",
+          "panel": 0,
+          "size_mm": [
+            136.0,
+            123.0,
+            3.35
+          ]
+        },
+        "sleeve:panel:0": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_0",
+          "panel": 0,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        },
+        "pocket:1": {
+          "kind": "pocket",
+          "node": "Pocket_1",
+          "panel": 1,
+          "size_mm": [
+            136.0,
+            123.0,
+            3.35
+          ],
+          "opening": -1
+        },
+        "tray:1": {
+          "kind": "tray",
+          "node": "Tray_1",
+          "panel": 1,
+          "size_mm": [
+            136.0,
+            123.0,
+            3.35
+          ]
+        },
+        "sleeve:panel:1": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_1",
+          "panel": 1,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": -1
+        },
+        "pocket:2": {
+          "kind": "pocket",
+          "node": "Pocket_2",
+          "panel": 2,
+          "size_mm": [
+            136.0,
+            123.0,
+            3.35
+          ],
+          "opening": 1
+        },
+        "tray:2": {
+          "kind": "tray",
+          "node": "Tray_2",
+          "panel": 2,
+          "size_mm": [
+            136.0,
+            123.0,
+            3.35
+          ]
+        },
+        "sleeve:panel:2": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_2",
+          "panel": 2,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        },
+        "pocket:3": {
+          "kind": "pocket",
+          "node": "Pocket_3",
+          "panel": 3,
+          "size_mm": [
+            136.0,
+            123.0,
+            3.35
+          ],
+          "opening": 1
+        },
+        "tray:3": {
+          "kind": "tray",
+          "node": "Tray_3",
+          "panel": 3,
+          "size_mm": [
+            136.0,
+            123.0,
+            3.35
+          ]
+        },
+        "sleeve:panel:3": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_3",
+          "panel": 3,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        }
+      }
+    },
+    "gatefold-2-mini-lp": {
+      "nominal_mm": [
+        135,
+        135,
+        5
+      ],
+      "sockets": {
+        "obi:spine": {
+          "kind": "obi",
+          "node": "$root",
+          "size_mm": [
+            22.95,
+            133.5,
+            0.15
+          ]
+        },
+        "booklet:panel:0": {
+          "kind": "booklet",
+          "node": "Panel_Left",
+          "panel": 0,
+          "size_mm": [
+            116,
+            118,
+            0.8
+          ],
+          "opening": 1
+        },
+        "pocket:0": {
+          "kind": "pocket",
+          "node": "Pocket_0",
+          "panel": 0,
+          "size_mm": [
+            133,
+            133,
+            2.1
+          ],
+          "opening": 1
+        },
+        "tray:0": {
+          "kind": "tray",
+          "node": "Tray_0",
+          "panel": 0,
+          "size_mm": [
+            133,
+            133,
+            2.1
+          ]
+        },
+        "sleeve:panel:0": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_0",
+          "panel": 0,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        },
+        "pocket:1": {
+          "kind": "pocket",
+          "node": "Pocket_1",
+          "panel": 1,
+          "size_mm": [
+            133,
+            133,
+            2.1
+          ],
+          "opening": 1
+        },
+        "tray:1": {
+          "kind": "tray",
+          "node": "Tray_1",
+          "panel": 1,
+          "size_mm": [
+            133,
+            133,
+            2.1
+          ]
+        },
+        "sleeve:panel:1": {
+          "kind": "inner-sleeve",
+          "node": "Pocket_1",
+          "panel": 1,
+          "size_mm": [
+            122,
+            122,
+            1.9
+          ],
+          "opening": 1
+        }
+      }
+    }
+  }
+}

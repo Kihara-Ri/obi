@@ -3,13 +3,24 @@ import type {ReactNode} from 'react';
 import {useApp} from '../state/AppContext';
 import {sum, yuan} from '../core/format';
 import {ThemeToggle} from './ThemeToggle';
+import {useHashRoute} from '../hooks/useHashRoute';
+import {BACK_TARGET} from '../core/page-back';
+
+const BackIco = (
+  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <polyline points="15 5 8 12 15 19"/>
+  </svg>
+);
 
 export function PageHead({title, desc, actions, label}: {
   title: ReactNode; desc?: ReactNode; actions?: ReactNode; label?: string;
 }) {
+  const back = BACK_TARGET[useHashRoute()];
   return (
     <header className="page-head">
       <div>
+        {/* 手机顶栏的返回：只在「更多」的子页出现，桌面有侧栏不显示 */}
+        {back ? <a className="head-back" href={back.href} aria-label={`返回${back.label}`}>{BackIco}</a> : null}
         {label ? <div className="eyebrow">{label}</div> : null}
         <h1>{title}</h1>
         {desc ? <p>{desc}</p> : null}
@@ -24,7 +35,7 @@ export function PageHead({title, desc, actions, label}: {
 }
 
 // 侧栏账本：口径与统计页一致（已实现利润只计成本已知的已完成交易）
-export function Ledger({mode = 'sidebar'}: {mode?: 'sidebar' | 'page'}) {
+export function Ledger() {
   const {state, modules} = useApp();
   const inv = state.records.filter(r => ['overseas', 'transit', 'domestic'].includes(r.status));
   const known = inv.filter(r => r.cost !== null);
@@ -33,14 +44,14 @@ export function Ledger({mode = 'sidebar'}: {mode?: 'sidebar' | 'page'}) {
   const sold = sum(state.sales.filter(s => s.status === 'complete').flatMap(s => s.items), 'net');
   const unknownCount = inv.length - known.length;
   return (
-    <div className={mode === 'page' ? 'ledger-summary' : 'side-ledger'} aria-label="账本概览">
-      {mode === 'sidebar' ? <div className="sl-title">{modules.acquisition || modules.trading ? '账本' : '收藏'}</div> : null}
+    <div className="side-ledger" aria-label="账本概览">
+      <div className="sl-title">{modules.acquisition || modules.trading ? '账本' : '收藏'}</div>
       <div className="sl-row"><span>在库</span><b>{inv.length} 张</b></div>
       {modules.acquisition ? <div className="sl-row">
         <span>投入成本</span>
         <b>
           {known.length ? yuan(sum(known, 'cost')) : '—'}
-          {unknownCount ? <i className="hint"> {unknownCount} 待补</i> : null}
+          {unknownCount ? <i className="hint">{unknownCount} 张成本待补</i> : null}
         </b>
       </div> : null}
       {modules.trading ? <div className="sl-row">

@@ -1,24 +1,14 @@
+import {compiledSources} from './helpers/compiled-sources.mjs';
 import assert from 'node:assert/strict';
-import {after, test} from 'node:test';
-import {mkdtempSync, rmSync, writeFileSync, symlinkSync} from 'node:fs';
-import {createRequire} from 'node:module';
-import {tmpdir} from 'node:os';
+import {test} from 'node:test';
+
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import ts from 'typescript';
 
-const output = mkdtempSync(join(tmpdir(), 'diedu-twin-state-test-'));
-const source = fileURLToPath(new URL('../src/', import.meta.url));
-const program = ts.createProgram([join(source, 'core/digital-twins.ts'), join(source, 'core/album-model-assets.ts')], {
-  target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, strict: true, skipLibCheck: true, types: [], rootDir: source, outDir: output,
-});
-assert.equal(ts.getPreEmitDiagnostics(program).length, 0); assert.equal(program.emit().emitSkipped, false);
-writeFileSync(join(output, 'package.json'), '{"type":"commonjs"}');
-symlinkSync(fileURLToPath(new URL('../node_modules', import.meta.url)), join(output, 'node_modules'), 'dir');
+const {output, source, require} = compiledSources();
 
-const {mergeTwinIndex, twinViewerRecord, twinBusy, twinBarcodeMatches} = createRequire(import.meta.url)(join(output, 'core/digital-twins.js'));
-const {albumTextureSource} = createRequire(import.meta.url)(join(output, 'core/album-model-assets.js'));
-after(() => rmSync(output, {recursive: true, force: true}));
+const {mergeTwinIndex, twinViewerRecord, twinBusy, twinBarcodeMatches} = require(join(output, 'core/digital-twins.js'));
+const {albumTextureSource} = require(join(output, 'core/album-model-assets.js'));
 
 const ready = {id: 'task2', recordId: 'copy', seq: 9, status: 'succeeded', error: '', entity: {
   packaging: {structure: 'gatefold', discs: 2}, warnings: [],
@@ -105,4 +95,16 @@ test('手动盘面校准只加入派生展示字段，不修改原始实体及�
   view.modelDiscCalibrations.disc.outer.rx = .2;
   assert.deepEqual(job, source);
   assert.equal(albumTextureSource(view, 'disc'), '/api/twin-assets/task2/disc-original.png');
+});
+
+test('安装补齐持久模型资源时，同序号任务也刷新清单，后续轮询继续保留查看器', () => {
+  const current = {epoch: 'one', revision: 19, configured: true, jobs: {copy: ready}};
+  const next = structuredClone(current);
+  next.jobs.copy.models = {version: '0.3.0', modelSet: 'album-rig-1', files: {
+    'jewel.glb': {sha256: 'a'.repeat(64), url: '/api/twin-model-assets/task2/jewel.glb'},
+  }};
+  const merged = mergeTwinIndex(current, next);
+  assert.equal(merged.jobs.copy.models, next.jobs.copy.models);
+  assert.notEqual(merged.jobs.copy, ready);
+  assert.equal(mergeTwinIndex(merged, structuredClone(next)).jobs.copy, merged.jobs.copy);
 });

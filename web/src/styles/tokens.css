@@ -23,6 +23,8 @@
   --chrome-line:rgba(38,44,56,.6); --hairline:rgba(255,255,255,.09);
   --scrim:rgba(6,8,12,.6); --grabber:rgba(255,255,255,.16); --inset:rgba(255,255,255,.015);
   --seg-thumb:#3d4658; --vinyl-hole:#0e1014; --shadow-ink:rgba(0,0,0,.5);
+  --slide-ms:.32s; --slide-ease:cubic-bezier(.3,.8,.2,1);   /* 所有「滑块」的统一时长与缓动：Seg / 标签下划线 / 底栏胶囊 */
+  --switch-knob:#fff;   /* 开关旋钮：两套主题都是白 */
   /* 黑胶盘体本色：中性真黑（真实唱片是纯黑，不带界面主题的蓝灰调），不随主题变化 */
   --vinyl-rim:#1f1f1f; --vinyl-ring:#111; --vinyl-body:#030303;
   /* 碟盒材质本色不随界面主题改变；光泽使用固定环境光。 */

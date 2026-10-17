@@ -7,6 +7,7 @@ import type {ThemePref} from './core/theme';
 import {useHashRoute} from './hooks/useHashRoute';
 import {AppContext} from './state/AppContext';
 import {useDigitalTwins} from './state/useDigitalTwins';
+import {useAlbumEngine} from './state/useAlbumEngine';
 import type {AppCtx, DrawerSpec} from './state/AppContext';
 import type {AppState, SortMode} from './types';
 import {Ledger} from './components/PageHead';
@@ -24,7 +25,6 @@ import {StatsPage} from './pages/StatsPage';
 import {SettingsPage} from './pages/SettingsPage';
 import {SetupPage} from './pages/SetupPage';
 import {MorePage} from './pages/MorePage';
-import {LedgerPage} from './pages/LedgerPage';
 import {GalleryPage} from './pages/GalleryPage';
 
 const NAV = [
@@ -33,8 +33,8 @@ const NAV = [
   {hash: 'transit', ico: '✈', label: '海外在途'},
   {hash: 'domestic', ico: '▤', label: '国内库存'},
   {hash: 'shipping', ico: '◨', label: '售出中'},
-  {hash: 'trades', ico: '↗', label: '已交易'},
-  {hash: 'stats', ico: '◷', label: '收支统计'},
+  {hash: 'trades', ico: '↗', label: '交易记录'},
+  {hash: 'stats', ico: '◷', label: '账本'},
 ];
 
 // 手机把国内 / 海外收进库存页；低频入口通过独立「更多」页访问。
@@ -43,15 +43,18 @@ const MOBILE_TABS = [
   {hash: 'transit', ico: '✈', label: '在途', count: 'transit'},
   {hash: 'shipping', ico: '◨', label: '售出中', count: 'shipping'},
 ] as const;
+// 以展示为主的用户（默认首页是收藏展示）：「展示」是底栏第一个标签；
+// 以管理为主的用户不占标签，改用库存页 / 展示页顶栏的「库存｜展示」切换（ShowcaseSwitch）。
+const GALLERY_TAB = {hash: 'gallery', ico: '▦', label: '展示', count: ''} as const;
 
-const MORE_HASHES = new Set(['more', 'gallery', 'ledger', 'trades', 'stats', 'settings', 'trash']);
+const MORE_HASHES = new Set(['more', 'trades', 'stats', 'settings', 'trash']);
 
 // 手机页面切换的空间方向：rank 是页面在横向层级里的位置（底栏从左到右，
 // 「更多」的子页比「更多」更深，回收站从设置进入）。进入更深的页面从右侧推入，
 // 向左返回时当前页向右滑出；桌面与 prefers-reduced-motion 不做切换动画。
 const PAGE_RANK: Record<string, number> = {
-  domestic: 0, overseas: .5, transit: 1, shipping: 2,
-  more: 3, gallery: 3.05, ledger: 3.1, trades: 3.2, stats: 3.3, settings: 3.4, trash: 3.5,
+  domestic: 0, overseas: .5, gallery: 1, transit: 2, shipping: 3,
+  more: 4, trades: 4.2, stats: 4.3, settings: 4.4, trash: 4.5,
 };
 
 export default function App() {
@@ -86,14 +89,16 @@ export default function App() {
   const [drawerClosing, setDrawerClosing] = useState(false);
   const drawerDirty = useRef(false);
   const [toastMsg, setToastMsg] = useState<{key: number; kind: ToastKind; text: string} | null>(null);
-  const toastTimer = useRef(0);
   const [offline, setOffline] = useState(!navigator.onLine);
   const [installEvt, setInstallEvt] = useState<Event | null>(null);
   const [inventoryPage, setInventoryPage] = useState('domestic');
+  const shelfPageRef = useRef('');
   const modules = state?.modules?.needsSetup ? PRESETS[0].enabled
     : state ? normalizeModules(state.modules?.enabled ?? LEGACY_MODULES) : undefined;
   const home = modules ? homePage(state?.modules?.startPage, modules) : 'domestic';
-  const page = !route ? home : modules && !pageEnabled(route, modules) ? 'domestic' : route;
+  const target = route === 'ledger' ? 'stats' : route;   // 旧的「账本概览」已并入账本（stats）
+  const page = !target ? home : modules && !pageEnabled(target, modules) ? 'domestic' : target;
+  const albumEngine = useAlbumEngine();
   const twinState = useDigitalTwins(!!modules?.showcase);
 
   const refresh = useCallback(async () => { setState(await api<AppState>('state')); }, []);
@@ -110,8 +115,10 @@ export default function App() {
   useEffect(() => {
     setSelected(new Set());
     setQuery('');
-    setSort('new');
-    setShelfFilter('all');
+    // 国内 ↔ 海外是同一张库存页的子标签：保留已选的排序与上架筛选，换到其他页才重置
+    const sameShelf = (a: string, b: string) => (a === 'domestic' || a === 'overseas') && (b === 'domestic' || b === 'overseas');
+    if (!sameShelf(shelfPageRef.current, page)) { setSort('new'); setShelfFilter('all'); }
+    shelfPageRef.current = page;
     setMobileSelecting(false);
     if (page === 'domestic' || page === 'overseas') setInventoryPage(page);
   }, [page, modules?.acquisition, modules?.trading, modules?.circulation, modules?.showcase]);
@@ -120,11 +127,19 @@ export default function App() {
     if (state && !state.modules?.needsSetup && page !== route) location.replace(`#${page}`);
   }, [state, page, route]);
 
-  // 环绕动画结束（onAnimationEnd）时由 Toast 自己通知消失；定时器只兜底
+  // 消失时机由 Toast 组件自己的计时器决定（按级别区分时长、悬停暂停），这里只负责换新
   const toast = useCallback((msg: string, kind: ToastKind = 'ok') => {
     setToastMsg(t => ({key: (t?.key ?? 0) + 1, kind, text: msg}));
-    clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => setToastMsg(null), 3000);
+  }, []);
+
+  // 数字输入框聚焦时，滚动页面/抽屉的滚轮会悄悄改掉金额；滚轮一动就让它失焦
+  useEffect(() => {
+    const onWheel = (e: WheelEvent) => {
+      const t = e.target;
+      if (t instanceof HTMLInputElement && t.type === 'number' && document.activeElement === t) t.blur();
+    };
+    document.addEventListener('wheel', onWheel, {passive: true});
+    return () => document.removeEventListener('wheel', onWheel);
   }, []);
 
   // 回到页签时刷新：拾取其他设备/实例的改动，保持全量状态一致。
@@ -277,6 +292,16 @@ export default function App() {
       mobile = matchMedia('(max-width:840px)').matches;
       animate = !matchMedia('(prefers-reduced-motion: reduce)').matches;
     } catch { animate = false; }
+    // 库存 ↔ 展示（以管理为主的用户用顶栏切换进入）：不播整页左右滑动，顶栏留在原地，
+    // 只让下方内容柔和淡入（切换控件的滑块自己滑过去）
+    const isShelf = (p: string) => p === 'domestic' || p === 'overseas';
+    const showcaseTab = Boolean(modules?.showcase) && home === 'gallery';
+    if (mobile && animate && !fromHistory && !showcaseTab
+        && ((prev === 'gallery' && isShelf(page)) || (page === 'gallery' && isShelf(prev)))) {
+      main.classList.add('page-in-fade');
+      const t = window.setTimeout(() => main.classList.remove('page-in-fade'), 400);
+      return () => { window.clearTimeout(t); main.classList.remove('page-in-fade'); };
+    }
     if (!snap || !mobile || !animate || fromHistory) return;
     const dir: 1 | -1 = (PAGE_RANK[page] ?? 3.5) >= (PAGE_RANK[prev] ?? 3.5) ? 1 : -1;
     // 快照可能取自上一场过渡进行中，先剥掉入场类再挂滑出类
@@ -379,7 +404,7 @@ export default function App() {
     selected, setSelected,
     theme, setTheme,
     rec: id => state.records.find(r => r.id === id),
-    refresh, toast, ...twinState,
+    refresh, toast, albumEngine, ...twinState,
     openDrawer, closeDrawer, setDrawerDirty,
   };
 
@@ -391,11 +416,15 @@ export default function App() {
   if (!modules.circulation) counts.domestic += counts.overseas + counts.transit;
   counts.inventory = counts.domestic + (modules.circulation ? counts.overseas : 0);
   const nav = NAV.filter(n => pageEnabled(n.hash, modules)).map(n => ({...n,
-    label: n.hash === 'domestic' && !modules.circulation ? '我的收藏' : n.hash === 'stats' && !modules.trading ? '购入统计' : n.label,
+    label: n.hash === 'domestic' && !modules.circulation ? '我的收藏' : n.label,
   }));
-  const mobileTabs = MOBILE_TABS.filter(n => pageEnabled(n.hash, modules)).map(n => ({...n,
+  const showcaseTab = modules.showcase && home === 'gallery';
+  const mobileTabs = [...(showcaseTab ? [GALLERY_TAB] : []), ...MOBILE_TABS].filter(n => pageEnabled(n.hash, modules)).map(n => ({...n,
     label: n.hash === 'domestic' && !modules.circulation ? '收藏' : n.label,
   }));
+  // 库存标签同时代表海外库存；以管理为主时，展示页也算库存标签下的页面
+  const tabActive = (hash: string) => page === hash
+    || (hash === 'domestic' && (page === 'overseas' || (page === 'gallery' && !showcaseTab)));
   const content = state.modules?.needsSetup ? <SetupPage/>
     : page === 'gallery' ? <GalleryPage/>
     : ['overseas', 'domestic', 'trash'].includes(page) ? <ShelfPage/>
@@ -404,11 +433,10 @@ export default function App() {
         : page === 'trades' ? <TradesPage/>
           : page === 'stats' ? <StatsPage/>
             : page === 'more' ? <MorePage installEvt={installEvt} onInstalled={() => setInstallEvt(null)}/>
-              : page === 'ledger' ? <LedgerPage/>
-                : <SettingsPage/>;
+              : <SettingsPage/>;
 
   // 底栏滑动高亮：胶囊按激活槽位平移；「更多」固定在最后一位
-  const activeTab = mobileTabs.findIndex(t => page === t.hash || (t.hash === 'domestic' && page === 'overseas'));
+  const activeTab = mobileTabs.findIndex(t => tabActive(t.hash));
   const pillIndex = activeTab >= 0 ? activeTab : mobileTabs.length;
 
   return (
@@ -450,8 +478,8 @@ export default function App() {
         }}/>
         {mobileTabs.map(t => (
           <a key={t.hash} href={`#${t.hash === 'domestic' && modules.circulation ? inventoryPage : t.hash}`}
-             className={page === t.hash || (t.hash === 'domestic' && page === 'overseas') ? 'active' : ''}
-             aria-current={page === t.hash || (t.hash === 'domestic' && page === 'overseas') ? 'page' : 'false'}>
+             className={tabActive(t.hash) ? 'active' : ''}
+             aria-current={tabActive(t.hash) ? 'page' : 'false'}>
             <span className="tab-ico" aria-hidden="true">{t.ico}</span>
             <span className="tab-label">{t.label}</span>
             {counts[t.count] ? <b className="tab-badge num">{counts[t.count]}</b> : null}

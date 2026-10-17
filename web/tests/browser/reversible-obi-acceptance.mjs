@@ -1,0 +1,36 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {chromium} from 'playwright';
+const models=JSON.parse(readFileSync(process.argv[2]||'/tmp/album-preview-expectations-20261016.json','utf8')).models;
+const lift=models.find(x=>x.title.includes('Lift Your Skinny Fists'));
+const browser=await chromium.launch({headless:true,args:['--use-gl=angle','--use-angle='+(process.platform==='darwin'?'metal':'swiftshader'),'--enable-webgl']});
+try {
+ const page=await browser.newPage({viewport:{width:1280,height:900}});
+ await page.goto('http://127.0.0.1:63282/#gallery',{waitUntil:'networkidle'});
+ await page.reload({waitUntil:'networkidle'});
+ await page.locator(`[data-gallery-record-id="${lift.recordId}"]`).first().click();
+ await page.locator('#gallery-focus .gallery-renderer-switch').getByRole('button',{name:'3D',exact:true}).click();
+ const scene=page.locator('.album-model-scene[aria-busy="false"]');await scene.waitFor({timeout:45000});
+ const progress=async()=>Number((await scene.getAttribute('data-accessory-progress')||'').split(';').find(s=>s.startsWith('reference-obi='))?.split('=')[1]||0);
+ const track=goal=>page.evaluate(async goal=>{const element=document.querySelector('.album-model-scene');
+  const samples=[],start=performance.now();
+  await new Promise(resolve=>{const visit=now=>{const p=Number((element.dataset.accessoryProgress||'').split(';').find(s=>s.startsWith('reference-obi='))?.split('=')[1]);
+   samples.push({ms:now-start,p});if(samples.length>180||now-start>2800||samples.length>5&&(goal===0?p<=.002:p>=.998))resolve();else requestAnimationFrame(visit);};requestAnimationFrame(visit);});return samples;},goal);
+ await scene.focus();await page.keyboard.press('Enter');
+ await page.waitForFunction(()=>Number((document.querySelector('.album-model-scene')?.dataset.accessoryProgress||'').split(';').find(s=>s.startsWith('reference-obi='))?.split('=')[1])>.998,{},{timeout:30000});
+ await page.keyboard.press('Enter');
+ await page.waitForFunction(()=>Number(document.querySelector('.album-model-scene')?.dataset.renderedOpen)<.02,{},{timeout:30000});
+ const grips=JSON.parse(await scene.getAttribute('data-accessory-grips'));
+ const grip=grips.find(g=>g.id==='reference-obi');assert.ok(grip&&grip.x>0&&grip.x<1280);
+ const waitBack=track(0);await page.mouse.click(grip.x,grip.y);
+ const inbound=await waitBack;assert.ok(inbound.at(-1).p<.01,JSON.stringify(inbound.at(-1)));
+ assert.ok(inbound.length>25,'return must animate visibly');
+ assert.ok(inbound[1].p>.94,'return must not jump at first frame');
+ assert.ok(inbound.every((v,i)=>i===0||v.p<=inbound[i-1].p+.001));
+ await scene.focus();const waitOut=track(1);await page.keyboard.press('Enter');const outbound=await waitOut;
+ assert.ok(outbound.at(-1).p>.99,'OBI must extend');
+ assert.ok(outbound[1].p<.06,'withdrawal must start from its mount');
+ const duration=xs=>xs.at(-1).ms-xs[0].ms;
+ assert.ok(Math.abs(duration(outbound)-duration(inbound))<280,'time-reversed playback should have similar duration');
+ console.log(JSON.stringify({ok:true,inbound:{frames:inbound.length,first:inbound.slice(0,5),last:inbound.at(-1),duration:duration(inbound)},outbound:{frames:outbound.length,first:outbound.slice(0,5),last:outbound.at(-1),duration:duration(outbound)}},null,2));
+}finally{await browser.close();}

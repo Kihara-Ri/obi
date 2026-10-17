@@ -1,0 +1,15 @@
+{
+  "modelSet": "album-rig-1",
+  "package": "album-engine-data-codec",
+  "rigVersion": 1,
+  "schemaVersion": 2,
+  "sha256": {
+    "contracts/document-types.ts": "28b67d0dd4cde2baefbea93a1e103808ce6a01a06dca3a8a3f8ead3abdcd30f3",
+    "core/album-disc-calibration.ts": "86ad169a88fe430bf6d5cbefdc8d843fdcb18a874810acf10e7b98091201d3e8",
+    "core/album-model-metadata.ts": "353d181198d0e75c53ffe5a89a1de00348dab62246799442737544c0467532f7",
+    "core/album-packaging.ts": "fe7352f9309cea18e6a1242419bdebdfece754c8c5503b1b0279e31f9b7451d8",
+    "packaging.ts": "a284c3d5db94048eea4284a194b3ba5eaae731c1ea706ade529f687be0201623",
+    "schema.ts": "2e4d79b8671f7b257a3b523e74cdb9aa16623e1ef74ea9d54179257de98c779f"
+  },
+  "version": "0.3.0"
+}

@@ -25,8 +25,10 @@ files = [root / n for n in ['app.py', 'domain.py', 'storage.py', 'covers.py', 'c
                             'musicbrainz.py', 'rates.py', 'security.py', 'backups.py', 'twins.py',
                             'README.md', '使用说明.md', '部署说明.md', 'CHANGELOG.md']]
 files += list((root / 'server').rglob('*.py'))
+files += [p for p in (root / 'vendor' / 'album_data').rglob('*') if p.is_file() and '__pycache__' not in p.parts and p.suffix not in ('.pyc', '.pyo')]
 files += [p for p in (root / 'server' / 'skills').rglob('*') if '__pycache__' not in p.parts and p.suffix != '.py']
-files += list((root / 'static').rglob('*'))
+files += [p for p in (root / 'static').rglob('*') if 'models/packaging' not in p.as_posix()]
+files += list((root / 'plugins' / 'album-engine').glob('*'))
 files += list((root / 'deploy').glob('*'))
 files += [root / 'tools' / name for name in ('deploy.sh', 'update_release.py')]
 

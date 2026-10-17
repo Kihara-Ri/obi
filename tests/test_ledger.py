@@ -34,6 +34,22 @@ class LedgerTests(unittest.TestCase):
         self.assertEqual(r['version'],'纸盒');self.assertEqual(r['pressing'],'日版');self.assertEqual(r['obi'],'无侧标')
         self.assertEqual(self.record(self.buy())['version'],'')
         self.assertEqual(self.record(self.buy())['pressing'],'')
+    def test_obi_state_independent_of_musicbrainz_edition_and_pressing(self):
+        # Different physical copies of the same release may differ in whether
+        # the Obi is present; do not derive it from country or release ID.
+        release={'barcode':'4988013047105',
+                 'musicBrainzReleaseId':'11111111-1111-4111-8111-111111111111'}
+        first = self.buy(pressing='', obi='带侧标', releaseInfo=release)
+        second = self.buy(pressing='日版', obi='无侧标', releaseInfo=release)
+        self.assertEqual(self.record(first)['obi'], '带侧标')
+        self.assertEqual(self.record(second)['obi'], '无侧标')
+        original = self.record(first)
+        self.store.save({'id':first, 'revision':original['revision'], 'obi':'无侧标'})
+        changed = self.record(first)
+        self.assertEqual(changed['obi'], '无侧标')
+        self.assertEqual(changed['pressing'], '')
+        self.assertEqual(changed['releaseInfo']['musicBrainzReleaseId'], release['musicBrainzReleaseId'])
+
     def test_photos_roundtrip(self):
         jpeg='data:image/jpeg;base64,'+base64.b64encode(b'\xff\xd8fakejpegbytes').decode()
         pid=self.buy(photos=[jpeg,jpeg])

@@ -1,9 +1,11 @@
 // 封面 / 缩略图 / 价格格：卡片、详情、销售行共用。
 import type {AlbumRecord} from '../types';
 import {fmt, fmtJPY, jpyCost, rmb} from '../core/format';
+import {rememberCoverAspect} from '../core/cover-aspect';
 
 export function Cover({r}: {r: AlbumRecord}) {
-  if (r.cover) return <img className="cover" src={r.cover} alt={`${r.title}封面`} loading="lazy"/>;
+  if (r.cover) return <img className="cover" src={r.cover} alt={`${r.title}封面`} loading="lazy"
+    onLoad={e => rememberCoverAspect(r.cover, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)}/>;
   const h = [...r.artist].reduce((a, c) => a + c.charCodeAt(0), 0) % 4;
   return (
     <div className={`cover cover-fallback hue-${h}`} role="img" aria-label={`${r.title}，暂无封面`}>

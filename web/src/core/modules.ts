@@ -36,7 +36,7 @@ export function pageEnabled(page: string, m: ModuleFlags): boolean {
   if (['overseas', 'transit'].includes(page)) return m.circulation;
   if (['shipping', 'trades'].includes(page)) return m.trading;
   if (page === 'stats') return m.acquisition || m.trading;
-  return ['domestic', 'settings', 'trash', 'more', 'ledger'].includes(page);
+  return ['domestic', 'settings', 'trash', 'more'].includes(page);
 }
 
 export function statusName(status: Status, m: ModuleFlags): string {

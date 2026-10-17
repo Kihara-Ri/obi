@@ -209,7 +209,7 @@ class CoverService:
         exact = tk == nk and artist_matches(artist, who)
         c={'token':token,'title':name,'artist':who,'thumbnail':url,'year':year,'provider':provider,
            'score':round(.65*t_sim+.35*similarity(artist,who),3),'exact':exact}
-        with self.lock: self.choices[token]={**c,'url':re.sub(r'/100x100bb\.', '/600x600bb.',url),'country':country,'page':page}
+        with self.lock: self.choices[token]={**c,'url':re.sub(r'/100x100bb\.', '/1200x1200bb.',url),'country':country,'page':page}
         return c
 
     def group_cd_front(self, gid):

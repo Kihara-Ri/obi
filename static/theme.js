@@ -10,7 +10,7 @@
   var KEY = 'album-theme';
   // 与 tokens.css 的 --bg 浅/深值保持一致
   var COLORS = { light: '#f4f5f7', dark: '#0e1014' };
-  var FADE_MS = 380; // 略长于 base.css 里 .theme-fade 的 .3s 过渡时长
+  var FADE_MS = 580; // 略长于 base.css 里 .theme-fade 的 .5s 过渡时长
   var fadeTimer = null;
   var metas = null;
   function resolve(pref) { return pref === 'light' || pref === 'dark' ? pref : 'system'; }
@@ -45,9 +45,19 @@
     set: function (pref) {
       try { localStorage.setItem(KEY, resolve(pref)); } catch (e) { /* 存储不可用时仅本次会话生效 */ }
       var mode = resolve(pref);
-      enableFade();
-      applyMode(mode);
-      syncMetas(mode);
+      var apply = function () { applyMode(mode); syncMetas(mode); };
+      var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      // 首选 View Transitions：整页新旧画面交叉淡化，连渐变、阴影、图片一起柔和过渡；
+      // 不支持（或减少动态效果）时退回 .theme-fade 的逐元素颜色过渡。
+      if (document.startViewTransition && !reduced) {
+        var root = document.documentElement;
+        root.classList.add('theme-vt');
+        var done = function () { root.classList.remove('theme-vt'); };
+        document.startViewTransition(apply).finished.then(done, done);
+      } else {
+        enableFade();
+        apply();
+      }
     },
   };
   // 跟随系统时，系统外观自动切换（如日落自动转深色）同样渐变

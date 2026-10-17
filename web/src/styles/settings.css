@@ -33,3 +33,20 @@
 .settings-optional>summary{cursor:pointer;font-size:14px;font-weight:600;color:var(--text);line-height:1.5}
 .settings-optional[open]>summary{margin-bottom:14px}
 .settings-optional-content>p{max-width:78ch}
+
+/* 设置分段标签页 + 状态行 + 功能模块开关 */
+.settings-tabs{margin-bottom:14px;max-width:440px}
+.settings-tabs button{padding:8px 4px}
+.settings-stats{display:grid;gap:2px;margin:6px 0}
+.settings-stats>div{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
+.settings-stats dt{color:var(--muted)}
+.settings-stats dd{margin:0;font-weight:550;font-variant-numeric:tabular-nums;text-align:right}
+.settings-section.settings-rows{padding:0 16px}
+.settings-section.settings-rows .nav-row{border-bottom:none}
+.module-rows{display:grid}
+.module-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;border-bottom:1px solid var(--border)}
+.module-row>strong{font-size:14px}
+.module-row>strong small{display:block;margin-top:2px;font-size:11.5px;font-weight:400;color:var(--muted)}
+/* 子模块：缩进并带一条连接线，表达「依赖上一行」 */
+.module-row.is-child{margin-left:14px;padding-left:14px;border-left:2px solid var(--border)}
+.module-row.is-child>strong{font-size:13px;font-weight:550}

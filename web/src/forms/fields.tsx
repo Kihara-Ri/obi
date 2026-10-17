@@ -32,12 +32,12 @@ export function MoneyField({label, name, currency, value, onCurrency, onChange}:
              onValue={c => onCurrency(c as Currency,
                c === 'JPY' && value !== '' ? String(Math.round(Number(value))) : value)}/>
         {/* 日元不设步进限制：step=10 会把 1145 円这类非整十金额判为无效，表单提交被浏览器静默拦截；
-           整数口径由输入过滤保证（numeric 键盘无小数点，硬件键入也滤掉 .） */}
+           整数口径由输入过滤保证（numeric 键盘无小数点；粘贴 1234.5 取整数部分 1234，不会把小数点吞掉变成 12345） */}
         <input id={`f-${name}`} name={name} type="number" required min="0"
                step={currency === 'JPY' ? 'any' : '0.01'}
                inputMode={currency === 'JPY' ? 'numeric' : 'decimal'}
                placeholder="按币种填写" value={value}
-               onChange={e => onChange(currency === 'JPY' ? e.target.value.replace(/[^\d]/g, '') : e.target.value)}/>
+               onChange={e => onChange(currency === 'JPY' ? e.target.value.split('.')[0].replace(/[^\d]/g, '') : e.target.value)}/>
       </div>
     </div>
   );

@@ -1,11 +1,12 @@
 import {openArtistDrawer} from '../forms/ArtistDrawer';
-// 已交易页：搜索 + 状态筛选 + 完整销售单，利润按到账时间排序。
+// 交易记录页：搜索 + 状态筛选 + 完整销售单，利润按到账时间排序。
 import {sum, yuan} from '../core/format';
 import {searchScore} from '../core/search';
 import {useApp} from '../state/AppContext';
 import {PageHead} from '../components/PageHead';
 import {SaleCard} from '../components/SaleCard';
 import {Dropdown} from '../components/ui/Dropdown';
+import {SearchField} from '../components/ui/SearchField';
 import {openSaleCostsForm} from '../forms/SaleCostsForm';
 
 const TRADE_FILTERS = [
@@ -34,8 +35,8 @@ export function TradesPage() {
 
   return (
     <div className="align-list">
-      <PageHead title="已交易" label="CASHED IN"
-                actions={<a className="link-button" href="/api/export?scope=sales">导出 CSV</a>}/>
+      <PageHead title="交易记录" label="CASHED IN"
+                actions={<a className="link-button head-text" href="/api/export?scope=sales">导出 CSV</a>}/>
       <div className="summary">
         <span>已完成 <strong>{all.length}</strong> 笔</span>
         <span>到手 <strong>{yuan(sum(items, 'net'))}</strong></span>
@@ -43,10 +44,8 @@ export function TradesPage() {
         {modules.acquisition && items.length - ks.length ? <span className="hint">{items.length - ks.length} 条成本待补，未计入利润</span> : null}
       </div>
       <div className="toolbar">
-        <div className="search">
-          <input id="sale-search" aria-label="搜索交易" placeholder="搜索专辑、艺人或地址…"
-                 value={query} onChange={e => app.setQuery(e.target.value)}/>
-        </div>
+        <SearchField id="sale-search" ariaLabel="搜索交易" placeholder="搜索专辑、艺人或地址…"
+                     value={query} onChange={app.setQuery}/>
         <Dropdown id="trade-filter" value={tradeFilter} options={TRADE_FILTERS}
                   label="交易状态" onPick={v => app.setTradeFilter(v)}/>
       </div>

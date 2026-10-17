@@ -1,13 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="116" fill="#edf1f7"/>
-  <circle cx="256" cy="150" r="92" fill="#030303" stroke="#1f1f1f" stroke-width="3"/>
-  <circle cx="256" cy="150" r="76" fill="none" stroke="#111111" stroke-width="3"/>
-  <circle cx="256" cy="150" r="63" fill="none" stroke="#111111" stroke-width="2"/>
-  <circle cx="256" cy="150" r="49" fill="none" stroke="#111111" stroke-width="2"/>
-  <circle cx="256" cy="150" r="30" fill="#f0d92e"/>
-  <circle cx="256" cy="150" r="9" fill="#edf1f7"/>
-  <rect x="106" y="170" width="300" height="202" rx="26" fill="#cfd9e8"/>
-  <rect x="108.5" y="172.5" width="295" height="197" rx="24" fill="#ffffff"/>
-  <rect x="134" y="218" width="244" height="12" rx="6" fill="#c49225"/>
-  <rect x="134" y="267.5" width="244" height="9" rx="4.5" fill="#2a3550" fill-opacity=".30"/>
-  <rect x="134" y="313.5" width="176" height="9" rx="4.5" fill="#2a3550" fill-opacity=".30"/>
-  <circle cx="346" cy="318" r="11" fill="#f0d92e"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <clipPath id="icon-shape"><rect width="512" height="512" rx="116"/></clipPath>
+  </defs>
+  <g clip-path="url(#icon-shape)">
+    <rect id="icon-background" width="512" height="512" rx="116" fill="#D8C8A8"/>
+    <g id="icon-record">
+      <circle cx="256" cy="176" r="144" fill="#030303" stroke="#1f1f1f" stroke-width="3" stroke-opacity="1"/>
+      <circle cx="256" cy="176" r="119" fill="none" stroke="#111111" stroke-width="3" stroke-opacity="1"/>
+      <circle cx="256" cy="176" r="99" fill="none" stroke="#111111" stroke-width="2" stroke-opacity="1"/>
+      <circle cx="256" cy="176" r="77" fill="none" stroke="#111111" stroke-width="2" stroke-opacity="1"/>
+      <circle cx="256" cy="176" r="44" fill="#f0d92e"/>
+      <circle cx="256" cy="176" r="13" fill="#D8C8A8"/>
+    </g>
+    <rect y="240" width="512" height="272" fill="#cfd9e8"/>
+    <rect y="243" width="512" height="269" fill="#ffffff"/>
+    <g id="icon-card-details">
+      <rect x="80" y="290" width="352" height="18" rx="9" fill="#c49225"/>
+      <rect x="80" y="358" width="352" height="14" rx="7" fill="#2a3550" fill-opacity=".30"/>
+      <rect x="80" y="422" width="252" height="14" rx="7" fill="#2a3550" fill-opacity=".30"/>
+      <circle cx="408" cy="429" r="16" fill="#f0d92e"/>
+    </g>
+  </g>
+</svg>

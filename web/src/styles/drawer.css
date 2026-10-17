@@ -25,6 +25,7 @@
 #panel .form-section{margin-top:10px}
 #panel .seg button{padding:5px 8px}
 .drawer-footer{display:flex;gap:9px;justify-content:flex-end;padding:10px 18px;border-top:1px solid var(--border);background:var(--surface)}
+.footer-hint{margin:0 auto 0 0;align-self:center;font-size:12px;color:var(--muted)}
 
 /* 字段栅格：minmax(0,1fr) 允许轨道收缩——否则 iOS 日期输入的固有
    最小宽度会把列撑出抽屉（售出日期超宽问题） */
@@ -41,11 +42,6 @@
 .error:empty{display:none}
 
 /* 分段控件（iOS 式滑块） */
-.seg{display:flex;position:relative;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:3px;gap:3px}
-.seg-thumb{position:absolute;top:3px;bottom:3px;left:0;width:0;border-radius:8px;background:var(--seg-thumb);box-shadow:inset 0 0 0 1px var(--hairline),0 2px 6px var(--shadow-ink);transition:transform .18s ease,width .18s ease,opacity .12s ease;pointer-events:none}
-.seg button{flex:1;position:relative;z-index:1;padding:6px 8px;border-radius:8px;font-size:12.5px;color:var(--muted);border:none;background:none;white-space:nowrap;transition:color .15s}
-.seg button.on{color:var(--text);font-weight:600}
-.seg button.primary{background:var(--accent);color:var(--accent-ink);border:none;box-shadow:none}
 
 /* 预览 / 成本行 / 折叠区 / 勾选行 */
 .preview{background:var(--surface-2);border:1px dashed var(--border-strong);border-radius:var(--radius-sm);padding:12px 14px;margin-top:14px;font-size:12.5px;color:var(--muted)}
@@ -115,10 +111,6 @@ details.adv:not([open]) > :not(summary){display:none}
 .switch-field{justify-content:flex-end;gap:0}
 .switch-line{display:flex;align-items:center;gap:9px;height:40px}
 .switch-text{font-size:12px;color:var(--muted);font-weight:400}
-.switch{width:46px;height:28px;flex:none;border-radius:99px;background:var(--surface-3);border:1px solid var(--border-strong);position:relative;transition:background .18s ease}
-.switch .knob{position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:99px;background:#fff;box-shadow:0 1px 3px var(--shadow-ink);transition:transform .18s ease}
-.switch.on{background:var(--accent);border-color:var(--accent)}
-.switch.on .knob{transform:translateX(18px)}
 
 /* 重复提示 */
 .dup-hint{font-size:12px;color:var(--amber);margin-top:5px}
@@ -190,6 +182,7 @@ details.adv:not([open]) > :not(summary){display:none}
   #panel .form-grid input[type=date]{-webkit-appearance:none;appearance:none;width:100%}
   .drawer-footer{gap:8px;flex-wrap:wrap;padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
   .drawer-footer button{flex:1 1 calc((100% - 16px)/3);min-height:42px}
+  .footer-hint{flex:1 1 100%;order:-1;margin:0 0 2px;text-align:center}
   /* 分组列表行：输入 16px 防 iOS 聚焦放大；快捷块加高到可点 */
   #panel .row-group input{font-size:16px}
   .chip{min-height:34px}
@@ -246,3 +239,15 @@ details.adv:not([open]) > :not(summary){display:none}
 .edition-artwork-grid img,.edition-artwork-grid figure>span{width:100%;aspect-ratio:1;object-fit:contain;display:grid;place-items:center;background:var(--surface-2);border:1px solid var(--border);border-radius:8px}
 .edition-artwork-grid figcaption{font-size:11px;color:var(--muted);margin-top:3px;overflow-wrap:anywhere}
 .edition-artwork>a,.record-barcode-result>a{display:inline-block;font-size:12px;margin-top:6px}
+
+/* Compact optional physical-copy fields; barcode lookup never overwrites these. */
+.record-copy-edition{min-width:0}
+.record-copy-edition-head{display:flex;align-items:baseline;flex-wrap:wrap;gap:7px;margin-bottom:9px}
+.record-copy-edition-head strong{font-size:12.5px;font-weight:650;color:var(--text)}
+.record-copy-edition-head span{font-size:11px;color:var(--muted)}
+.record-copy-edition-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.record-copy-edition-grid .field{min-width:0}
+.record-copy-edition-grid .field-label{display:block;margin-bottom:6px;font-size:11.5px;color:var(--muted)}
+.record-copy-edition-grid .seg{width:100%;min-width:0}
+.record-copy-edition-grid .seg button{min-width:0;padding:7px 3px;font-size:11.5px}
+@media(max-width:600px){.record-copy-edition-grid{grid-template-columns:1fr;gap:10px}}
