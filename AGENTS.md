@@ -53,7 +53,7 @@
 - 空白实例先选择组合；未配置且已有资料的实例保持全部功能。模块关闭只收起入口，禁止删除、归零或改写原业务记录；关闭海外周转时原持有/在途副本仍可在收藏中看到。
 - 导航、手机更多页面、卡片、详情、单张/批量表单、统计与后端写操作必须使用同一配置。禁用模块的业务写入应明确报错，备份/恢复/导出始终可用。
 - `storage` 是实物存放位置；`location` 仍是购买渠道。名称与艺人必填，购买金额与日期选填，未知成本仍为 null。
-- 新模块的契约和验收入口见 [模块扩展指南](docs/模块扩展指南.md)，不引入动态插件加载或绕过 storage.py 写库。
+- 新模块的契约和验收入口见 [模块扩展指南](docs/模块扩展指南.md)，3D 引擎仅按下述官方插件契约安装；其他模块不引入动态加载，也不得绕过 storage.py 写库。
 
 ### 界面规则
 
@@ -107,7 +107,7 @@ DIEDU_DEV_HOME=/private/tmp/diedu-acceptance python3 tools/preview_samples.py --
 - **文档即真相**：`README.md`、`使用说明.md`、`部署说明.md` 与实际行为必须同步，不同步视为未完成；文档不写具体个人的域名/路径/账号。
 
 - 购买渠道模型图标：仅在新名称成功保存后异步调用 Pi CLI，无工具调用，不改用户文本；认证留在服务端 Pi 用户目录，失败可显式重试。参见 `docs/PI_SHOP_BRANDS.md`。
-- Album Engine 0.2.0 拥有 canonical v2 文档/schema、语义槽位/毫米尺寸装配、素材处理、生成执行、校准与发布决策。宿主 `server/digital_twins.py` / `twin_*.py` 为兼容委托，`server/album_engine_adapter.py` 提供窄能力；业务、授权、去重/租约/并发、审计与实际落库只经 `storage.py`。npm tarball 与 `vendor/album_engine/` 纯标准库 runtime 必须同版本/协议，后者是引擎导出物，禁止手改。v1 只读兼容，附件归属含糊时保持 2D，不自动补归属、canonicalize 或重跑；详见[引擎归属规范](docs/superpowers/specs/2026-10-15-album-engine-complete-ownership.md)与[引擎更新](docs/模块扩展指南.md#唱片实体引擎与更新)。
+- Album Engine 0.3.0 为设置中可安装/卸载的独立插件。所有 3D 模型、内容物、材质、折叠、装配、交互、镜头、素材处理、生成与发布决策只在引擎项目修改；宿主只有插件生命周期、通用挂载、窄能力、资产鉴权与 `storage.py` 事务。官方 ZIP 在 `plugins/album-engine/`，运行安装目录在用户数据内 `plugins/album-engine/<version>/`；新实例默认未安装。卸载不删除用户实体、模型、贴图或镜头参数，忙任务拒绝卸载。元数据/清单在 SQLite，二进制在 `digital-twins/` / `engine-models/` 并纳入完整目录备份。`vendor/album_data/` 与 `web/src/vendor/album-data/` 为引擎生成的纯数据导出，禁止手改；旧 `vendor/album_engine/` 仅历史工具/测试兼容，不进入运行发行包。v1 不明归属保持 2D，不自动补齐或重跑。必须验收真实安装/卸载/重启/恢复/重装及无插件的账本与 2D；详见[插件契约](docs/AlbumEngine插件.md)。
 
 当前 3D 模型集只对 Blender 模板尺寸保证完整装配；实测尺寸与模板不同则保留原资料并使用 2D，待引擎增加对应模型与整件净空验收后再开放 3D，不能整体缩放光盘来适配。
 
