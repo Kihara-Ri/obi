@@ -19,6 +19,9 @@
   .page-ghost-under{z-index:5}
   .page-ghost-over{z-index:25}
   .page-ghost-over main{box-shadow:-18px 0 50px var(--shadow-ink)}
+  /* 库存 ↔ 展示：顶栏不动，页面根下除顶栏外的内容淡入并轻微上浮 */
+  #main.page-in-fade .page-layer>*>:not(.page-head){animation:page-fade-in var(--slide-ms) var(--slide-ease) both}
+  @keyframes page-fade-in{from{opacity:0;transform:translateY(8px)}}
   @keyframes page-in-right{from{transform:translateX(100%)}to{transform:none}}
   @keyframes page-in-left{from{transform:translateX(-100%)}to{transform:none}}
   @keyframes page-out-left{from{transform:none}to{transform:translateX(-100%)}}

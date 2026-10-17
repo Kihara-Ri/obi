@@ -290,6 +290,16 @@ export default function App() {
       mobile = matchMedia('(max-width:840px)').matches;
       animate = !matchMedia('(prefers-reduced-motion: reduce)').matches;
     } catch { animate = false; }
+    // 库存 ↔ 展示（以管理为主的用户用顶栏切换进入）：不播整页左右滑动，顶栏留在原地，
+    // 只让下方内容柔和淡入（切换控件的滑块自己滑过去）
+    const isShelf = (p: string) => p === 'domestic' || p === 'overseas';
+    const showcaseTab = Boolean(modules?.showcase) && home === 'gallery';
+    if (mobile && animate && !fromHistory && !showcaseTab
+        && ((prev === 'gallery' && isShelf(page)) || (page === 'gallery' && isShelf(prev)))) {
+      main.classList.add('page-in-fade');
+      const t = window.setTimeout(() => main.classList.remove('page-in-fade'), 400);
+      return () => { window.clearTimeout(t); main.classList.remove('page-in-fade'); };
+    }
     if (!snap || !mobile || !animate || fromHistory) return;
     const dir: 1 | -1 = (PAGE_RANK[page] ?? 3.5) >= (PAGE_RANK[prev] ?? 3.5) ? 1 : -1;
     // 快照可能取自上一场过渡进行中，先剥掉入场类再挂滑出类
