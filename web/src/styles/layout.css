@@ -91,6 +91,11 @@
 /* 手机顶栏：按钮改用短标签，显示返回钮 */
 @media (max-width:840px){
   .head-back{display:inline-flex}
+  .page-head .head-title-text{display:none}
+  .page-head .title-switch{display:inline-block}
+  .title-switch .seg button{padding:5px 18px;font-size:14px}
   .head-actions .btn-long{display:none}
   .head-actions .btn-short{display:inline}
+  /* 展示已是底栏一级标签，库存页头不再重复放按钮 */
+  .head-actions .gallery-link{display:none}
 }

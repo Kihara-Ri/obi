@@ -10,6 +10,7 @@ import {PageHead} from '../components/PageHead';
 import {AlbumCard, CardGrid} from '../components/Cards';
 import {Dropdown} from '../components/ui/Dropdown';
 import {SearchField} from '../components/ui/SearchField';
+import {ShowcaseSwitch, useShowcaseSwitch} from '../components/ShowcaseSwitch';
 import {useSlidingThumb} from '../components/ui/SlidingThumb';
 import {openRecordForm} from '../forms/RecordForm';
 import {openSaleForm} from '../forms/SaleForm';
@@ -81,6 +82,10 @@ export function ShelfPage() {
   const keepDesc = isTrash || (page === 'domestic' && !modules.circulation);
   // 与在途/售出中/已交易共用 align-list：内容列右缘统一 1147px，页头/汇总条/工具条跨页零位移。
   const alignList = !isTrash && modules.circulation;
+  const switchOn = useShowcaseSwitch() && !isTrash;
+  const baseTitle = modules.circulation && !isTrash ? <><span className="desktop-shelf-title">{title}</span><span className="mobile-shelf-title">库存</span></> : title;
+  // 以管理为主的用户：手机顶栏中间是「库存｜展示」切换（桌面仍是文字标题）
+  const titleNode = switchOn ? <><span className="head-title-text">{baseTitle}</span><span className="title-switch"><ShowcaseSwitch current="manage"/></span></> : baseTitle;
   const timeline = !searching && sort === 'new' && modules.acquisition;
 
   const cardActions = (r: AlbumRecord) => {
@@ -171,7 +176,7 @@ export function ShelfPage() {
 
   return (
     <div className={`shelf-page shelf-${app.shelfView}${alignList ? ' align-list' : ''}${app.mobileSelecting || curSelected.size ? ' is-selecting' : ''}`}>
-      <PageHead title={modules.circulation && !isTrash ? <><span className="desktop-shelf-title">{title}</span><span className="mobile-shelf-title">库存</span></> : title} desc={keepDesc ? desc : undefined} label="COLLECTION" actions={isTrash ? null : (
+      <PageHead title={titleNode} desc={keepDesc ? desc : undefined} label="COLLECTION" actions={isTrash ? null : (
         <>
           {modules.showcase ? <a className="link-button gallery-link" href="#gallery">展示收藏</a> : null}
           <button className="head-text" aria-label="批量录入" onClick={() => openBatchForm(app)}>

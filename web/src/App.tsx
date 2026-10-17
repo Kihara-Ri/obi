@@ -42,15 +42,18 @@ const MOBILE_TABS = [
   {hash: 'transit', ico: '✈', label: '在途', count: 'transit'},
   {hash: 'shipping', ico: '◨', label: '售出中', count: 'shipping'},
 ] as const;
+// 以展示为主的用户（默认首页是收藏展示）：「展示」是底栏第一个标签；
+// 以管理为主的用户不占标签，改用库存页 / 展示页顶栏的「库存｜展示」切换（ShowcaseSwitch）。
+const GALLERY_TAB = {hash: 'gallery', ico: '▦', label: '展示', count: ''} as const;
 
-const MORE_HASHES = new Set(['more', 'gallery', 'ledger', 'trades', 'stats', 'settings', 'trash']);
+const MORE_HASHES = new Set(['more', 'trades', 'stats', 'settings', 'trash']);
 
 // 手机页面切换的空间方向：rank 是页面在横向层级里的位置（底栏从左到右，
 // 「更多」的子页比「更多」更深，回收站从设置进入）。进入更深的页面从右侧推入，
 // 向左返回时当前页向右滑出；桌面与 prefers-reduced-motion 不做切换动画。
 const PAGE_RANK: Record<string, number> = {
-  domestic: 0, overseas: .5, transit: 1, shipping: 2,
-  more: 3, gallery: 3.05, ledger: 3.1, trades: 3.2, stats: 3.3, settings: 3.4, trash: 3.5,
+  domestic: 0, overseas: .5, gallery: 1, transit: 2, shipping: 3,
+  more: 4, trades: 4.2, stats: 4.3, settings: 4.4, trash: 4.5,
 };
 
 export default function App() {
@@ -403,9 +406,13 @@ export default function App() {
   const nav = NAV.filter(n => pageEnabled(n.hash, modules)).map(n => ({...n,
     label: n.hash === 'domestic' && !modules.circulation ? '我的收藏' : n.label,
   }));
-  const mobileTabs = MOBILE_TABS.filter(n => pageEnabled(n.hash, modules)).map(n => ({...n,
+  const showcaseTab = modules.showcase && home === 'gallery';
+  const mobileTabs = [...(showcaseTab ? [GALLERY_TAB] : []), ...MOBILE_TABS].filter(n => pageEnabled(n.hash, modules)).map(n => ({...n,
     label: n.hash === 'domestic' && !modules.circulation ? '收藏' : n.label,
   }));
+  // 库存标签同时代表海外库存；以管理为主时，展示页也算库存标签下的页面
+  const tabActive = (hash: string) => page === hash
+    || (hash === 'domestic' && (page === 'overseas' || (page === 'gallery' && !showcaseTab)));
   const content = state.modules?.needsSetup ? <SetupPage/>
     : page === 'gallery' ? <GalleryPage/>
     : ['overseas', 'domestic', 'trash'].includes(page) ? <ShelfPage/>
@@ -417,7 +424,7 @@ export default function App() {
               : <SettingsPage/>;
 
   // 底栏滑动高亮：胶囊按激活槽位平移；「更多」固定在最后一位
-  const activeTab = mobileTabs.findIndex(t => page === t.hash || (t.hash === 'domestic' && page === 'overseas'));
+  const activeTab = mobileTabs.findIndex(t => tabActive(t.hash));
   const pillIndex = activeTab >= 0 ? activeTab : mobileTabs.length;
 
   return (
@@ -459,8 +466,8 @@ export default function App() {
         }}/>
         {mobileTabs.map(t => (
           <a key={t.hash} href={`#${t.hash === 'domestic' && modules.circulation ? inventoryPage : t.hash}`}
-             className={page === t.hash || (t.hash === 'domestic' && page === 'overseas') ? 'active' : ''}
-             aria-current={page === t.hash || (t.hash === 'domestic' && page === 'overseas') ? 'page' : 'false'}>
+             className={tabActive(t.hash) ? 'active' : ''}
+             aria-current={tabActive(t.hash) ? 'page' : 'false'}>
             <span className="tab-ico" aria-hidden="true">{t.ico}</span>
             <span className="tab-label">{t.label}</span>
             {counts[t.count] ? <b className="tab-badge num">{counts[t.count]}</b> : null}

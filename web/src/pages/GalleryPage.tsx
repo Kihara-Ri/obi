@@ -12,6 +12,7 @@ import {GalleryScopePicker} from '../components/GalleryScopePicker';
 import {GalleryRoamingSwitch, GalleryRoamingSpeed} from '../components/GalleryRoamingControls';
 import {Dropdown} from '../components/ui/Dropdown';
 import {Seg} from '../components/ui/Seg';
+import {ShowcaseSwitch, useShowcaseSwitch} from '../components/ShowcaseSwitch';
 import {ChevDownIco} from '../components/icons';
 import {openArtistDrawer} from '../forms/ArtistDrawer';
 import {ShowcaseGroupForm} from '../forms/ShowcaseGroupForm';
@@ -22,6 +23,7 @@ const SORTS = [
 
 export function GalleryPage() {
   const app = useApp();
+  const switchOn = useShowcaseSwitch();
   const [preferences, setPreferences] = useState(readGalleryPreferences);
   const scope = preferences.scope;
   const [query, setQuery] = useState('');
@@ -196,8 +198,8 @@ export function GalleryPage() {
       onNavigate={navigateFocus} onClose={closeFocus}
       liked={Boolean(albumLikes.favorites[focusedRecord.id])}
       collectedAt={albumLikes.collectedAt[focusedRecord.id]}/> : null}
-    <PageHead title="收藏展示" desc="把收藏铺开，慢慢看。"
-              actions={<button type="button" className="quiet" onClick={immersive ? exitImmersive : enterImmersive}>
+    <PageHead title={switchOn ? <><span className="head-title-text">收藏展示</span><span className="title-switch"><ShowcaseSwitch current="gallery"/></span></> : '收藏展示'} desc="把收藏铺开，慢慢看。"
+              actions={<button type="button" className="quiet head-text" onClick={immersive ? exitImmersive : enterImmersive}>
                 {immersive ? '退出沉浸' : '沉浸展示'}
               </button>}/>
     <div className="gallery-controls">
