@@ -10,7 +10,10 @@
 | `Dropdown` | 自定义下拉选择（排序、筛选、表单选项） | `value` `options[{value,label,disabled?}]` `label` `onPick` `disabled?` | role=combobox + listbox；↑↓ Home End Enter Space Esc、字母跳转；读屏名称「label：当前值」；外部点击/触摸关闭；底部放不下自动向上展开 | 当前值填充；键盘导航中当前值加粗、高亮项填充 |
 | `Combobox` | 可输入又可下拉的组合框，输入过滤、可填列表外的新值 | `value` `onChange` `options[{value,label,leading?}]` `listLabel` `leading?` `emptyHint?` | role=combobox + aria-activedescendant；↑↓ Enter Esc Tab；外部点击关闭 | 高亮项填充 |
 | `Seg` | 分段控件（互斥选择），滑块动画 | `options[{value,label,ariaLabel?,title?,disabled?}]` `value` `onValue` `ariaLabel?` `disabled?` `persistKey?`（页面切换重挂后仍从上次位置滑过去） | role=group + 每段 aria-pressed；←→↑↓ Home End 移动焦点 | 选中段加粗 + 滑块 |
+| `TabPanel` | 标签页内容区：切换时按方向滑入并淡入，首次不播 | `value` `order[]` `children` | role=tabpanel；与 `Seg` 配合 | 方向性滑入 |
 | `Switch` | 开关 | `on` `onToggle` `label?` `disabled?` | role=switch + aria-checked；命中区向外扩 | 旋钮位置 |
+| `NavRow` | 导航列表行：图标 + 标题 + 右侧数值/控件 + 箭头，一行一件事，没有副标题 | `icon` `title` `value?` `trailing?` `href?`｜`onClick?` | 链接 / 按钮 / 静态三种形态 | 右侧数值与箭头 |
+| `Disclosure` | 折叠说明：把解释性文字收起来，主界面只留控件和数字 | `summary?`（默认「说明」） `children` | 原生 details，键盘/读屏开箱可用 | 前置箭头旋转 |
 | `SearchField` | 搜索框：放大镜 + 清除按钮，Esc 清空 | `value` `onChange` `ariaLabel` `placeholder?` | 清除后焦点回到输入框 | 有内容时出现清除按钮 |
 | `Toast` | 全局消息：边框环绕一周后淡出 | `kind('ok'｜'warn'｜'err')` `text` `onDone` | 错误 role=alert，其余 status；悬停/聚焦暂停；点击关闭；错误停留 6 秒，警告 3.5 秒，成功 2 秒 | 环绕路径的颜色按级别区分，另有文字 |
 | `AutoTextarea` | 随内容长高的多行输入 | `value` `maxRows?` + textarea 原生属性 | 宽度变化时重算高度；支持 ref | — |

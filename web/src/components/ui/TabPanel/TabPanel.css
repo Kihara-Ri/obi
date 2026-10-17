@@ -1,0 +1,3 @@
+/* TabPanel：切换时内容从切换方向滑入并淡入。 */
+.tab-panel.is-switching{animation:tab-panel-in var(--slide-ms) var(--slide-ease) both}
+@keyframes tab-panel-in{from{opacity:0;transform:translateX(calc(var(--dir,1) * 18px))}}
