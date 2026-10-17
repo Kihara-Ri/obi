@@ -24,7 +24,6 @@ import {StatsPage} from './pages/StatsPage';
 import {SettingsPage} from './pages/SettingsPage';
 import {SetupPage} from './pages/SetupPage';
 import {MorePage} from './pages/MorePage';
-import {LedgerPage} from './pages/LedgerPage';
 import {GalleryPage} from './pages/GalleryPage';
 
 const NAV = [
@@ -33,8 +32,8 @@ const NAV = [
   {hash: 'transit', ico: '✈', label: '海外在途'},
   {hash: 'domestic', ico: '▤', label: '国内库存'},
   {hash: 'shipping', ico: '◨', label: '售出中'},
-  {hash: 'trades', ico: '↗', label: '已交易'},
-  {hash: 'stats', ico: '◷', label: '收支统计'},
+  {hash: 'trades', ico: '↗', label: '交易记录'},
+  {hash: 'stats', ico: '◷', label: '账本'},
 ];
 
 // 手机把国内 / 海外收进库存页；低频入口通过独立「更多」页访问。
@@ -93,7 +92,8 @@ export default function App() {
   const modules = state?.modules?.needsSetup ? PRESETS[0].enabled
     : state ? normalizeModules(state.modules?.enabled ?? LEGACY_MODULES) : undefined;
   const home = modules ? homePage(state?.modules?.startPage, modules) : 'domestic';
-  const page = !route ? home : modules && !pageEnabled(route, modules) ? 'domestic' : route;
+  const target = route === 'ledger' ? 'stats' : route;   // 旧的「账本概览」已并入账本（stats）
+  const page = !target ? home : modules && !pageEnabled(target, modules) ? 'domestic' : target;
   const twinState = useDigitalTwins(!!modules?.showcase);
 
   const refresh = useCallback(async () => { setState(await api<AppState>('state')); }, []);
@@ -401,7 +401,7 @@ export default function App() {
   if (!modules.circulation) counts.domestic += counts.overseas + counts.transit;
   counts.inventory = counts.domestic + (modules.circulation ? counts.overseas : 0);
   const nav = NAV.filter(n => pageEnabled(n.hash, modules)).map(n => ({...n,
-    label: n.hash === 'domestic' && !modules.circulation ? '我的收藏' : n.hash === 'stats' && !modules.trading ? '购入统计' : n.label,
+    label: n.hash === 'domestic' && !modules.circulation ? '我的收藏' : n.label,
   }));
   const mobileTabs = MOBILE_TABS.filter(n => pageEnabled(n.hash, modules)).map(n => ({...n,
     label: n.hash === 'domestic' && !modules.circulation ? '收藏' : n.label,
@@ -414,8 +414,7 @@ export default function App() {
         : page === 'trades' ? <TradesPage/>
           : page === 'stats' ? <StatsPage/>
             : page === 'more' ? <MorePage installEvt={installEvt} onInstalled={() => setInstallEvt(null)}/>
-              : page === 'ledger' ? <LedgerPage/>
-                : <SettingsPage/>;
+              : <SettingsPage/>;
 
   // 底栏滑动高亮：胶囊按激活槽位平移；「更多」固定在最后一位
   const activeTab = mobileTabs.findIndex(t => page === t.hash || (t.hash === 'domestic' && page === 'overseas'));

@@ -1,4 +1,4 @@
-// 收支统计页：核心指标块 + 按到账月份的交易表。
+// 账本页（原「账本概览」与「收支统计」合并）：核心指标块 + 按到账月份的交易表。
 import {sum, yuan} from '../core/format';
 import {useApp} from '../state/AppContext';
 import {PageHead} from '../components/PageHead';
@@ -31,7 +31,7 @@ export function StatsPage() {
 
   return (
     <>
-      <PageHead title={modules.trading ? '收支统计' : '购入统计'} desc={modules.acquisition ? '人民币统一口径：日元按购买当天汇率折算，已知成本与待补资料分别统计。' : '按到账月份统计售出金额与费用。'}
+      <PageHead title="账本" desc={modules.acquisition ? '人民币统一口径：日元按购买当天汇率折算，已知成本与待补资料分别统计。' : '按到账月份统计售出金额与费用。'}
                 label="IN NUMBERS"
                 actions={<a className="link-button" href="/api/export">导出库存 CSV</a>}/>
       <div className="stat-grid">
@@ -57,6 +57,11 @@ export function StatsPage() {
           <span className="stat-label">售出中应收</span>
           <strong>{yuan(sum(shipping.flatMap(s => s.items), 'net'))}</strong>
           <small>{shipping.length} 笔 · 确认收货后计入{modules.acquisition ? '利润' : '到账金额'}</small>
+        </div> : null}
+        {modules.trading ? <div className="stat-block">
+          <span className="stat-label">售出金额</span>
+          <strong>{yuan(sum(items, 'net'))}</strong>
+          <small>{done.length} 笔已确认到账</small>
         </div> : null}
         {modules.trading && modules.acquisition ? <div className="stat-block">
           <span className="stat-label">已实现利润</span>
