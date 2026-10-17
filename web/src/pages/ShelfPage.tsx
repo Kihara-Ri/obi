@@ -173,9 +173,11 @@ export function ShelfPage() {
     <div className={`shelf-page shelf-${app.shelfView}${alignList ? ' align-list' : ''}${app.mobileSelecting || curSelected.size ? ' is-selecting' : ''}`}>
       <PageHead title={modules.circulation && !isTrash ? <><span className="desktop-shelf-title">{title}</span><span className="mobile-shelf-title">库存</span></> : title} desc={keepDesc ? desc : undefined} label="COLLECTION" actions={isTrash ? null : (
         <>
-          {modules.showcase ? <a className="link-button" href="#gallery">展示收藏</a> : null}
-          <button onClick={() => openBatchForm(app)}>批量录入</button>
-          <button className="primary" onClick={() => openRecordForm(app)}>＋ 添加专辑</button>
+          {modules.showcase ? <a className="link-button gallery-link" href="#gallery">展示收藏</a> : null}
+          <button className="head-text" aria-label="批量录入" onClick={() => openBatchForm(app)}>
+            <span className="btn-long">批量录入</span><span className="btn-short" aria-hidden="true">批量</span></button>
+          <button className="primary head-add" aria-label="添加专辑" onClick={() => openRecordForm(app)}>
+            <span className="btn-long">＋ 添加专辑</span><span className="btn-short" aria-hidden="true">＋</span></button>
         </>
       )}/>
       {modules.circulation && !isTrash ? (

@@ -3,13 +3,24 @@ import type {ReactNode} from 'react';
 import {useApp} from '../state/AppContext';
 import {sum, yuan} from '../core/format';
 import {ThemeToggle} from './ThemeToggle';
+import {useHashRoute} from '../hooks/useHashRoute';
+import {BACK_TARGET} from '../core/page-back';
+
+const BackIco = (
+  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <polyline points="15 5 8 12 15 19"/>
+  </svg>
+);
 
 export function PageHead({title, desc, actions, label}: {
   title: ReactNode; desc?: ReactNode; actions?: ReactNode; label?: string;
 }) {
+  const back = BACK_TARGET[useHashRoute()];
   return (
     <header className="page-head">
       <div>
+        {/* 手机顶栏的返回：只在「更多」的子页出现，桌面有侧栏不显示 */}
+        {back ? <a className="head-back" href={back.href} aria-label={`返回${back.label}`}>{BackIco}</a> : null}
         {label ? <div className="eyebrow">{label}</div> : null}
         <h1>{title}</h1>
         {desc ? <p>{desc}</p> : null}
