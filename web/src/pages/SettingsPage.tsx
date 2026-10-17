@@ -3,6 +3,7 @@ import {useState} from 'react';
 import {useApp} from '../state/AppContext';
 import {PageHead} from '../components/PageHead';
 import {ModuleChooser} from '../components/ModuleChooser';
+import {AlbumEngineSettings} from '../components/AlbumEngineSettings';
 import {VisionSettings} from '../components/VisionSettings';
 import {Disclosure} from '../components/ui/Disclosure';
 import {Seg} from '../components/ui/Seg';
@@ -53,6 +54,7 @@ export function SettingsPage() {
             {app.modules.acquisition ? <p>日元成本按购买当天汇率自动折算，无需手动维护。</p> : null}
           </Disclosure>
         </section>
+        <AlbumEngineSettings/>
         <VisionSettings/>
       </> : null}
 

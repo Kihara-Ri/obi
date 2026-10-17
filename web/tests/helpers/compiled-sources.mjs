@@ -8,7 +8,7 @@ import ts from 'typescript';
 
 export const source = fileURLToPath(new URL('../../src/', import.meta.url));
 // One compiler program for the test run, using the real source dependency graph.
-const entries = ['core/published-album.ts', 'core/gallery-motion.ts',
+const entries = ['core/album-engine-mount.ts', 'core/published-album.ts', 'core/gallery-motion.ts',
   'components/GalleryRoamingControls.tsx', 'core/gallery.ts', 'core/digital-twins.ts',
   'core/album-model-assets.ts', 'core/album-packaging.ts', 'components/CopyEditionFields.tsx',
   'core/copy-edition.ts', 'components/TwinControls.tsx', 'components/VisionSettings.tsx',

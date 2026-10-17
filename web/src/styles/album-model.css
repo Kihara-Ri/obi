@@ -1,2 +1,1 @@
-/* External package stylesheet stays in the existing module import position. */
-@import "@diedu/album-engine/style.css";
+.album-engine-mount--viewer { width: 100%; height: 100%; }

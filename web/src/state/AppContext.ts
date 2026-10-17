@@ -2,6 +2,7 @@
 // 模块间通信只经这里，杜绝散落的全局变量。
 
 import {createContext, useContext} from 'react';
+import type {AlbumEngineState} from './useAlbumEngine';
 import type {ReactNode} from 'react';
 import type {ThemePref} from '../core/theme';
 import type {AlbumRecord, AppState, ModuleFlags, SortMode, TwinIndex, TwinStart} from '../types';
@@ -37,6 +38,7 @@ export interface AppCtx {
   theme: ThemePref; setTheme(v: ThemePref): void;
   rec(id: string): AlbumRecord | undefined;
   refresh(): Promise<void>;
+  albumEngine: AlbumEngineState;
   twins: TwinIndex;
   twinSyncError: string;
   refreshTwins(): Promise<void>;

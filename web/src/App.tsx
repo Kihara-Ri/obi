@@ -7,6 +7,7 @@ import type {ThemePref} from './core/theme';
 import {useHashRoute} from './hooks/useHashRoute';
 import {AppContext} from './state/AppContext';
 import {useDigitalTwins} from './state/useDigitalTwins';
+import {useAlbumEngine} from './state/useAlbumEngine';
 import type {AppCtx, DrawerSpec} from './state/AppContext';
 import type {AppState, SortMode} from './types';
 import {Ledger} from './components/PageHead';
@@ -97,6 +98,7 @@ export default function App() {
   const home = modules ? homePage(state?.modules?.startPage, modules) : 'domestic';
   const target = route === 'ledger' ? 'stats' : route;   // 旧的「账本概览」已并入账本（stats）
   const page = !target ? home : modules && !pageEnabled(target, modules) ? 'domestic' : target;
+  const albumEngine = useAlbumEngine();
   const twinState = useDigitalTwins(!!modules?.showcase);
 
   const refresh = useCallback(async () => { setState(await api<AppState>('state')); }, []);
@@ -402,7 +404,7 @@ export default function App() {
     selected, setSelected,
     theme, setTheme,
     rec: id => state.records.find(r => r.id === id),
-    refresh, toast, ...twinState,
+    refresh, toast, albumEngine, ...twinState,
     openDrawer, closeDrawer, setDrawerDirty,
   };
 

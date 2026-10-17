@@ -1,9 +1,8 @@
-import {useRef, useState} from 'react';
+import {useCallback, useRef, useState} from 'react';
 import type {AlbumRecord} from '../types';
 import {useApp} from '../state/AppContext';
 import {ApiError} from '../core/api';
 import {twinBusy} from '../core/digital-twins';
-import {spineCalibrationFit, spineCalibrationFitForEntity} from '@diedu/album-engine/calibration';
 import {GuidedTwinEditor} from './GuidedTwinEditor';
 import {TwinAccessoriesEditor} from './TwinAccessoriesEditor';
 import {DiscCalibrationEditor} from './DiscCalibrationEditor';
@@ -14,17 +13,21 @@ export function TwinControls({record, releaseId, unsaved = false, saving = false
 }) {
   const app = useApp();
   const job = app.twins.jobs[record.id];
+  const engine = app.albumEngine;
+  const runtime = engine.runtime;
   const [sending, setSending] = useState(false);
   const [uncertain, setUncertain] = useState(false);
   const [error, setError] = useState('');
   const [editingAccessories,setEditingAccessories] = useState(false);
   const [calibrating, setCalibrating] = useState(false);
+  const closeAccessories = useCallback(() => setEditingAccessories(false), []);
+  const closeCalibration = useCallback(() => setCalibrating(false), []);
   const gate = useRef(false);
   const blocked = unsaved || saving || stale;
   const busy = twinBusy(job);
   const confirmed = !!releaseId && record.releaseInfo?.musicBrainzReleaseId === releaseId;
   const current = confirmed && job?.status === 'succeeded' && job.releaseId === releaseId;
-  const fit = current && job?.entity ? (job.entity.document ? spineCalibrationFitForEntity(job.entity.document) : spineCalibrationFit({packaging: job.entity.packaging, modelCalibration: job.entity.calibration})) : null;
+  const fit = runtime && current && job?.entity ? (job.entity.document ? runtime.spineCalibrationFitForEntity(job.entity.document) : runtime.spineCalibrationFit({packaging: job.entity.packaging, modelCalibration: job.entity.calibration})) : null;
 
   const act = async (fn: () => Promise<void>) => {
     if (gate.current) return;
@@ -37,10 +40,16 @@ export function TwinControls({record, releaseId, unsaved = false, saving = false
     } finally {gate.current = false; setSending(false);}
   };
   const start = (mode: 'ai' | 'guided') => {
-    if (!confirmed || blocked || busy || (mode === 'ai' && !app.twins.configured)) return;
+    if (!runtime || !confirmed || blocked || busy || (mode === 'ai' && !app.twins.configured)) return;
     void act(() => app.startTwin({recordId: record.id,
       recordRevision: record.revision, expectedJobId: job?.id ?? null,mode}));
   };
+
+  if (!runtime) return <section className="twin-controls" aria-label="生成数字实体" data-task-id={job?.id ?? ''}>
+    <p className="small-note">{engine.status?.installed ? engine.loading ? '正在加载 Album Engine…' : 'Album Engine 暂不可用。请在设置中检查引擎状态。' : '安装 Album Engine 后可生成与查看 3D 数字实体。'}</p>
+    {job ? <p className="small-note">已有实体资料与素材已保留，安装引擎后可继续使用。</p> : null}
+    <a className="link-button" href="#settings">打开设置</a>
+  </section>;
 
   return <section className="twin-controls" aria-label="生成数字实体"
     data-task-id={job?.id ?? ''} data-status={job?.status ?? 'none'} data-phase={job?.phase ?? ''}>
@@ -67,10 +76,10 @@ export function TwinControls({record, releaseId, unsaved = false, saving = false
         {editingAccessories?'收起附件编辑':'补充或移除独立附件'}
       </button>
       {editingAccessories && job?.entity ? <TwinAccessoriesEditor record={record} job={job}
-        onSaved={app.refreshTwins} onClose={()=>setEditingAccessories(false)}/> : null}
+        onSaved={app.refreshTwins} onClose={closeAccessories}/> : null}
       {job?.entity && Object.keys(job.entity.surfaces).some(role => role.startsWith('disc')) ?
         <button type="button" className="quiet" onClick={() => setCalibrating(true)}>校准盘面</button> : null}
-      {calibrating && job ? <DiscCalibrationEditor job={job} onSaved={app.refreshTwins} onClose={() => setCalibrating(false)}/> : null}
+      {calibrating && job ? <DiscCalibrationEditor job={job} onSaved={app.refreshTwins} onClose={closeCalibration}/> : null}
       {job?.entity?.warnings?.length ? <details><summary>生成说明</summary>{job.entity.warnings.map((warning,i) => <p key={i}>{warning}</p>)}</details> : null}
     </> : <>
       {job?.error ? <p className="twin-status" role="status">{job.error}</p> : null}

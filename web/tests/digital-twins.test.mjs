@@ -96,3 +96,15 @@ test('手动盘面校准只加入派生展示字段，不修改原始实体及�
   assert.deepEqual(job, source);
   assert.equal(albumTextureSource(view, 'disc'), '/api/twin-assets/task2/disc-original.png');
 });
+
+test('安装补齐持久模型资源时，同序号任务也刷新清单，后续轮询继续保留查看器', () => {
+  const current = {epoch: 'one', revision: 19, configured: true, jobs: {copy: ready}};
+  const next = structuredClone(current);
+  next.jobs.copy.models = {version: '0.3.0', modelSet: 'album-rig-1', files: {
+    'jewel.glb': {sha256: 'a'.repeat(64), url: '/api/twin-model-assets/task2/jewel.glb'},
+  }};
+  const merged = mergeTwinIndex(current, next);
+  assert.equal(merged.jobs.copy.models, next.jobs.copy.models);
+  assert.notEqual(merged.jobs.copy, ready);
+  assert.equal(mergeTwinIndex(merged, structuredClone(next)).jobs.copy, merged.jobs.copy);
+});

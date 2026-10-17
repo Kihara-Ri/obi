@@ -28,6 +28,8 @@
 | --- | --- | --- |
 | `ui/Drawer` | 抽屉 / 手机底部 sheet：遮罩、焦点圈、Esc、下拉收起、脏表单确认 | 存量文件（见 `.ai-kit/legacy.txt`），动到时拆分 |
 | `ui/Lightbox` | 照片灯箱 | 同上 |
+| `EngineMount` | 挂载已安装 Album Engine 插件里的视图（3D 查看器、校准、编辑器） | `kind` `props` `onUnavailable?` | 未安装时不渲染；失败显示 role=alert 提示 | — |
+| `AlbumEngineSettings` | 设置「高级」里安装 / 卸载 Album Engine 插件 | 无（读 `useApp().albumEngine`） | 状态 role=status；错误 role=alert | 状态文字 |
 | `ShopField` | 购买渠道字段：历史店铺归并 + 品牌图标，交互由 `Combobox` 提供 | 样式 `ShopField.css` |
 | `ShowcaseSwitch` | 手机顶栏的「库存｜展示」切换（仅以管理为主的用户显示） | `current` | 基于 `Seg` | 选中段 |
 | `ThemeToggle` | 浅色 / 深色 / 跟随系统 | 基于 `Seg` |

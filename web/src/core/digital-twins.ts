@@ -16,7 +16,8 @@ export function mergeTwinIndex(current: TwinIndex, next: TwinIndex): TwinIndex {
   const jobs = {...next.jobs};
   for (const [id, job] of Object.entries(jobs)) {
     const old = current.jobs[id];
-    if (old && old.id === job.id && old.seq === job.seq && old.status === job.status && old.error === job.error) jobs[id] = old;
+    if (old && old.id === job.id && old.seq === job.seq && old.status === job.status && old.error === job.error
+      && JSON.stringify(old.models) === JSON.stringify(job.models)) jobs[id] = old;
   }
   return {...next, jobs};
 }

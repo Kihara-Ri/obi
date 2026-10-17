@@ -34,6 +34,7 @@ export interface TwinJob {
   barcode?: string; barcodeSource?: 'manual' | 'photo' | 'record' | '';
   generationMode?: 'ai' | 'guided';
   candidates?: TwinReleaseCandidate[]; entity?: TwinEntity | null;
+  models?: {version: string; modelSet: string; files: Record<string, {sha256: string; url: string}>};
 }
 export interface TwinIndex {
   epoch: string; revision: number; jobs: Record<string, TwinJob>;

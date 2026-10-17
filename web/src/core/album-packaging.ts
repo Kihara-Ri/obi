@@ -1,9 +1,9 @@
 import type {PackagingPhotoRole, PackagingSpec} from '../types';
 
-import {albumPackaging as explicitPackaging} from '@diedu/album-engine/packaging';
-import type {AlbumPackaging} from '@diedu/album-engine/packaging';
-export type {AlbumPackaging} from '@diedu/album-engine/packaging';
-export {packagingName} from '@diedu/album-engine/packaging';
+import {albumPackaging as explicitPackaging} from '../vendor/album-data/packaging';
+import type {AlbumPackaging} from '../vendor/album-data/packaging';
+export type {AlbumPackaging} from '../vendor/album-data/packaging';
+export {packagingName} from '../vendor/album-data/packaging';
 
 export const PACKAGING_PHOTO_ROLES: {value: PackagingPhotoRole; label: string}[] = [
   {value: 'front', label: '正面'}, {value: 'back', label: '背面'}, {value: 'spine', label: '外侧书脊'},

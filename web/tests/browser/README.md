@@ -45,3 +45,16 @@ CI 安装 Playwright 后直接运行；本地已有工具自带 Playwright 时�
 | 缩放两端保持图片比例 | 检查实际 Web Animations keyframes，几何算法单测继续保留 |
 
 浏览器证明加载与交互链路；金属外观、贴图方向/裁切、穿模仍要查看真实截图。它不等于实机感应或帧率验收。原 `album-model.html` 为隔离几何/生命周期专项，不能替代真实样本验收。
+
+Album Engine 插件生命周期验收用 `engine-plugin-acceptance.mjs`，同样吃 `preview_samples.py check` 的期望 JSON，但按 `--stage` 分四段执行，服务重启与备份/恢复由外部编排：
+
+```sh
+node web/tests/browser/engine-plugin-acceptance.mjs --url http://127.0.0.1:<空闲端口> --expectations <check.json> --stage <full-ui|uninstall-while-viewing|after-restart|reinstall-view>
+```
+
+- `full-ui` 会先卸载（若已装）、驱动一条可变探针记录走创建/编辑/回收，再做「同任务双击安装」——必须恰好前进一个 revision（Playwright 的动作等待会把排队的第二击落到装完后重渲染出的「卸载」键上，等于真卸载；须用一次 evaluate 内的两次同步 click 模拟真实双击）；随后 3D 从 `/api/twin-model-assets/` 的固定 GLB 渲染、无实体记录保持 2D。
+- `uninstall-while-viewing` 用同一浏览器上下文的第二页在 A 页看 3D 时卸载；A 页须释放画布与挂载点、开关消失、卸载标记后零插件资产请求。
+- `after-restart` 在服务重启后验证未安装状态持久化、图库与灯箱仅 2D；重启前后的 `/api/twins` 应在去掉 epoch/revision 后逐字段一致。
+- `reinstall-view` 经 UI 安装（若未装）并确认同一固定 GLB 再次渲染；它不改写账本数据，可对演示实例安全复跑。
+
+探针记录名「引擎验收临时」；中断的运行可能把它留在库里（表现为图库 17 张、首张占位封面），下一段 `full-ui` 会自动清理，或 `preview_samples.py prepare --rebuild` 重建固定开发目录。期望 JSON 绑定当次种子实例的记录 ID，重建后须重新生成。控制台错误与 HTTP/传输失败一律判失败。

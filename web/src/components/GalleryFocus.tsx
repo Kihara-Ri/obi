@@ -2,7 +2,6 @@ import {Component, lazy, Suspense, useCallback, useLayoutEffect, useMemo, useRef
 import type {ReactNode} from 'react';
 import {createPortal} from 'react-dom';
 import type {AlbumRecord} from '../types';
-import {requestAlbumOrientationPermission} from './useAlbumOrientation';
 import type {AlbumOrientationPermission} from './useAlbumOrientation';
 import {useApp} from '../state/AppContext';
 import {publishedAlbum} from '../core/published-album';
@@ -71,8 +70,10 @@ export function GalleryFocus({record, records, originElement, onNavigate, onClos
   current.current = {record, records, onNavigate, onClose};
   const requestClose = useRef<() => void>(() => {});
   const app = useApp(), job = app.twins.jobs[record.id];
-  const published = useMemo(() => publishedAlbum(record, job), [record, job]);
+  const published = useMemo(() => publishedAlbum(record, job, app.albumEngine.runtime), [record, job, app.albumEngine.runtime]);
   const showing3D = !!published && modelSession?.id === record.id;
+  const dismissModel = useCallback(() => requestClose.current(), []);
+  useLayoutEffect(() => {if (!app.albumEngine.runtime) setModelSession(null);}, [app.albumEngine.runtime]);
   const engineUnavailable = useCallback(() => {setModelSession(null); setUnavailable(true);}, []);
 
   const playShade = (from: number, to: number) => {
@@ -318,8 +319,8 @@ export function GalleryFocus({record, records, originElement, onNavigate, onClos
       {showing3D && published && modelSession ? <div className="gallery-model-mount">
         <EngineBoundary onUnavailable={engineUnavailable}>
           <Suspense fallback={<p className="gallery-engine-loading" role="status">正在加载 3D</p>}>
-            <AlbumModel entity={published.entity} resolveAsset={published.resolveAsset} permission={modelSession.permission}
-              onDismiss={() => requestClose.current()} onUnavailable={engineUnavailable}/>
+            <AlbumModel entity={published.entity} resolveAsset={published.resolveAsset} modelBaseUrl={job?.models ? '/api/twin-model-assets/' + job.id + '/' : undefined} permission={modelSession.permission}
+              onDismiss={dismissModel} onUnavailable={engineUnavailable}/>
           </Suspense>
         </EngineBoundary>
       </div>
@@ -332,7 +333,7 @@ export function GalleryFocus({record, records, originElement, onNavigate, onClos
       <Seg ariaLabel="专辑显示" options={[{value: '2d', label: '2D'}, {value: '3d', label: '3D'}]}
         value={showing3D ? '3d' : '2d'} onValue={mode => {
           if (mode === '2d') setModelSession(null);
-          else {setFlipped(false); setUnavailable(false); setModelSession({id: record.id, permission: requestAlbumOrientationPermission()});}
+          else {setFlipped(false); setUnavailable(false); setModelSession({id: record.id, permission: app.albumEngine.runtime!.requestAlbumOrientationPermission()});}
         }}/>
     </div> : null}
     {unavailable ? <p className="gallery-engine-unavailable" role="status">3D 暂不可用，可重试</p> : null}
