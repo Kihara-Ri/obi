@@ -25,6 +25,7 @@
 #panel .form-section{margin-top:10px}
 #panel .seg button{padding:5px 8px}
 .drawer-footer{display:flex;gap:9px;justify-content:flex-end;padding:10px 18px;border-top:1px solid var(--border);background:var(--surface)}
+.footer-hint{margin:0 auto 0 0;align-self:center;font-size:12px;color:var(--muted)}
 
 /* 字段栅格：minmax(0,1fr) 允许轨道收缩——否则 iOS 日期输入的固有
    最小宽度会把列撑出抽屉（售出日期超宽问题） */
@@ -181,6 +182,7 @@ details.adv:not([open]) > :not(summary){display:none}
   #panel .form-grid input[type=date]{-webkit-appearance:none;appearance:none;width:100%}
   .drawer-footer{gap:8px;flex-wrap:wrap;padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
   .drawer-footer button{flex:1 1 calc((100% - 16px)/3);min-height:42px}
+  .footer-hint{flex:1 1 100%;order:-1;margin:0 0 2px;text-align:center}
   /* 分组列表行：输入 16px 防 iOS 聚焦放大；快捷块加高到可点 */
   #panel .row-group input{font-size:16px}
   .chip{min-height:34px}

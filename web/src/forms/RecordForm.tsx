@@ -797,6 +797,7 @@ export function RecordForm({id}: {id?: string}) {
         </div>
       </div>
       <div className="drawer-footer">
+        {!id && !v.releaseInfo.musicBrainzReleaseId ? <p className="footer-hint">先用条码匹配发行版，才能保存入库</p> : null}
         <button type="button" onClick={() => app.closeDrawer()}>取消</button>
         <button type="submit" className="primary" disabled={saving || !edited}>{id ? '保存修改' : '保存并入库'}</button>
       </div>
