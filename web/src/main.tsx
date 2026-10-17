@@ -1,6 +1,7 @@
 // 入口：按层顺序加载样式（tokens → base → 布局 → 组件 → 各页面模块），挂载应用。
 import './styles/tokens.css';
 import './styles/base.css';
+import './components/ui';   // 单元组件各自带样式，须先于页面样式加载
 import './styles/layout.css';
 import './styles/pagetransition.css';
 import './styles/components.css';

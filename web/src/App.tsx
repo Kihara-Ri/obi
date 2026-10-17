@@ -86,7 +86,6 @@ export default function App() {
   const [drawerClosing, setDrawerClosing] = useState(false);
   const drawerDirty = useRef(false);
   const [toastMsg, setToastMsg] = useState<{key: number; kind: ToastKind; text: string} | null>(null);
-  const toastTimer = useRef(0);
   const [offline, setOffline] = useState(!navigator.onLine);
   const [installEvt, setInstallEvt] = useState<Event | null>(null);
   const [inventoryPage, setInventoryPage] = useState('domestic');
@@ -120,11 +119,19 @@ export default function App() {
     if (state && !state.modules?.needsSetup && page !== route) location.replace(`#${page}`);
   }, [state, page, route]);
 
-  // 环绕动画结束（onAnimationEnd）时由 Toast 自己通知消失；定时器只兜底
+  // 消失时机由 Toast 组件自己的计时器决定（按级别区分时长、悬停暂停），这里只负责换新
   const toast = useCallback((msg: string, kind: ToastKind = 'ok') => {
     setToastMsg(t => ({key: (t?.key ?? 0) + 1, kind, text: msg}));
-    clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => setToastMsg(null), 3000);
+  }, []);
+
+  // 数字输入框聚焦时，滚动页面/抽屉的滚轮会悄悄改掉金额；滚轮一动就让它失焦
+  useEffect(() => {
+    const onWheel = (e: WheelEvent) => {
+      const t = e.target;
+      if (t instanceof HTMLInputElement && t.type === 'number' && document.activeElement === t) t.blur();
+    };
+    document.addEventListener('wheel', onWheel, {passive: true});
+    return () => document.removeEventListener('wheel', onWheel);
   }, []);
 
   // 回到页签时刷新：拾取其他设备/实例的改动，保持全量状态一致。

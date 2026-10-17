@@ -1,0 +1,25 @@
+/* Combobox：输入框 + 下拉列表。颜色 / 圆角 / 阴影全部来自 token。 */
+.cb{position:relative}
+.cb-control{position:relative}
+.cb-control input{padding-right:36px}
+.cb-control.has-leading input{padding-left:33px}
+/* 抽屉里 #panel input 的内边距优先级更高，这里同级覆盖 */
+#panel .cb-control input{padding-right:36px}
+#panel .cb-control.has-leading input{padding-left:33px}
+.cb-leading{position:absolute;left:10px;top:50%;transform:translateY(-50%);display:flex;align-items:center;color:var(--muted);pointer-events:none}
+.cb-leading img{width:16px;height:16px;display:block;border-radius:4px}
+.cb-toggle{position:absolute;right:5px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;padding:6px 8px;border:none;background:none;color:var(--muted);border-radius:7px}
+.cb-toggle svg{width:14px;height:14px;display:block}
+.cb-toggle:hover{background:var(--surface-3);color:var(--text)}
+
+.cb-list{position:absolute;top:calc(100% + 5px);left:0;right:0;z-index:20;background:var(--surface-3);border:1px solid var(--border-strong);border-radius:11px;box-shadow:var(--shadow);max-height:236px;overflow-y:auto;overscroll-behavior:contain;padding:5px}
+.cb-opt{display:flex;align-items:center;gap:9px;padding:8px 11px;border-radius:8px;font-size:13px;cursor:pointer;color:var(--text)}
+.cb-opt-lead{display:flex;align-items:center;color:var(--muted)}
+.cb-opt-lead img{width:15px;height:15px;border-radius:4px}
+.cb-opt:hover .cb-opt-lead,.cb-opt[aria-selected=true] .cb-opt-lead{color:inherit}
+.cb-opt:hover,.cb-opt[aria-selected=true]{background:var(--accent);color:var(--accent-ink)}
+.cb-empty{padding:8px 10px;color:var(--faint);font-size:12px;margin:0}
+
+@media (max-width:840px){
+  .cb-opt{min-height:44px;padding:11px 12px}
+}

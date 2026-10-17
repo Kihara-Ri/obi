@@ -1,0 +1,11 @@
+/* Seg：分段控件。选中态用 .on（同时 aria-pressed）；上下文里的尺寸/外观覆盖写在使用处所属模块。 */
+.seg{display:flex;position:relative;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:3px;gap:3px}
+.seg-thumb{position:absolute;top:3px;bottom:3px;left:0;width:0;border-radius:8px;background:var(--seg-thumb);box-shadow:inset 0 0 0 1px var(--hairline),0 2px 6px var(--shadow-ink);transition:transform var(--slide-ms) var(--slide-ease),width var(--slide-ms) var(--slide-ease),opacity .12s ease;will-change:transform,width;pointer-events:none}
+.seg button{flex:1;position:relative;z-index:1;padding:6px 8px;border-radius:8px;font-size:12.5px;color:var(--muted);border:none;background:none;white-space:nowrap;transition:color .15s}
+.seg button.on{color:var(--text);font-weight:600}
+/* 全局 button:hover / :active 会给按钮灰底和描边——段按钮的底是滑块，不是自己；
+   组件样式先于 components.css 加载，这里用更高优先级压住（否则点完停在指针下的段会拖出一块灰白底） */
+.seg button:hover,.seg button:active,.seg button:focus{background:none;border-color:transparent}
+.seg button.primary:hover,.seg button.primary:active{background:var(--accent)}
+.seg button.primary{background:var(--accent);color:var(--accent-ink);border:none;box-shadow:none}
+.seg button:disabled{opacity:.45;cursor:not-allowed}

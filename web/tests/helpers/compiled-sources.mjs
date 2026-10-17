@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
-import {mkdtempSync, rmSync, symlinkSync, writeFileSync} from 'node:fs';
+import {mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {tmpdir} from 'node:os';
-import {join} from 'node:path';
+import {dirname, join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import ts from 'typescript';
 
@@ -12,7 +12,8 @@ const entries = ['core/published-album.ts', 'core/gallery-motion.ts',
   'components/GalleryRoamingControls.tsx', 'core/gallery.ts', 'core/digital-twins.ts',
   'core/album-model-assets.ts', 'core/album-packaging.ts', 'components/CopyEditionFields.tsx',
   'core/copy-edition.ts', 'components/TwinControls.tsx', 'components/VisionSettings.tsx',
-  'core/album-entity.ts', 'core/gallery-zoom.ts', 'core/release-metadata.ts', 'components/Tracklist.tsx'];
+  'core/album-entity.ts', 'core/gallery-zoom.ts', 'core/release-metadata.ts', 'components/Tracklist.tsx',
+  'components/ui/index.ts'];
 
 export function compileSources() {
   const output = mkdtempSync(join(tmpdir(), 'diedu-web-tests-'));
@@ -28,6 +29,13 @@ export function compileSources() {
       getCurrentDirectory: () => source, getCanonicalFileName: name => name, getNewLine: () => '\n',
     }));
     assert.equal(program.emit().emitSkipped, false);
+    // 组件自带样式（import './X.css'）：node 里不需要样式，在输出目录放同名空文件让 require 能解析
+    for (const entry of readdirSync(source, {recursive: true, withFileTypes: true})) {
+      if (!entry.isFile() || !entry.name.endsWith('.css')) continue;
+      const rel = join(entry.parentPath.slice(source.length), entry.name);
+      mkdirSync(dirname(join(output, rel)), {recursive: true});
+      writeFileSync(join(output, rel), '');
+    }
     writeFileSync(join(output, 'package.json'), '{"type":"commonjs"}');
     symlinkSync(fileURLToPath(new URL('../../node_modules', import.meta.url)), join(output, 'node_modules'), 'dir');
     return output;
@@ -36,6 +44,7 @@ export function compileSources() {
 let localOutput;
 export function compiledSources() {
   const output = process.env.DIEDU_TEST_COMPILED || (localOutput ??= compileSources());
-  return {output, source, require: createRequire(import.meta.url)};
+  const require = createRequire(import.meta.url);
+  return {output, source, require};
 }
 process.once('exit', () => {if (localOutput) rmSync(localOutput, {recursive: true, force: true});});

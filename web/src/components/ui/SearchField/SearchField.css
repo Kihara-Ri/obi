@@ -1,0 +1,7 @@
+/* SearchField：清除按钮。放大镜图标与外层布局在 .toolbar .search（styles/components.css）。 */
+.search.has-value input{padding-right:38px}
+.search-clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:none;border-radius:50%;background:none;color:var(--muted);font-size:18px;line-height:1}
+.search-clear:hover{background:var(--surface-3);color:var(--text)}
+@media (max-width:840px){
+  .search-clear{width:36px;height:36px;right:3px}
+}

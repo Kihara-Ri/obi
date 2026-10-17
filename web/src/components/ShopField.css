@@ -1,0 +1,4 @@
+/* ShopField：购买渠道字段的专属样式（品牌图标兜底字母、识别状态提示）。组合框本体见 ui/Combobox。 */
+.shop-letter{display:flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:5px;background:var(--surface-3);color:var(--muted);font-size:10px;font-weight:650}
+.shop-discovery-hint{display:block;color:var(--muted);font-size:11px;margin:5px 2px 0;overflow-wrap:anywhere}
+.shop-discovery-retry{font-size:11px;padding:3px 0;color:var(--muted);margin-top:4px;white-space:normal}

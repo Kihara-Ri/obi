@@ -6,6 +6,7 @@ import {useApp} from '../state/AppContext';
 import {PageHead} from '../components/PageHead';
 import {SaleCard} from '../components/SaleCard';
 import {Dropdown} from '../components/ui/Dropdown';
+import {SearchField} from '../components/ui/SearchField';
 import {openSaleCostsForm} from '../forms/SaleCostsForm';
 
 const TRADE_FILTERS = [
@@ -43,10 +44,8 @@ export function TradesPage() {
         {modules.acquisition && items.length - ks.length ? <span className="hint">{items.length - ks.length} 条成本待补，未计入利润</span> : null}
       </div>
       <div className="toolbar">
-        <div className="search">
-          <input id="sale-search" aria-label="搜索交易" placeholder="搜索专辑、艺人或地址…"
-                 value={query} onChange={e => app.setQuery(e.target.value)}/>
-        </div>
+        <SearchField id="sale-search" ariaLabel="搜索交易" placeholder="搜索专辑、艺人或地址…"
+                     value={query} onChange={app.setQuery}/>
         <Dropdown id="trade-filter" value={tradeFilter} options={TRADE_FILTERS}
                   label="交易状态" onPick={v => app.setTradeFilter(v)}/>
       </div>

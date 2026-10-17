@@ -61,25 +61,6 @@ button:disabled:hover{background:var(--surface-2)}
 .help{font-size:12px;color:var(--muted);margin-bottom:12px}
 .small-note{color:var(--faint);font-size:12px}
 
-/* toast：顶部中间弹出，彩线沿边框环绕一周（绿成功/黄警告/红错误）；
-   走完一圈停留片刻后淡出上浮消失（.leaving，由 onAnimationEnd 驱动；
-   --toast-ms 只需和 App.tsx 的兜底定时器大致匹配） */
-#toast{--toast-c:var(--green);--toast-ms:2s;position:fixed;top:14px;left:50%;translate:-50% 0;z-index:60;background:var(--surface-3);border:1px solid var(--border-strong);color:var(--text);padding:12px 22px;border-radius:14px;box-shadow:var(--shadow);font-size:14px;font-weight:550;max-width:90vw;animation:toast-in .24s cubic-bezier(.2,.8,.3,1.15)}
-#toast.leaving{animation:toast-out .22s ease .25s forwards}
-#toast.warn{--toast-c:var(--orange)}
-#toast.err{--toast-c:var(--red)}
-#toast .toast-ring{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
-#toast .toast-ring path{fill:none;stroke:var(--toast-c);stroke-width:2.5;stroke-linecap:round;stroke-dasharray:0 100;animation:toast-ring var(--toast-ms) linear forwards}
-/* 环走满后的停留期：彩线点亮——先迸发再回落为稳定光晕（追加动画，toast-ring 保持 forwards 终态） */
-#toast.leaving .toast-ring path{animation:toast-ring var(--toast-ms) linear forwards,ring-glow .45s ease-out}
-@keyframes toast-in{from{opacity:0;transform:translateY(-12px)}}
-@keyframes toast-ring{to{stroke-dasharray:100 100}}
-@keyframes toast-out{to{opacity:0;transform:translateY(-10px)}}
-@keyframes ring-glow{
-  0%{filter:drop-shadow(0 0 0 rgba(0,0,0,0)) drop-shadow(0 0 0 rgba(0,0,0,0))}
-  45%{filter:drop-shadow(0 0 5px var(--toast-c)) drop-shadow(0 0 13px var(--toast-c))}
-  100%{filter:drop-shadow(0 0 3px var(--toast-c)) drop-shadow(0 0 9px var(--toast-c))}
-}
 #connection-status{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:rgba(255,122,122,.15);border:1px solid rgba(255,122,122,.4);color:var(--red);padding:7px 15px;border-radius:10px;z-index:60;font-size:12.5px}
 
 /* 录入建议列表 */
@@ -93,33 +74,8 @@ button:disabled:hover{background:var(--surface-2)}
 .hue-2{background:linear-gradient(135deg,#3b5250,#5b7d79)}.hue-3{background:linear-gradient(135deg,#523b3b,#7d5b5b)}
 .rmb{font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
 
-/* 自定义下拉（排序 / 交易筛选） */
-.dd{position:relative}
-.dd-btn{display:inline-flex;align-items:center;gap:9px;padding:9px 13px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);font-weight:500;font-size:13px;color:var(--text);white-space:nowrap;transition:border-color .15s,background .15s}
-.dd-btn:hover{background:var(--surface-3);border-color:var(--border-strong)}
-.dd-caret{display:flex;align-items:center;justify-content:center;flex:none;width:14px;height:14px;color:var(--muted);transition:transform .15s}
-.dd-btn[aria-expanded=true] .dd-caret{transform:rotate(180deg)}
-.dd-list{left:auto;right:0;width:max-content;min-width:100%}
 /* 表单字段内的下拉：撑满字段宽，箭头靠右，高度对齐输入框 */
 .field .dd-btn{display:flex;width:100%;justify-content:space-between;padding:7px 10px}
-
-/* 渠道组合框 */
-.shop-field{position:relative}
-.shop-control{position:relative}
-#panel .shop-control input{padding-right:36px;padding-left:33px}
-.shop-ico{position:absolute;left:10px;top:50%;transform:translateY(-50%);display:flex;align-items:center;color:var(--muted);pointer-events:none}
-.shop-ico img{width:16px;height:16px;display:block;border-radius:4px}
-.shop-letter{display:flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:5px;background:var(--surface-3);color:var(--muted);font-size:10px;font-weight:650}
-.shop-toggle{position:absolute;right:5px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;padding:6px 8px;border:none;background:none;color:var(--muted);border-radius:7px}
-.shop-toggle svg{width:14px;height:14px;display:block}
-.shop-toggle:hover{background:var(--surface-3);color:var(--text)}
-.shop-options{position:absolute;top:calc(100% + 5px);left:0;right:0;z-index:20;background:var(--surface-3);border:1px solid var(--border-strong);border-radius:11px;box-shadow:var(--shadow);max-height:236px;overflow-y:auto;overscroll-behavior:contain;padding:5px}
-.shop-options [role=option]{display:flex;align-items:center;gap:9px;padding:8px 11px;border-radius:8px;font-size:13px;cursor:pointer;color:var(--text)}
-.opt-mark{display:flex;align-items:center;color:var(--muted)}
-.opt-mark img{width:15px;height:15px;border-radius:4px}
-.shop-options [role=option]:hover .opt-mark,.shop-options [role=option][aria-selected=true] .opt-mark{color:inherit}
-.shop-options [role=option]:hover,.shop-options [role=option][aria-selected=true]{background:var(--accent);color:var(--accent-ink)}
-.shop-options .small-note{padding:8px 10px}
 
 @media (max-width:840px){
   /* 汇总条：放不下时折行，保证每项（尤其金额）完整可见，不再横向截断 */
@@ -129,20 +85,14 @@ button:disabled:hover{background:var(--surface-2)}
   /* 工具栏：搜索独占一行，筛选行触控目标 ≥ 42px */
   .toolbar{gap:8px}
   .toolbar .search{flex:1 1 100%;min-width:0}
-  .toolbar button,.select-all,.dd-btn{min-height:42px}
+  .toolbar button,.select-all{min-height:42px}
   .flip-btn{width:44px;padding:8px 0}
   .head-actions button,.head-actions .link-button{min-height:40px}
-
-  /* 下拉浮层与选项：限制出屏，选项加高到可点 */
-  .dd-list{max-width:min(300px,calc(100vw - 28px))}
-  .shop-options [role=option]{min-height:44px;padding:11px 12px}
 
   /* 悬浮批量条：抬到底栏上方，按钮可点 */
   .bulkbar{bottom:calc(env(safe-area-inset-bottom) + 78px);gap:8px}
   .bulkbar button{min-height:38px}
 
-  /* 顶部浮动件避开刘海 */
-  #toast{top:calc(10px + env(safe-area-inset-top))}
   #connection-status{top:calc(8px + env(safe-area-inset-top))}
   .empty{padding:48px 18px}
 
@@ -150,6 +100,4 @@ button:disabled:hover{background:var(--surface-2)}
   .head-actions .theme-seg{display:none}
 }
 
-.shop-discovery-hint{display:block;color:var(--muted);font-size:11px;margin:5px 2px 0;overflow-wrap:anywhere}
 
-.shop-discovery-retry{font-size:11px;padding:3px 0;color:var(--muted);margin-top:4px;white-space:normal}
