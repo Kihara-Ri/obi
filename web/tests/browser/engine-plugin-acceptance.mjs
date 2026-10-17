@@ -53,9 +53,12 @@ export async function accept(page, {baseURL, expectations, screenshotDir, stage 
   const settle = () => page.waitForTimeout(800);
   const pluginStatus = () => page.evaluate(async url =>
     await (await fetch(url)).json(), origin + '/api/plugins/album-engine');
+  // 设置页按分段标签分类，引擎区块在「高级」标签里
+  const openAdvanced = target => target.getByRole('group', {name: '设置分类'}).getByRole('button', {name: '高级'}).click();
   const settingsStatus = page.locator('section[aria-label="Album Engine 插件"] p[role="status"]');
   const openSettings = async () => {
     await page.goto(baseURL + '/#settings', {waitUntil: 'networkidle'});
+    await openAdvanced(page);
     await page.locator('section[aria-label="Album Engine 插件"]').waitFor();
   };
   const driveUninstall = async () => {
@@ -215,6 +218,7 @@ export async function accept(page, {baseURL, expectations, screenshotDir, stage 
       pageB.on('pageerror', onError); pageB.on('console', onConsole);
       await pageB.setViewportSize({width: 1280, height: 900});
       await pageB.goto(baseURL + '/#settings', {waitUntil: 'networkidle'});
+      await openAdvanced(pageB);
       await pageB.locator('section[aria-label="Album Engine 插件"]').waitFor();
       uninstallMarkedAt = Date.now(); // pageB prefetch before the click stays legitimate.
       await pageB.locator('section[aria-label="Album Engine 插件"] button.quiet').click();
