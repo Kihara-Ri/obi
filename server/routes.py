@@ -261,7 +261,7 @@ def api_records(h, svc, body):
             elif old_barcode and new_edition:
                 # Removing an existing barcode cannot silently retain a release
                 # that MusicBrainz documents as having one.
-                details = vision(svc).release_details(new_edition)
+                details = releases(svc).release_details(new_edition)
                 if details.get('barcode'):
                     raise ValidationError('该发行版在 MusicBrainz 中有条码，不能直接清除；请重新选择发行版')
             elif not new_edition and (old_edition or new_barcode):
@@ -294,20 +294,19 @@ def api_modules(h, svc, body):
 def api_showcase_groups(h, svc, body): h.send(svc.store.change_showcase_groups(body))
 
 
-def vision(svc):
-    if svc.vision is None: raise ValidationError('视觉服务未启动，请重启碟渡')
-    return svc.vision
+def releases(svc):
+    if svc.releases is None: raise ValidationError('发行资料服务未启动，请重启碟渡')
+    return svc.releases
 
 
-def api_vision(h, svc): h.send(vision(svc).public_config())
-def api_release(h, svc): h.send({'releaseInfo':vision(svc).release_details(query(h).get('id'))})
+def api_release(h, svc): h.send({'releaseInfo':releases(svc).release_details(query(h).get('id'))})
 def api_barcode_lookup(h, svc, body):
     """精确条形码检索 MusicBrainz CD 发行版，复用现有节流与缓存。"""
     barcode = body.get('barcode', '')
     from twins import clean_barcode
     barcode = clean_barcode(barcode)
     if not barcode: raise ValidationError('请输入完整的条形码')
-    candidates = vision(svc).catalog({'title': '', 'artist': '',
+    candidates = releases(svc).catalog({'title': '', 'artist': '',
         'releaseInfo': {'barcode': barcode}})
     candidates = [c for c in candidates if c['identifierMatch']
                   and re.sub(r'\D', '', c['releaseInfo'].get('barcode', '')) == barcode]
@@ -321,7 +320,7 @@ def verify_barcode_release(svc, barcode, release_id):
     if not barcode: raise ValidationError('请输入完整的条形码')
     if not isinstance(release_id, str) or not UUID.fullmatch(release_id):
         raise ValidationError('请先查询并选择对应的 MusicBrainz 发行版本')
-    published = vision(svc).release_details(release_id)
+    published = releases(svc).release_details(release_id)
     if clean_barcode(published.get('barcode', '')) != barcode:
         raise ValidationError('MusicBrainz 中该条码不属于当前发行版本，请重新查询并选择正确版本')
     return {'barcode': barcode, 'releaseId': release_id, 'valid': True}
@@ -339,7 +338,7 @@ def api_catalog_number_lookup(h, svc, body):
     number = raw.strip()
     if not re.fullmatch(r'[\w ./+\-]+', number, re.UNICODE):
         raise ValidationError('唱片编号包含不支持的字符')
-    candidates = vision(svc).catalog({'title': '', 'artist': '',
+    candidates = releases(svc).catalog({'title': '', 'artist': '',
         'releaseInfo': {'barcode': '', 'catalogNumber': number}})
     normalized = lambda value: re.sub(r'[^\w]', '', str(value)).casefold()
     # A MusicBrainz release may have multiple labels; compare each independently.
@@ -398,26 +397,6 @@ def api_release_front_cover(h, svc):
             'coverSource': {'title': '', 'artist': ''}})
 
 
-def api_vision_config(h, svc, body): h.send(vision(svc).configure(body))
-def api_imports(h, svc): h.send({'drafts':svc.store.list_imports()})
-def api_import_draft(h, svc): h.send(svc.store.read_import(query(h).get('id')))
-def api_import_create(h, svc, body): h.send(svc.store.create_import(body.get('common',{})))
-def api_import_upload(h, svc, body): h.send(svc.store.upload_import_photo(body.get('id'),body.get('name',''),body.get('data')))
-def api_import_update(h, svc, body): h.send(svc.store.update_import(body))
-def api_import_start(h, svc, body): h.send(vision(svc).start(body))
-def api_import_commit(h, svc, body):
-    h.send(svc.store.commit_import(body))
-    prewarm(svc)
-def api_import_delete(h, svc, body): h.send(svc.store.delete_import(body.get('id')))
-
-
-def api_import_photo(h, svc):
-    parts = urlsplit(h.path).path.split('/')
-    if len(parts)!=5: raise ValidationError('照片地址不正确')
-    path = svc.store.import_photo(parts[3],parts[4])
-    h.send(path.read_bytes(),mime=mimetypes.guess_type(path.name)[0] or 'image/jpeg')
-
-
 def api_engine_plugin(h, svc): h.send(svc.plugins.status())
 def api_engine_install(h, svc, body): h.send(svc.plugins.install(body.get('expectedRevision')))
 def api_engine_uninstall(h, svc, body): h.send(svc.plugins.uninstall(body.get('expectedRevision')))
@@ -441,12 +420,8 @@ def twins(svc):
 
 
 def api_twins(h, svc): h.send(twins(svc).index())
-def api_twin_start(h, svc, body): h.send(twins(svc).start_task(body))
 def api_twin_accessories(h, svc, body): h.send(twins(svc).update_accessories(body))
 
-def api_twin_guided(h, svc, body):
-    if getattr(svc, 'plugins', None): svc.plugins.service()
-    h.send(svc.store.select_twin_art(body)); twins(svc).wake.set()
 
 def api_twin_disc_calibration(h, svc, body):
     if getattr(svc, 'plugins', None): svc.plugins.service()
@@ -455,7 +430,6 @@ def api_twin_spine(h, svc, body):
     if getattr(svc, 'plugins', None): svc.plugins.service()
     h.send(svc.store.set_twin_spine_surface(body))
 
-def api_twin_cancel(h, svc, body): h.send(twins(svc).cancel(body.get('id')))
 def api_twin_review_asset(h, svc):
     parts = urlsplit(h.path).path.split('/')
     if len(parts) != 5: raise ValidationError('发行资料预览地址无效')
@@ -477,17 +451,6 @@ def api_twin_asset(h, svc):
     h.send(path.read_bytes(), mime=mimetypes.guess_type(path.name)[0] or 'image/jpeg', cache='private, max-age=31536000, immutable')
 
 
-def api_recognize(h, svc, body):
-    rid = body.get('recordId')
-    if rid:
-        with svc.store.connect() as db: svc.store.get(db,'records',rid)
-    else: rid = '0'*32
-    plan = svc.store.prepare_photos(rid,body.get('photos'))
-    mimes = {'.jpg':'jpeg','.png':'png','.webp':'webp'}
-    images = ['data:image/'+mimes[ext]+';base64,'+base64.b64encode(raw).decode() for ext,raw in plan]
-    h.send(vision(svc).recognize(images))
-
-
 def api_import_preview(h, svc, body):
     p = svc.store.import_preview(body.get('albums'))
     h.send({'count': len(p['records']), 'skipped': p['skipped'], 'errors': p['errors'],
@@ -505,12 +468,9 @@ GET = {
     '/api/artists/profile': api_artists_profile,
     '/api/artists/catalog': api_artists_catalog,
     '/api/export': api_export,
-    '/api/vision': api_vision,
-    '/api/vision/release': api_release,
+    '/api/release-details': api_release,
     '/api/catalog/artwork': api_release_artwork,
     '/api/catalog/front-cover': api_release_front_cover,
-    '/api/imports': api_imports,
-    '/api/imports/draft': api_import_draft,
     '/api/plugins/album-engine': api_engine_plugin,
     '/api/twins': api_twins,
     '/api/twin-source-preview/': api_twin_source_preview,
@@ -522,7 +482,6 @@ GET_PREFIX = {  # 带路径参数的接口
     '/api/photo/': api_photo,
     '/api/cover/': api_cover,
     '/api/shop-brand-icon/': api_shop_brand_icon,
-    '/api/import-photo/': api_import_photo,
     '/api/artists/artwork/': api_artists_artwork,
     '/api/plugins/album-engine/assets/': api_engine_asset,
     '/api/twin-model-assets/': api_twin_model_asset,
@@ -558,20 +517,9 @@ POST = {
     '/api/restore': (api_restore, True, True),
     '/api/modules': (api_modules, True, True),
     '/api/showcase/groups': (api_showcase_groups, True, True),
-    '/api/vision/config': (api_vision_config, True, False),
-    '/api/recognize': (api_recognize, True, False),
-    '/api/imports/create': (api_import_create, True, False),
-    '/api/imports/upload': (api_import_upload, True, False),
-    '/api/imports/update': (api_import_update, True, False),
-    '/api/imports/start': (api_import_start, True, False),
-    '/api/imports/commit': (api_import_commit, True, True),
-    '/api/imports/delete': (api_import_delete, True, False),
     '/api/plugins/album-engine/install': (api_engine_install, True, True),
     '/api/plugins/album-engine/uninstall': (api_engine_uninstall, True, True),
-    '/api/twins/start': (api_twin_start, True, True),
-    '/api/twins/cancel': (api_twin_cancel, True, True),
     '/api/twins/accessories': (api_twin_accessories, True, True),
-    '/api/twins/guided': (api_twin_guided, True, True),
     '/api/twins/disc-calibration': (api_twin_disc_calibration, True, True),
     '/api/twins/spine': (api_twin_spine, True, True),
 }

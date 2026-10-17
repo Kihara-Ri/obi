@@ -11,7 +11,7 @@ class BarcodeLookupTests(unittest.TestCase):
     def setUp(self):
         self.http = SimpleNamespace(send=Mock())
         self.vision = SimpleNamespace(catalog=Mock(return_value=[]))
-        self.service = SimpleNamespace(vision=self.vision)
+        self.service = SimpleNamespace(releases=self.vision)
 
     def test_only_valid_numeric_barcodes_query_catalog(self):
         for value in ('', '123', '123456789012345', '987-123456', '12345abc', '123456789', '12345678'):

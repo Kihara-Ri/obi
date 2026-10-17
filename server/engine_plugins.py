@@ -69,7 +69,7 @@ class RuntimeFacade:
         self.wake = threading.Event()
 
     def index(self):
-        return self.manager.store.twin_index() | {'configured':bool(self.manager.vision.public_config().get('configured')), 'skill':self.manager.status().get('version') or ''}
+        return self.manager.store.twin_index() | {'configured':bool(self.manager.vision is not None and self.manager.vision.public_config().get('configured')), 'skill':self.manager.status().get('version') or ''}
 
     def start(self): self.manager.start()
     def stop(self): self.manager.stop()

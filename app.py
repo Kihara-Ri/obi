@@ -22,7 +22,7 @@ from server import Services, make_handler
 from server.artists import ArtistService
 from server.routes import WRITE_LOCK
 from server.version import version
-from server.recognition import VisionService
+from server.release_catalog import ReleaseCatalog
 from server.engine_plugins import PluginManager
 from server.catalog_art import ArtClient
 from server.shop_brands import ShopBrandService
@@ -38,11 +38,11 @@ def build(data_dir, public_origin=None):
     store = Store(data / 'albums.sqlite3', rates)
     mb = MusicBrainzClient()
     covers = CoverService(data / 'cover-cache.sqlite3', mb=mb)
-    vision = VisionService(store, covers, mb=mb)
-    plugins = PluginManager(store, vision, mb)
+    releases = ReleaseCatalog(mb=mb)
+    plugins = PluginManager(store, None, mb)   # 宿主不提供视觉模型：数字实体的生成在 Album Engine 项目中
     return Services(store=store, shops=ShopBrandService(store), plugins=plugins, catalog_art=ArtClient(),
                     auth=Auth(data / 'auth.sqlite3'),
-                    covers=covers, vision=vision, twins=plugins.facade,
+                    covers=covers, releases=releases, twins=plugins.facade,
                     artists=ArtistService(store, mb, covers, write_lock=WRITE_LOCK),
                     rates=rates,
                     public_origin=public_origin)
@@ -104,7 +104,7 @@ def main():
     finally:
         server.server_close()
         svc.twins.stop()
-        svc.vision.close()
+        svc.releases.close()
         print('碟渡已停止', flush=True)
 
 

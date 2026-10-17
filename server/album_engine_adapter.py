@@ -108,18 +108,21 @@ class TaskAdapter:
 
 
 class VisionAdapter:
-    """Expose only configured state and the JSON operation, never host services."""
+    """视觉模型端口。宿主不再提供视觉模型（传 None）：恒为「未配置」，依赖模型的步骤会被拒绝；
+    测试或外部接入可传入带 public_config / agent_json 的对象，此时原样转交。"""
     __slots__ = ('__public_config', '__agent_json', '__errors')
 
-    def __init__(self, service, errors=errors):
+    def __init__(self, service=None, errors=errors):
         self.__errors = errors
-        self.__public_config = lambda: service.public_config()
-        self.__agent_json = lambda *args, **kwargs: service.agent_json(*args, **kwargs)
+        self.__public_config = (lambda: service.public_config()) if service is not None else (lambda: {'configured': False})
+        self.__agent_json = (lambda *args, **kwargs: service.agent_json(*args, **kwargs)) if service is not None else None
 
     def public_config(self):
         return {'configured':bool(self.__public_config().get('configured'))}
 
     def agent_json(self, system, prompt, images=(), on_start=None):
+        if self.__agent_json is None:
+            raise self.__errors.ValidationError('宿主不再提供视觉模型；数字实体的生成请在 Album Engine 项目中进行')
         try: return self.__agent_json(system, prompt, images, on_start=on_start)
         except ConflictError as exc: raise self.__errors.ConflictError(str(exc)) from None
         except ValidationError as exc: raise self.__errors.ValidationError(str(exc)) from None

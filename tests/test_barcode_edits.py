@@ -6,7 +6,6 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from domain import ValidationError
-from server.recognition import clean_result
 from server.routes import api_records, api_verify_barcode, verify_barcode_release
 from storage import Store
 
@@ -22,7 +21,7 @@ class VerificationTests(unittest.TestCase):
         self.ident = self.store.save({'title':'Test Album', 'artist':'Fixture',
             'releaseInfo':{'barcode':BARCODE,'musicBrainzReleaseId':EDITION}})['ids'][0]
         self.source = SimpleNamespace(release_details=Mock(return_value={'barcode':BARCODE}))
-        self.svc = SimpleNamespace(store=self.store, vision=self.source, shops=None)
+        self.svc = SimpleNamespace(store=self.store, releases=self.source, shops=None)
         self.h = SimpleNamespace(send=Mock())
 
     def tearDown(self):
@@ -79,12 +78,6 @@ class VerificationTests(unittest.TestCase):
     def test_legacy_unchanged_record_does_not_require_network(self):
         self.save(self.edited(BARCODE))
         self.source.release_details.assert_not_called()
-
-    def test_photo_vision_cannot_supply_barcode_value(self):
-        outcome=clean_result({'fields':{'title':'Test','artist':'Fixture',
-            'releaseInfo':{'barcode':BARCODE,'catalogNumber':'ABC-123'}}},1)
-        self.assertEqual(outcome['fields']['releaseInfo']['barcode'],'')
-        self.assertEqual(outcome['fields']['releaseInfo']['catalogNumber'],'ABC-123')
 
 
 if __name__ == '__main__':

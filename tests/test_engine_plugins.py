@@ -343,7 +343,7 @@ class EnginePluginTests(unittest.TestCase):
 
     def test_build_without_plugin_has_core_services_and_no_engine_import(self):
         import subprocess, sys
-        script = 'import app,sys,tempfile; s=app.build(tempfile.mkdtemp()); assert not s.plugins.status()["installed"]; assert not any(n.startswith("vendor.album_engine") for n in sys.modules); assert s.catalog_art; s.vision.close()'
+        script = 'import app,sys,tempfile; s=app.build(tempfile.mkdtemp()); assert not s.plugins.status()["installed"]; assert not any(n.startswith("vendor.album_engine") for n in sys.modules); assert s.catalog_art; s.releases.close()'
         subprocess.run([sys.executable,'-W','ignore::ResourceWarning','-c',script],check=True,capture_output=True)
 
     def test_authentication_and_csrf_cover_install_assets_and_uninstall(self):

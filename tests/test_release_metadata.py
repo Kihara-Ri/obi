@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 from domain import clean_release_info, ValidationError
 from twins import appearance, same_appearance
-from server.recognition import display_release_title
+from server.release_catalog import display_release_title
 from server.routes import api_catalog_number_lookup
 
 
@@ -35,12 +35,12 @@ class ReleaseMetadataTests(unittest.TestCase):
         http = SimpleNamespace(send=Mock())
         candidate = lambda name: {'id': name, 'identifierMatch': True,
                                   'releaseInfo': {'catalogNumber': name}}
-        svc = SimpleNamespace(vision=SimpleNamespace(catalog=Mock(return_value=[
+        svc = SimpleNamespace(releases=SimpleNamespace(catalog=Mock(return_value=[
             candidate('AMCY-2434'), candidate('AMCY-243'), candidate('OTHER-13')])) )
         api_catalog_number_lookup(http, svc, {'catalogNumber':'AMCY-2434'})
         result = http.send.call_args.args[0]
         self.assertEqual([c['id'] for c in result['candidates']], ['AMCY-2434'])
-        svc.vision.catalog.assert_called_once_with({
+        svc.releases.catalog.assert_called_once_with({
             'title':'', 'artist':'', 'releaseInfo':{'barcode':'','catalogNumber':'AMCY-2434'}})
         with self.assertRaises(ValidationError):
             api_catalog_number_lookup(http, svc, {'catalogNumber':'*'})

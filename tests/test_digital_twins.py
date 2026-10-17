@@ -771,9 +771,9 @@ class TwinHttpTests(unittest.TestCase):
             self.assertEqual(self.http_req(route)[0], 401)
         _, headers, _ = self.http_req('/api/login', {'password': 'fixture-password-12345'}); cookie = headers['Set-Cookie']
         body = self.request()
-        self.assertEqual(self.http_req('/api/twins/start', body, cookie, 'https://evil.example')[0], 403)
-        status, _, raw = self.http_req('/api/twins/start', body, cookie); self.assertEqual(status, 200)
-        task = json.loads(raw)['job']; self.assertEqual(self.http_req('/api/twin-assets/' + task['id'] + '/photo-0.png', cookie=cookie)[0], 400)
+        # 宿主不再提供生成入口（/api/twins/start 已移除）；任务由存储层直接创建，只验证资产访问的鉴权与发布边界。
+        self.assertEqual(self.http_req('/api/twins/start', body, cookie)[0], 404)
+        task = self.store.start_twin(body)['job']; self.assertEqual(self.http_req('/api/twin-assets/' + task['id'] + '/photo-0.png', cookie=cookie)[0], 400)
         self.service.run_one()
         self.assertEqual(self.http_req('/api/twins/confirm', {'id': task['id'], 'releaseId': EDITION}, cookie, 'https://evil.example')[0], 403)
         self.assertEqual(self.http_req('/api/twins/confirm', {'id': task['id'], 'releaseId': EDITION}, cookie)[0], 404)
@@ -783,11 +783,6 @@ class TwinHttpTests(unittest.TestCase):
         status, _, raw = self.http_req('/api/twin-assets/' + task['id'] + '/photo-0.png', cookie=cookie)
         self.assertEqual(status, 200); self.assertEqual(raw, PNG)
         self.assertEqual(self.http_req('/api/twin-assets/' + task['id'] + '/cover.tmp', cookie=cookie)[0], 400)
-
-    def test_http_disabled_showcase_cannot_start_generation(self):
-        _, headers, _ = self.http_req('/api/login', {'password': 'fixture-password-12345'}); cookie = headers['Set-Cookie']
-        self.store.set_modules({'showcase': False, 'acquisition': False, 'trading': False, 'circulation': False})
-        self.assertEqual(self.http_req('/api/twins/start', self.request(), cookie)[0], 400)
 
     def test_calibration_only_evidence_asset_requires_login_and_publication(self):
         r = self.record(); self.store.save({'id': self.rid, 'revision': r['revision'], 'photos': [PHOTO, PHOTO], 'packaging': FULL})
@@ -814,7 +809,7 @@ class TwinHttpTests(unittest.TestCase):
             def image(_self, *_args, **_kwargs): return PNG
         self.service.art = Preview()
         _, headers, _ = self.http_req('/api/login', {'password': 'fixture-password-12345'}); cookie = headers['Set-Cookie']
-        _, _, raw = self.http_req('/api/twins/start', self.request(), cookie); task = json.loads(raw)['job']; self.service.run_one()
+        task = self.store.start_twin(self.request())['job']; self.service.run_one()
         candidate = self.store.twin_index()['jobs'][self.rid]['candidates'][0]; image = candidate['artwork'][0]
         self.assertEqual(self.http_req(image['previewUrl'])[0], 401)
         status, headers, raw = self.http_req(image['previewUrl'], cookie=cookie)
