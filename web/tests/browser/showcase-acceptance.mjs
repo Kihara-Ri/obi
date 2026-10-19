@@ -306,17 +306,27 @@ export async function accept(page, {baseURL, expectations, screenshotDir, saveSh
       check(await scene.getAttribute('data-yaw') !== openYaw, 'Album keyboard rotation must work');
       if (/Lift Your Skinny Fists/.test(model.title)) {
         await page.keyboard.press('2');
-        await page.waitForFunction(() => {
-          const node = document.querySelector('.album-model-scene');
-          return node?.dataset.disc === '2' && Number(node.dataset.discProgress) > .98;
-        }, null, {timeout: 90000});
+        // Same software-GL budget as the open spring above; dump the frozen state if it still stalls.
+        try {
+          await page.waitForFunction(() => {
+            const node = document.querySelector('.album-model-scene');
+            return node?.dataset.disc === '2' && Number(node.dataset.discProgress) > .98;
+          }, null, {timeout: 240000});
+        } catch (error) {
+          console.log('[disc-diag]', await page.evaluate(() => JSON.stringify({
+            disc: document.querySelector('.album-model-scene')?.dataset.disc ?? null,
+            progress: document.querySelector('.album-model-scene')?.dataset.discProgress ?? null,
+            renderedOpen: document.querySelector('.album-model-scene')?.dataset.renderedOpen ?? null,
+          })).catch(e => String(e).split('\n')[0]));
+          throw error;
+        }
         const albumYaw = await scene.getAttribute('data-yaw');
         const discYaw = await scene.getAttribute('data-disc-yaw');
         await page.keyboard.press('ArrowRight'); await settle();
         check(await scene.getAttribute('data-yaw') === albumYaw && await scene.getAttribute('data-disc-yaw') !== discYaw,
           'Extracted CD 2 must rotate independently');
         await page.keyboard.press('2');
-        await page.waitForFunction(() => Number(document.querySelector('.album-model-scene')?.dataset.discProgress) < .01, null, {timeout: 90000});
+        await page.waitForFunction(() => Number(document.querySelector('.album-model-scene')?.dataset.discProgress) < .01, null, {timeout: 240000});
       }
       if (screenshotDir) await shot(screenshotDir + '/' + model.recordId + '-3d.png');
       await close(); await open(model);
