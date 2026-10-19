@@ -34,41 +34,29 @@ export async function accept(page, {baseURL, expectations, screenshotDir} = {}) 
   // scheduled frame lands, the loop pauses, and screenshots are documentation
   // only (every assertion is attribute-based). Restoring rAF resumes the loop.
   const shot = async path => {
-    const started = Date.now();
-    await page.evaluate(() => {
-      if (window.__acceptanceRaf) return;
-      window.__acceptanceRaf = window.requestAnimationFrame.bind(window);
-      window.requestAnimationFrame = () => 0;
-    });
-    try {await page.screenshot({path});}
-    catch (error) {
-      // Temporary CI diagnostics: the capture starves only on the Linux
-      // software-GL runner (macOS SwiftShader captures the same parked scene
-      // in ~5s). Probe the failure modes once, then rethrow.
-      console.log('[shot-diag] failed after', Date.now() - started, 'ms');
-      console.log('[shot-diag] state', JSON.stringify(await page.evaluate(() => ({
-        rafPatched: !!window.__acceptanceRaf, fonts: document.fonts.status,
-        visibility: document.visibilityState, focus: document.hasFocus(),
-        webglCanvas: !!document.querySelector('.album-webgl-canvas, .album-model-scene canvas'),
-      })).catch(e => String(e).split('\n')[0])));
-      const probe = async (label, action) => {
-        const t = Date.now();
-        try {await action(); console.log('[shot-diag]', label, 'OK in', Date.now() - t, 'ms');}
-        catch (e) {console.log('[shot-diag]', label, 'FAILED after', Date.now() - t, 'ms:', String(e).split('\n')[0]);}
-      };
-      await probe('timeout120', () => page.screenshot({path: path + '.retry.png', timeout: 120000}));
-      await probe('clip320', () => page.screenshot({path: path + '.clip.png', timeout: 30000, clip: {x: 0, y: 0, width: 320, height: 240}}));
-      const cdp = await page.context().newCDPSession(page);
-      await probe('cdp-capture', () => cdp.send('Page.captureScreenshot', {format: 'png'}));
-      throw error;
-    }
-    finally {
-      await page.evaluate(() => {
-        if (!window.__acceptanceRaf) return;
+    const park = on => page.evaluate(flag => {
+      if (flag) {
+        if (window.__acceptanceRaf) return;
+        window.__acceptanceRaf = window.requestAnimationFrame.bind(window);
+        window.requestAnimationFrame = () => 0;
+      } else if (window.__acceptanceRaf) {
         window.requestAnimationFrame = window.__acceptanceRaf;
         delete window.__acceptanceRaf;
-      }).catch(() => {});
-    }
+      }
+    }, on).catch(() => {});
+    await park(true);
+    try {
+      try {await page.screenshot({path, timeout: 8000});}
+      catch {
+        // On the Linux software-GL runner Playwright's full-surface capture
+        // (captureBeyondViewport) never returns — 120s probes timed out while
+        // a raw CDP capture of the same parked surface answers in ~0.2s and a
+        // composited clip succeeds. Fall back to a viewport-sized clip: the
+        // same pixels through the working path.
+        const size = page.viewportSize() ?? {width: 1280, height: 720};
+        await page.screenshot({path, clip: {x: 0, y: 0, width: size.width, height: size.height}});
+      }
+    } finally {await park(false);}
   };
   const close = async () => {
     await page.keyboard.press('Escape');
