@@ -29,7 +29,7 @@
 
 | 组件 | 用途 | 备注 |
 | --- | --- | --- |
-| `ListingPhotos` | 本副本售卖选图、首图、顺序与图片包下载 | 不改原照片次序；选择用 checkbox 与序号区分 |
+| `PhotoDownload` | 专辑详情「实物照片」标题右侧的下载图标：手机把原图交给系统分享面板（存储图像进相册），桌面下载 ZIP | `id` `count` `revision` `artist` `title`；手机进入详情时预取照片，分享须在点击手势内同步调用；加载中禁用，图标有 aria-label |
 | `ListingReview` | 照片证据、版本候选及人工核对 | 不自动采用候选或覆盖文案；确认用 checkbox |
 | `ListingSettings` | 独立多服务商连接、模型与思考强度 | 复用 Dropdown；连接用文字状态；密钥/令牌不回传 |
 | `ui/Drawer` | 抽屉 / 手机底部 sheet：遮罩、焦点圈、Esc、下拉收起、脏表单确认 | 存量文件（见 `.ai-kit/legacy.txt`），动到时拆分 |

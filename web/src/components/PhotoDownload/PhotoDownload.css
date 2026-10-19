@@ -1,0 +1,5 @@
+.section-head{display:flex;align-items:center;gap:8px;margin:24px 0 10px}
+.section-head .section-title{margin:0}
+.photo-download{width:34px;height:34px;padding:0;display:inline-grid;place-items:center;flex:none;
+  border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;color:var(--muted)}
+.photo-download:disabled{opacity:.5}

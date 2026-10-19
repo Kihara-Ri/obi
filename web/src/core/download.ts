@@ -43,3 +43,22 @@ export async function downloadFile(path: string, fallbackName: string, options?:
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   return name;
 }
+
+// 文件名里的专辑标识：与服务端图片包一致，去掉各系统不允许的字符并限长。
+export function photoLabel(artist: string, title: string): string {
+  const clean = (v: string) => v.replace(/[\\/:*?"<>|\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().replace(/^\.+|\.+$/g, '').slice(0, 50);
+  return [clean(artist), clean(title)].filter(Boolean).join(' - ');
+}
+
+const PHOTO_EXT: Record<string, string> = {'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp'};
+
+// 取回本副本全部实物照片为 File（保持原格式与顺序），供手机系统分享面板直接存入相册。
+export async function fetchPhotoFiles(id: string, count: number, label: string): Promise<File[]> {
+  return Promise.all(Array.from({length: count}, async (_, i) => {
+    const r = await fetch(`/api/photo/${id}/${i}`, {credentials: 'same-origin'});
+    if (!r.ok) throw new ApiError('照片读取失败', r.status);
+    const blob = await r.blob();
+    const name = `${label ? label + ' - ' : ''}${String(i + 1).padStart(2, '0')}${PHOTO_EXT[blob.type] ?? '.jpg'}`;
+    return new File([blob], name, {type: blob.type});
+  }));
+}

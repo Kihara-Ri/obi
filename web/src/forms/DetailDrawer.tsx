@@ -10,6 +10,7 @@ import {Cover} from '../components/Cover';
 import {openRecordForm} from './RecordForm';
 import {openSaleForm} from './SaleForm';
 import {openListingForm} from './ListingForm';
+import {PhotoDownload} from '../components/PhotoDownload';
 import {bulkAction} from './shared';
 import {releaseLabels} from '../core/release-text';
 import {formatPackagingName} from '../core/album-packaging';
@@ -83,7 +84,11 @@ function DetailBody({id, back}: {id: string; back?: DetailBack}) {
       </> : null}
       {r.photoCount ? (
         <>
-          <h3 className="section-title">实物照片</h3>
+          <div className="section-head">
+            <h3 className="section-title">实物照片</h3>
+            {app.modules.trading && ['overseas', 'domestic'].includes(r.status)
+              ? <PhotoDownload id={r.id} count={r.photoCount} revision={r.photoRevision ?? 0} artist={r.artist} title={r.title}/> : null}
+          </div>
           <div className="photo-strip">
             {Array.from({length: r.photoCount}, (_, i) => (
               <a key={i} href={`/api/photo/${r.id}/${i}`} target="_blank" rel="noopener">

@@ -31,3 +31,9 @@ export const TrashIco = (
     <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 10v6M14 10v6"/>
   </svg>
 );
+
+export const DownloadIco = (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <path d="M12 4v11"/><polyline points="7.5 11 12 15.5 16.5 11"/><path d="M5 19.5h14"/>
+  </svg>
+);

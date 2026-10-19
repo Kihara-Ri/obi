@@ -7,7 +7,6 @@ import {useApp} from '../state/AppContext';
 import type {AppCtx} from '../state/AppContext';
 import {Field, TextareaField} from './fields';
 import {useFormSubmit} from './shared';
-import {ListingPhotos} from '../components/ListingPhotos';
 import {ListingReview} from '../components/ListingReview';
 
 export function openListingForm(app: AppCtx, id: string) {
@@ -64,7 +63,7 @@ function ListingForm({id}: {id: string}) {
     void run(app, () => api('listing/draft', {id, revision: r.revision, draft, listing: {channel, url}}), '售卖草稿已保存');
   }}>
     <div className="drawer-body">
-      <p className="help">准备好文案与照片后，在闲鱼网页版手动发布。保存草稿不会标记上架。</p>
+      <p className="help">准备好文案后，在闲鱼手动发布；照片在专辑详情的“实物照片”右侧图标保存。保存草稿不会标记上架。</p>
       <div className="error" role="alert">{error}</div>
       {stale ? <p role="alert">记录已在其他位置更新，请关闭后重新打开。当前文案仍可复制。</p> : null}
       {r.listingDraft && r.listingDraft.photoRevision !== (r.photoRevision ?? 0)
@@ -87,8 +86,6 @@ function ListingForm({id}: {id: string}) {
           catch {app.toast('复制失败，可选中文案手动复制','warn');}
         }}>复制售卖文案</button>
       </div>
-      <ListingPhotos id={id} count={r.photoCount} revision={r.photoRevision ?? 0} order={draft.photoOrder}
-        onChange={photoOrder => change({...draft, photoOrder})}/>
       <details><summary>发布后记录平台与链接</summary>
         <Field label="上架平台（选填）" name="listing-channel" value={channel} maxLength={100}
           placeholder="例如：闲鱼" onChange={e => {setChannel(e.target.value);app.setDrawerDirty(true);}}/>
