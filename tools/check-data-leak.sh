@@ -5,8 +5,8 @@ set -eu
 cd "$(git rev-parse --show-toplevel)"
 
 # 自匹配防护：下面的敏感串用字符类打碎明文（正则仍命中目标，但本文件不含目标明文）
-FILE_RE='(^data/|\.sqlite3$|\.sqlite3-|\.env$|(^|/)update\.env$|(^|/)vision-config\.json$|/albums\.json$|^albums\.json$|部署登录信息|出售记录|封面核对报告|管理系统方案|运营记录)'
-CONTENT_RE='BEGIN [A-Z ]*PRIVATE KEY'
+FILE_RE='((^|/)listing-(chatgpt|providers)[.](json|tmp|lock)$|(^|/)listing-anthropic/|^data/|\.sqlite3$|\.sqlite3-|\.env$|(^|/)update\.env$|(^|/)vision-config\.json$|/albums\.json$|^albums\.json$|部署登录信息|出售记录|封面核对报告|管理系统方案|运营记录)'
+CONTENT_RE='BEGIN [A-Z ]*PRIVATE KEY|sk-(proj-)?[A-Za-z0-9_-]{40,}|eyJ[A-Za-z0-9_-]{10,}[.]eyJ[A-Za-z0-9_-]{10,}[.][A-Za-z0-9_-]{20,}'
 
 fail=0
 if [ "${1:-tree}" = "--cached" ]; then

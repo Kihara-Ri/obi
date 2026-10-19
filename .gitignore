@@ -16,6 +16,10 @@ albums-backup-*.sqlite3
 service.env
 update.env
 vision-config.json
+# 售卖识别 OAuth：即使误放在 data 外也不进库
+listing-chatgpt.json
+listing-chatgpt.tmp
+listing-chatgpt.lock
 litestream.env
 # 历史数据导入与成交凭证
 albums.json
@@ -54,3 +58,9 @@ coverage/
 .claude/settings.local.json
 *.sqlite
 *.db
+
+# 独立多服务商连接与官方 Claude CLI 授权目录
+listing-providers.json
+listing-providers.tmp
+listing-providers.lock
+listing-anthropic/

@@ -28,6 +28,9 @@ from server.catalog_art import ArtClient
 from server.shop_brands import ShopBrandService
 from server.starter_albums import seed_starter
 from storage import Store
+from server.chatgpt_auth import ChatGPTAuth
+from server.listing_model import ListingModel
+from server.listing_analysis import ListingAnalysis
 
 ROOT = Path(__file__).resolve().parent
 
@@ -42,6 +45,7 @@ def build(data_dir, public_origin=None):
     releases = ReleaseCatalog(mb=mb)
     plugins = PluginManager(store, None, mb)   # 宿主不提供视觉模型：数字实体的生成在 Album Engine 项目中
     return Services(store=store, shops=ShopBrandService(store), plugins=plugins, catalog_art=ArtClient(),
+                    listings=ListingAnalysis(store, releases, ListingModel(ChatGPTAuth(data))),
                     auth=Auth(data / 'auth.sqlite3'),
                     covers=covers, releases=releases, twins=plugins.facade,
                     artists=ArtistService(store, mb, covers, write_lock=WRITE_LOCK),
@@ -107,6 +111,7 @@ def main():
     finally:
         server.server_close()
         svc.twins.stop()
+        if svc.listings: svc.listings.close()
         svc.releases.close()
         print('碟渡已停止', flush=True)
 

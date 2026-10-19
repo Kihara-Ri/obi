@@ -9,7 +9,7 @@ function fileNameFrom(header: string | null, fallback: string): string {
 }
 
 // 返回实际保存/分享的文件名；用户在系统分享面板取消时视为成功，不报错。
-export async function downloadFile(path: string, fallbackName: string): Promise<string> {
+export async function downloadFile(path: string, fallbackName: string, options?: {share?: boolean}): Promise<string> {
   if (!navigator.onLine) throw new ApiError('网络已断开，请联网后再导出');
   const r = await fetch('/api/' + path, {credentials: 'same-origin'});
   if (!r.ok) {
@@ -22,7 +22,7 @@ export async function downloadFile(path: string, fallbackName: string): Promise<
   const file = new File([blob], name, {type: blob.type});
 
   // iOS / Android：系统分享面板可以直接“存储到文件”或发送，保存后回到应用
-  if (navigator.canShare?.({files: [file]})) {
+  if (options?.share !== false && navigator.canShare?.({files: [file]})) {
     try {
       await navigator.share({files: [file], title: name});
     } catch (err) {

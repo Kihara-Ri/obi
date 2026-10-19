@@ -98,6 +98,22 @@ class SampleLibraryTests(unittest.TestCase):
         self.assertTrue(all(not r.get('coverSource') for r in records))
         self.assertTrue(all(not r.get('packaging', {}).get('photos') for r in records))
 
+    def test_listing_photo_fixture_is_opt_in_and_reuses_fixed_copy(self):
+        with tempfile.TemporaryDirectory() as directory:
+            ids = self.seed.seed_listing_photos(directory)
+            store = self.seed.open_store(directory)
+            records = store.state()['records']
+            self.assertEqual(len(records), 21)
+            self.assertEqual(sum(r.get('photoCount', 0) for r in records), 2)
+            record = next(r for r in records if r['id'] == ids['lift-fists'])
+            self.assertEqual(record['photoCount'], 2)
+            self.assertEqual(store.twin_index()['jobs'], {})
+            self.assertEqual(self.seed.seed_listing_photos(directory), ids)
+        with tempfile.TemporaryDirectory() as directory:
+            self.seed.seed(directory)
+            with self.assertRaisesRegex(ValueError, '参考图集'):
+                self.seed.seed_listing_reference_photos(directory)
+
     def test_reference_model_plans_use_real_editions_and_separate_printed_faces(self):
         from tools.sample_reference_models import REFERENCE_MODELS
         self.assertEqual(set(REFERENCE_MODELS), set(self.seed.MODEL_SAMPLES))

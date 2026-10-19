@@ -17,3 +17,4 @@ class Services:
     shops: Optional[Any] = None       # 新购买渠道商家图标自动发现
     plugins: Optional[Any] = None     # Optional installed Album Engine lifecycle
     catalog_art: Optional[Any] = None # Core exact-edition artwork, independent of engine
+    listings: Optional[Any] = None    # Copy-specific sale drafts and photo analysis

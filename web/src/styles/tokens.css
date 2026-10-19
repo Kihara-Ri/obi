@@ -6,6 +6,8 @@
    （CSP 禁内联，阻塞式外链脚本）写 data-theme="light|dark" 覆盖，
    theme.js 同时负责把 theme-color meta 与所选主题对齐。 */
 :root{
+  /* 售卖素材：缩略图最小宽、组间距、控制触控尺寸。 */
+  --listing-photo-size:6rem; --listing-gap:1rem; --listing-gap-sm:.5rem; --listing-touch-size:2.75rem;
   color-scheme:dark;
   --bg:#0e1014; --bg-glow:rgba(236,216,74,.05); --bg-glow-2:rgba(251,231,79,.045);
   --surface:#161920; --surface-2:#1c2029; --surface-3:#232834;

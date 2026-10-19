@@ -116,6 +116,7 @@ export interface AlbumRecord {
   note: string;
   noteAlbum: string;
   photoCount: number;
+  photoRevision?: number;
   revision: number;
   createdAt: string;
   shipmentId?: string;
@@ -130,6 +131,7 @@ export interface AlbumRecord {
   storage?: string;         // 实物存放位置，与购买渠道 location 分开
   releaseInfo?: ReleaseInfo;
   listingDescription?: string;
+  listingDraft?: import('./core/listing').ListingDraft;
 }
 
 export interface ReleaseTrack {

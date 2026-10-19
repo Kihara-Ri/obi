@@ -540,12 +540,13 @@ class Store:
                     old=self.get(db,'records',item['id'])
                     if item.get('revision')!=old['revision']: raise ValidationError('记录已变更，请关闭详情并重新打开')
                     r=clean_record({**old,**item})
-                    for k in ('id','status','sourceId','original','saleId','shipmentId','previousStatus','createdAt','listed','listingChannel','listingUrl'):
+                    for k in ('id','status','sourceId','original','saleId','shipmentId','previousStatus','createdAt','listed','listingChannel','listingUrl','listingDraft'):
                         if k in old: r[k]=old[k]
                         else: r.pop(k,None)
                     r['revision']=old['revision']+1
                     self.audit(db,'修改专辑',{'id':r['id'],'before':old})
                 else:
+                    item.pop('listingDraft', None)  # 草稿只经受交易模块保护的独立事务写入
                     r=clean_record({'currency': 'CNY', **item} if modules is not None and not modules['circulation'] else item)
                     status=r.get('status') if r.get('status') in ('overseas','domestic') else default_status(r['currency'])
                     if modules is not None and not modules['circulation']:
@@ -590,6 +591,35 @@ class Store:
             self._album_catalog(db)
         for rid,plan in plans:self.apply_photos(rid,plan)
         return {'ids':result}
+    def save_listing_draft(self, data):
+        """草稿只改本副本售卖资料，不触碰上架标记或发行资料。"""
+        from domain_listing import clean_draft, photo_order
+        draft = clean_draft(data.get('draft'))
+        mark = data.get('markListed', False)
+        if type(mark) is not bool: raise ValidationError('上架状态无效')
+        listing = data.get('listing', {})
+        if not isinstance(listing, dict): raise ValidationError('上架资料无效')
+        listing = clean_listing({'channel': listing.get('channel', ''), 'url': listing.get('url', '')}) if 'listing' in data else {}
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            self.require_module('trading', db)
+            r = self.get(db, 'records', data.get('id'))
+            if r['status'] not in ('domestic', 'overseas'):
+                raise ValidationError('只有库存中的副本可保存售卖草稿')
+            if data.get('revision') != r['revision']:
+                raise ValidationError('记录已变更，请关闭后重新打开')
+            if draft['photoRevision'] != r.get('photoRevision', 0):
+                raise ValidationError('照片已变更，请重新核对')
+            photo_order(draft['photoOrder'], r.get('photoCount', 0))
+            if draft.get('analysis') and draft['analysis']['photoRevision'] != draft['photoRevision']:
+                raise ValidationError('分析依据的照片已变更，请重新分析')
+            r.update(listingDraft=draft, listingDescription=draft['description'], revision=r['revision'] + 1)
+            r.update(listing)
+            if mark: r['listed'] = True
+            self.put(db, 'records', r)
+            self.audit(db, '保存并标记上架' if mark else '保存售卖草稿', {'id': r['id']})
+        return {'id': r['id'], 'revision': r['revision']}
+
     def bulk(self, data):
         ids=list(dict.fromkeys(data.get('ids',[])));action=data.get('action')
         if not ids: raise ValidationError('请先选择专辑')

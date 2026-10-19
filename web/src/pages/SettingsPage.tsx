@@ -9,6 +9,7 @@ import {Seg} from '../components/ui/Seg';
 import {TabPanel} from '../components/ui/TabPanel';
 import {AccountSettings} from './settings/AccountSettings';
 import {DataSettings} from './settings/DataSettings';
+import {ListingSettings} from '../components/ListingSettings';
 
 type Tab = 'modules' | 'data' | 'advanced' | 'account';
 const TABS = [
@@ -54,6 +55,7 @@ export function SettingsPage() {
           </Disclosure>
         </section>
         <AlbumEngineSettings/>
+        {app.modules.trading ? <ListingSettings/> : null}
       </> : null}
 
       {tab === 'account' ? <AccountSettings/> : null}

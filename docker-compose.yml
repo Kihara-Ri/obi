@@ -23,6 +23,12 @@ services:
     environment:
       - PUBLIC_ORIGIN=${PUBLIC_ORIGIN:-}
       - TZ=${TZ:-Asia/Shanghai}
+      - LISTING_API_BASE=${LISTING_API_BASE:-https://api.openai.com/v1}
+      - LISTING_API_MODEL=${LISTING_API_MODEL:-}
+      - LISTING_API_KEY=${LISTING_API_KEY:-}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - DEEPSEEK_API_BASE=${DEEPSEEK_API_BASE:-https://api.deepseek.com}
+      - LISTING_CLAUDE_BIN=${LISTING_CLAUDE_BIN:-}
     restart: unless-stopped
 
   # 异地持续备份（可选）：docker compose --profile backup up -d

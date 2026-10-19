@@ -213,6 +213,47 @@ def seed(data_dir):
 
 
 
+def seed_listing_photos(data_dir):
+    """隔离售卖协议测试用：复用合成素材，不代表实拍、版次或品相证据。
+
+    不创建实体任务，不改变普通样本；真实识别验收仍用 preview_samples 素材。
+    """
+    ids = seed(data_dir)
+    store = open_store(data_dir)
+    rid = ids['lift-fists']
+    with store.connect() as db:
+        record = store.get(db, 'records', rid)
+    if not record.get('photoCount'):
+        store.save({'id': rid, 'revision': record['revision'], 'photos': [
+            'data:image/png;base64,' + base64.b64encode(raw).decode()
+            for raw in (model_sample_png(), model_sample_disc_png())]})
+    return ids
+
+
+def seed_listing_reference_photos(data_dir):
+    """售卖界面验收的版次参考照片：仅复用 prepare --download 已核验的图集。
+
+    不是用户实拍，不用于品相/真伪验收；副本备注明确标注来源。缺图直接失败。
+    """
+    if check_target(data_dir): raise ValueError('请先 prepare --download 初始化固定参考样本')
+    ids = existing_ids(data_dir)
+    store = open_store(data_dir)
+    rid = ids['lift-fists']
+    job = store.twin_index()['jobs'].get(rid)
+    if not job: raise ValueError('缺少固定版次参考图集')
+    photos = []
+    for role in ('front', 'back', 'disc', 'insideLeft'):
+        surface = job['entity']['surfaces'][role]
+        if surface.get('origin') != 'edition-reference': raise ValueError('只允许已核验的真实版次参考图集')
+        raw = store.path.parent.joinpath('digital-twins', job['id'], surface['asset']).read_bytes()
+        photos.append('data:image/jpeg;base64,' + base64.b64encode(raw).decode())
+    with store.connect() as db: record = store.get(db, 'records', rid)
+    if record.get('photoCount'): return ids
+    store.save({'id': rid, 'revision': record['revision'], 'photos': photos,
+                'note': '界面验收：照片为已核验发行版的公开参考图集，不是本副本实拍，不能作为售卖品相证据。'})
+    return ids
+
+
 def existing_ids(data_dir):
     """已灌过的样本库：按（专辑、艺人、价格）唯一匹配出键名 → 记录ID（幂等复用）。
 

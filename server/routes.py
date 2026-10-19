@@ -16,6 +16,9 @@ from storage import SCHEMA
 from . import export_csv
 from .artists import SourceUnavailableError
 from .version import uptime, version
+from .listing_routes import (api_listing_status, api_listing_analyze, api_listing_job,
+    api_listing_draft, api_listing_photos, api_listing_login, api_listing_disconnect,
+    api_listing_provider, api_listing_models, api_listing_connection, api_listing_auth_code)
 
 # 所有改状态的 store 调用共用一把锁，串行化并发写
 WRITE_LOCK = threading.Lock()
@@ -490,11 +493,20 @@ GET_PREFIX = {  # 带路径参数的接口
     '/api/twin-assets/': api_twin_asset,
     '/api/twin-review-assets/': api_twin_review_asset,
 }
+GET.update({'/api/listing/status': api_listing_status, '/api/listing/job': api_listing_job,
+            '/api/listing/photos': api_listing_photos, '/api/listing/models': api_listing_models})
 POST = {
     # path: (处理函数, 需要登录, 需要 WRITE_LOCK)
     '/api/login': (api_login, False, False),
     '/api/logout': (api_logout, True, False),
     '/api/password': (api_password, True, True),
+    '/api/listing/analyze': (api_listing_analyze, True, True),
+    '/api/listing/draft': (api_listing_draft, True, True),
+    '/api/listing/login': (api_listing_login, True, False),
+    '/api/listing/disconnect': (api_listing_disconnect, True, False),
+    '/api/listing/provider': (api_listing_provider, True, False),
+    '/api/listing/connection': (api_listing_connection, True, False),
+    '/api/listing/auth-code': (api_listing_auth_code, True, False),
     '/api/catalog/barcode': (api_barcode_lookup, True, False),
     '/api/catalog/barcode/verify': (api_verify_barcode, True, False),
     '/api/catalog/number': (api_catalog_number_lookup, True, False),

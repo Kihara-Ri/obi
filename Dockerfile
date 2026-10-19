@@ -18,7 +18,7 @@ FROM python:3.12-slim
 RUN apt-get update -qq && apt-get install -y --no-install-recommends tzdata \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY app.py domain.py storage.py covers.py cjkvariants.py musicbrainz.py rates.py security.py backups.py twins.py ./
+COPY app.py domain.py domain_listing.py storage.py covers.py cjkvariants.py musicbrainz.py rates.py security.py backups.py twins.py ./
 COPY server/ server/
 COPY vendor/album_data/ vendor/album_data/
 COPY plugins/album-engine/ plugins/album-engine/

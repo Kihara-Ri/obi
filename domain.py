@@ -218,6 +218,9 @@ def clean_record(data):
     if 'listingDescription' in r:
         if not isinstance(r['listingDescription'], str) or len(r['listingDescription']) > 50000:
             raise ValidationError('上架描述过长或格式不正确')
+    if 'listingDraft' in r:
+        from domain_listing import clean_draft
+        r['listingDraft'] = clean_draft(r['listingDraft'])
     return r
 
 

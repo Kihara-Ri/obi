@@ -1,0 +1,8 @@
+.listing-photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--listing-photo-size),1fr));gap:var(--listing-gap);overflow:visible}
+.listing-photo{min-width:0;display:grid;gap:var(--listing-gap-sm)}
+.listing-photo-grid .listing-photo a{display:block;width:100%;height:auto}
+.listing-photo-grid .listing-photo img{width:100%;height:auto;aspect-ratio:1;object-fit:contain;background:var(--surface-2);border-radius:var(--radius-sm)}
+.listing-photo label{display:flex;align-items:center;gap:var(--listing-gap-sm)}
+.listing-photo input[type=checkbox]{width:auto;margin:0}
+.listing-photo-moves{display:flex;gap:var(--listing-gap-sm)}
+.listing-photo-moves button{flex:1;min-height:var(--listing-touch-size);padding:0}

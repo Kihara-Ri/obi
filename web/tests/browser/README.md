@@ -58,3 +58,17 @@ node web/tests/browser/engine-plugin-acceptance.mjs --url http://127.0.0.1:<空�
 - `reinstall-view` 经 UI 安装（若未装）并确认同一固定 GLB 再次渲染；它不改写账本数据，可对演示实例安全复跑。
 
 探针记录名「引擎验收临时」；中断的运行可能把它留在库里（表现为图库 17 张、首张占位封面），下一段 `full-ui` 会自动清理，或 `preview_samples.py prepare --rebuild` 重建固定开发目录。期望 JSON 绑定当次种子实例的记录 ID，重建后须重新生成。控制台错误与 HTTP/传输失败一律判失败。
+
+## 售卖草稿与图片包
+
+先用独立 `DIEDU_DEV_HOME` 运行 `python3 tools/preview_samples.py prepare --download`。再调用 `tools.seed_samples.seed_listing_reference_photos(<固定样本 instance 目录>)`：复用锁定的真实版次参考图片，备注明确标为非本副本实拍，不生成品相证明。`seed_listing_photos` 只供离线协议单测使用合成图片；普通样本保持缺图。
+
+```sh
+python3 tests/serve_listing_acceptance.py --data-dir /path/to/sample-home/instance
+# 将上一步打印的本机空闲端口地址填入：
+LISTING_ACCEPTANCE_URL=http://127.0.0.1:<空闲端口> node web/tests/browser/listing-acceptance.mjs
+```
+
+测试服务只接受固定样本目录，启动本机模拟 Chat Completions 上游；浏览器通过真实 API 通道依次验证：多服务商切换、DeepSeek 保存密钥/读取真实协议模型目录/仅文字模型禁选/思考强度持久化、兼容 API 静态模型就绪、DeepSeek 参数经过模拟 HTTP 上游校验、分析轮询、保留手写正文、人工确认生成、复制到剪贴板、选图排序/首图、ZIP 下载、保存不标记上架、重开持久化、手机宽度、并发草稿冲突。CI 在完整真实封面/模型验收结束后运行，不影响前一阶段样本契约。截图与图片包放入 `DIEDU_PREVIEW_SCREENSHOTS` 指定目录（默认 `/tmp/diedu-listing-browser`）。
+
+该验收使用模拟模型，不能证明真实 OAuth 授权成功、模型可用性、照片版本或品相准确率。真实 OAuth 需用户完成授权，选择视觉模型后以实拍副本单独验收。正常流程要求 console/pageerror 为零；并发保存用例仅允许预期的 HTTP 400 诊断。

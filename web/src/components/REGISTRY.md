@@ -29,6 +29,9 @@
 
 | 组件 | 用途 | 备注 |
 | --- | --- | --- |
+| `ListingPhotos` | 本副本售卖选图、首图、顺序与图片包下载 | 不改原照片次序；选择用 checkbox 与序号区分 |
+| `ListingReview` | 照片证据、版本候选及人工核对 | 不自动采用候选或覆盖文案；确认用 checkbox |
+| `ListingSettings` | 独立多服务商连接、模型与思考强度 | 复用 Dropdown；连接用文字状态；密钥/令牌不回传 |
 | `ui/Drawer` | 抽屉 / 手机底部 sheet：遮罩、焦点圈、Esc、下拉收起、脏表单确认 | 存量文件（见 `.ai-kit/legacy.txt`），动到时拆分 |
 | `ui/Lightbox` | 照片灯箱 | 同上 |
 | `EngineMount` | 挂载已安装 Album Engine 插件里的视图（3D 查看器、校准、编辑器） | `kind` `props` `onUnavailable?` | 未安装时不渲染；失败显示 role=alert 提示 | — |

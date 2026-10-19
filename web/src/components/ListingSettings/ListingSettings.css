@@ -1,0 +1,6 @@
+.listing-settings{display:grid;gap:var(--listing-gap);justify-items:start}
+.listing-settings .dd{max-width:100%}
+.listing-credentials{display:grid;gap:var(--listing-gap);width:100%}
+.listing-credentials label{display:grid;gap:var(--listing-gap);width:100%}
+.listing-credentials input{width:100%;min-width:0}
+.listing-settings .small-note{overflow-wrap:anywhere}

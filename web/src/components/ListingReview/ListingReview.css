@@ -1,0 +1,4 @@
+.listing-review{display:grid;gap:var(--listing-gap)}
+.listing-review details{padding:var(--listing-gap);border:1px solid var(--border);border-radius:var(--radius-sm)}
+.listing-review .listing-confirm{display:flex;align-items:flex-start;gap:var(--listing-gap-sm);font-weight:normal}
+.listing-review input[type=checkbox]{width:auto;flex:none;margin:var(--listing-gap-sm) 0 0}
