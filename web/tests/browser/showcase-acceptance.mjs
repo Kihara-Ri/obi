@@ -3,7 +3,7 @@
  * tools may inject accept.toString() into an existing Playwright page without
  * importing Node modules. It reads samples; it never mutates ledger records.
  */
-export async function accept(page, {baseURL, expectations, screenshotDir} = {}) {
+export async function accept(page, {baseURL, expectations, screenshotDir, saveShot} = {}) {
   const check = (condition, message) => {if (!condition) throw new Error(message);};
   check(baseURL, 'baseURL is required');
   check(expectations?.galleryCount === 16 && expectations?.models?.length === 3,
@@ -46,16 +46,17 @@ export async function accept(page, {baseURL, expectations, screenshotDir} = {}) 
     }, on).catch(() => {});
     await park(true);
     try {
-      try {await page.screenshot({path, timeout: 8000});}
-      catch {
-        // On the Linux software-GL runner Playwright's full-surface capture
-        // (captureBeyondViewport) never returns — 120s probes timed out while
-        // a raw CDP capture of the same parked surface answers in ~0.2s and a
-        // composited clip succeeds. Fall back to a viewport-sized clip: the
-        // same pixels through the working path.
-        const size = page.viewportSize() ?? {width: 1280, height: 720};
-        await page.screenshot({path, clip: {x: 0, y: 0, width: size.width, height: size.height}});
-      }
+      if (typeof saveShot === 'function') {
+        // Playwright's screenshot pipeline deadlocks on the Linux software-GL
+        // runner — even a viewport-sized clip times out at 30s — while a raw
+        // CDP capture of the same parked surface returns in ~0.2s with the
+        // same viewport pixels. The Node caller persists the base64 payload.
+        const cdp = await page.context().newCDPSession(page);
+        try {
+          const {data} = await cdp.send('Page.captureScreenshot', {format: 'png'});
+          await saveShot(path, data);
+        } finally {await cdp.detach();}
+      } else await page.screenshot({path});
     } finally {await park(false);}
   };
   const close = async () => {
@@ -402,6 +403,8 @@ if (typeof process !== 'undefined' && process.argv[1] && import.meta.url === new
     const page = await browser.newPage();
     const screenshotDir = process.env.DIEDU_PREVIEW_SCREENSHOTS;
     if (screenshotDir) await mkdir(screenshotDir, {recursive: true});
-    console.log(JSON.stringify(await accept(page, {baseURL, expectations: JSON.parse(await readFile(file, 'utf8')), screenshotDir}), null, 2));
+    const {writeFile} = await import('node:fs/promises');
+    const saveShot = (path, base64) => writeFile(path, Buffer.from(base64, 'base64'));
+    console.log(JSON.stringify(await accept(page, {baseURL, expectations: JSON.parse(await readFile(file, 'utf8')), screenshotDir, saveShot}), null, 2));
   } finally {await browser.close();}
 }
