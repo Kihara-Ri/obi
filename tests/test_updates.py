@@ -24,7 +24,8 @@ def release(tag, **flags):
 def package(version, extra=None):
     output = io.BytesIO()
     with tarfile.open(fileobj=output, mode='w:gz') as archive:
-        for name in ('VERSION', 'app.py', 'rates.py', 'tools/deploy.sh', 'tools/update_release.py'):
+        for name in ('VERSION', 'app.py', 'rates.py', 'tools/deploy.sh', 'tools/update_release.py',
+                     'deploy.toml', '.ai-kit/ship/ship.py'):
             data = version.encode() if name == 'VERSION' else b'# application fixture\n'
             info = tarfile.TarInfo(name); info.size = len(data)
             archive.addfile(info, io.BytesIO(data))
@@ -127,12 +128,20 @@ class DeployPipelineTests(unittest.TestCase):
         self.bin=Path(self.tmp.name)/'bin';self.bin.mkdir()
         fixtures={
             'sudo':'#!/bin/sh\n[ "$1" != -n ] || shift\nexec "$@"\n',
-            'systemctl':'#!/bin/sh\nprintf "%s\\n" "$*" >> "$FIXTURE_LOG"\n',
+            # migrate：新版本一启动就把库结构升到 5（模拟一次性 schema 升级）
+            'systemctl':'''#!/bin/sh
+printf "%s\\n" "$*" >> "$FIXTURE_LOG"
+if [ "$FIXTURE_FAILURE" = migrate ] && [ "$1" = restart ] && grep -q v2.1.1 "$DEPLOY_DIR/current/VERSION"; then
+  python3 -c "import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); c.execute(\\"INSERT OR REPLACE INTO meta VALUES('schema','5')\\"); c.commit()" "$DEPLOY_DIR/data/albums.sqlite3"
+fi
+''',
             'sleep':'#!/bin/sh\nexit 0\n',
             'curl':'''#!/usr/bin/env python3
 import json,os,pathlib
+import sys
 v=(pathlib.Path(os.environ['DEPLOY_DIR'])/'current'/'VERSION').read_text()
-if os.environ.get('FIXTURE_FAILURE')=='health' and v=='v2.1.1':v='wrong-version'
+if os.environ.get('FIXTURE_FAILURE') in ('health','migrate') and v=='v2.1.1' and 'example.test' not in ' '.join(sys.argv):v='wrong-version'
+if os.environ.get('FIXTURE_FAILURE')=='public' and 'example.test' in ' '.join(sys.argv):sys.exit(22)
 print(json.dumps({'ok':True,'version':v}))
 ''',
             'cp':'''#!/bin/sh
@@ -153,14 +162,15 @@ lines=sys.stdin.readlines();n=int(sys.argv[-1]);sys.stdout.writelines(lines[:n])
                   'DEPLOY_HOST':'local','DEPLOY_DIR':str(self.base),'SERVICE':'fixture',
                   'PACKAGE_PATH':str(self.package),'EXPECTED_VERSION':'v2.1.1',
                   'EXPECTED_SHA256':hashlib.sha256(self.package.read_bytes()).hexdigest(),
-                  'FIXTURE_LOG':str(Path(self.tmp.name)/'service.log'),'FIXTURE_FAILURE':''}
+                  'FIXTURE_LOG':str(Path(self.tmp.name)/'service.log'),'FIXTURE_FAILURE':'',
+                  'SHIP_LOCAL_CONFIG':str(Path(self.tmp.name)/'no-personal-override.toml')}
 
     def tearDown(self):self.tmp.cleanup()
 
-    def deploy(self, failure=''):
+    def deploy(self, failure='', *args):
         self.env['FIXTURE_FAILURE']=failure
         script=Path(__file__).resolve().parents[1]/'tools'/'deploy.sh'
-        return subprocess.run(['bash',str(script)],env=self.env,capture_output=True,text=True,timeout=10)
+        return subprocess.run(['bash',str(script),*args],env=self.env,capture_output=True,text=True,timeout=20)
 
     def assert_preserved(self, version):
         self.assertEqual((self.base/'current'/'VERSION').read_text(),version)
@@ -187,3 +197,75 @@ lines=sys.stdin.readlines();n=int(sys.argv[-1]);sys.stdout.writelines(lines[:n])
         result=self.deploy();self.assertNotEqual(result.returncode,0)
         self.assertIn('运行版本已变更',result.stdout+result.stderr);self.assert_preserved('v2.1.0')
         self.assertFalse((Path(self.tmp.name)/'service.log').exists())
+
+    def test_success_keeps_only_recent_snapshots(self):
+        data=self.base/'data'
+        for i in range(1,8):(data/f'pre-deploy-20260101-0000{i:02d}.sqlite3').write_bytes(b'old')
+        self.env['KEEP_SNAPSHOTS']='3'
+        result=self.deploy();self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+        names=sorted(p.name for p in data.glob('pre-deploy-*.sqlite3'))
+        self.assertEqual(len(names),3,names);self.assertEqual(names[:2],['pre-deploy-20260101-000006.sqlite3','pre-deploy-20260101-000007.sqlite3'])
+        self.assertTrue(names[2].startswith('pre-deploy-2'))
+        self.assert_preserved('v2.1.1')
+
+    def test_success_appends_deploy_log_with_schema_and_snapshot(self):
+        result=self.deploy();self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+        log=(self.base/'deploy.log').read_text()
+        self.assertIn(' OK v2.1.1 prev=v2.1.0 schema=4->4 snapshot=pre-deploy-',log)
+
+    def test_schema_upgrade_failure_restores_database_snapshot(self):
+        result=self.deploy('migrate');self.assertNotEqual(result.returncode,0)
+        output=result.stdout+result.stderr
+        self.assertIn('恢复发布前快照',output);self.assertIn('已回滚',output)
+        self.assert_preserved('v2.1.0')   # 库字节与发布前完全一致
+        self.assertIn('ROLLBACK from=v2.1.1',(self.base/'deploy.log').read_text())
+        self.assertIn('stop fixture',(Path(self.tmp.name)/'service.log').read_text())
+
+    def test_held_lock_reports_owner_and_stale_hint_without_stealing_it(self):
+        import time
+        lock=self.base/'.deploy-lock';lock.mkdir()
+        (lock/'info').write_text(f'{int(time.time())-60} tester@host\n')
+        result=self.deploy();self.assertNotEqual(result.returncode,0)
+        self.assertIn('已有发布正在执行',result.stdout+result.stderr);self.assertIn('tester@host',result.stdout+result.stderr)
+        self.assertNotIn('--unlock',result.stdout+result.stderr)
+        (lock/'info').write_text(f'{int(time.time())-7200} tester@host\n')
+        result=self.deploy();self.assertNotEqual(result.returncode,0)
+        self.assertIn('--unlock',result.stdout+result.stderr)
+        self.assertTrue(lock.exists())   # 他人的锁不能被失败的发布顺手删掉
+        result=self.deploy('', '--unlock');self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+        self.assertFalse(lock.exists())
+
+    def test_public_check_failure_reports_exit_3_without_rollback(self):
+        self.env['PUBLIC_URL']='https://example.test'
+        result=self.deploy('public');self.assertEqual(result.returncode,3,result.stdout+result.stderr)
+        self.assertIn('公网检查失败',result.stdout+result.stderr);self.assert_preserved('v2.1.1')
+        result=self.deploy('');self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+        self.assertIn('公网检查通过',result.stdout+result.stderr)
+
+    def test_unknown_flag_is_rejected(self):
+        result=self.deploy('', '--nope');self.assertNotEqual(result.returncode,0)
+        self.assertIn('未知参数',result.stdout+result.stderr)
+
+    def test_host_and_options_come_from_config_file_when_env_has_none(self):
+        config=Path(self.tmp.name)/'deploy.local.toml'
+        config.write_text('[server]\nhost = "local"\n\n[data]\nkeep_snapshots = 2\n')
+        del self.env['DEPLOY_HOST'];self.env['SHIP_LOCAL_CONFIG']=str(config)
+        (self.base/'data'/'pre-deploy-20260101-000001.sqlite3').write_bytes(b'old')
+        (self.base/'data'/'pre-deploy-20260101-000002.sqlite3').write_bytes(b'old')
+        result=self.deploy();self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+        self.assertEqual(len(list((self.base/'data').glob('pre-deploy-*.sqlite3'))),2)
+
+    def test_dirty_tree_aborts_before_building(self):
+        repo=Path(self.tmp.name)/'repo';(repo/'tools').mkdir(parents=True)
+        source=Path(__file__).resolve().parents[1]
+        script=repo/'tools'/'deploy.sh'
+        for name in ('tools/deploy.sh','deploy.toml','.ai-kit/ship/ship.py'):
+            (repo/name).parent.mkdir(parents=True,exist_ok=True);(repo/name).write_bytes((source/name).read_bytes())
+        git=lambda *a:subprocess.run(['git',*a],cwd=repo,check=True,capture_output=True,env={**os.environ,'GIT_AUTHOR_NAME':'t','GIT_AUTHOR_EMAIL':'t@t','GIT_COMMITTER_NAME':'t','GIT_COMMITTER_EMAIL':'t@t'})
+        git('init','-q');(repo/'tracked.txt').write_text('a');git('add','.');git('commit','-qm','init')
+        (repo/'tracked.txt').write_text('changed')
+        env={k:v for k,v in self.env.items() if k not in ('PACKAGE_PATH','EXPECTED_VERSION','EXPECTED_SHA256')}
+        result=subprocess.run(['bash',str(script)],env=env,capture_output=True,text=True,timeout=20)
+        self.assertNotEqual(result.returncode,0);self.assertIn('未提交的改动',result.stdout+result.stderr)
+        self.assertFalse((self.base/'.deploy-lock').exists());self.assertEqual((self.base/'current'/'VERSION').read_text(),'v2.1.0')
+

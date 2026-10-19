@@ -20,7 +20,7 @@ VERSION_RE = re.compile(r'^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$')
 PACKAGE_ROOTS = {'VERSION', 'app.py', 'domain.py', 'storage.py', 'covers.py',
                  'cjkvariants.py', 'musicbrainz.py', 'rates.py', 'security.py',
                  'backups.py', 'twins.py', 'README.md', '使用说明.md', '部署说明.md',
-                 'CHANGELOG.md', 'server', 'static', 'deploy', 'tools'}
+                 'CHANGELOG.md', 'deploy.toml', '.ai-kit', 'server', 'static', 'deploy', 'tools'}
 
 
 def version_tuple(value):
@@ -70,7 +70,8 @@ def validate_package(path, expected_version):
                     or not (member.isfile() or member.isdir()) or member.name in seen):
                 raise ValueError('发布包包含不允许的路径或文件类型')
             seen.add(member.name)
-        for required in ('VERSION', 'app.py', 'rates.py', 'tools/deploy.sh', 'tools/update_release.py'):
+        for required in ('VERSION', 'app.py', 'rates.py', 'tools/deploy.sh', 'tools/update_release.py',
+                         'deploy.toml', '.ai-kit/ship/ship.py'):
             if required not in seen or not archive.getmember(required).isfile():
                 raise ValueError(f'发布包缺少 {required}')
         if archive.extractfile('VERSION').read(100).decode().strip() != expected_version:

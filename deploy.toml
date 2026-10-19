@@ -1,0 +1,46 @@
+# 碟渡发布配置（ai-kit 的 ship 读取；入库，不含个人信息）。
+# 主机别名与域名写在 data/deploy.local.toml（data/ 未跟踪）：
+#   [server]
+#   host = "你的ssh主机"
+#   [health]
+#   public_url = "https://your.domain"
+# 用法见 部署说明.md；入口仍是 tools/deploy.sh（兼容旧用法与补丁更新器）。
+
+[config]
+local = "data/deploy.local.toml"
+
+[server]
+dir = "/opt/diedu"
+service = "diedu"
+unit = "deploy/diedu.service"
+env_default = "PUBLIC_ORIGIN="
+legacy_marker = "app.py"
+keep_releases = 5
+settle = 2
+
+[build]
+test = [
+  "python3 -m unittest discover -s tests -q",
+  "npm --prefix web test",
+  "npm --prefix web run typecheck",
+]
+build = ["npm --prefix web run build"]
+artifacts = ["static"]
+package = "python3 tools/package_app.py"
+package_path = "dist/album-ledger.tar.gz"
+version_file = "VERSION"
+
+[health]
+url = "http://127.0.0.1:8765/api/health"
+version_field = "version"
+ok_field = "ok"
+retries = 5
+interval = 3
+public_paths = ["/sw.js"]
+
+[data]
+kind = "sqlite"
+path = "data/albums.sqlite3"
+schema_query = "SELECT data FROM meta WHERE key='schema'"
+schema_json = true
+keep_snapshots = 5

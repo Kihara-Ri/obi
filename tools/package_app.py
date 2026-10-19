@@ -31,6 +31,8 @@ files += [p for p in (root / 'static').rglob('*') if 'models/packaging' not in p
 files += list((root / 'plugins' / 'album-engine').glob('*'))
 files += list((root / 'deploy').glob('*'))
 files += [root / 'tools' / name for name in ('deploy.sh', 'update_release.py')]
+# 发布入口 tools/deploy.sh 由 ai-kit 的 ship 执行：补丁更新器在服务器上运行时需要它和 deploy.toml
+files += [root / 'deploy.toml', root / '.ai-kit' / 'ship' / 'ship.py']
 
 with tarfile.open(out / 'album-ledger.tar.gz', 'w:gz') as tar:
     for path in sorted(files):
