@@ -12,6 +12,7 @@ import {AlbumSummary} from './AlbumSummary';
 import {CamIco} from './icons';
 import {Cover, PriceCell} from './Cover';
 import {useApp} from '../state/AppContext';
+import './Cards.css';
 
 export function AlbumCard({r, page, checked, onSelect, onDetail, onArtist, actions}: {
   r: AlbumRecord; page: string; checked: boolean;
@@ -28,6 +29,12 @@ export function AlbumCard({r, page, checked, onSelect, onDetail, onArtist, actio
     {r.cover ? null : <span className="badge nocover">待抓取</span>}
   </>;
   if (shelfView === 'list') return <article className="card album-list-card" data-id={r.id}>
+    {/* 手机：行首圆形选择钮（不压在封面上）；桌面仍用封面右上角的 card-check */}
+    {page !== 'trash' && onSelect ? <label className="select-lead">
+      <input type="checkbox" checked={checked} aria-label={`选择 ${r.title}`}
+        onChange={e => onSelect(r.id, e.target.checked)}/>
+      <span className="select-mark" aria-hidden="true"/>
+    </label> : null}
     <AlbumSummary r={r} onDetail={() => onDetail(r.id)} onArtist={onArtist}
       coverOverlay={<>
         {page !== 'trash' && onSelect ? <label className="card-check">

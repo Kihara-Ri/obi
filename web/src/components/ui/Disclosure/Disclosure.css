@@ -2,9 +2,17 @@
 .disclosure{margin:8px 0}
 .disclosure>summary{display:inline-flex;align-items:center;gap:6px;min-height:28px;cursor:pointer;color:var(--muted);font-size:12.5px;list-style:none}
 .disclosure>summary::-webkit-details-marker{display:none}
-.disclosure>summary::before{content:"›";display:inline-block;font-size:16px;line-height:1;transition:transform .15s}
+.disclosure>summary::before{content:"›";display:inline-block;font-size:16px;line-height:1;transition:transform var(--dur) var(--ease-out)}
 .disclosure[open]>summary::before{transform:rotate(90deg)}
 .disclosure>summary:hover{color:var(--text)}
+.disclosure[open]>.disclosure-body{animation:disclosure-in var(--dur) var(--ease-out)}
+@keyframes disclosure-in{from{opacity:0;transform:translateY(-4px)}}
+/* 支持 ::details-content 的浏览器：高度平滑展开 / 收起；其余浏览器保留上面的淡入 */
+@supports selector(::details-content){
+  .disclosure{interpolate-size:allow-keywords}
+  .disclosure::details-content{block-size:0;overflow:hidden;transition:block-size var(--dur-slow) var(--ease-out),content-visibility var(--dur-slow) allow-discrete}
+  .disclosure[open]::details-content{block-size:auto}
+}
 .disclosure-body{margin-top:6px;color:var(--muted);font-size:12.5px;line-height:1.7}
 .disclosure-body p{margin:0 0 8px;font-size:inherit;color:inherit}
 @media (max-width:840px){

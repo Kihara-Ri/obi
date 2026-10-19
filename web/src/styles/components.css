@@ -1,6 +1,6 @@
 /* 通用组件：按钮、状态 pill、汇总条、工具栏、批量操作条、空态、
    连接提示 / 安装按钮、封面通用样式（下拉 / 组合框 / toast 已迁入 components/ui/ 各自目录） */
-button,.link-button,.file-label{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 15px;border-radius:10px;background:var(--surface-2);border:1px solid var(--border);font-weight:550;font-size:13px;color:var(--text);transition:background .15s,border-color .15s;text-decoration:none;white-space:nowrap;cursor:pointer}
+button,.link-button,.file-label{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 15px;border-radius:10px;background:var(--surface-2);border:1px solid var(--border);font-weight:550;font-size:13px;color:var(--text);transition:background var(--dur) var(--ease-soft),border-color var(--dur) var(--ease-soft),color var(--dur) var(--ease-soft),opacity var(--dur) var(--ease-soft);text-decoration:none;white-space:nowrap;cursor:pointer}
 button:hover,.link-button:hover,.file-label:hover{background:var(--surface-3);border-color:var(--border-strong)}
 button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:650}
 button.primary:hover{background:var(--accent-strong);border-color:var(--accent-strong)}
@@ -29,10 +29,6 @@ button:disabled:hover{background:var(--surface-2)}
 .select-all input{width:14px;height:14px}
 
 /* 悬浮批量操作条（不挤压布局） */
-.bulkbar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:10px;background:var(--surface-3);border:1px solid var(--border-strong);border-radius:14px;padding:9px 14px;box-shadow:var(--shadow);flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 24px);animation:bulk-in .18s ease}
-@keyframes bulk-in{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
-.bulkbar strong{font-size:13px}
-.bulkbar button{padding:6px 12px;font-size:12.5px}
 
 /* 空态 / 加载中 */
 .empty{text-align:center;padding:70px 20px;color:var(--muted)}
@@ -88,9 +84,6 @@ button:disabled:hover{background:var(--surface-2)}
   .flip-btn{width:44px;padding:8px 0}
   .head-actions button,.head-actions .link-button{min-height:40px}
 
-  /* 悬浮批量条：抬到底栏上方，按钮可点 */
-  .bulkbar{bottom:calc(env(safe-area-inset-bottom) + 78px);gap:8px}
-  .bulkbar button{min-height:38px}
 
   #connection-status{top:calc(8px + env(safe-area-inset-top))}
   .empty{padding:48px 18px}
@@ -99,4 +92,6 @@ button:disabled:hover{background:var(--surface-2)}
   .head-actions .theme-seg{display:none}
 }
 
-
+/* 封面淡入：Cover 载入完成前透明，避免空白格子突然跳出图片 */
+img.cover{opacity:0;transition:opacity .2s ease}
+img.cover.is-ready{opacity:1}

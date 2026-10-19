@@ -7,6 +7,7 @@ import {searchScore} from '../core/search';
 import {onShelf} from '../core/modules';
 import type {ModuleFlags} from '../types';
 import {PageHead} from '../components/PageHead';
+import {BulkBar} from '../components/BulkBar';
 import {AlbumCard, CardGrid} from '../components/Cards';
 import {Dropdown} from '../components/ui/Dropdown';
 import {SearchField} from '../components/ui/SearchField';
@@ -14,7 +15,6 @@ import {ShowcaseSwitch, useShowcaseSwitch} from '../components/ShowcaseSwitch';
 import {useSlidingThumb} from '../components/ui/SlidingThumb';
 import {openRecordForm} from '../forms/RecordForm';
 import {openSaleForm} from '../forms/SaleForm';
-import {openShipForm} from '../forms/ShipForm';
 import {openDetail} from '../forms/DetailDrawer';
 import {openArtistDrawer} from '../forms/ArtistDrawer';
 import {bulkAction} from '../forms/shared';
@@ -236,30 +236,7 @@ export function ShelfPage() {
             if (!next) app.setSelected(new Set());
           }}>{app.mobileSelecting || curSelected.size ? '取消选择' : '选择'}</button> : null}
       </div>
-      {curSelected.size ? (
-        <div className="bulkbar">
-          <strong>已选 {curSelected.size} 张</strong>
-          {page === 'overseas' ? (
-            <>
-              <button className="primary" onClick={() => openShipForm(app, [...curSelected])}>✈ 打包运输</button>
-              {modules.trading ? <><button onClick={() => bulkAction(app, 'list', [...curSelected], '已标记上架')}>标记上架</button>
-              <button onClick={() => bulkAction(app, 'unlist', [...curSelected], '已取消上架')}>取消上架</button></> : null}
-            </>
-          ) : null}
-          {page === 'domestic' ? (
-            <>
-              {modules.trading ? <><button className="primary" onClick={() => openSaleForm(app, [...curSelected])}>合单售出</button>
-              <button onClick={() => bulkAction(app, 'list', [...curSelected], '已标记上架')}>标记上架</button>
-              <button onClick={() => bulkAction(app, 'unlist', [...curSelected], '已取消上架')}>取消上架</button></> : null}
-              {modules.circulation ? <button onClick={() => bulkAction(app, 'to_overseas', [...curSelected])}>调回海外</button> : null}
-            </>
-          ) : null}
-          {!isTrash
-            ? <button onClick={() => bulkAction(app, 'delete', [...curSelected], '已移入回收站，可在设置中恢复')}>移入回收站</button>
-            : <button onClick={() => bulkAction(app, 'restore', [...curSelected])}>恢复专辑</button>}
-          <button className="quiet" onClick={() => { app.setSelected(new Set()); app.setMobileSelecting(false); }}>取消</button>
-        </div>
-      ) : null}
+      <BulkBar page={page} ids={[...curSelected]} isTrash={isTrash}/>
       {body}
     </div>
   );

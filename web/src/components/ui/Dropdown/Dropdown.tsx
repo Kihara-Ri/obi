@@ -8,6 +8,7 @@
 import {useEffect, useId, useLayoutEffect, useRef, useState} from 'react';
 import type {KeyboardEvent} from 'react';
 import {ChevDownIco} from '../../icons';
+import {useLeaving} from '../useLeaving';
 import './Dropdown.css';
 
 export interface DdOption {
@@ -30,6 +31,7 @@ export interface DropdownProps {
 }
 
 const TYPEAHEAD_MS = 700;
+const LEAVE_MS = 120;   // 与 Dropdown.css 的退出动画时长一致
 
 export function Dropdown({id, value, options, label, onPick, className = '', disabled = false}: DropdownProps) {
   const auto = useId();
@@ -38,6 +40,7 @@ export function Dropdown({id, value, options, label, onPick, className = '', dis
   const [active, setActive] = useState(-1);
   const [keyNav, setKeyNav] = useState(false);   // 键盘导航中：高亮跟随 active 而非当前值
   const [up, setUp] = useState(false);
+  const leaving = useLeaving(open, LEAVE_MS);
   const rootRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const typed = useRef({text: '', timer: 0});
@@ -67,7 +70,7 @@ export function Dropdown({id, value, options, label, onPick, className = '', dis
 
   // 向上展开：浮层放不下底部、且上方空间更大
   useLayoutEffect(() => {
-    if (!open) { setUp(false); return; }
+    if (!open) return;   // 退出动画期间保持原展开方向
     const list = listRef.current;
     const root = rootRef.current;
     if (!list || !root) return;
@@ -152,8 +155,8 @@ export function Dropdown({id, value, options, label, onPick, className = '', dis
         <span className="dd-label">{cur?.label}</span>
         <span className="dd-caret" aria-hidden="true">{ChevDownIco}</span>
       </button>
-      <div className={`dd-list${up ? ' dd-list--up' : ''}`} id={`${uid}-list`} role="listbox" aria-label={label}
-           data-nav={keyNav ? 'key' : undefined} hidden={!open} ref={listRef}>
+      <div className={`dd-list${up ? ' dd-list--up' : ''}${leaving ? ' is-leaving' : ''}`} id={`${uid}-list`} role="listbox" aria-label={label}
+           data-nav={keyNav ? 'key' : undefined} hidden={!open && !leaving} ref={listRef}>
         {options.map((o, i) => (
           <div key={o.value} id={optId(i)} role="option" aria-selected={o.value === cur?.value}
                aria-disabled={o.disabled || undefined}

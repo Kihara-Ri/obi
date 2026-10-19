@@ -6,11 +6,11 @@
    滚动条带（封面候选等）单独恢复 pan-x */
 #panel .cover-candidates,#panel .artist-cats{touch-action:pan-x}
 #panel::before{content:"";position:absolute;inset:0;background:var(--scrim);backdrop-filter:blur(3px)}
-.drawer{position:absolute;top:0;right:0;bottom:0;width:min(460px,100vw);background:var(--surface);border-left:1px solid var(--border-strong);display:flex;flex-direction:column;box-shadow:-18px 0 50px var(--shadow-ink);animation:slide .22s ease}
+.drawer{position:absolute;top:0;right:0;bottom:0;width:min(460px,100vw);background:var(--surface);border-left:1px solid var(--border-strong);display:flex;flex-direction:column;box-shadow:-18px 0 50px var(--shadow-ink);animation:slide var(--dur-slow) var(--ease-out)}
 .drawer.wide{width:min(560px,100vw)}
 @keyframes slide{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
 /* 关闭：桌面滑出右缘；手机断点内覆盖为下滑收回。pointer-events 防止动画期间误触 */
-.drawer.closing{animation:drawer-out .18s ease forwards;pointer-events:none}
+.drawer.closing{animation:drawer-out var(--dur) var(--ease-soft) forwards;pointer-events:none}
 @keyframes drawer-out{to{transform:translateX(40px);opacity:0}}
 .drawer-head{display:flex;align-items:center;justify-content:space-between;padding:12px 18px 10px;border-bottom:1px solid var(--border);user-select:none;-webkit-user-select:none}
 .drawer-head h2{font-size:16px}

@@ -1,0 +1,7 @@
+/* Collapse：高度用 grid 行高 0fr ↔ 1fr 过渡（无需测量内容高度）。只用 token。 */
+.collapse{display:grid;grid-template-rows:0fr;opacity:0;
+  transition:grid-template-rows var(--dur-slow) var(--ease-out),opacity var(--dur) var(--ease-soft)}
+.collapse.is-open{grid-template-rows:1fr;opacity:1}
+.collapse-inner{min-height:0;overflow:hidden}
+/* 展开后放开裁切，让输入框的焦点环不被切掉 */
+.collapse.is-open .collapse-inner{padding:3px;margin:-3px}

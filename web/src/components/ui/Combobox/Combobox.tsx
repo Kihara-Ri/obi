@@ -7,6 +7,7 @@
 import {useEffect, useId, useMemo, useRef, useState} from 'react';
 import type {KeyboardEvent, ReactNode} from 'react';
 import {ChevDownIco} from '../../icons';
+import {useLeaving} from '../useLeaving';
 import './Combobox.css';
 
 export interface ComboOption {
@@ -43,6 +44,7 @@ export function Combobox({
   const uid = id || auto;
   const listId = `${uid}-list`;
   const [open, setOpen] = useState(false);
+  const leaving = useLeaving(open, 120);   // 与 Combobox.css 的退出动画时长一致
   const [filter, setFilter] = useState('');
   const [active, setActive] = useState(-1);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -101,7 +103,7 @@ export function Combobox({
         <button type="button" className="cb-toggle" aria-label={toggleLabel} disabled={disabled}
                 onClick={() => { if (open) close(); else show(); }}>{ChevDownIco}</button>
       </div>
-      <div id={listId} className="cb-list" role="listbox" aria-label={listLabel} hidden={!open} ref={listRef}>
+      <div id={listId} className={leaving ? 'cb-list is-leaving' : 'cb-list'} role="listbox" aria-label={listLabel} hidden={!open && !leaving} ref={listRef}>
         {matches.map((o, i) => (
           <div key={o.value} id={`${uid}-opt-${i}`} role="option" aria-selected={i === active}
                className="cb-opt" onPointerDown={e => e.preventDefault()} onClick={() => choose(o)}>

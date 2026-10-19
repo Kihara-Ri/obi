@@ -13,6 +13,8 @@
 .cb-toggle:hover{background:var(--surface-3);color:var(--text)}
 
 .cb-list{position:absolute;top:calc(100% + 5px);left:0;right:0;z-index:20;background:var(--surface-3);border:1px solid var(--border-strong);border-radius:11px;box-shadow:var(--shadow);max-height:236px;overflow-y:auto;overscroll-behavior:contain;padding:5px}
+.cb-list{transform-origin:top center;animation:menu-in var(--dur) var(--ease-out)}
+.cb-list.is-leaving{animation:menu-out var(--dur-fast) var(--ease-soft) forwards;pointer-events:none}
 .cb-opt{display:flex;align-items:center;gap:9px;padding:8px 11px;border-radius:8px;font-size:13px;cursor:pointer;color:var(--text)}
 .cb-opt-lead{display:flex;align-items:center;color:var(--muted)}
 .cb-opt-lead img{width:15px;height:15px;border-radius:4px}
@@ -22,4 +24,9 @@
 
 @media (max-width:840px){
   .cb-opt{min-height:44px;padding:11px 12px}
+}
+
+@media (hover:none){
+  .cb-opt{transition:background var(--dur) var(--ease-soft)}
+  .cb-opt:active{background:var(--surface-2)}
 }

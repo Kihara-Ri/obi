@@ -2,6 +2,7 @@
 import {sum, yuan} from '../core/format';
 import {useApp} from '../state/AppContext';
 import {PageHead} from '../components/PageHead';
+import {DownloadButton} from '../components/DownloadButton';
 
 export function StatsPage() {
   const {state, modules} = useApp();
@@ -33,7 +34,7 @@ export function StatsPage() {
     <>
       <PageHead title="账本" desc={modules.acquisition ? '人民币统一口径：日元按购买当天汇率折算，已知成本与待补资料分别统计。' : '按到账月份统计售出金额与费用。'}
                 label="IN NUMBERS"
-                actions={<a className="link-button head-text" href="/api/export" aria-label="导出库存 CSV"><span className="btn-long">导出库存 CSV</span><span className="btn-short" aria-hidden="true">导出</span></a>}/>
+                actions={<DownloadButton path="export" fileName="albums.csv" className="link-button head-text" ariaLabel="导出库存 CSV"><span className="btn-long">导出库存 CSV</span><span className="btn-short" aria-hidden="true">导出</span></DownloadButton>}/>
       <div className="stat-grid">
         {modules.circulation ? <div className="stat-block">
           <span className="stat-label">海外库存</span>

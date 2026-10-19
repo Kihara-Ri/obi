@@ -5,6 +5,7 @@ import {useApp} from '../../state/AppContext';
 import type {BackupFile} from '../../types';
 import {Disclosure} from '../../components/ui/Disclosure';
 import {NavRow} from '../../components/ui/NavRow';
+import {DownloadButton} from '../../components/DownloadButton';
 import {TrashIco} from '../../components/icons';
 import {CONFIRM_TITLES, ConfirmForm} from '../../forms/ConfirmForm';
 
@@ -73,8 +74,8 @@ export function DataSettings() {
       <section className="settings-section">
         <h3>备份与恢复</h3>
         <div className="inline-actions">
-          <a className="link-button" href="/api/backup">下载完整备份</a>
-          <a className="link-button" href="/api/export">导出专辑 CSV</a>
+          <DownloadButton path="backup" fileName="album-ledger-backup.json">下载完整备份</DownloadButton>
+          <DownloadButton path="export" fileName="albums.csv">导出专辑 CSV</DownloadButton>
           <label className="file-label">恢复备份
             <input type="file" accept=".json,application/json" aria-label="选择完整备份" hidden
                    onChange={e => { const f = e.target.files?.[0]; if (f) onRestoreFile(f); e.target.value = ''; }}/>

@@ -3,11 +3,14 @@
 .dd-btn{display:inline-flex;align-items:center;gap:9px;padding:9px 13px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);font-weight:500;font-size:13px;color:var(--text);white-space:nowrap;transition:border-color .15s,background .15s}
 .dd-btn:hover{background:var(--surface-3);border-color:var(--border-strong)}
 .dd-btn:disabled{opacity:.5;cursor:not-allowed}
-.dd-caret{display:flex;align-items:center;justify-content:center;flex:none;width:14px;height:14px;color:var(--muted);transition:transform .15s}
+.dd-caret{display:flex;align-items:center;justify-content:center;flex:none;width:14px;height:14px;color:var(--muted);transition:transform var(--dur) var(--ease-out)}
 .dd-btn[aria-expanded=true] .dd-caret{transform:rotate(180deg)}
 
 .dd-list{position:absolute;top:calc(100% + 5px);left:auto;right:0;width:max-content;min-width:100%;z-index:20;background:var(--surface-3);border:1px solid var(--border-strong);border-radius:11px;box-shadow:var(--shadow);max-height:236px;overflow-y:auto;overscroll-behavior:contain;padding:5px}
-.dd-list--up{top:auto;bottom:calc(100% + 5px)}
+.dd-list{transform-origin:top right;animation:menu-in var(--dur) var(--ease-out)}
+.dd-list--up{top:auto;bottom:calc(100% + 5px);transform-origin:bottom right;animation-name:menu-in-up}
+.dd-list.is-leaving{animation:menu-out var(--dur-fast) var(--ease-soft) forwards;pointer-events:none}
+.dd-list--up.is-leaving{animation-name:menu-out-up}
 
 .dd-opt{display:flex;align-items:center;gap:9px;padding:8px 11px;border-radius:8px;font-size:13px;cursor:pointer;color:var(--text)}
 .dd-opt:hover,.dd-opt[aria-selected=true]{background:var(--accent);color:var(--accent-ink)}
@@ -21,4 +24,9 @@
   .dd-btn{min-height:42px}
   .dd-list{max-width:min(300px,calc(100vw - 28px))}
   .dd-opt{min-height:44px;padding:11px 12px}
+}
+
+@media (hover:none){
+  .dd-opt{transition:background var(--dur) var(--ease-soft)}
+  .dd-opt:active{background:var(--surface-2)}
 }

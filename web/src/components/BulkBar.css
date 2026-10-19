@@ -1,0 +1,29 @@
+/* BulkBar：库存页底部悬浮批量操作条（position:fixed，不挤压页面）；进退场动画与手机两列布局。只用 token。 */
+
+/* ── 悬浮批量条 ── */
+.bulkbar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:12px;
+  background:var(--surface-3);border:1px solid var(--border-strong);border-radius:14px;padding:9px 12px 9px 16px;box-shadow:var(--shadow);
+  max-width:calc(100vw - 24px);animation:bulk-in var(--dur-slow) var(--ease-out)}
+@keyframes bulk-in{from{opacity:0;transform:translate(-50%,12px)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes bulk-out{to{opacity:0;transform:translate(-50%,12px)}}
+/* 手机端条自身无横向位移，进退场只做纵向 */
+@keyframes bulk-in-m{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes bulk-out-m{to{opacity:0;transform:translateY(12px)}}
+.bulkbar.is-leaving{animation:bulk-out var(--dur) var(--ease-soft) forwards;pointer-events:none}
+.bulkbar-head{display:flex;align-items:center;gap:12px;min-width:0}
+.bulkbar-head strong{font-size:13px;white-space:nowrap}
+.bulkbar-head .quiet{padding:6px 8px;font-size:12.5px}
+.bulkbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.bulkbar-actions button{padding:6px 12px;font-size:12.5px;white-space:nowrap}
+
+@media (max-width:840px){
+  /* 批量条：整宽底部浮条，两行——第一行数量与取消，第二行操作按钮两列网格，主操作独占一行 */
+  .bulkbar{left:12px;right:12px;width:auto;bottom:calc(env(safe-area-inset-bottom) + 78px);transform:none;
+    max-width:none;flex-direction:column;align-items:stretch;gap:10px;padding:12px;animation-name:bulk-in-m}
+  .bulkbar.is-leaving{animation-name:bulk-out-m}
+  .bulkbar-head{justify-content:space-between}
+  .bulkbar-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;justify-content:stretch}
+  .bulkbar-actions > .primary{grid-column:1 / -1}
+  .bulkbar-actions button{min-height:42px;font-size:13px;padding:8px 10px;width:100%}
+  .bulkbar-head .quiet{min-height:40px}
+}

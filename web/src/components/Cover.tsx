@@ -1,11 +1,17 @@
 // 封面 / 缩略图 / 价格格：卡片、详情、销售行共用。
+import {useState} from 'react';
 import type {AlbumRecord} from '../types';
 import {fmt, fmtJPY, jpyCost, rmb} from '../core/format';
 import {rememberCoverAspect} from '../core/cover-aspect';
 
 export function Cover({r}: {r: AlbumRecord}) {
-  if (r.cover) return <img className="cover" src={r.cover} alt={`${r.title}封面`} loading="lazy"
-    onLoad={e => rememberCoverAspect(r.cover, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)}/>;
+  // 封面淡入：载入前透明，露出底色；已在缓存中的图片在挂载时直接标记为就绪，避免闪一下。
+  const [ready, setReady] = useState(false);
+  if (r.cover) return <img className={ready ? 'cover is-ready' : 'cover'} src={r.cover} alt={`${r.title}封面`}
+    loading="lazy" decoding="async"
+    ref={el => { if (el?.complete && el.naturalWidth > 0) setReady(true); }}
+    onLoad={e => { rememberCoverAspect(r.cover, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight); setReady(true); }}
+    onError={() => setReady(true)}/>;
   const h = [...r.artist].reduce((a, c) => a + c.charCodeAt(0), 0) % 4;
   return (
     <div className={`cover cover-fallback hue-${h}`} role="img" aria-label={`${r.title}，暂无封面`}>

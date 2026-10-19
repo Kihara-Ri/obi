@@ -22,6 +22,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .skip{position:absolute;left:-9999px}
 .skip:focus{left:12px;top:12px;z-index:99;background:var(--surface-3);padding:8px 12px;border-radius:8px}
 
+/* 浮层（下拉 / 组合框列表）进场：轻微下落 + 淡入；向上展开的列表反向 */
+@keyframes menu-in{from{opacity:0;transform:translateY(-4px) scale(.97)}}
+@keyframes menu-in-up{from{opacity:0;transform:translateY(4px) scale(.97)}}
+@keyframes menu-out{to{opacity:0;transform:translateY(-4px) scale(.97)}}
+@keyframes menu-out-up{to{opacity:0;transform:translateY(4px) scale(.97)}}
+
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 
 /* 主题切换渐变：仅切换窗口期（static/theme.js 给 <html> 加 .theme-fade）启用全局颜色过渡，

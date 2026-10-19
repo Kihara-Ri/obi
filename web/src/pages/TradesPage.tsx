@@ -1,4 +1,5 @@
 import {openArtistDrawer} from '../forms/ArtistDrawer';
+import {DownloadButton} from '../components/DownloadButton';
 // 交易记录页：搜索 + 状态筛选 + 完整销售单，利润按到账时间排序。
 import {sum, yuan} from '../core/format';
 import {searchScore} from '../core/search';
@@ -36,7 +37,7 @@ export function TradesPage() {
   return (
     <div className="align-list">
       <PageHead title="交易记录" label="CASHED IN"
-                actions={<a className="link-button head-text" href="/api/export?scope=sales">导出 CSV</a>}/>
+                actions={<DownloadButton path="export?scope=sales" fileName="sales.csv" className="head-text">导出 CSV</DownloadButton>}/>
       <div className="summary">
         <span>已完成 <strong>{all.length}</strong> 笔</span>
         <span>到手 <strong>{yuan(sum(items, 'net'))}</strong></span>

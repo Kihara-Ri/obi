@@ -10,9 +10,9 @@
      一屏——挂在内容层上时层宽不含两侧 16px 内边距，旧页会留下 16px 残边、
      新页入场前也会先露出一条。两层同距同速，接缝全程贴合。 */
   #main.page-in-right,#main.page-in-left{position:relative;z-index:10;will-change:transform}
-  #main.page-in-right{animation:page-in-right .28s cubic-bezier(.2,.8,.3,1);
+  #main.page-in-right{animation:page-in-right var(--dur-slow) var(--ease-out);
     box-shadow:-18px 0 50px var(--shadow-ink)}
-  #main.page-in-left{animation:page-in-left .28s cubic-bezier(.2,.8,.3,1)}
+  #main.page-in-left{animation:page-in-left var(--dur-slow) var(--ease-out)}
   /* 旧页快照：over=返回时盖在新页上方滑出，under=推入时在新页下方滑出 */
   .page-ghost{position:fixed;inset:0;overflow:hidden;pointer-events:none}
   .page-ghost main{min-height:100svh}
@@ -26,6 +26,6 @@
   @keyframes page-in-left{from{transform:translateX(-100%)}to{transform:none}}
   @keyframes page-out-left{from{transform:none}to{transform:translateX(-100%)}}
   @keyframes page-out-right{from{transform:none}to{transform:translateX(100%)}}
-  .page-ghost main.page-out-left{animation:page-out-left .28s cubic-bezier(.2,.8,.3,1) forwards}
-  .page-ghost main.page-out-right{animation:page-out-right .28s cubic-bezier(.2,.8,.3,1) forwards}
+  .page-ghost main.page-out-left{animation:page-out-left var(--dur-slow) var(--ease-out) forwards}
+  .page-ghost main.page-out-right{animation:page-out-right var(--dur-slow) var(--ease-out) forwards}
 }

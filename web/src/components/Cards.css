@@ -1,0 +1,58 @@
+/* Cards（AlbumCard 列表行）的选择与手机列表布局：行首选择钮、选择模式过渡、固定行高的方形封面。
+   覆盖 shelf.css / album-summary.css 的同名规则，所以靠组件样式晚于它们加载。只用 token。 */
+
+/* ── 列表行首选择钮：桌面隐藏，手机显示 ── */
+.select-lead{display:none}
+.select-lead input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.select-lead{position:relative;flex:none;width:44px;min-height:44px;align-items:center;justify-content:center;cursor:pointer}
+.select-mark{position:relative;display:block;width:24px;height:24px;box-sizing:border-box;border-radius:50%;
+  border:2px solid var(--border-strong);background:var(--surface-2);transition:background var(--dur) var(--ease-soft),border-color var(--dur) var(--ease-soft)}
+.select-lead input:checked + .select-mark{background:var(--accent);border-color:var(--accent)}
+.select-mark::after{content:"";position:absolute;left:7px;top:3px;width:5px;height:10px;border:solid var(--accent-ink);border-width:0 2px 2px 0;
+  opacity:0;transform:rotate(45deg) scale(.4);transition:opacity var(--dur-fast) var(--ease-soft),transform var(--dur) var(--ease-out)}
+.select-lead input:checked + .select-mark::after{opacity:1;transform:rotate(45deg) scale(1)}
+.select-lead input:focus-visible + .select-mark{outline:2px solid var(--accent-deep);outline-offset:2px}
+
+@media (max-width:840px){
+  /* 行首选择钮取代封面上的勾选框 */
+  .shelf-list .album-list-card{display:flex;flex-direction:row;align-items:flex-start;gap:6px;--cover-s:70px}
+  .shelf-list .album-list-card > .album-row{flex:1;min-width:0}
+  .shelf-list .album-cover .card-check{display:none}
+  /* 进入/退出选择模式：选择钮从左侧展开 / 收起（宽度 + 淡入），行内容随之平滑让位 */
+  .shelf-list .select-lead{display:flex;overflow:hidden;width:28px;height:var(--cover-s);min-height:0;
+    transition:width var(--dur-slow) var(--ease-out),margin var(--dur-slow) var(--ease-out),opacity var(--dur) var(--ease-soft),visibility 0s}
+  .shelf-page:not(.is-selecting) .select-lead{width:0;margin-right:-6px;opacity:0;visibility:hidden;pointer-events:none;
+    transition:width var(--dur-slow) var(--ease-out),margin var(--dur-slow) var(--ease-out),opacity var(--dur) var(--ease-soft),visibility 0s linear var(--dur-slow)}
+  /* 卡片视图的封面勾选框：淡入 + 轻微放大，取代直接显隐 */
+  .shelf-page .card-check{display:block;transition:opacity var(--dur) var(--ease-soft),transform var(--dur) var(--ease-out),visibility 0s}
+  .shelf-page:not(.is-selecting) .card-check{display:block;opacity:0;transform:scale(.7);visibility:hidden;pointer-events:none;
+    transition:opacity var(--dur) var(--ease-soft),transform var(--dur) var(--ease-out),visibility 0s linear var(--dur)}
+
+  /* 方形封面（完整、不裁切）与右侧文字块等高：行高固定为封面边长，
+     标题贴顶、版次贴底、艺人居中，封面上下边与文字块上下边平齐。
+     标题限 2 行、艺人限 1 行、版次与徽标同排，保证内容放得进这一行高。 */
+  .shelf-list .album-summary,.shelf-list .album-summary.has-actions{
+    grid-template-columns:var(--cover-s) minmax(0,1fr) max-content;
+    grid-template-areas:"cover title aside" "cover artist aside" "cover meta aside";
+    grid-template-rows:auto 1fr auto;height:var(--cover-s);align-items:stretch}
+  .shelf-list .album-cover{width:var(--cover-s);height:var(--cover-s);align-self:start}
+  .shelf-list .album-title{align-self:start}
+  .shelf-list .album-artist{align-self:center;overflow:hidden}
+  .shelf-list .album-artist .artist-button>span:first-child{-webkit-line-clamp:1}
+  /* 三行紧凑：标题/艺人/版次各自收紧行高，行间只留 70px 行高里剩下的空隙 */
+  .shelf-list .album-title{line-height:1.25}
+  .shelf-list .album-artist .artist-button{min-height:18px;line-height:1.25;font-size:12.5px}
+  .shelf-list .album-meta .list-badges .badge{line-height:1.2;padding:0 6px}
+  .shelf-list .album-meta{align-self:end;display:flex;align-items:center;gap:6px;min-width:0;margin-top:0}
+  .shelf-list .album-version{flex:0 1 auto;min-width:0}
+  .shelf-list .album-meta .list-badges{flex:none;margin-top:0;flex-wrap:nowrap}
+  .shelf-list .album-aside{align-self:center}
+  /* 价格与人民币估算分两行：日元在上、≈¥ 在下，右对齐，让出宽度给左侧文字 */
+  .shelf-list .album-purchase{flex-direction:column;flex-wrap:nowrap;align-items:flex-end;gap:0}
+}
+
+/* 触屏按下反馈：只改背景，没有位移 */
+@media (hover:none){
+  .shelf-list .album-list-card{transition:background var(--dur) var(--ease-soft)}
+  .shelf-list .album-list-card:active{background:var(--surface-2)}
+}

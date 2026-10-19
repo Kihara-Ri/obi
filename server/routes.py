@@ -3,6 +3,7 @@
 GET 处理函数签名 fn(h, svc)；POST 为 fn(h, svc, body)。
 h 提供 send()/query；svc 是注入的服务集合（见 context.Services）。
 """
+import datetime
 import hashlib
 import base64
 import mimetypes
@@ -114,9 +115,10 @@ def api_backup(h, svc):
 
 
 def api_export(h, svc):
+    stamp = datetime.date.today().strftime('%Y%m%d')
     if query(h).get('scope') == 'sales':
-        return h.send(export_csv.sales_csv(svc.store.state()), mime='text/csv; charset=utf-8', filename='sales.csv')
-    return h.send(export_csv.albums_csv(svc.store.state()), mime='text/csv; charset=utf-8', filename='albums.csv')
+        return h.send(export_csv.sales_csv(svc.store.state()), mime='text/csv; charset=utf-8', filename=f'sales-{stamp}.csv')
+    return h.send(export_csv.albums_csv(svc.store.state()), mime='text/csv; charset=utf-8', filename=f'albums-{stamp}.csv')
 
 
 # ── POST：登录与会话 ──────────────────────────────────────────────────

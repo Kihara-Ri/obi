@@ -1,6 +1,8 @@
 // ui 单元组件总入口：每个组件一个目录（组件 + 样式 + 入口同在）。
 // main.tsx 在页面样式之前 import 本文件，保证组件的基础样式先于页面里的覆盖规则加载。
 export {AutoTextarea} from './AutoTextarea';
+export {Collapse} from './Collapse';
+export type {CollapseProps} from './Collapse';
 export {Combobox} from './Combobox';
 export type {ComboOption, ComboboxProps} from './Combobox';
 export {Disclosure} from './Disclosure';

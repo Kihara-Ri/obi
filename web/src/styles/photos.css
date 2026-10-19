@@ -22,7 +22,7 @@
    开合从被点缩略图的位置与尺寸缩放过渡，背景与操作键随之淡入淡出（.lb-intro/.lb-closing）。
    背景独立成 ::before 层：收起时背景先隐、照片不透明地缩回缩略图。 */
 #lightbox{position:fixed;inset:0;z-index:80;overflow:hidden;cursor:zoom-out;touch-action:none}
-#lightbox::before{content:'';position:absolute;inset:0;background:rgba(4,6,10,.9);animation:lb-in .15s ease}
+#lightbox::before{content:'';position:absolute;inset:0;background:rgba(4,6,10,.9);animation:lb-in var(--dur) var(--ease-soft)}
 #lightbox.lb-closing::before{animation:lb-out .26s ease forwards}
 #lightbox[hidden]{display:none}
 .lb-track{position:absolute;inset:0}

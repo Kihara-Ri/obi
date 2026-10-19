@@ -10,3 +10,10 @@ div.nav-row{cursor:default}
 @media (max-width:840px){
   .nav-row{min-height:60px}
 }
+
+/* 触屏按下反馈：只改背景，没有位移；全局 hover 在触屏上点完会“粘住”，这里不留残影 */
+@media (hover:none){
+  .nav-row{transition:background var(--dur) var(--ease-soft)}
+  a.nav-row:active,button.nav-row:active{background:var(--surface-2)}
+  button.nav-row:hover:not(:active){background:none}
+}

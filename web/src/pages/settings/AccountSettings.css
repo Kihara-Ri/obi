@@ -1,0 +1,20 @@
+/* AccountSettings：账户页的行式入口。只用 token。 */
+.account-section h3{margin-bottom:4px}
+.account-section .small-note{margin:6px 0 0}
+.account-row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:60px;padding:10px 0;
+  border:none;border-bottom:1px solid var(--border);border-radius:0;background:none;text-align:left;font-weight:400}
+.account-row:last-child{border-bottom:none}
+.account-row:hover{background:none;border-color:transparent;border-bottom-color:var(--border)}
+.account-row:last-child:hover{border-bottom-color:transparent}
+.account-row-main{display:grid;gap:2px;min-width:0}
+.account-row-main strong{font-size:14px;font-weight:600}
+.account-row-main small{font-size:12px;color:var(--muted)}
+.account-row-action{flex:none;font-size:13px;font-weight:550;color:var(--accent-deep)}
+.account-row.is-danger .account-row-main strong{color:var(--red)}
+
+/* 触屏按下反馈：只改背景，没有位移 */
+@media (hover:none){
+  .account-row{transition:background var(--dur) var(--ease-soft)}
+  .account-row:active{background:var(--surface-2)}
+  .account-row:hover:not(:active){background:none}
+}
