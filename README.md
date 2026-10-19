@@ -114,7 +114,6 @@ tools/            deploy.sh 发布 · 打包 · 数据导入脚本
 - [更新记录](CHANGELOG.md) —— 按独立功能列出每次发布变化
 - [AGENTS.md](AGENTS.md) —— 开发标准与红线（agent / 贡献者必读）
 - [AI 开发复盘](AI开发复盘.md) —— 产品演进、历史纠错、原因与后续开发验收案例
-- [ChatGPT 项目上下文](docs/CHATGPT_PROJECT_CONTEXT.md) —— 可上传到「专辑助手」Project 的结构和产品约束摘要
 - [购买渠道图标与 Pi 模型认证](docs/PI_SHOP_BRANDS.md) —— 新渠道异步补全、ChatGPT OAuth 与测试说明
 - [模块扩展指南](docs/模块扩展指南.md) —— 模块契约、Agent 定制入口与代表性验收场景
 

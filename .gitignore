@@ -40,3 +40,17 @@ web/node_modules/
 .v2c/
 .zcode/
 .DS_Store
+# ai-kit R12（2026-10-17 同步套件）
+node_modules/
+build/
+coverage/
+.next/
+.turbo/
+.cache/
+.env.*
+*.local.json
+.idea/
+.vscode/
+.claude/settings.local.json
+*.sqlite
+*.db

@@ -82,7 +82,7 @@
 - 新增单张专辑先输入 8–14 位数字条形码，服务端经 MusicBrainz 精确查找 CD 发行版本；多个同码版本由人选，不允许仅按标题猜选。所选发行版自动带入名称、艺人、版号、厂牌、曲目等结构化信息，封面再尝试匹配。
 - 单张添加和编辑表单去掉大面积的发行资料 / 包装细节人工录入区；保留实物照片、采购金额、日期、渠道、位置和两条备注（副本备注 / 共享专辑备注）。额外买入费用靠近购买金额、小号次要呈现。编辑原记录可手动纠错名称、艺人。
 - **只精简 UI，不删除版本/包装/数字实体等数据字段**，不修改历史记录；详细元数据取舍等待真实条码样本确认。
-- 当前路由 `POST /api/catalog/barcode` 复用 `VisionService.catalog` 与 `MusicBrainzClient` 节流；单候选也须用户确认。具体信息可见 `docs/CHATGPT_PROJECT_CONTEXT.md`。
+- 当前路由 `POST /api/catalog/barcode` 复用 `VisionService.catalog` 与 `MusicBrainzClient` 节流；单候选也须用户确认。
 
 ## 验证门槛（全部通过才算完成）
 
@@ -118,4 +118,5 @@ DIEDU_DEV_HOME=/private/tmp/diedu-acceptance python3 tools/preview_samples.py --
 - 开工前读 `docs/log/` 最近 3 条、`DECISIONS.md`、`KNOWN-ISSUES.md`；收工前新增 `docs/log/日期-slug.md`。
 - 新建 UI 前先查 [组件注册表](web/src/components/REGISTRY.md)，相似组件扩展 props，不新建近似品；新组件先登记。
 - 颜色只经 token（D-002）；单文件不超过 200 行；组件文件顶部写用途注释。存量文件见 `.ai-kit/legacy.txt`，动到时顺手拆分并移出。
+- 治理文档（规范、契约、运维说明）统一登记在 [docs/README.md](docs/README.md)；新增、改名或删除 `docs/*.md` 须同步更新该索引。`tools/check_docs.py` 在提交前校验链接、路径、决策与问题编号，以及索引完整性。
 - 与本文件红线冲突时以本文件红线为准；提交前检查由 `tools/hooks/pre-commit` 依次执行数据泄漏扫描与 ai-kit 检查。

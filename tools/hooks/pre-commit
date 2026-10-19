@@ -3,5 +3,7 @@
 # 数据扫描通过后，继续执行 ai-kit 的代码纪律检查（.githooks/pre-commit，只检查暂存文件）。
 here="$(dirname "$0")"
 "$here/../check-data-leak.sh" --cached || exit 1
+# 治理文档一致性（链接、路径、决策/问题编号、索引登记）
+python3 "$here/../check_docs.py" || exit 1
 [ -x "$here/../../.githooks/pre-commit" ] && exec "$here/../../.githooks/pre-commit"
 exit 0
