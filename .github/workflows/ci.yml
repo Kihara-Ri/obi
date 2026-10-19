@@ -52,7 +52,7 @@ jobs:
   sample-browser:
     name: 真实封面与模型贴图浏览器验收
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       # job 级 env 不能引用 runner 上下文（会让整个工作流文件无效），改在首个步骤里写入环境
       - name: 准备预览目录变量

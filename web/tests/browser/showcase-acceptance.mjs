@@ -288,8 +288,19 @@ export async function accept(page, {baseURL, expectations, screenshotDir, saveSh
       }
       await scene.focus(); await page.keyboard.press('Enter');
       // Software GL runs the open spring at seconds per frame: the heaviest
-      // 2CD case needs ~35s here, so give the animation a real budget.
-      await page.waitForFunction(() => Number(document.querySelector('.album-model-scene')?.dataset.renderedOpen) > .98, null, {timeout: 120000});
+      // 2CD case needs ~35s on a Mac and far more on CI, so give the
+      // animation a real budget and dump the frozen state if it still fails.
+      try {
+        await page.waitForFunction(() => Number(document.querySelector('.album-model-scene')?.dataset.renderedOpen) > .98, null, {timeout: 300000});
+      } catch (error) {
+        console.log('[open-diag]', await page.evaluate(() => JSON.stringify({
+          rafPatched: !!window.__acceptanceRaf,
+          renderedOpen: document.querySelector('.album-model-scene')?.dataset.renderedOpen ?? null,
+          yaw: document.querySelector('.album-model-scene')?.dataset.yaw ?? null,
+          busy: document.querySelector('.album-model-scene')?.getAttribute('aria-busy') ?? null,
+        })).catch(e => String(e).split('\n')[0]));
+        throw error;
+      }
       const openYaw = await scene.getAttribute('data-yaw');
       await page.keyboard.press('ArrowRight'); await settle();
       check(await scene.getAttribute('data-yaw') !== openYaw, 'Album keyboard rotation must work');
