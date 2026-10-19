@@ -27,24 +27,26 @@ export async function accept(page, {baseURL, expectations, screenshotDir} = {}) 
   page.on('requestfailed', onFailure); page.on('response', onResponse); page.on('request', onRequest);
   const results = [];
   const settle = () => page.waitForTimeout(800); // 260 ms focus zoom, 690 ms card flip.
-  // Software GL (CI SwiftShader) starves page.screenshot while the engine keeps
-  // requesting frames for the hover hint under the settled pointer. Both engine
-  // contracts pause that loop: pointer leave clears hover, and reduced motion
-  // freezes hints and repaints one stable frame. Restore the preference after
-  // capture so the later motion checks keep their meaning.
-  const still = async () => {
-    await page.mouse.move(1, 1);
-    await page.emulateMedia({reducedMotion: 'reduce'});
-    await page.waitForFunction(() => new Promise(resolve => {
-      let frames = 0; const started = performance.now();
-      const tick = () => {frames++; if (performance.now() - started >= 400) resolve(frames <= 1); else requestAnimationFrame(tick);};
-      requestAnimationFrame(tick);
-    }), null, {timeout: 8000, polling: 500}).catch(() => {});
-  };
+  // The engine's open/rotate/disc motion is a JS physics loop, not CSS: it keeps
+  // requesting frames regardless of preferences, and under CI's software GL each
+  // pending frame costs seconds, so page.screenshot starved behind the queue
+  // (30s timeout). Park requestAnimationFrame around the capture — the already
+  // scheduled frame lands, the loop pauses, and screenshots are documentation
+  // only (every assertion is attribute-based). Restoring rAF resumes the loop.
   const shot = async path => {
-    await still();
-    await page.screenshot({path});
-    await page.emulateMedia({reducedMotion: 'no-preference'});
+    await page.evaluate(() => {
+      if (window.__acceptanceRaf) return;
+      window.__acceptanceRaf = window.requestAnimationFrame.bind(window);
+      window.requestAnimationFrame = () => 0;
+    });
+    try {await page.screenshot({path});}
+    finally {
+      await page.evaluate(() => {
+        if (!window.__acceptanceRaf) return;
+        window.requestAnimationFrame = window.__acceptanceRaf;
+        delete window.__acceptanceRaf;
+      });
+    }
   };
   const close = async () => {
     await page.keyboard.press('Escape');
