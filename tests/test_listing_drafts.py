@@ -65,12 +65,22 @@ class ListingDraftTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             self.store.save_listing_draft(self.payload())
 
+    def test_zip_file_label_is_safe_and_readable(self):
+        from server.listing_photos import file_label
+        self.assertEqual(file_label({'artist': 'AC/DC', 'title': 'Back: In "Black"?'}), 'AC DC - Back In Black')
+        self.assertEqual(file_label({'artist': '', 'title': '盗作'}), '盗作')
+        self.assertEqual(file_label({}), '')
+        self.assertLessEqual(len(file_label({'artist': 'a' * 90, 'title': 'b' * 90})), 103)
+
     def test_zip_uses_selected_order_and_only_this_copy(self):
         from server.listing_photos import photo_archive
         raw = photo_archive(self.store, self.rid, [1, 0], self.record()['photoRevision'])
         with zipfile.ZipFile(io.BytesIO(raw)) as archive:
-            self.assertEqual(archive.namelist(), ['01.png', '02.png'])
-            self.assertEqual(archive.read('01.png'), (self.store.photos_dir / self.rid / '1.png').read_bytes())
+            from server.listing_photos import file_label
+            label = file_label(self.record())
+            self.assertIn(self.record()['title'][:10], label)
+            self.assertEqual(archive.namelist(), [f'{label} - 01.png', f'{label} - 02.png'])
+            self.assertEqual(archive.read(f'{label} - 01.png'), (self.store.photos_dir / self.rid / '1.png').read_bytes())
         for order in ([], [2], [0, 0]):
             with self.assertRaises(ValidationError):
                 photo_archive(self.store, self.rid, order, self.record()['photoRevision'])

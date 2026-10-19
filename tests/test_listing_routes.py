@@ -43,7 +43,8 @@ class ListingRouteTests(unittest.TestCase):
         self.assertEqual(self.request(path, login=False)[0], 401)
         status, raw = self.request(path)
         self.assertEqual(status, 200)
-        with zipfile.ZipFile(io.BytesIO(raw)) as archive: self.assertEqual(archive.namelist(), ['01.png', '02.png'])
+        label = f"{r['artist']} - {r['title']}"
+        with zipfile.ZipFile(io.BytesIO(raw)) as archive: self.assertEqual(archive.namelist(), [f'{label} - 01.png', f'{label} - 02.png'])
         body = {'id': r['id'], 'revision': r['revision'], 'draft': {
             'title': '标题', 'description': '描述', 'photoOrder': [1, 0], 'photoRevision': r['photoRevision'],
             'versionConfirmed': False, 'conditionConfirmed': False}}

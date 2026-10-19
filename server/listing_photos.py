@@ -40,10 +40,19 @@ def read_photos(store, rid, order, revision):
     return record, images
 
 
+def file_label(record):
+    """文件名里的专辑标识：艺人 - 专辑名；去掉各系统不允许的字符并限长。"""
+    def clean(value):
+        value = re.sub(r'[\\/:*?"<>|\x00-\x1f]', ' ', str(value or ''))
+        return re.sub(r'\s+', ' ', value).strip(' .')[:50]
+    return ' - '.join(part for part in (clean(record.get('artist')), clean(record.get('title'))) if part)
+
+
 def photo_archive(store, rid, order, revision):
-    _, images = read_photos(store, rid, order, revision)
+    record, images = read_photos(store, rid, order, revision)
+    label = file_label(record)
     output = io.BytesIO()
     with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_STORED) as archive:
         for position, (_, extension, raw) in enumerate(images, 1):
-            archive.writestr(f'{position:02d}{extension}', raw)
+            archive.writestr(f'{label} - {position:02d}{extension}' if label else f'{position:02d}{extension}', raw)
     return output.getvalue()
