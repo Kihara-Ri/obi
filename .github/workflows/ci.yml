@@ -53,10 +53,12 @@ jobs:
     name: 真实封面与模型贴图浏览器验收
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      DIEDU_DEV_HOME: ${{ runner.temp }}/diedu-preview
-      DIEDU_PREVIEW_SCREENSHOTS: ${{ runner.temp }}/diedu-preview-screenshots
     steps:
+      # job 级 env 不能引用 runner 上下文（会让整个工作流文件无效），改在首个步骤里写入环境
+      - name: 准备预览目录变量
+        run: |
+          echo "DIEDU_DEV_HOME=$RUNNER_TEMP/diedu-preview" >> "$GITHUB_ENV"
+          echo "DIEDU_PREVIEW_SCREENSHOTS=$RUNNER_TEMP/diedu-preview-screenshots" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
