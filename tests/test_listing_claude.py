@@ -36,8 +36,9 @@ class ClaudeTests(unittest.TestCase):
         from server.listing_claude import ClaudeProvider
         with tempfile.TemporaryDirectory() as directory:
             provider = ClaudeProvider(Path(directory))
-            with patch.object(provider, 'run', return_value=json.dumps({'type': 'control_response', 'response': {
-                'response': {'models': [{'value': 'sonnet', 'supportedEffortLevels': ['low', 'high']}]}}})) as runner:
+            with patch('server.listing_claude.shutil.which', return_value='/test/claude'), \
+                    patch.object(provider, 'run', return_value=json.dumps({'type': 'control_response', 'response': {
+                        'response': {'models': [{'value': 'sonnet', 'supportedEffortLevels': ['low', 'high']}]}}})) as runner:
                 rows = provider.models()
                 self.assertEqual(rows[0]['value'], 'sonnet')
                 request = json.loads(runner.call_args.kwargs['input'])
@@ -47,7 +48,8 @@ class ClaudeTests(unittest.TestCase):
         from server.listing_claude import ClaudeProvider
         with tempfile.TemporaryDirectory() as directory:
             provider = ClaudeProvider(Path(directory))
-            with patch.object(provider, 'run', return_value='{"type":"result","is_error":true,"result":"error"}'):
+            with patch('server.listing_claude.shutil.which', return_value='/test/claude'), \
+                    patch.object(provider, 'run', return_value='{"type":"result","is_error":true,"result":"error"}'):
                 with self.assertRaises(ValidationError): provider.analyze('p', {'title': 'B', 'artist': 'A'}, [], 'opus', '')
 
     def test_pending_login_and_identity_change_reject_inference_before_cli(self):

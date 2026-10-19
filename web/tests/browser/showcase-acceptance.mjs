@@ -27,6 +27,25 @@ export async function accept(page, {baseURL, expectations, screenshotDir} = {}) 
   page.on('requestfailed', onFailure); page.on('response', onResponse); page.on('request', onRequest);
   const results = [];
   const settle = () => page.waitForTimeout(800); // 260 ms focus zoom, 690 ms card flip.
+  // Software GL (CI SwiftShader) starves page.screenshot while the engine keeps
+  // requesting frames for the hover hint under the settled pointer. Both engine
+  // contracts pause that loop: pointer leave clears hover, and reduced motion
+  // freezes hints and repaints one stable frame. Restore the preference after
+  // capture so the later motion checks keep their meaning.
+  const still = async () => {
+    await page.mouse.move(1, 1);
+    await page.emulateMedia({reducedMotion: 'reduce'});
+    await page.waitForFunction(() => new Promise(resolve => {
+      let frames = 0; const started = performance.now();
+      const tick = () => {frames++; if (performance.now() - started >= 400) resolve(frames <= 1); else requestAnimationFrame(tick);};
+      requestAnimationFrame(tick);
+    }), null, {timeout: 8000, polling: 500}).catch(() => {});
+  };
+  const shot = async path => {
+    await still();
+    await page.screenshot({path});
+    await page.emulateMedia({reducedMotion: 'no-preference'});
+  };
   const close = async () => {
     await page.keyboard.press('Escape');
     await page.locator('#gallery-focus').waitFor({state: 'detached'});
@@ -273,7 +292,7 @@ export async function accept(page, {baseURL, expectations, screenshotDir} = {}) 
         await page.keyboard.press('2');
         await page.waitForFunction(() => Number(document.querySelector('.album-model-scene')?.dataset.discProgress) < .01);
       }
-      if (screenshotDir) await page.screenshot({path: screenshotDir + '/' + model.recordId + '-3d.png'});
+      if (screenshotDir) await shot(screenshotDir + '/' + model.recordId + '-3d.png');
       await close(); await open(model);
       check(await page.locator('.album-webgl-canvas').count() === 0, 'Reopening returns to 2D');
       await close();
@@ -296,7 +315,7 @@ export async function accept(page, {baseURL, expectations, screenshotDir} = {}) 
         await page.locator('.album-flip-rotor').click(); await settle();
         await page.locator('.album-metal-canvas[data-metal-status="rendered"]').waitFor();
         metalColors.push(await page.locator('.album-flip-back').evaluate(node => getComputedStyle(node).backgroundImage));
-        if (screenshotDir) await page.screenshot({path: screenshotDir + (liked ? '/card-gold.png' : '/card-silver.png')});
+        if (screenshotDir) await shot(screenshotDir + (liked ? '/card-gold.png' : '/card-silver.png'));
         await close();
       } finally {await page.unroute('**/api/album-favorites', route);}
     }
