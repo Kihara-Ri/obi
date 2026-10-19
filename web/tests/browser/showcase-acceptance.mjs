@@ -287,7 +287,9 @@ export async function accept(page, {baseURL, expectations, screenshotDir, saveSh
         }
       }
       await scene.focus(); await page.keyboard.press('Enter');
-      await page.waitForFunction(() => Number(document.querySelector('.album-model-scene')?.dataset.renderedOpen) > .98, null, {timeout: 30000});
+      // Software GL runs the open spring at seconds per frame: the heaviest
+      // 2CD case needs ~35s here, so give the animation a real budget.
+      await page.waitForFunction(() => Number(document.querySelector('.album-model-scene')?.dataset.renderedOpen) > .98, null, {timeout: 120000});
       const openYaw = await scene.getAttribute('data-yaw');
       await page.keyboard.press('ArrowRight'); await settle();
       check(await scene.getAttribute('data-yaw') !== openYaw, 'Album keyboard rotation must work');
@@ -296,14 +298,14 @@ export async function accept(page, {baseURL, expectations, screenshotDir, saveSh
         await page.waitForFunction(() => {
           const node = document.querySelector('.album-model-scene');
           return node?.dataset.disc === '2' && Number(node.dataset.discProgress) > .98;
-        });
+        }, null, {timeout: 90000});
         const albumYaw = await scene.getAttribute('data-yaw');
         const discYaw = await scene.getAttribute('data-disc-yaw');
         await page.keyboard.press('ArrowRight'); await settle();
         check(await scene.getAttribute('data-yaw') === albumYaw && await scene.getAttribute('data-disc-yaw') !== discYaw,
           'Extracted CD 2 must rotate independently');
         await page.keyboard.press('2');
-        await page.waitForFunction(() => Number(document.querySelector('.album-model-scene')?.dataset.discProgress) < .01);
+        await page.waitForFunction(() => Number(document.querySelector('.album-model-scene')?.dataset.discProgress) < .01, null, {timeout: 90000});
       }
       if (screenshotDir) await shot(screenshotDir + '/' + model.recordId + '-3d.png');
       await close(); await open(model);
