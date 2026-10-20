@@ -95,7 +95,8 @@ try {
   const download = await downloadWait;
   assert.equal(await download.failure(), null);
   await download.saveAs(join(output, 'listing-photos.zip'));
-  await page.keyboard.press('Escape');
+  await page.getByRole('button', {name: '关闭', exact: true}).click();
+  await page.getByRole('heading', {name: '专辑详情'}).waitFor({state: 'hidden'});
   await open();
   assert.equal(await page.getByRole('textbox', {name: '售卖正文', exact: true}).inputValue(), description);
   await page.setViewportSize({width: 390, height: 844});
