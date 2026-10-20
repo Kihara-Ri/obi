@@ -456,7 +456,13 @@ def api_engine_asset(h, svc):
     version, separator, name = tail.partition('/')
     if not separator: raise ValidationError('插件资源地址无效')
     path = svc.plugins.asset(name, version=version)
-    h.send(path.read_bytes(), mime=mimetypes.guess_type(path.name)[0] or 'application/octet-stream')
+    # 资源地址带插件版本、内容由清单 sha256 固定：之前一律 no-store，每次点 3D 都要重下 Three.js 与数 MB 的 GLB。
+    # 现在带强 ETag，一天内直接命中浏览器缓存，过期后 304 重新校验；同版本重装内容不变，不会读到旧文件。
+    digest = svc.plugins.asset_digest(name)
+    etag = f'"{digest}"' if digest else None
+    cache = 'private, max-age=86400'
+    if etag and h.headers.get('If-None-Match') == etag: return h.not_modified(etag, cache)
+    h.send(path.read_bytes(), mime=mimetypes.guess_type(path.name)[0] or 'application/octet-stream', cache=cache if etag else None, etag=etag)
 def api_twin_model_asset(h, svc):
     parts = urlsplit(h.path).path.split('/')
     if len(parts) != 5: raise ValidationError('模型资源地址无效')

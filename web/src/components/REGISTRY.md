@@ -19,7 +19,7 @@
 | `ShipmentStack` | 包裹内专辑：默认收起为叠放封面（≤5 张 + `+N`），点击展开为列表 | `records` `children`（展开后的列表） | 叠放 vs 列表 + 箭头朝向，`aria-expanded` | 封面收成小缩略、箭头翻转 |
 | `Disclosure` | 折叠说明：把解释性文字收起来，主界面只留控件和数字 | `summary?`（默认「说明」） `children` | 原生 details，键盘/读屏开箱可用 | 前置箭头旋转 |
 | `SearchField` | 搜索框：放大镜 + 清除按钮，Esc 清空 | `value` `onChange` `ariaLabel` `placeholder?` | 清除后焦点回到输入框 | 有内容时出现清除按钮 |
-| `Toast` | 全局消息：边框环绕一周后淡出 | `kind('ok'｜'warn'｜'err')` `text` `onDone` | 错误 role=alert，其余 status；悬停/聚焦暂停；点击关闭；错误停留 6 秒，警告 3.5 秒，成功 2 秒 | 环绕路径的颜色按级别区分，另有文字 |
+| `Toast` | 全局消息：边框环绕一周后淡出；可带一个操作按钮（如「撤销」，停留 8 秒） | `kind('ok'｜'warn'｜'err')` `text` `action?` `onDone` | 错误 role=alert，其余 status；悬停/聚焦暂停；点击关闭；错误停留 6 秒，警告 3.5 秒，成功 2 秒 | 环绕路径的颜色按级别区分，另有文字 |
 | `AutoTextarea` | 随内容长高的多行输入 | `value` `maxRows?` + textarea 原生属性 | 宽度变化时重算高度；支持 ref | — |
 
 > **滑块类控件统一用 `useSlidingThumb`**（`ui/SlidingThumb`）：`Seg` 的滑块、库存页国内/海外的下划线共用它，时长与缓动统一取 tokens 的 `--slide-ms` / `--slide-ease`（底栏胶囊也用同一组）。新做带滑块的控件不要再自己测量位置。
@@ -32,6 +32,9 @@
 
 | 组件 | 用途 | 备注 |
 | --- | --- | --- |
+| `ModuleChooser` `ModulePresets` `ModuleImpact` | 设置 · 功能与首次设置：使用方式卡片 → 界面变化预览（与已保存配置对比，新增 / 收起用文字标记）→ 微调开关与首页 | 预览数据来自 `core/modules` 的 `SURFACE_GROUPS`，与导航及表单的模块判断同步维护 |
+| `ListingSteps` | 上架资料顶部三步进度（分析照片 / 核对 / 生成文案） | `steps[{label,done}]`；当前步 = 第一个未完成 |
+| `PurchaseForm` | 管理页「编辑买入信息」：金额 / 币种 / 日期 / 额外费用 / 渠道 | 复用 `MoneySection`、`ShopField`；管钱的编辑都放这里 |
 | `PhotoDownload` | 专辑详情「实物照片」标题右侧的下载图标：手机把原图交给系统分享面板（存储图像进相册），桌面下载 ZIP | `id` `count` `revision` `artist` `title`；手机进入详情时预取照片，分享须在点击手势内同步调用；加载中禁用，图标有 aria-label |
 | `ListingReview` | 照片证据、版本候选及人工核对 | 不自动采用候选或覆盖文案；确认用 checkbox |
 | `ListingSettings` | 独立多服务商连接、模型与思考强度 | 复用 Dropdown；连接用文字状态；密钥/令牌不回传 |

@@ -45,7 +45,7 @@ export function useFormSubmit() {
   return {error, saving, run, setError};
 }
 
-export async function bulkAction(app: AppCtx, action: string, ids: string[], successMsg = '已更新') {
+export async function bulkAction(app: AppCtx, action: string, ids: string[], successMsg = '已更新', undo?: {action: string; label?: string}) {
   try {
     await api('bulk', {action, ids});
   } catch (e) {
@@ -55,5 +55,5 @@ export async function bulkAction(app: AppCtx, action: string, ids: string[], suc
   app.setSelected(new Set());
   app.closeDrawer(true);
   await app.refresh();
-  app.toast(successMsg);
+  app.toast(successMsg, 'ok', undo ? {label: undo.label ?? '撤销', run: () => { void bulkAction(app, undo.action, ids, '已撤销'); }} : undefined);
 }

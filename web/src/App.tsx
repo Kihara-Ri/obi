@@ -16,7 +16,7 @@ import {Drawer} from './components/ui/Drawer';
 import {GearIcon} from './components/ui/GearIcon';
 import {Lightbox} from './components/ui/Lightbox';
 import {Toast} from './components/ui/Toast';
-import type {ToastKind} from './state/AppContext';
+import type {ToastAction, ToastKind} from './state/AppContext';
 import {ShelfPage} from './pages/ShelfPage';
 import {TransitPage} from './pages/TransitPage';
 import {ShippingPage} from './pages/ShippingPage';
@@ -92,7 +92,7 @@ export default function App() {
   // 所以详情页的滚动位置、已加载的图片、爱心与照片预取结果都不会因为进出二级页而重新加载。
   const [drawerPages, setDrawerPages] = useState<DrawerSpec[]>([]);
   const drawerDirty = useRef(false);
-  const [toastMsg, setToastMsg] = useState<{key: number; kind: ToastKind; text: string} | null>(null);
+  const [toastMsg, setToastMsg] = useState<{key: number; kind: ToastKind; text: string; action?: ToastAction} | null>(null);
   const [offline, setOffline] = useState(!navigator.onLine);
   const [installEvt, setInstallEvt] = useState<Event | null>(null);
   const [inventoryPage, setInventoryPage] = useState('domestic');
@@ -132,8 +132,8 @@ export default function App() {
   }, [state, page, route]);
 
   // 消失时机由 Toast 组件自己的计时器决定（按级别区分时长、悬停暂停），这里只负责换新
-  const toast = useCallback((msg: string, kind: ToastKind = 'ok') => {
-    setToastMsg(t => ({key: (t?.key ?? 0) + 1, kind, text: msg}));
+  const toast = useCallback((msg: string, kind: ToastKind = 'ok', action?: ToastAction) => {
+    setToastMsg(t => ({key: (t?.key ?? 0) + 1, kind, text: msg, action}));
   }, []);
 
   // 数字输入框聚焦时，滚动页面/抽屉的滚轮会悄悄改掉金额；滚轮一动就让它失焦
@@ -541,7 +541,7 @@ export default function App() {
       </nav>
       {drawer ? <Drawer spec={drawer} closing={drawerClosing} pages={drawerPages} pageKey={drawerPage.key} direction={drawerPage.direction}
                         onClose={() => closeDrawer()} onClosed={drawerExited}/> : null}
-      {toastMsg ? <Toast key={toastMsg.key} kind={toastMsg.kind} text={toastMsg.text} onDone={() => setToastMsg(null)}/> : null}
+      {toastMsg ? <Toast key={toastMsg.key} kind={toastMsg.kind} text={toastMsg.text} action={toastMsg.action} onDone={() => setToastMsg(null)}/> : null}
       <Lightbox/>
     </AppContext.Provider>
   );

@@ -1,0 +1,11 @@
+/* 上架资料表单：分析 / 文案卡片、提示、发布记录折叠块（核对卡片样式在 ListingReview.css） */
+.listing-analyze,.listing-review{margin-bottom:var(--listing-gap)}
+.listing-copy{margin-bottom:var(--listing-gap)}
+.listing-card .small-note{margin:0}
+.listing-actions{display:flex;gap:8px;flex-wrap:wrap}
+.listing-note{margin:0;font-size:12.5px;color:var(--muted)}
+.listing-note.is-warn{color:var(--orange)}
+.listing-analyze button{justify-self:start}
+.listing-publish{padding:var(--listing-gap);border:1px dashed var(--border-strong);border-radius:var(--radius)}
+.listing-publish summary{cursor:pointer;font-size:13px;font-weight:600}
+.listing-publish[open] summary{margin-bottom:10px}

@@ -46,7 +46,7 @@ export function BulkBar({page, ids, isTrash}: {page: string; ids: string[]; isTr
             {modules.trading ? <><button className="primary" onClick={() => openSaleForm(app, sel)}>合单售出</button>
             <button onClick={() => bulkAction(app, 'list', sel, '已标记上架')}>标记上架</button>
             <button onClick={() => bulkAction(app, 'unlist', sel, '已取消上架')}>取消上架</button></> : null}
-            {modules.circulation ? <button onClick={() => bulkAction(app, 'to_overseas', sel)}>调回海外</button> : null}
+            {modules.circulation ? <button onClick={() => bulkAction(app, 'to_overseas', sel, '已调回海外', {action: 'undo_to_overseas'})}>调回海外</button> : null}
           </>
         ) : null}
         {!isTrash

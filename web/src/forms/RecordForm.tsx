@@ -52,7 +52,7 @@ export function RecordForm({id}: {id?: string}) {
   const cover = useCoverSearch(ctx, !!r?.cover);
   const lookup = useReleaseLookup(ctx, cover, r);
   const {hints, dupHint, onTitleInput, onArtistInput, applyHint} = useRecordHints(ctx, cover);
-  const preview = useCostPreview(v, modules.acquisition);
+  const preview = useCostPreview(v, modules.acquisition && !id);
   const photos = usePhotoSlots(
     r ? Array.from({length: r.photoCount || 0}, (_, i) => ({existing: i})) : [], app.toast);
   // 该副本若在日元运单里分摊过运费，费用字段下注明日元原额与折算
@@ -86,7 +86,7 @@ export function RecordForm({id}: {id?: string}) {
     if (lookup.coverBusy) {setError('封面还在匹配中（通常约 10 秒），稍候再保存；也可以之后在编辑里补封面');return;}
     if (photos.hasPending) { setError('还有照片在处理中，等缩略图就绪后再保存'); return; }
     run(app, async () => {
-      await api('records', buildPayload(base.current, v, where, photos.slots, modules.acquisition));
+      await api('records', buildPayload(base.current, v, where, photos.slots, modules.acquisition && !id));
     }, '已保存', {backOnSave: !!id});
   };
 
@@ -119,7 +119,8 @@ export function RecordForm({id}: {id?: string}) {
         <h3 className="section-title form-group-title">这一张</h3>
         <PackageReview ctx={ctx} record={r}/>
         <CopyEditionFields obi={v.obi} onChange={change => { set(change); dirty(); }}/>
-        {modules.acquisition || (!id && modules.circulation) ? <>
+        {/* 编辑已有专辑时不含买入信息：钱的部分在「管理」里编辑（PurchaseForm） */}
+        {!id && (modules.acquisition || modules.circulation) ? <>
           <h3 className="section-title form-group-title">购买信息</h3>
           <div className="row-group">
             {modules.acquisition ? <MoneySection ctx={ctx} preview={preview} shipItem={shipItem}/> : null}

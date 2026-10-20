@@ -24,6 +24,8 @@ export interface DrawerSpec {
 
 // 消息级别：成功（绿）/ 警告（黄）/ 错误（红）
 export type ToastKind = 'ok' | 'warn' | 'err';
+/** toast 里的一个操作按钮（如「撤销」）；带按钮的 toast 停留更久 */
+export interface ToastAction {label: string; run(): void}
 
 export interface AppCtx {
   state: AppState;
@@ -44,7 +46,7 @@ export interface AppCtx {
   twins: TwinIndex;
   twinSyncError: string;
   refreshTwins(): Promise<void>;
-  toast(msg: string, kind?: ToastKind): void;
+  toast(msg: string, kind?: ToastKind, action?: ToastAction): void;
   openDrawer(spec: DrawerSpec): void;
   /** 请求关闭抽屉（脏表单会先弹确认）。返回 false = 被用户取消，抽屉保持打开。 */
   closeDrawer(force?: boolean): boolean;

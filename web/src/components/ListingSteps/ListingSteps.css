@@ -1,0 +1,10 @@
+/* ListingSteps：三步进度条。颜色只走 token；窄屏保持三列等分。 */
+.listing-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;list-style:none;margin:0 0 14px;padding:0}
+.listing-steps li{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);font-size:12.5px;font-weight:600;color:var(--muted);min-width:0}
+.listing-steps small{display:block;font-size:11px;font-weight:400;margin-top:1px}
+.listing-step-dot{flex:none;display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border-strong);font-size:12px}
+.listing-steps .is-current{color:var(--text);border-color:var(--accent-deep)}
+.listing-steps .is-current .listing-step-dot{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.listing-steps .is-done{color:var(--text)}
+.listing-steps .is-done .listing-step-dot{background:var(--green);border-color:var(--green);color:var(--bg)}
+@media (max-width:520px){.listing-steps li{flex-direction:column;align-items:flex-start;gap:4px}}
