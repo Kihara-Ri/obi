@@ -1,0 +1,24 @@
+.lookup-page{max-width:680px;display:flex;flex-direction:column;gap:16px}
+.lookup-form{display:flex;gap:8px}
+.lookup-form input{flex:1;min-width:0}
+.lookup-recent{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:var(--faint)}
+.lookup-recent .chip{padding:4px 10px;border:1px solid var(--border);border-radius:999px;background:var(--surface-2);font-size:12px}
+.lookup-recent .quiet{font-size:12px;color:var(--faint);text-decoration:underline}
+.lookup-msg{font-size:13px;color:var(--muted)}
+.lookup-msg.is-error{color:var(--red)}
+.lookup-page h2{font-size:12px;font-weight:550;color:var(--faint);margin-bottom:8px}
+.lookup-page ul{list-style:none;display:flex;flex-direction:column;gap:8px}
+.lookup-local li button{display:flex;gap:10px;align-items:baseline;width:100%;padding:10px 12px;text-align:left;
+  border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2)}
+.lookup-local li span{color:var(--muted);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lookup-local li em{font-style:normal;font-size:12px;color:var(--faint);flex:none}
+.lookup-card{padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);
+  display:flex;flex-direction:column;gap:8px}
+.lc-main{display:flex;flex-direction:column}
+.lc-main span{color:var(--muted);font-size:13px}
+.lc-chips{display:flex;flex-wrap:wrap;gap:6px}
+.lc-chip{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--surface-3);color:var(--muted)}
+.lc-actions{display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.lc-actions a{color:var(--muted)}
+.lc-actions button{padding:6px 14px;border:1px solid var(--accent-deep);border-radius:var(--radius-sm);color:var(--accent-deep)}
+.lc-actions button:disabled{opacity:.5}

@@ -7,7 +7,7 @@ import {today} from '../core/format';
 import {prefs} from '../core/prefs';
 import {useApp} from '../state/AppContext';
 import type {AppCtx} from '../state/AppContext';
-import type {AlbumRecord, Currency, Status} from '../types';
+import type {AlbumRecord, Currency, ReleaseCandidate, Status} from '../types';
 import {CopyEditionFields} from '../components/CopyEditionFields';
 import {Seg} from '../components/ui/Seg';
 import {ShopField} from '../components/ShopField';
@@ -15,7 +15,7 @@ import {Field, TextareaField} from './fields';
 import {usePhotoSlots} from './PhotoSlots';
 import {useFormSubmit} from './shared';
 import {buildPayload} from './record/buildPayload';
-import {initialValues, type FormCtx, type RecordValues} from './record/context';
+import {initialValues, seedFields, type FormCtx, type RecordValues} from './record/context';
 import {CoverPanel} from './record/CoverPanel';
 import {MoneySection} from './record/MoneySection';
 import {PhotoEntry} from './record/PhotoEntry';
@@ -26,11 +26,12 @@ import {useCoverSearch} from './record/useCoverSearch';
 import {useRecordHints} from './record/useRecordHints';
 import {useReleaseLookup} from './record/useReleaseLookup';
 
-export function openRecordForm(app: AppCtx, id?: string) {
-  app.openDrawer({title: id ? '编辑专辑' : '添加专辑', asForm: true, content: <RecordForm id={id}/>});
+/** seed：从「查询」页带入已核对的发行版，作为新增表单的初始资料。 */
+export function openRecordForm(app: AppCtx, id?: string, seed?: ReleaseCandidate) {
+  app.openDrawer({title: id ? '编辑专辑' : '添加专辑', asForm: true, content: <RecordForm id={id} seed={seed}/>});
 }
 
-export function RecordForm({id}: {id?: string}) {
+export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
   const app = useApp();
   const {modules} = app;
   const r = id ? app.rec(id) : undefined;
@@ -40,6 +41,7 @@ export function RecordForm({id}: {id?: string}) {
     title: '', artist: '', price: '', date: modules.acquisition ? today() : '',
     currency: (prefs.get('currency', modules.circulation ? 'JPY' : 'CNY') as Currency) || 'CNY',
     location: modules.acquisition ? prefs.get('location', '') : '', fees: '0', actual: '', note: '',
+    ...(seed ? seedFields(seed) : {}),
   });
   const where: Status | null = r ? null : !modules.circulation ? 'domestic' : (base.current.currency === 'CNY' ? 'domestic' : 'overseas');
   const [v, setV] = useState<RecordValues>(() => initialValues(base.current, where));

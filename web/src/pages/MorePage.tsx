@@ -15,6 +15,12 @@ export function MorePage({installEvt, onInstalled}: {installEvt: Event | null; o
   return <>
     <PageHead title="更多" label="YOUR LEDGER"/>
     <div className="more-page">
+      <section aria-labelledby="more-lookup">
+        <h2 id="more-lookup">查询</h2>
+        <nav aria-label="查询">
+          <NavRow href="#lookup" icon="⌕" title="条码 / 编号查询"/>
+        </nav>
+      </section>
       {hasLedger ? <section aria-labelledby="more-records">
         <h2 id="more-records">账本</h2>
         <nav aria-label="账本与记录">

@@ -15,10 +15,10 @@ const VALID_BARCODE = /^(?:\d{8}|\d{12,14})$/;
 
 export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecord | undefined) {
   const {v, set, setV, live, dirty, formRef} = ctx;
-  const [barcode, setBarcode] = useState(r?.releaseInfo?.barcode || '');
-  const [catalogNumber, setCatalogNumber] = useState(r?.releaseInfo?.catalogNumber || '');
-  const [mode, setModeState] = useState<LookupMode>(
-    r?.releaseInfo?.catalogNumber && !r?.releaseInfo?.barcode ? 'catalog' : 'barcode');
+  const initialInfo = r?.releaseInfo ?? ctx.base.current.releaseInfo;
+  const [barcode, setBarcode] = useState(initialInfo?.barcode || '');
+  const [catalogNumber, setCatalogNumber] = useState(initialInfo?.catalogNumber || '');
+  const [mode, setModeState] = useState<LookupMode>(initialInfo?.catalogNumber && !initialInfo?.barcode ? 'catalog' : 'barcode');
   const [candidates, setCandidates] = useState<ReleaseCandidate[]>([]);
   const [busy, setBusy] = useState(false);
   const [coverBusy, setCoverBusy] = useState(false);
@@ -29,7 +29,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
   const inflight = useRef<{key: string; promise: Promise<void>} | null>(null);
   const abort = useRef<AbortController | null>(null);
   // 修改条码后，只有旧发行版 ID 经校验通过、或用户从新候选中确认，才有可信身份。
-  const verified = useRef(r?.releaseInfo ? identityOf(r.releaseInfo) : '');
+  const verified = useRef(initialInfo ? identityOf(initialInfo) : '');
   // 两个资料库都没有时用户手动录入的版本：保存时不做资料库核对。
   const manualRelease = v.releaseInfo.manualRelease === '1' && !v.releaseInfo.musicBrainzReleaseId
     && !v.releaseInfo.discogsReleaseId;

@@ -22,6 +22,7 @@ import {TransitPage} from './pages/TransitPage';
 import {ShippingPage} from './pages/ShippingPage';
 import {TradesPage} from './pages/TradesPage';
 import {StatsPage} from './pages/StatsPage';
+import {LookupPage} from './pages/LookupPage';
 import {SettingsPage} from './pages/SettingsPage';
 import {SetupPage} from './pages/SetupPage';
 import {MorePage} from './pages/MorePage';
@@ -35,6 +36,7 @@ const NAV = [
   {hash: 'shipping', ico: '◨', label: '售出中'},
   {hash: 'trades', ico: '↗', label: '交易记录'},
   {hash: 'stats', ico: '◷', label: '账本'},
+  {hash: 'lookup', ico: '⌕', label: '查询'},
 ];
 
 // 手机把国内 / 海外收进库存页；低频入口通过独立「更多」页访问。
@@ -47,14 +49,14 @@ const MOBILE_TABS = [
 // 以管理为主的用户不占标签，改用库存页 / 展示页顶栏的「库存｜展示」切换（ShowcaseSwitch）。
 const GALLERY_TAB = {hash: 'gallery', ico: '▦', label: '展示', count: ''} as const;
 
-const MORE_HASHES = new Set(['more', 'trades', 'stats', 'settings', 'trash']);
+const MORE_HASHES = new Set(['more', 'lookup', 'trades', 'stats', 'settings', 'trash']);
 
 // 手机页面切换的空间方向：rank 是页面在横向层级里的位置（底栏从左到右，
 // 「更多」的子页比「更多」更深，回收站从设置进入）。进入更深的页面从右侧推入，
 // 向左返回时当前页向右滑出；桌面与 prefers-reduced-motion 不做切换动画。
 const PAGE_RANK: Record<string, number> = {
   domestic: 0, overseas: .5, gallery: 1, transit: 2, shipping: 3,
-  more: 4, trades: 4.2, stats: 4.3, settings: 4.4, trash: 4.5,
+  more: 4, lookup: 4.1, trades: 4.2, stats: 4.3, settings: 4.4, trash: 4.5,
 };
 
 export default function App() {
@@ -480,6 +482,7 @@ export default function App() {
       : page === 'shipping' ? <ShippingPage/>
         : page === 'trades' ? <TradesPage/>
           : page === 'stats' ? <StatsPage/>
+            : page === 'lookup' ? <LookupPage/>
             : page === 'more' ? <MorePage installEvt={installEvt} onInstalled={() => setInstallEvt(null)}/>
               : <SettingsPage/>;
 
