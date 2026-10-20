@@ -4,6 +4,7 @@ import {test} from 'node:test';
 import {join} from 'node:path';
 
 const {output, require} = compiledSources();
+const {releaseText, askText} = require(join(output, 'core/lookup-text.js'));
 const {classify, gs1Valid, localMatches, pushRecent} = require(join(output, 'core/lookup.js'));
 
 test('条码校验位按 GS1 规则计算', () => {
@@ -37,4 +38,18 @@ test('最近查询去重并置顶，最多 8 条', () => {
   for (let i = 0; i < 10; i++) list = pushRecent(list, 'q' + i);
   assert.equal(list.length, 8);
   assert.deepEqual(pushRecent(['a', 'b'], 'b'), ['b', 'a']);
+});
+
+test('复制文字：含版本资料与曲目，不含实物观察与个人信息，提问版带前缀', () => {
+  const c = {id: 'x', title: 'IV', artist: 'Led Zeppelin', url: 'https://musicbrainz.org/release/x', releaseInfo: {}};
+  const info = {catalogNumber: 'AMCY-2434', barcode: '4988029243447', label: 'Atlantic', matrix: 'secret',
+    media: [{position: 1, format: 'CD', title: '', tracks: [{position: 1, title: 'Black Dog', lengthMs: 296000}]}]};
+  const text = releaseText(c, info, '已有 1 张（国内库存）');
+  assert.match(text, /^Led Zeppelin - IV\n/);
+  assert.match(text, /唱片编号：AMCY-2434/);
+  assert.match(text, /我的收藏：已有 1 张/);
+  assert.match(text, /1\. Black Dog \(4:56\)/);
+  assert.doesNotMatch(text, /secret/);
+  assert.ok(askText(text).endsWith(text));
+  assert.match(askText(text), /不要编造/);
 });

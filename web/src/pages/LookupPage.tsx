@@ -5,12 +5,12 @@ import {useApp} from '../state/AppContext';
 import {PageHead} from '../components/PageHead';
 import {api} from '../core/api';
 import {statusName} from '../core/modules';
-import {dedupeCatalog} from '../core/release-metadata';
 import {classify, localMatches, loadRecent, pushRecent, saveRecent, type LookupKind} from '../core/lookup';
 import {failedSources} from '../forms/record/pickRelease';
 import {openDetail} from '../forms/DetailDrawer';
 import {openRecordForm} from '../forms/RecordForm';
 import type {ReleaseCandidate, ReleaseInfo} from '../types';
+import {LookupCard} from './LookupCard';
 import './LookupPage.css';
 
 interface Found {kind: LookupKind; value: string; candidates: ReleaseCandidate[]; note: string}
@@ -22,7 +22,6 @@ export function LookupPage() {
   const [found, setFound] = useState<Found | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [opening, setOpening] = useState('');
   const [recent, setRecent] = useState(loadRecent);
   const abort = useRef<AbortController | null>(null);
 
@@ -50,18 +49,14 @@ export function LookupPage() {
     }
   };
 
-  /** 带入新增表单：先补取曲目详情，取不到就用精确匹配的基本资料。 */
-  const addToLibrary = async (candidate: ReleaseCandidate) => {
-    setOpening(candidate.id);
-    let detail: Partial<ReleaseInfo> = {};
-    try {
-      detail = (await api<{releaseInfo: ReleaseInfo}>('release-details?id=' + encodeURIComponent(candidate.id))).releaseInfo;
-    } catch { /* 曲目暂不可用时保留基本资料 */ }
-    setOpening('');
-    openRecordForm(app, undefined, {...candidate, releaseInfo: {...candidate.releaseInfo, ...detail}});
+  /** 带入新增表单：详情由卡片取好（取不到时只有基本资料）。 */
+  const addToLibrary = (candidate: ReleaseCandidate, info: ReleaseInfo) => {
+    openRecordForm(app, undefined, {...candidate, releaseInfo: info});
   };
 
   const local = found ? localMatches(state.records, found.kind, found.value) : [];
+  const ownedNote = local.length
+    ? `已有 ${local.length} 张（${local.map(r => statusName(r.status, modules)).join('、')}）` : '还没有';
   const what = found?.kind === 'barcode' ? '条码' : '编号';
   return <>
     <PageHead title="查询" label="LOOKUP" desc="按条码或唱片编号查发行版资料，不会入库"/>
@@ -94,20 +89,8 @@ export function LookupPage() {
           {found.note ? <p className="lookup-msg">{found.note} 暂不可用，结果可能不全</p> : null}
           {!found.candidates.length && !found.note
             ? <p className="lookup-msg">两个资料库都没有这个{what}；不会按标题猜测相似版本。</p> : null}
-          <ul>{found.candidates.map(c => <li key={c.id} className="lookup-card">
-            <div className="lc-main"><strong>{c.title}</strong><span>{c.artist}</span></div>
-            <div className="lc-chips">
-              {[c.releaseInfo.label, dedupeCatalog(c.releaseInfo.catalogNumber), c.releaseInfo.barcode,
-                c.releaseInfo.country, c.releaseInfo.releaseDate, c.source === 'discogs' ? 'Discogs' : 'MusicBrainz']
-                .filter(Boolean).map(t => <span key={t} className="lc-chip">{t}</span>)}
-            </div>
-            <div className="lc-actions">
-              {c.url ? <a href={c.url} target="_blank" rel="noopener noreferrer">查看来源</a> : null}
-              <button type="button" onClick={() => void addToLibrary(c)} disabled={!!opening}>
-                {opening === c.id ? '读取中…' : '以此入库'}
-              </button>
-            </div>
-          </li>)}</ul>
+          <ul>{found.candidates.map(c => <LookupCard key={c.id} c={c} owned={ownedNote}
+            onAdd={info => addToLibrary(c, info)}/>)}</ul>
         </section>
       </> : null}
     </div>
