@@ -4,6 +4,8 @@ import {useRef, useState} from 'react';
 import {useApp} from '../state/AppContext';
 import {PageHead} from '../components/PageHead';
 import {api} from '../core/api';
+import {Thumb} from '../components/Cover';
+import {displayReleaseTitle} from '../core/release-metadata';
 import {statusName} from '../core/modules';
 import {classify, localMatches, loadRecent, pushRecent, saveRecent, type LookupKind} from '../core/lookup';
 import {failedSources} from '../forms/record/pickRelease';
@@ -79,8 +81,9 @@ export function LookupPage() {
           <h2>库里已有 {local.length} 张</h2>
           <ul>{local.map(r => <li key={r.id}>
             <button type="button" onClick={() => openDetail(app, r.id)}>
-              <strong>{r.title}</strong><span>{r.artist}</span>
-              <em>{statusName(r.status, modules)}</em>
+              <Thumb r={r}/>
+              <span className="ll-text"><strong>{displayReleaseTitle(r.title)}</strong><span>{r.artist}</span></span>
+              <span className={`pill ${r.status}`}>{statusName(r.status, modules)}</span>
             </button>
           </li>)}</ul>
         </section> : <p className="lookup-msg">库里还没有这个{what}</p>}

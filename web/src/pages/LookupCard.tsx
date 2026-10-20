@@ -4,14 +4,11 @@ import {useState} from 'react';
 import {useApp} from '../state/AppContext';
 import {api} from '../core/api';
 import {copyText} from '../core/clipboard';
-import {dedupeCatalog} from '../core/release-metadata';
-import {releaseLabels} from '../core/release-text';
+import {dedupeCatalog, regionName} from '../core/release-metadata';
 import {askText, releaseText} from '../core/lookup-text';
 import {Tracklist} from '../components/Tracklist';
 import type {ReleaseCandidate, ReleaseInfo} from '../types';
 import './LookupCard.css';
-
-const HIDDEN = new Set(['observations', 'matrix', 'extras']);
 
 export function LookupCard({c, owned, onAdd}: {
   c: ReleaseCandidate; owned: string; onAdd: (info: ReleaseInfo) => void;
@@ -42,29 +39,42 @@ export function LookupCard({c, owned, onAdd}: {
     app.toast(await copyText(ask ? askText(text) : text) ? (ask ? '已复制，连同提问' : '资料已复制') : '复制失败，请手动选择文字', 'warn');
   };
   const info = full ?? c.releaseInfo;
-  const rows = releaseLabels.filter(([key]) => !HIDDEN.has(key) && typeof info[key] === 'string' && info[key]);
+  const base = c.releaseInfo;
+  // 摘要里已经有的字段不在详情里重复：详情只补包装、版次说明、介质、碟数与曲目
+  const facts: [string, string | undefined][] = [
+    ['唱片编号', dedupeCatalog(base.catalogNumber)], ['条码', base.barcode], ['厂牌', base.label],
+    ['发行地区', regionName(base.country)], ['发行日', base.releaseDate]];
+  const extra: [string, string | undefined][] = [
+    ['包装', info.packaging], ['版次说明', info.edition], ['介质', info.format],
+    ['碟数', info.discCount ? info.discCount + ' 张' : '']];
+  const source = c.source === 'discogs' ? 'Discogs' : 'MusicBrainz';
 
   return <li className="lookup-card">
-    <div className="lc-main"><strong>{c.title}</strong><span>{c.artist}</span></div>
-    <div className="lc-chips">
-      {[c.releaseInfo.label, dedupeCatalog(c.releaseInfo.catalogNumber), c.releaseInfo.barcode,
-        c.releaseInfo.country, c.releaseInfo.releaseDate, c.source === 'discogs' ? 'Discogs' : 'MusicBrainz']
-        .filter(Boolean).map(t => <span key={t} className="lc-chip">{t}</span>)}
-    </div>
+    <header className="lc-head">
+      <div className="lc-main"><strong>{c.title}</strong><span>{c.artist}</span></div>
+      {c.url ? <a className="lc-source" href={c.url} target="_blank" rel="noopener noreferrer"
+        aria-label={`在 ${source} 查看`}>{source} ↗</a> : <span className="lc-source">{source}</span>}
+    </header>
+    <dl className="lc-facts">
+      {facts.filter(([, v]) => v).map(([k, v]) => <div key={k}><dt>{k}</dt><dd className="num">{v}</dd></div>)}
+    </dl>
+    <button type="button" className="lc-more" aria-expanded={open} onClick={toggle}>
+      <span>曲目与版本资料</span><i aria-hidden="true">{open ? '−' : '+'}</i>
+    </button>
     {open ? <div className="lc-detail">
       {busy ? <p className="lookup-msg" role="status">读取详情中…</p> : null}
       {error ? <p className="lookup-msg">{error}</p> : null}
-      <dl>{rows.map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{String(info[key])}</dd></div>)}</dl>
+      <dl className="lc-facts">
+        {extra.filter(([, v]) => v).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
+      </dl>
       <Tracklist releaseInfo={info}/>
     </div> : null}
     <div className="lc-actions">
-      <button type="button" className="lc-quiet" aria-expanded={open} onClick={toggle}>{open ? '收起详情' : '详情'}</button>
-      <button type="button" className="lc-quiet" onClick={() => void copy(false)} disabled={busy}>复制资料</button>
-      <button type="button" className="lc-quiet" onClick={() => void copy(true)} disabled={busy}>复制为提问</button>
-      {c.url ? <a href={c.url} target="_blank" rel="noopener noreferrer">来源</a> : null}
-      <button type="button" className="lc-add" onClick={async () => onAdd(await load())} disabled={busy}>
-        {busy ? '读取中…' : '以此入库'}
-      </button>
+      <button type="button" onClick={() => void copy(false)} disabled={busy}>复制资料</button>
+      <button type="button" onClick={() => void copy(true)} disabled={busy}>复制为提问</button>
     </div>
+    <button type="button" className="primary lc-add" onClick={async () => onAdd(await load())} disabled={busy}>
+      {busy ? '读取中…' : '以此入库'}
+    </button>
   </li>;
 }
