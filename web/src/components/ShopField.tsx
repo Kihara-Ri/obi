@@ -1,15 +1,17 @@
-// 购买渠道字段：聚焦列出全部历史店铺（图标 + 归并写法 + 次数排序），
-// 输入即过滤，可自由输入新店名。交互由 ui/Combobox 提供，这里只负责店铺数据、
-// 品牌图标（见 shopIcons.ts）与图标识别状态提示。
-import {useEffect, useMemo, useState} from 'react';
+// 购买渠道字段：手机友好的标签选择（不再用下拉）。常用店铺按购买次数排成一排标签，
+// 同一品牌的连锁店（如 Disk Union 新宿 / 渋谷）归成一组，点品牌展开第二层选分店；
+// 「＋ 其他」展开输入框录入新店名。店铺数据与同店不同写法归并见 mergeShops，品牌图标见 shopIcons.ts。
+import {Fragment, useEffect, useMemo, useState} from 'react';
 import type {AlbumRecord} from '../types';
 import {SHOP_ICONS} from './shopIcons';
+import {branchLabel, brandsFromKeys, groupShops, mergeShops, normShop} from '../core/shop-groups';
+import type {Group} from '../core/shop-groups';
 import {api} from '../core/api';
-import {Combobox} from './ui/Combobox';
 import './ShopField.css';
 
 type ShopBrand = {status: 'pending' | 'found' | 'no-icon' | 'unavailable'; name: string; icon?: string; domain?: string};
-const normShop = (s: string) => s.toLocaleLowerCase().replace(/[\s\u3000]+/g, '');
+const BRANDS = brandsFromKeys(SHOP_ICONS.map(([keys]) => keys));
+const TOP = 6; // 默认显示的品牌 / 店铺标签数，其余收进「更多」
 
 export function ShopMark({name, brands}: {name: string; brands?: Record<string, ShopBrand>}) {
   const s = (name || '').toLowerCase();
@@ -22,36 +24,21 @@ export function ShopMark({name, brands}: {name: string; brands?: Record<string, 
   return ch ? <span className="shop-letter">{ch.toUpperCase()}</span> : null;
 }
 
-// 同店不同写法归并（Disk union/disk union、SHIBUYA 109/SHIBUYA109…）：
-// 键为小写去空白，展示名取该店出现最多的写法；排序按归并后的总购买次数降序
-function mergeShops(records: AlbumRecord[], defaultShop: string) {
-  const groups = new Map<string, {spell: Map<string, number>; total: number}>();
-  const add = (s: string, n: number) => {
-    if (!s) return;
-    const k = normShop(s);
-    let g = groups.get(k);
-    if (!g) { g = {spell: new Map(), total: 0}; groups.set(k, g); }
-    g.spell.set(s, (g.spell.get(s) || 0) + n);
-    g.total += n;
-  };
-  records.forEach(r => add((r.location || '').trim(), 1));
-  if (defaultShop && !groups.has(normShop(defaultShop.trim()))) add(defaultShop.trim(), 0);
-  return [...groups.values()].map(g => {
-    let name = '', best = -1;
-    for (const [s, c] of g.spell) if (c > best) { name = s; best = c; }
-    return {name, count: g.total};
-  }).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'zh'));
-}
-
 export function ShopField({value, records, defaultShop, onChange}: {
   value: string;
   records: AlbumRecord[];
   defaultShop: string;
   onChange: (v: string) => void;
 }) {
-  const shops = useMemo(() => mergeShops(records, defaultShop), [records, defaultShop]);
+  const groups = useMemo(
+    () => groupShops(mergeShops(records.map(r => r.location || ''), defaultShop), BRANDS), [records, defaultShop]);
   const [brands, setBrands] = useState<Record<string, ShopBrand>>({});
   const [reloadKey, setReloadKey] = useState(0);
+  const current = normShop(value);
+  const ownGroup = groups.find(g => g.shops.some(s => normShop(s.name) === current));
+  const [open, setOpen] = useState<string | null>(ownGroup && ownGroup.shops.length > 1 ? ownGroup.key : null);
+  const [showAll, setShowAll] = useState(false);
+  const [typing, setTyping] = useState(false);
   useEffect(() => {
     let active = true;
     let timer: number | undefined;
@@ -70,7 +57,6 @@ export function ShopField({value, records, defaultShop, onChange}: {
     return () => {active = false; window.clearTimeout(timer);};
   }, [reloadKey]);
 
-
   const retry = async () => {
     const name = value.trim();
     if (!name) return;
@@ -83,20 +69,47 @@ export function ShopField({value, records, defaultShop, onChange}: {
     } catch { /* Keep the name editable if background model service is offline. */ }
   };
 
-  const options = useMemo(
-    () => shops.map(s => ({value: s.name, label: s.name, leading: <ShopMark name={s.name} brands={brands}/>})),
-    [shops, brands]);
+  const pick = (name: string) => { onChange(name); setTyping(false); };
+  const isOn = (g: Group) => g.shops.some(s => normShop(s.name) === current);
+  // 手填的新店名不在历史里：作为已选标签排在最前，保存前也能看到当前值
+  const custom = value.trim() && !ownGroup ? value.trim() : '';
+  const visible = showAll ? groups : groups.slice(0, TOP);
+  const status = brands[current]?.status;
 
   return (
-    <div className="field shop-field">
-      <label htmlFor="f-location">购买渠道</label>
-      <Combobox id="f-location" value={value} onChange={onChange} options={options}
-                placeholder="选择已有店铺，或输入新店铺" listLabel="已有店铺" toggleLabel="展开已有店铺"
-                leading={<ShopMark name={value} brands={brands}/>}
-                emptyHint={shops.length ? '没有匹配店铺，保存后将尝试补全商家图标。' : '输入店铺名称，保存后将尝试识别商家及其图标。'}/>
-      {brands[normShop(value)]?.status === 'pending' ? <small className="shop-discovery-hint">正在识别新渠道图标…</small> : null}
-      {brands[normShop(value)]?.status === 'found' ? <small className="shop-discovery-hint">已获取候选商家图标 · {brands[normShop(value)].domain}</small> : null}
-      {brands[normShop(value)]?.status === 'unavailable' ? <button type="button" className="shop-discovery-retry quiet" onClick={() => void retry()}>模型暂不可用 · 重试识别图标</button> : null}
+    <div className="row stack shop-field">
+      <label id="shop-label">购买渠道</label>
+      <div className="shop-chips" role="group" aria-labelledby="shop-label">
+        {custom ? <button type="button" className="chip on" aria-pressed="true" onClick={() => setTyping(true)}>
+          <ShopMark name={custom} brands={brands}/>{custom}</button> : null}
+        {visible.map(g => {
+          const multi = g.shops.length > 1;
+          const on = isOn(g);
+          // 分店行紧跟在被点的品牌标签后面（占满一行），而不是等所有品牌排完再统一显示
+          return <Fragment key={g.key}>
+            <button type="button" className={`chip${on ? ' on' : ''}${multi ? ' has-branches' : ''}`}
+              aria-pressed={on} aria-expanded={multi ? open === g.key : undefined}
+              onClick={() => multi ? setOpen(open === g.key ? null : g.key) : pick(g.shops[0].name)}>
+              <ShopMark name={g.label} brands={brands}/>{g.label}
+              {multi ? <span className="chip-branches" aria-hidden="true">{g.shops.length}</span> : null}
+            </button>
+            {multi && open === g.key ? <div className="shop-branches" role="group" aria-label={`${g.label} 分店`}>
+              {g.shops.map(s => <button type="button" key={s.name} className={`chip${normShop(s.name) === current ? ' on' : ''}`}
+                aria-pressed={normShop(s.name) === current} onClick={() => pick(s.name)}>
+                {branchLabel(s.name, g.aliases)}</button>)}
+            </div> : null}
+          </Fragment>;
+        })}
+        {groups.length > TOP ? <button type="button" className="chip quiet" onClick={() => setShowAll(v => !v)}>
+          {showAll ? '收起' : `更多 ${groups.length - TOP}`}</button> : null}
+        <button type="button" className={`chip quiet${typing ? ' on' : ''}`} aria-expanded={typing}
+          onClick={() => setTyping(v => !v)}>＋ 其他</button>
+      </div>
+      {typing ? <input className="shop-input" value={value} autoComplete="off" placeholder="输入店铺名称"
+        aria-label="新店铺名称" onChange={e => onChange(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); setTyping(false); } }}/> : null}
+      {status === 'pending' ? <small className="shop-discovery-hint">识别图标中…</small> : null}
+      {status === 'unavailable' ? <button type="button" className="shop-discovery-retry quiet" onClick={() => void retry()}>重试识别图标</button> : null}
     </div>
   );
 }

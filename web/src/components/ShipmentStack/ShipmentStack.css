@@ -1,0 +1,18 @@
+/* ShipmentStack：收起时封面横向叠放（后面的压在前面下方），展开后箭头翻转。只用 token。 */
+.ship-stack-toggle{display:flex;align-items:center;gap:12px;width:100%;padding:6px 4px;margin-bottom:6px;
+  background:none;border:0;color:var(--muted);cursor:pointer;text-align:left}
+.ship-stack-pile{position:relative;flex:none;height:64px;width:calc(64px + (var(--n,1) - 1) * 22px)}
+.ship-stack-layer{position:absolute;top:0;left:calc(var(--i) * 22px);width:64px;height:64px;border-radius:6px;overflow:hidden;
+  border:1px solid var(--border);background:var(--surface);box-shadow:2px 0 6px var(--shadow-ink);
+  transform:translateY(calc(var(--i) * 1px)) rotate(calc((var(--i) - 2) * 1.2deg));
+  transition:transform var(--dur) var(--ease-out)}
+.ship-stack-layer:nth-child(1){z-index:5}.ship-stack-layer:nth-child(2){z-index:4}.ship-stack-layer:nth-child(3){z-index:3}
+.ship-stack-layer:nth-child(4){z-index:2}.ship-stack-layer:nth-child(5){z-index:1}
+.ship-stack-count{font-size:13px;font-weight:650;font-variant-numeric:tabular-nums;min-width:2ch}
+.ship-stack-chev{margin-left:auto;display:inline-flex;transition:transform var(--dur) var(--ease-out)}
+.ship-stack.is-open .ship-stack-chev{transform:rotate(180deg)}
+/* 展开后摞子淡出收成一行小缩略，避免与下方列表重复占高 */
+.ship-stack.is-open .ship-stack-pile{height:28px;width:calc(28px + (var(--n,1) - 1) * 10px)}
+.ship-stack.is-open .ship-stack-layer{width:28px;height:28px;left:calc(var(--i) * 10px);border-radius:4px;transform:none}
+.ship-stack-pile{transition:height var(--dur) var(--ease-out),width var(--dur) var(--ease-out)}
+@media (prefers-reduced-motion:reduce){.ship-stack-layer,.ship-stack-pile,.ship-stack-chev{transition:none}}

@@ -9,17 +9,17 @@ const fields: {key: keyof ReleaseInfo; label: string; hint?: string}[] = [
   {key: 'format', label: '介质'}, {key: 'discCount', label: '碟数'},
   {key: 'matrix', label: '内圈刻码'},
 ];
-export function ReleaseMetadataFields({info, oldPressing, onChange}: {
-  info: ReleaseInfo; oldPressing?: string;
+// omit：已在上方检索区编辑的字段（条码、唱片编号）不在这里重复出现。
+export function ReleaseMetadataFields({info, oldPressing, omit = [], onChange}: {
+  info: ReleaseInfo; oldPressing?: string; omit?: (keyof ReleaseInfo)[];
   onChange: (key: keyof ReleaseInfo, value: string) => void;
 }) {
   return <details className="adv record-release-fields">
     <summary>发行资料 · 查看及更正
       {info.country ? ' · ' + releaseRegion(info.country, oldPressing) : ''}
     </summary>
-    <p className="small-note">来自已确认的 MusicBrainz 发行版，允许人工更正。发行地区保留原始代码，详情统一显示日版或外版。</p>
-    <div className="form-grid">
-      {fields.map(({key, label, hint}) => <div className="field" key={key}>
+        <div className="form-grid">
+      {fields.filter(f => !omit.includes(f.key)).map(({key, label, hint}) => <div className="field" key={key}>
         <label htmlFor={'release-' + key}>{label}</label>
         <input id={'release-' + key} type="text" value={(info[key] as string) || ''}
           onChange={e => onChange(key, e.target.value)} title={hint}/>

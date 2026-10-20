@@ -55,6 +55,25 @@ class VerificationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValidationError,'查询并选择'):
             self.save(self.edited(OTHER, ''))
 
+    def new_record(self, **info):
+        return {'title':'Red', 'artist':'King Crimson', 'releaseInfo':{'catalogNumber':'IECP-50008', **info}}
+
+    def test_new_discogs_release_is_verified_against_discogs_barcode(self):
+        self.source.release_details.return_value = {'barcode':'4582213912173'}
+        self.save(self.new_record(barcode='4582213912173', discogsReleaseId='7714607'))
+        self.source.release_details.assert_called_once_with('discogs-7714607')
+        with self.assertRaisesRegex(ValidationError, 'Discogs 中该条码'):
+            self.save(self.new_record(barcode=BARCODE, discogsReleaseId='7714607'))
+
+    def test_manual_release_saves_without_catalog_verification(self):
+        self.save(self.new_record(manualRelease='1'))
+        self.save(self.new_record(barcode='4582213912173', manualRelease='1'))
+        self.assertFalse(self.source.release_details.called)
+        saved = [r for r in self.store.state()['records'] if r['title']=='Red']
+        self.assertEqual(len(saved), 2)
+        self.assertEqual(saved[0]['releaseInfo']['manualRelease'], '1')
+        self.assertEqual(saved[0]['releaseInfo']['musicBrainzReleaseId'], '')
+
     def test_checksum_invalid_rejected_before_database_query(self):
         with self.assertRaisesRegex(ValidationError,'校验位'):
             self.save(self.edited(BARCODE[:-1]+'4'))

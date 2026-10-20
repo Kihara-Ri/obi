@@ -368,6 +368,21 @@ class LedgerTests(unittest.TestCase):
         self.store.bulk({'action':'to_overseas','ids':[c]})
         r=self.record(c)
         self.assertEqual(r['status'],'overseas');self.assertNotIn('listed',r)
+    def test_undo_to_overseas_restores_shipment_and_listing(self):
+        a=self.buy();sid=self.ship([a])
+        self.store.shipment_action({'id':sid,'action':'arrive','date':'2026-09-18'})
+        self.store.bulk({'action':'list','ids':[a]})
+        self.store.bulk({'action':'to_overseas','ids':[a]})
+        self.assertEqual(self.record(a)['status'],'overseas')
+        self.store.bulk({'action':'undo_to_overseas','ids':[a]})
+        r=self.record(a)
+        self.assertEqual(r['status'],'domestic');self.assertEqual(r['shipmentId'],sid);self.assertTrue(r['listed'])
+    def test_undo_to_overseas_refuses_after_later_change(self):
+        c=self.buy(currency='CNY',price='100',date='2026-09-07')
+        self.store.bulk({'action':'to_overseas','ids':[c]})
+        self.store.bulk({'action':'list','ids':[c]})  # 之后又有变动
+        with self.assertRaises(ValidationError):self.store.bulk({'action':'undo_to_overseas','ids':[c]})
+        with self.assertRaises(ValidationError):self.store.bulk({'action':'undo_to_overseas','ids':[self.buy()]})
     def test_csv_export_lists_listed(self):
         from server.export_csv import albums_csv
         c=self.buy(currency='CNY',price='100',date='2026-09-07')

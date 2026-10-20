@@ -5,7 +5,7 @@ import {shipFeeText, sum, yuan} from '../core/format';
 import {useApp} from '../state/AppContext';
 import type {AppCtx} from '../state/AppContext';
 import type {Sale} from '../types';
-import {Field} from './fields';
+import {AmountInput} from './fields';
 import {AlbumLine} from '../components/SaleCard';
 import {useFormSubmit, useRate} from './shared';
 
@@ -38,8 +38,8 @@ function SaleCostsForm({sale}: {sale: Sale}) {
   const unit = jpy ? '日元' : '元';
   const step = jpy ? 'any' : '0.01';
   const inputMode = jpy ? 'numeric' as const : 'decimal' as const;
-  const onFeeInput = (set: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    set(jpy ? e.target.value.replace(/[^\d]/g, '') : e.target.value);
+  const onFeeInput = (set: (v: string) => void) => (v: string) => {
+    set(v);
     app.setDrawerDirty(true);
   };
   const submit = (e: React.FormEvent) => {
@@ -52,10 +52,16 @@ function SaleCostsForm({sale}: {sale: Sale}) {
       {rs.map(r => <AlbumLine key={r.id} r={r} showCost={app.modules.acquisition}/>)}
       <p className="small-note">{sale.date} 售出 · {sale.channel} · 成交价 {shipFeeText(sale.currency, sale.grossOriginal, sale.gross)}</p>
       <div className="form-grid form-section">
-        <Field label={`平台扣费合计（${unit}）`} name="sale-fees" type="number" required min="0" step={step}
-          inputMode={inputMode} value={fees} onChange={onFeeInput(setFees)}/>
-        <Field label={`寄出运费（${unit}）`} name="sale-postage" type="number" required min="0" step={step}
-          inputMode={inputMode} value={postage} onChange={onFeeInput(setPostage)}/>
+        <div className="field">
+          <label htmlFor="f-sale-fees">{`平台扣费合计（${unit}）`}</label>
+          <AmountInput id="f-sale-fees" name="sale-fees" required min="0" step={step}
+            inputMode={inputMode} integer={jpy} value={fees} onValue={onFeeInput(setFees)}/>
+        </div>
+        <div className="field">
+          <label htmlFor="f-sale-postage">{`寄出运费（${unit}）`}</label>
+          <AmountInput id="f-sale-postage" name="sale-postage" required min="0" step={step}
+            inputMode={inputMode} integer={jpy} value={postage} onValue={onFeeInput(setPostage)}/>
+        </div>
       </div>
       <p className="small-note">平台有多项服务费时填写合计；确认收货后仍可补录、修改。</p>
       {jpy ? <p className="small-note">按售出日汇率折算人民币。</p> : null}
@@ -72,7 +78,7 @@ function SaleCostsForm({sale}: {sale: Sale}) {
       </div>
     </div>
     <div className="drawer-footer">
-      <button type="button" onClick={() => app.closeDrawer()}>取消</button>
+      <button type="button" onClick={() => app.backDrawer()}>取消</button>
       <button type="submit" className="primary" disabled={saving}>保存费用</button>
     </div>
   </form>;

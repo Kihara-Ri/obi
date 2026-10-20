@@ -18,11 +18,14 @@ const title = 'Lift Your Skinny Fists Like Antennas to Heaven';
 const state = async () => (await fetch(base + '/api/state')).json();
 const before = (await state()).records.find(row => row.title === title);
 assert.ok(before && before.photoCount === 4, '先运行固定版次参考照片初始化');
-const open = async () => {
-  await page.getByRole('button', {name: title, exact: true}).click();
-  await page.getByRole('button', {name: '上架资料', exact: true}).click();
-  await page.getByRole('heading', {name: '售卖与上架资料'}).waitFor();
+// 上架资料在「专辑详情 → 管理 → 编辑上架资料」（D-015）；从管理页进入，保存 / 取消后回到管理页。
+const openFrom = async tab => {
+  await tab.getByRole('button', {name: title, exact: true}).click();
+  await tab.getByRole('button', {name: '管理', exact: true}).click();
+  await tab.getByRole('button', {name: /编辑上架资料/}).click();
+  await tab.getByRole('heading', {name: '售卖与上架资料'}).waitFor();
 };
+const open = () => openFrom(page);
 try {
   await page.goto(base + '/#settings');
   await page.getByRole('button', {name: '高级', exact: true}).click();
@@ -82,14 +85,16 @@ try {
   // 照片不在上架资料里：保存草稿后到专辑详情，用“实物照片”右侧图标下载。
   assert.equal(await page.getByRole('button', {name: '下载所选图片包'}).count(), 0);
   await page.getByRole('button', {name: '保存草稿', exact: true}).click();
-  await page.getByRole('heading', {name: '售卖与上架资料'}).waitFor({state: 'hidden'});
+  // 保存成功后回到上一层（管理页），不关闭抽屉
+  await page.getByRole('heading', {name: '管理', exact: true}).waitFor();
   const saved = (await state()).records.find(row => row.id === before.id);
   assert.equal(Boolean(saved.listed), Boolean(before.listed));
   assert.equal(saved.price, before.price);
   assert.equal(saved.listingDraft.description, description);
   assert.deepEqual(saved.listingDraft.photoOrder, [0, 1, 2, 3]);
-  // 桌面：专辑详情“实物照片”右侧图标下载按专辑命名的 ZIP。
-  await page.getByRole('button', {name: title, exact: true}).click();
+  // 桌面：专辑详情“实物照片”右侧图标下载按专辑命名的 ZIP。管理页返回详情（返回箭头）。
+  await page.getByRole('button', {name: '返回专辑详情', exact: true}).click();
+  await page.getByRole('heading', {name: '专辑详情', exact: true}).waitFor();
   const downloadWait = page.waitForEvent('download');
   await page.getByRole('button', {name: '下载实物照片'}).click();
   const download = await downloadWait;
@@ -105,11 +110,10 @@ try {
   // 另一标签真实保存新草稿；返回旧标签不能借刷新覆盖。
   const other = await context.newPage();
   await other.goto(base + '/#overseas');
-  await other.getByRole('button', {name: title, exact: true}).click();
-  await other.getByRole('button', {name: '上架资料', exact: true}).click();
+  await openFrom(other);
   await other.getByRole('textbox', {name: '售卖正文', exact: true}).fill('另一标签保存的正文');
   await other.getByRole('button', {name: '保存草稿', exact: true}).click();
-  await other.getByRole('heading', {name: '售卖与上架资料'}).waitFor({state: 'hidden'});
+  await other.getByRole('heading', {name: '管理', exact: true}).waitFor();
   await page.bringToFront();
   // headless 不保证派发标签可见性事件；不伪造刷新，以真实保存响应核对并发保护。
   if (await page.getByRole('button', {name: '保存草稿', exact: true}).isEnabled()) {

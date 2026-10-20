@@ -2,3 +2,19 @@
 .shop-letter{display:flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:5px;background:var(--surface-3);color:var(--muted);font-size:10px;font-weight:650}
 .shop-discovery-hint{display:block;color:var(--muted);font-size:11px;margin:5px 2px 0;overflow-wrap:anywhere}
 .shop-discovery-retry{font-size:11px;padding:3px 0;color:var(--muted);margin-top:4px;white-space:normal}
+
+/* 标签式渠道选择：与记录售出的渠道标签同款 .chip；品牌下的分店另起一行，缩进并加左线表示层级 */
+.shop-field{grid-column:1/-1}
+.shop-chips,.shop-branches{display:flex;flex-wrap:wrap;gap:7px}
+.shop-chips .chip,.shop-branches .chip{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 12px}
+.shop-chips .chip img,.shop-chips .chip .shop-letter{flex:none;width:17px;height:17px;border-radius:5px}
+.chip.quiet{background:transparent;border:1px dashed var(--border-strong);color:var(--muted)}
+.chip.quiet.on{border-style:solid;color:var(--text)}
+.chip-branches{min-width:16px;height:16px;padding:0 4px;border-radius:99px;background:var(--surface-2);color:var(--muted);font-size:10px;line-height:16px;text-align:center;font-variant-numeric:tabular-nums}
+.chip.has-branches[aria-expanded=true]{border-color:var(--accent-deep)}
+.shop-branches{margin:8px 0 0 10px;padding-left:12px;border-left:2px solid var(--border-strong)}
+.shop-input{margin-top:8px}
+/* 紧凑一档：标签更矮，行内说明更小 */
+.shop-chips .chip,.shop-branches .chip{min-height:30px;padding:3px 10px;font-size:12.5px;gap:5px}
+.shop-chips,.shop-branches{gap:6px}
+.shop-chips>.shop-branches{flex:1 0 100%;margin:0 0 2px 6px;padding-left:10px}

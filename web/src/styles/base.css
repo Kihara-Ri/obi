@@ -39,6 +39,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   /* 首选路径：View Transitions 整页交叉淡化（theme.js 给 <html> 加 .theme-vt）；比逐元素过渡更柔和，
      渐变背景、阴影、图片也一起过渡。 */
   ::view-transition-old(root),::view-transition-new(root){animation-duration:.5s;animation-timing-function:ease-in-out}
+  /* 外观分段控件单独成组：不参与整页交叉淡化。否则旧画面里滑块还停在原位、与新画面叠 0.5s，
+     看起来是「在原处闪一下再滑过去」；这里旧画面隐藏，新画面直接用实时的滑动。 */
+  .theme-vt .theme-seg{view-transition-name:theme-seg}
+  ::view-transition-group(theme-seg){animation:none}
+  ::view-transition-old(theme-seg){display:none}
+  ::view-transition-new(theme-seg){animation:none}
   /* 上面的通配 !important 会顶掉滑块自己的位移过渡（点外观分段时滑块就「跳」过去）：
      带滑动的元素在保留颜色渐变的同时，补回自己的 transform / width 过渡 */
   .theme-fade .seg-thumb{

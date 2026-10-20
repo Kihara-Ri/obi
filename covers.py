@@ -79,7 +79,9 @@ class CoverService:
         self.cache_path = cache_path
         self.mb = mb  # MusicBrainzClient：MusicBrainz HTTP 路径接入全应用共用节流
         self.catalog_lock = threading.Lock()
-        self.network_lock = threading.Lock()
+        self.cache_lock = threading.Lock()   # 只保护响应缓存的读写，不含网络等待
+        self.host_locks = {}                 # 按来源主机限速：不同主机的请求可以并行
+        self.host_locks_guard = threading.Lock()
         self.responses = {}
         self.last_request = {}
         if cache_path:
@@ -151,16 +153,29 @@ class CoverService:
         with self.lock:self.images[token]=result
         return result
 
-    def metadata(self, url):
-        """Cache source responses across albums/restarts; pace only real network calls."""
-        with self.network_lock:
+    def host_lock(self, host):
+        with self.host_locks_guard:
+            return self.host_locks.setdefault(host, threading.Lock())
+
+    def cached_response(self, url):
+        with self.cache_lock:
             hit = self.responses.get(url)
             if not hit and self.cache_path:
                 with closing(sqlite3.connect(self.cache_path)) as db, db:
                     row = db.execute('SELECT at,data FROM responses WHERE url=?',(url,)).fetchone()
                     if row: hit = (row[0],json.loads(row[1]))
             if hit and time.time()-hit[0] < 7*86400: return hit[1]
-            host=urlsplit(url).hostname
+        return None
+
+    def metadata(self, url):
+        """Cache source responses across albums/restarts; pace real network calls per source host,
+        so iTunes and MusicBrainz / Cover Art Archive requests can run in parallel."""
+        hit = self.cached_response(url)
+        if hit is not None: return hit
+        host=urlsplit(url).hostname
+        with self.host_lock(host):
+            hit = self.cached_response(url)   # 排队期间别的线程可能已取回同一资源
+            if hit is not None: return hit
             if self.mb is not None and host == 'musicbrainz.org':
                 # MusicBrainz 的节流交给共用客户端（含 429/503 冷却），本服务不再自行计时
                 try:
@@ -181,11 +196,12 @@ class CoverService:
                     raise
                 except (ValueError,TypeError) as exc:
                     raise ValidationError('封面资料库返回了无效数据') from exc
+        with self.cache_lock:
             self.responses[url]=(time.time(),result)
             if self.cache_path:
                 with closing(sqlite3.connect(self.cache_path)) as db, db:
                     db.execute('INSERT OR REPLACE INTO responses VALUES(?,?,?)',(url,time.time(),json.dumps(result)))
-            return result
+        return result
 
     def artist_catalog(self, artist, country):
         base='https://itunes.apple.com/'
@@ -273,28 +289,65 @@ class CoverService:
             if c['score']>=.65:out.append(c)
         return out
 
-    def layered_search(self,title,artist):
+    def itunes_leg(self,title,artist,stop=None,acc=None):
+        """iTunes：艺人目录（日本→美国）→ 关键词直搜；任一步出现精确匹配即停，stop 置位也停。
+        结果边查边写入 acc，调用方不必等整条腿跑完就能读到已有候选。"""
+        acc=acc if acc is not None else {'candidates':[],'warnings':[],'checked':[]}
+        candidates,warnings,checked=acc['candidates'],acc['warnings'],acc['checked']
+        halted=lambda:bool(stop and stop.is_set())
+        for country in ('JP','US'):
+            if halted():return acc
+            checked.append('iTunes '+country)
+            try:
+                for a in self.artist_catalog(artist,country):
+                    if not a.get('artworkUrl100'):continue
+                    c=self.candidate(title,artist,a.get('collectionName',''),a.get('artistName',''),f"{country}-{a['collectionId']}",a['artworkUrl100'],a.get('releaseDate','')[:4],page=a.get('collectionViewUrl',''),country=country)
+                    if c['score']>=.65:candidates.append(c)
+            except ValidationError as exc:warnings.append(f'iTunes {country}：{exc}')
+            if any(c['exact'] for c in candidates):return acc
+        for country in ('JP','US'):
+            if halted():return acc
+            checked.append(f'iTunes 关键词（{country}）')
+            try:candidates.extend(self.term_candidates(title,artist,country))
+            except ValidationError as exc:warnings.append(f'iTunes 关键词（{country}）：{exc}')
+            if any(c['exact'] for c in candidates):break
+        return acc
+
+    def archive_leg(self,title,artist):
+        candidates=[];warnings=[]
+        try:candidates.extend(self.archive_candidates(title,artist))
+        except ValidationError as exc:warnings.append(str(exc))
+        return candidates,warnings,['MusicBrainz / Cover Art Archive']
+
+    def layered_search(self,title,artist,hedge=2.0):
+        """iTunes 与 MusicBrainz / CAA 是不同主机、各自限速，因此并行查：iTunes 迟迟没有精确匹配（>hedge 秒）
+        或已跑完仍无精确匹配时启动 MusicBrainz 一腿；iTunes 很快精确命中则不打扰 MusicBrainz。
+        任何一腿先拿到精确匹配就收工，另一腿被叫停（iTunes 逐步限速最慢，常是它在拖）。
+        合并、排序、去重与串行版一致。"""
+        from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
+        exact=lambda cs:any(c['exact'] for c in cs)
         with self.catalog_lock:
-            candidates=[];warnings=[];checked=[]
-            for country in ('JP','US'):
-                checked.append('iTunes '+country)
-                try:
-                    for a in self.artist_catalog(artist,country):
-                        if not a.get('artworkUrl100'):continue
-                        c=self.candidate(title,artist,a.get('collectionName',''),a.get('artistName',''),f"{country}-{a['collectionId']}",a['artworkUrl100'],a.get('releaseDate','')[:4],page=a.get('collectionViewUrl',''),country=country)
-                        if c['score']>=.65:candidates.append(c)
-                except ValidationError as exc:warnings.append(f'iTunes {country}：{exc}')
-                if any(c['exact'] for c in candidates):break
-            if not any(c['exact'] for c in candidates):
-                for country in ('JP','US'):
-                    checked.append(f'iTunes 关键词（{country}）')
-                    try:candidates.extend(self.term_candidates(title,artist,country))
-                    except ValidationError as exc:warnings.append(f'iTunes 关键词（{country}）：{exc}')
-                    if any(c['exact'] for c in candidates):break
-            if not any(c['exact'] for c in candidates):
-                checked.append('MusicBrainz / Cover Art Archive')
-                try:candidates.extend(self.archive_candidates(title,artist))
-                except ValidationError as exc:warnings.append(str(exc))
+            stop=threading.Event();acc={'candidates':[],'warnings':[],'checked':[]}
+            pool=ThreadPoolExecutor(max_workers=2)
+            try:
+                itunes=pool.submit(self.itunes_leg,title,artist,stop,acc)
+                archive=None
+                done,_=wait([itunes],timeout=hedge)
+                if not done or not exact(acc['candidates']):
+                    archive=pool.submit(self.archive_leg,title,artist)
+                pending={f for f in (itunes,archive) if f is not None}   # 已完成的也放进去，wait 会立刻返回
+                more=([],[],[])
+                while pending:
+                    done,pending=wait(pending,return_when=FIRST_COMPLETED)
+                    if archive in done:
+                        more=archive.result()
+                        if exact(more[0]):stop.set();break   # MusicBrainz 先命中：iTunes 剩余步骤不必再跑
+                    if itunes in done and exact(acc['candidates']):break
+                if archive and archive.done() and more==([],[],[]):more=archive.result()
+            finally:
+                stop.set();pool.shutdown(wait=False)   # 多余的一腿不再等待，只会在后台补缓存
+            candidates=list(acc['candidates'])+list(more[0]);warnings=list(acc['warnings'])+list(more[1])
+            checked=list(acc['checked'])+list(more[2])
             candidates.sort(key=lambda c:(c['exact'],c['score']),reverse=True)
             # Repeated catalog entries with the same title and image need one choice.
             unique={}

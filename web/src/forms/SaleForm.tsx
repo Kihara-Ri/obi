@@ -8,7 +8,7 @@ import {sum, today, yuan} from '../core/format';
 import {useApp} from '../state/AppContext';
 import type {AppCtx} from '../state/AppContext';
 import type {Currency} from '../types';
-import {DateChipsRow, Field, TextareaField} from './fields';
+import {AmountInput, DateChipsRow, Field, TextareaField} from './fields';
 import {Seg} from '../components/ui/Seg';
 import {AlbumLine} from '../components/SaleCard';
 import {useFormSubmit, useRate} from './shared';
@@ -103,16 +103,16 @@ function SaleForm({ids}: {ids: string[]}) {
           <div className="row">
             <label htmlFor="f-fees">平台扣费合计</label>
             <div className="row-value">
-              <input id="f-fees" name="fees" type="number" min="0" step={step} inputMode="decimal"
-                     placeholder="0" value={v.fees} onChange={e => set({fees: e.target.value})}/>
+              <AmountInput id="f-fees" name="fees" min="0" step={step} inputMode="decimal"
+                     placeholder="0" value={v.fees} integer={v.currency === 'JPY'} onValue={x => set({fees: x})}/>
               <span className="unit">{unit}</span>
             </div>
           </div>
           <div className="row">
             <label htmlFor="f-postage">寄出运费</label>
             <div className="row-value">
-              <input id="f-postage" name="postage" type="number" min="0" step={step} inputMode="decimal"
-                     placeholder="0" value={v.postage} onChange={e => set({postage: e.target.value})}/>
+              <AmountInput id="f-postage" name="postage" min="0" step={step} inputMode="decimal"
+                     placeholder="0" value={v.postage} integer={v.currency === 'JPY'} onValue={x => set({postage: x})}/>
               <span className="unit">{unit}</span>
             </div>
           </div>
@@ -162,7 +162,7 @@ function SaleForm({ids}: {ids: string[]}) {
         </details>
       </div>
       <div className="drawer-footer">
-        <button type="button" onClick={() => app.closeDrawer()}>取消</button>
+        <button type="button" onClick={() => app.backDrawer()}>取消</button>
         <button type="submit" className="primary" disabled={saving}>确认售出</button>
       </div>
     </form>

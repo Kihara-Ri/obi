@@ -42,7 +42,8 @@ button:disabled:hover{background:var(--surface-2)}
 .pill.overseas{background:rgba(110,168,254,.14);color:var(--blue);border:1px solid rgba(110,168,254,.3)}
 .pill.transit{background:rgba(138,178,248,.15);color:var(--amber);border:1px solid rgba(138,178,248,.3)}
 .pill.domestic{background:rgba(93,211,158,.13);color:var(--green);border:1px solid rgba(93,211,158,.3)}
-.pill.listed{background:rgba(93,211,158,.13);color:var(--green);border:1px solid rgba(93,211,158,.3)}
+.pill.listed{background:var(--green);color:var(--surface);border:1px solid transparent}
+.pill.listed::before{content:'✓ '}
 .pill.shipping{background:rgba(198,160,255,.15);color:var(--purple);border:1px solid rgba(198,160,255,.3)}
 .pill.sold{background:var(--surface-3);color:var(--muted);border:1px solid var(--border-strong)}
 .pending-pill{background:rgba(138,178,248,.15);color:var(--amber);border:1px solid rgba(138,178,248,.3)}
@@ -95,3 +96,8 @@ button:disabled:hover{background:var(--surface-2)}
 /* 封面淡入：Cover 载入完成前透明，避免空白格子突然跳出图片 */
 img.cover{opacity:0;transition:opacity .2s ease}
 img.cover.is-ready{opacity:1}
+
+/* 按钮内转圈图标：用形状（转动的圆环）表达「处理中」，不依赖颜色 */
+.spin-ico{display:inline-block;width:16px;height:16px;border-radius:50%;border:2px solid var(--border-strong);border-top-color:var(--accent-deep);animation:spin-ico .7s linear infinite}
+@keyframes spin-ico{to{transform:rotate(1turn)}}
+@media (prefers-reduced-motion:reduce){.spin-ico{animation-duration:2s}}

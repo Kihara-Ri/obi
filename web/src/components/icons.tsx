@@ -37,3 +37,33 @@ export const DownloadIco = (
     <path d="M12 4v11"/><polyline points="7.5 11 12 15.5 16.5 11"/><path d="M5 19.5h14"/>
   </svg>
 );
+
+export const CheckIco = (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <polyline points="5 12.5 10 17.5 19 7"/>
+  </svg>
+);
+
+// 通用转圈：加载 / 保存中的按钮图标，尺寸与线性图标一致（样式见 styles/components.css 的 .spin-ico）。
+export const SpinIco = <span className="spin-ico" aria-hidden="true"/>;
+
+export const CopyIco = (
+  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.9"
+       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <rect x="9" y="9" width="11" height="11" rx="2.2"/><path d="M5 15V6.2C5 5.5 5.5 5 6.2 5H15"/>
+  </svg>
+);
+
+export const InfoIco = (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8"
+       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <circle cx="12" cy="12" r="9"/><path d="M12 11v5.5"/><circle cx="12" cy="7.8" r=".6" fill="currentColor"/>
+  </svg>
+);
+
+export const SlidersIco = (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8"
+       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>
+  </svg>
+);

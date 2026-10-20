@@ -13,6 +13,8 @@ export interface DrawerSpec {
   footer?: ReactNode;
   wide?: boolean;
   variant?: 'artist';
+  /** 返回类切换（二级页「返回专辑详情」、返回手势）：新页从左滑入；默认前进，从右推入 */
+  direction?: 'back';
   back?: {label: string; run: () => void};
   workspace?: boolean;
   asForm?: boolean;   // 表单类抽屉：内容自带 <form>，撑满抽屉高度
@@ -22,6 +24,8 @@ export interface DrawerSpec {
 
 // 消息级别：成功（绿）/ 警告（黄）/ 错误（红）
 export type ToastKind = 'ok' | 'warn' | 'err';
+/** toast 里的一个操作按钮（如「撤销」）；带按钮的 toast 停留更久 */
+export interface ToastAction {label: string; run(): void}
 
 export interface AppCtx {
   state: AppState;
@@ -42,10 +46,14 @@ export interface AppCtx {
   twins: TwinIndex;
   twinSyncError: string;
   refreshTwins(): Promise<void>;
-  toast(msg: string, kind?: ToastKind): void;
+  toast(msg: string, kind?: ToastKind, action?: ToastAction): void;
   openDrawer(spec: DrawerSpec): void;
   /** 请求关闭抽屉（脏表单会先弹确认）。返回 false = 被用户取消，抽屉保持打开。 */
   closeDrawer(force?: boolean): boolean;
+  /** 「取消」用：抽屉里还有上一层（详情、管理页…）就回到上一层，没有才关闭整个抽屉；未保存的修改先确认；force=true（保存成功后）跳过确认。 */
+  backDrawer(force?: boolean): boolean;
+  /** 先收起抽屉、等历史条目还原后再跳转（抽屉里的页面链接用它；直接改 hash 会被收起时的 history.go 撤销）。脏表单会先确认。 */
+  closeDrawerAndGo(hash: string): boolean;
   setDrawerDirty(v: boolean): void;
 }
 

@@ -7,11 +7,13 @@
 //   · 错误用 role=alert（读屏立即朗读），其余 role=status。
 import {useEffect, useLayoutEffect, useRef, useState} from 'react';
 import type {CSSProperties} from 'react';
-import type {ToastKind} from '../../../state/AppContext';
+import type {ToastAction, ToastKind} from '../../../state/AppContext';
 import './Toast.css';
 
 /** 各级别环绕一周（即停留）的时长，毫秒 */
 const SHOW_MS: Record<ToastKind, number> = {ok: 2000, warn: 3500, err: 6000};
+/** 带操作按钮的 toast 停留时长，给用户足够时间反应 */
+const ACTION_MS = 8000;
 /** 淡出：延迟 .25s + 动画 .22s，与 Toast.css 的 toast-out 保持一致 */
 const LEAVE_MS = 470;
 
@@ -36,15 +38,17 @@ function ringPath(width: number, height: number): string {
 export interface ToastProps {
   kind: ToastKind;
   text: string;
+  /** 可选操作按钮（如「撤销」）；点击后执行并立即关闭，停留时间延长到 8 秒 */
+  action?: ToastAction;
   onDone: () => void;
 }
 
-export function Toast({kind, text, onDone}: ToastProps) {
+export function Toast({kind, text, action, onDone}: ToastProps) {
   const box = useRef<HTMLDivElement>(null);
   const [d, setD] = useState('');
   const [leaving, setLeaving] = useState(false);
   const [paused, setPaused] = useState(false);
-  const showMs = SHOW_MS[kind];
+  const showMs = action ? ACTION_MS : SHOW_MS[kind];
 
   // 计时器：left = 当前阶段剩余毫秒，step = 到点要做的事；暂停时记下剩余，恢复后接着走
   const timer = useRef(0);
@@ -102,6 +106,8 @@ export function Toast({kind, text, onDone}: ToastProps) {
         {d ? <path d={d} pathLength="100"/> : null}
       </svg>
       {text}
+      {action ? <button type="button" className="toast-action"
+                        onClick={e => { e.stopPropagation(); window.clearTimeout(timer.current); leave(); action.run(); }}>{action.label}</button> : null}
     </div>
   );
 }

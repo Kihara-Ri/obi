@@ -2,6 +2,7 @@ import {compiledSources} from './helpers/compiled-sources.mjs';
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
+import {readdirSync, readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {createElement} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
@@ -68,6 +69,36 @@ test('插件缺席时保留历史任务，只提供安装入口，不发送校�
   assert.match(html, /安装 Album Engine/);
   assert.match(html, /已有实体资料与素材已保留/);
   assert.match(html, /data-task-id="saved-job"/);
-  assert.match(html, /href="#settings"/);
-  assert.doesNotMatch(html, /<button|校准盘面|album-engine-mount/);
+  // 抽屉里的「打开设置」必须先收起抽屉再跳转：直接用 <a href="#settings"> 只会改 hash，抽屉仍盖在页面上
+  assert.match(html, /<button[^>]*>打开设置<\/button>/);
+  assert.doesNotMatch(html, /href="#settings"/);
+  assert.doesNotMatch(html, /校准盘面|album-engine-mount|补充或移除独立附件/);
+});
+
+test('数字实体入口在展示灯箱里（实体设置），不在编辑表单，也不在管理页（D-015）', () => {
+  const read = file => readFileSync(join(source, file), 'utf8');
+  const form = ['forms/RecordForm.tsx', ...readdirSync(join(source, 'forms/record')).map(f => 'forms/record/' + f)].map(read).join('\n');
+  assert.doesNotMatch(form, /TwinControls|数字实体/);
+  assert.doesNotMatch(['forms/DetailDrawer.tsx', ...readdirSync(join(source, 'forms/detail')).map(f => 'forms/detail/' + f)].map(read).join('\n'),
+    /TwinControls|数字实体/);
+  const focus = read('components/GalleryFocus.tsx');
+  assert.match(focus, /<TwinControls record=\{record\}/);
+  assert.match(focus, /实体设置/);
+  // 灯箱是 top-layer dialog：引擎未安装时「打开设置」必须由灯箱自己跳转，而不是走抽屉的 closeDrawerAndGo
+  assert.match(focus, /onSettings=\{\(\) => \{location\.hash = '#settings';\}\}/);
+});
+
+test('返回上一层是弹栈而不是重新打开：二级页 / 艺人页的返回按钮不再调用 openDetail / openArtistDrawer', () => {
+  const read = file => readFileSync(join(source, file), 'utf8');
+  // 回归：返回原来是「再 openDetail 一次」，详情页被重新创建，爱心 / 照片预取 / 封面全部重新加载，看起来闪一下
+  for (const file of ['forms/detail/ReleasePage.tsx', 'forms/detail/ManagePage.tsx']) {
+    const src = read(file);
+    assert.match(src, /app\.backDrawer\(\)/, file + ' 返回应弹栈');
+    assert.doesNotMatch(src, /openDetail\(/, file + ' 不应重新打开详情');
+  }
+  assert.match(read('forms/ArtistDrawer.tsx'), /run: \(\) => \{ app\.backDrawer\(\); \}/);
+  // Drawer 以稳定 id 作 key 让栈里每层常驻（不销毁重建）
+  const drawer = read('components/ui/Drawer.tsx');
+  assert.match(drawer, /key=\{layer\.id\}/);
+  assert.match(drawer, /is-covered/);
 });

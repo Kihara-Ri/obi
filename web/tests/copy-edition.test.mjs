@@ -1,7 +1,7 @@
 import {compiledSources} from './helpers/compiled-sources.mjs';
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {readFileSync} from 'node:fs';
+import {readdirSync, readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createElement} from 'react';
@@ -31,12 +31,17 @@ test('旧版次与侧标组合函数兼容已有记录', () => {
   assert.equal(copyEditionLabel('外版', '无侧标'), '外版·无侧标');
 });
 test('编辑表单的发行资料允许更正，侧标独立保存', () => {
-  const form = readFileSync(join(source, 'forms/RecordForm.tsx'), 'utf8');
+  // 表单已按职责拆到 forms/record/，行为断言覆盖主文件与全部拆分模块。
+  const form = ['forms/RecordForm.tsx', ...readdirSync(join(source, 'forms/record')).map(f => 'forms/record/' + f)]
+    .map(f => readFileSync(join(source, f), 'utf8')).join('\n');
   assert.match(form, /<CopyEditionFields obi=\{v\.obi\}/);
   assert.match(form, /<ReleaseMetadataFields info=\{v\.releaseInfo\}/);
   assert.match(form, /set\(change\); dirty\(\)/);
-  assert.match(form, /\.\.\.base\.current, \.\.\.v, status:/);
+  assert.match(form, /\.\.\.base, \.\.\.v, status:/);
   assert.match(form, /version: releaseInfo\.packaging/);
-  const detail = readFileSync(join(source, 'forms/DetailDrawer.tsx'), 'utf8');
-  assert.match(detail, /releaseRegion\(r\.releaseInfo\?\.country, r\.pressing\)/);
+  // 发行地区在详情的二级页「发行资料」里完整显示（D-015）
+  const detail = readFileSync(join(source, 'forms/detail/ReleasePage.tsx'), 'utf8');
+  // 已由发行版确定国家时详情显示地区名与代码（美国（US）），没有国家才退回日版 / 外版
+  assert.match(detail, /regionName\(code\)/);
+  assert.match(detail, /displayRegion\(code, r\.pressing\)/);
 });

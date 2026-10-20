@@ -10,7 +10,7 @@ from server.routes import GET, POST, api_barcode_lookup, api_release_artwork, ap
 class BarcodeLookupTests(unittest.TestCase):
     def setUp(self):
         self.http = SimpleNamespace(send=Mock())
-        self.vision = SimpleNamespace(catalog=Mock(return_value=[]))
+        self.vision = SimpleNamespace(catalog=Mock(return_value=[]), fallback=Mock(return_value=[]))
         self.service = SimpleNamespace(releases=self.vision)
 
     def test_only_valid_numeric_barcodes_query_catalog(self):
@@ -29,14 +29,50 @@ class BarcodeLookupTests(unittest.TestCase):
             candidate('4006381333931'), candidate('4988013047105', False)]
         api_barcode_lookup(self.http, self.service, {'barcode': ' 4988013047105 '})
         self.vision.catalog.assert_called_once_with({
-            'title': '', 'artist': '', 'releaseInfo': {'barcode': '4988013047105'}})
+            'title': '', 'artist': '', 'releaseInfo': {'barcode': '4988013047105', 'catalogNumber': ''}})
+        self.vision.fallback.assert_not_called()
         response = self.http.send.call_args.args[0]
         self.assertEqual(response['barcode'], '4988013047105')
         self.assertEqual(len(response['candidates']), 2)
 
     def test_no_match_returns_empty_candidates_without_guessing(self):
         api_barcode_lookup(self.http, self.service, {'barcode': '96385074'})
-        self.http.send.assert_called_once_with({'barcode': '96385074', 'candidates': []})
+        self.http.send.assert_called_once_with({'barcode': '96385074', 'candidates': [],
+            'sources': {'musicbrainz': 'none', 'discogs': 'none'}})
+
+    def test_musicbrainz_miss_falls_back_to_discogs_candidates(self):
+        found = {'id': 'discogs-7714607', 'source': 'discogs', 'identifierMatch': True,
+                 'releaseInfo': {'barcode': '4582213912173'}}
+        self.vision.fallback.return_value = [found]
+        api_barcode_lookup(self.http, self.service, {'barcode': '4582213912173'})
+        self.vision.fallback.assert_called_once_with('4582213912173', '')
+        response = self.http.send.call_args.args[0]
+        self.assertEqual(response['candidates'], [found])
+        self.assertEqual(response['sources'], {'musicbrainz': 'none', 'discogs': 'found'})
+
+    def test_one_source_down_still_answers_but_both_down_reports_error(self):
+        self.vision.catalog.side_effect = ValidationError('发行资料库暂时不可用，请稍后重试')
+        api_barcode_lookup(self.http, self.service, {'barcode': '4582213912173'})
+        self.assertEqual(self.http.send.call_args.args[0]['sources']['discogs'], 'none')
+        self.vision.fallback.side_effect = ValidationError('无法连接 Discogs 或请求超时')
+        with self.assertRaises(ValidationError): api_barcode_lookup(self.http, self.service, {'barcode': '4582213912173'})
+
+
+class HedgedLookupTests(unittest.TestCase):
+    def test_slow_musicbrainz_does_not_delay_discogs(self):
+        import threading
+        from server.routes import lookup_sources
+        discogs_started = threading.Event()
+        def slow_catalog(fields):
+            self.assertTrue(discogs_started.wait(2), 'Discogs 应在 MusicBrainz 仍在等待时并行启动')
+            return []
+        def discogs(barcode, catno):
+            discogs_started.set()
+            return [{'id': 'discogs-1', 'identifierMatch': True, 'releaseInfo': {}}]
+        service = SimpleNamespace(releases=SimpleNamespace(catalog=slow_catalog, fallback=discogs))
+        candidates, sources = lookup_sources(service, '4582213912173', '', lambda found: found, hedge=0.05)
+        self.assertEqual([c['id'] for c in candidates], ['discogs-1'])
+        self.assertEqual(sources, {'musicbrainz': 'none', 'discogs': 'found'})
 
 
 class ConfirmedReleaseArtTests(unittest.TestCase):

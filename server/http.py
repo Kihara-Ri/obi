@@ -16,7 +16,19 @@ CSP = ("default-src 'self'; img-src 'self' data: https://*.mzstatic.com https://
        "frame-ancestors 'none'; base-uri 'none'")
 MAX_BODY = 50 * 1024 * 1024
 TIMEOUT = 60  # 单次 socket 读超时（秒）：慢客户端不占住线程
-COMPRESSIBLE = ('application/json', 'text/', 'application/javascript', 'image/svg+xml')
+COMPRESSIBLE = ('application/json', 'text/', 'application/javascript', 'image/svg+xml', 'model/gltf-binary')
+_GZIP_MEMO = {}          # ETag → 压缩结果：插件里的 GLB 动辄数 MB，同一份不必每个请求重压
+_GZIP_MEMO_LIMIT = 48 * 1024 * 1024
+
+
+def _gzip(data, etag):
+    if not etag: return gzip.compress(data, 6)
+    hit = _GZIP_MEMO.get(etag)
+    if hit is None:
+        hit = gzip.compress(data, 6)
+        if sum(len(v) for v in _GZIP_MEMO.values()) + len(hit) > _GZIP_MEMO_LIMIT: _GZIP_MEMO.clear()
+        _GZIP_MEMO[etag] = hit
+    return hit
 
 
 def make_handler(svc):
@@ -32,7 +44,7 @@ def make_handler(svc):
             # 文本类大响应按客户端能力 gzip：state JSON 与构建产物是打开网页的主要流量
             if (len(data) >= 1024 and 'gzip' in self.headers.get('Accept-Encoding', '')
                     and mime.startswith(COMPRESSIBLE)):
-                data = gzip.compress(data, 6)
+                data = _gzip(data, etag)
                 encoding = 'gzip'
             else:
                 encoding = ''

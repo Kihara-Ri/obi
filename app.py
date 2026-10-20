@@ -16,6 +16,7 @@ from http.server import ThreadingHTTPServer
 from backups import Backups
 from covers import CoverService
 from musicbrainz import MusicBrainzClient
+from server.discogs_catalog import DiscogsCatalog
 from rates import RateService
 from security import Auth
 from server import Services, make_handler
@@ -42,7 +43,7 @@ def build(data_dir, public_origin=None):
     store = Store(data / 'albums.sqlite3', rates)
     mb = MusicBrainzClient()
     covers = CoverService(data / 'cover-cache.sqlite3', mb=mb)
-    releases = ReleaseCatalog(mb=mb)
+    releases = ReleaseCatalog(mb=mb, discogs=DiscogsCatalog())
     plugins = PluginManager(store, None, mb)   # 宿主不提供视觉模型：数字实体的生成在 Album Engine 项目中
     return Services(store=store, shops=ShopBrandService(store), plugins=plugins, catalog_art=ArtClient(),
                     listings=ListingAnalysis(store, releases, ListingModel(ChatGPTAuth(data))),

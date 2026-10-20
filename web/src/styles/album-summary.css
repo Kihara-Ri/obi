@@ -11,6 +11,9 @@
 .album-title:hover{color:var(--accent-text);background:none}
 .album-meta{margin-top:4px;color:var(--muted);font-size:11px;min-width:0}
 .album-version{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 元信息两层：地区（美国 / 日本…）用正文色加粗，侧标与包装用次要色，之间用中点分隔 */
+.album-version .am-region{color:var(--text);font-weight:600}
+.album-version>span:not(:first-child)::before,.album-version .am-region+span::before{content:' · '}
 .album-artist{grid-area:artist;min-width:0;max-width:280px;border-left:1px solid var(--border);padding-left:14px}
 .album-artist .artist-entry{margin:0;padding:0;border:0}
 .album-artist .artist-button>span:first-child{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}

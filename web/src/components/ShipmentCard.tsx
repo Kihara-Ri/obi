@@ -6,10 +6,13 @@ import {AlbumSummary} from './AlbumSummary';
 import {openDetail} from '../forms/DetailDrawer';
 import {openConfirm} from './SaleCard';
 import {openShipmentEdit} from '../forms/ShipForm';
+import {ShipmentStack} from './ShipmentStack/ShipmentStack';
 
 export function ShipmentCard({s, arrived, onArtist}: {s: Shipment; arrived: boolean; onArtist: (artist: string) => void}) {
   const app = useApp();
   const days = daysSince(s.date);
+  const feeOf = new Map(s.items.map(i => [i.recordId, i]));
+  const recs = s.items.map(i => app.rec(i.recordId)).filter((r): r is NonNullable<typeof r> => !!r);
   return (
     <article className={`shipment-card${arrived ? ' arrived' : ''}`}>
       <div className="shipment-head">
@@ -33,16 +36,14 @@ export function ShipmentCard({s, arrived, onArtist}: {s: Shipment; arrived: bool
           )}
         </div>
       </div>
-      <div className="shipment-items">
-        {s.items.map(i => {
-          const r = app.rec(i.recordId);
-          if (!r) return null;
-          return (
-            <AlbumSummary key={i.recordId} r={r} onDetail={() => openDetail(app, r.id)} onArtist={onArtist}
-              money={<><small>运费分摊</small><b>{shipFeeText(s.currency, i.feeOriginal, i.fee)}</b></>}/>
-          );
-        })}
-      </div>
+      <ShipmentStack records={recs}>
+        <div className="shipment-items">
+          {recs.map(r => (
+            <AlbumSummary key={r.id} r={r} onDetail={() => openDetail(app, r.id)} onArtist={onArtist}
+              money={<><small>运费分摊</small><b>{shipFeeText(s.currency, feeOf.get(r.id)?.feeOriginal, feeOf.get(r.id)?.fee ?? '')}</b></>}/>
+          ))}
+        </div>
+      </ShipmentStack>
     </article>
   );
 }

@@ -255,6 +255,11 @@ class PluginManager:
         snapshot = self.model_snapshot()
         self.store.pin_published_twin_models(snapshot)
 
+    def asset_digest(self, name):
+        """清单里登记的 sha256：同一版本的资源内容固定，直接当强 ETag 用，不必每次请求再哈希。"""
+        installed = self._installed()
+        return installed[1]['sha256'].get(name) if installed else None
+
     def asset(self, name, version=None):
         if not safe_name(name): raise ValidationError('插件资源地址无效')
         installed = self._installed()
