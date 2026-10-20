@@ -104,36 +104,3 @@
   .album-flip-back{padding:18px}
   .album-flip-back::after{inset:7px}
 }
-
-/* Album preferences belong exclusively to the edit form, not the flip view.
-   Red is the liked control colour; the presentation card still uses gold metal. */
-.album-preference-editor{
-  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
-  gap:12px;padding:15px 16px;border-radius:13px;
-  border:1px solid var(--hairline);background:var(--surface-2,rgba(128,128,128,.055));
-}
-.album-preference-copy{display:flex;flex-direction:column;gap:4px}
-.album-preference-copy strong{font-size:14px}
-.album-preference-copy small{color:var(--muted);line-height:1.5;font-size:11px}
-.album-like-toggle{
-  display:inline-flex;align-items:center;gap:8px;min-width:135px;
-  border:1px solid var(--hairline);border-radius:32px;padding:8px 11px;
-  color:var(--text);background:var(--surface,transparent);font-size:13px;
-  font-weight:600;cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease;
-}
-.album-like-heart{font-size:19px;line-height:1;color:var(--muted)}
-.album-like-switch{margin-left:auto;display:flex;align-items:center;width:29px;height:17px;
-  padding:2px;border-radius:16px;background:rgba(122,128,141,.33);transition:background .16s}
-.album-like-switch>span{width:13px;height:13px;border-radius:50%;background:#f7f7f8;
-  box-shadow:0 1px 2px rgba(0,0,0,.18);transition:transform .16s}
-.album-like-toggle.is-liked{border-color:rgba(219,48,68,.55);
-  color:#f25e70;background:rgba(214,39,59,.095)}
-.album-like-toggle.is-liked .album-like-heart{color:#e1394c}
-.album-like-toggle.is-liked .album-like-switch{background:#d83049}
-.album-like-toggle.is-liked .album-like-switch>span{transform:translateX(12px)}
-.album-like-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
-.album-like-toggle:disabled{cursor:wait;opacity:.55}
-.album-preference-error{flex:0 0 100%;font-size:12px;color:var(--danger,#e1394c);margin:0}
-@media(prefers-reduced-motion:reduce){
-  .album-like-toggle,.album-like-switch,.album-like-switch>span{transition:none!important}
-}

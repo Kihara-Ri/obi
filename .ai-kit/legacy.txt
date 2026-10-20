@@ -28,7 +28,6 @@ web/src/core/artists.ts
 web/src/core/gallery-motion.ts
 web/src/core/photos.ts
 web/src/forms/ArtistDrawer.tsx
-web/src/forms/RecordForm.tsx
 web/src/pages/GalleryPage.tsx
 web/src/pages/SettingsPage.tsx
 web/src/pages/ShelfPage.tsx

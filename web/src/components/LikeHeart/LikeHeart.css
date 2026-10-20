@@ -1,0 +1,9 @@
+.like-heart{flex:none;width:40px;height:40px;padding:0;display:inline-grid;place-items:center;
+  border:0;border-radius:50%;background:transparent;color:var(--muted);cursor:pointer;
+  transition:color var(--dur) var(--ease-soft),transform var(--dur) var(--ease-out)}
+.like-heart:hover,.like-heart:focus{background:transparent}
+.like-heart.is-liked{color:var(--red)}
+.like-heart:active{transform:scale(.88)}
+.like-heart:disabled{opacity:.5;cursor:default}
+.like-heart:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.like-heart{transition:none}}

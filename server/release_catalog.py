@@ -42,8 +42,9 @@ def read_json(url, timeout=35):
 
 
 class ReleaseCatalog:
-    def __init__(self, mb=None):
+    def __init__(self, mb=None, discogs=None):
         self.mb = mb
+        self.discogs = discogs   # 备用来源：MusicBrainz 没有收录时查 Discogs
         self.catalog_lock = threading.Lock(); self.catalog_at = 0; self.catalog_cache = {}
         self.release_cache = {}
 
@@ -52,8 +53,16 @@ class ReleaseCatalog:
         调用方必须已持有 catalog_lock（旧路径的计时缓存也由它守护），这里不得重复加锁。"""
         if self.mb is not None:
             from musicbrainz import BadSource as MBBadSource, SourceUnavailable as MBUnavailable
+            from musicbrainz import RateLimited
             try:
-                return self.mb.get_url(url)
+                try:
+                    return self.mb.get_url(url)
+                except RateLimited:
+                    # 限流冷却通常只有几秒：短暂等待后重试一次，免得用户为一次瞬时 503 重来。
+                    wait = self.mb.cooldown_remaining()
+                    if not 0 < wait <= 3: raise
+                    time.sleep(wait + 0.1)
+                    return self.mb.get_url(url)
             except MBUnavailable as exc:
                 raise ValidationError('发行资料库暂时不可用，请稍后重试') from exc
             except MBBadSource as exc:
@@ -96,7 +105,14 @@ class ReleaseCatalog:
             self.catalog_cache[query] = result
             return result
 
+    def fallback(self, barcode='', catno=''):
+        """MusicBrainz 无精确匹配时的备用检索；未配置备用来源则返回空。"""
+        return self.discogs.search(barcode, catno) if self.discogs else []
+
     def release_details(self, ident):
+        if isinstance(ident,str) and ident.startswith('discogs-'):
+            if not self.discogs: raise ValidationError('备用发行资料来源未启用')
+            return self.discogs.release_details(ident)
         if not isinstance(ident,str) or not re.fullmatch(r'[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}',ident):
             raise ValidationError('发行版本编号不正确')
         with self.catalog_lock:

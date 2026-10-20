@@ -14,6 +14,9 @@
 | `Switch` | 开关 | `on` `onToggle` `label?` `disabled?` | role=switch + aria-checked；命中区向外扩 | 旋钮位置 |
 | `NavRow` | 导航列表行：图标 + 标题 + 右侧数值/控件 + 箭头，一行一件事，没有副标题 | `icon` `title` `value?` `trailing?` `href?`｜`onClick?` | 链接 / 按钮 / 静态三种形态 | 右侧数值与箭头 |
 | `Collapse` | 内容区平滑展开 / 收起（高度 + 淡入），收起时内容 inert 但保持挂载 | `open` `children` `id?` | 触发按钮自行设 aria-expanded / aria-controls | 展开动画 |
+| `LikeHeart` | 专辑「我喜欢」爱心：空心 / 实心，点一下立即保存，只有图标 | `id` | 空心 vs 实心形状 + `aria-pressed` | 色变 + 轻微按压缩放 |
+| `CopyButton` | 一键复制：专辑详情的专辑名、唱片编号、条码旁的图标按钮，复制后图标变对勾并弹提示 | `text` `label` | 复制图标 → 对勾，`aria-label` | 图标变色 |
+| `ShipmentStack` | 包裹内专辑：默认收起为叠放封面（≤5 张 + `+N`），点击展开为列表 | `records` `children`（展开后的列表） | 叠放 vs 列表 + 箭头朝向，`aria-expanded` | 封面收成小缩略、箭头翻转 |
 | `Disclosure` | 折叠说明：把解释性文字收起来，主界面只留控件和数字 | `summary?`（默认「说明」） `children` | 原生 details，键盘/读屏开箱可用 | 前置箭头旋转 |
 | `SearchField` | 搜索框：放大镜 + 清除按钮，Esc 清空 | `value` `onChange` `ariaLabel` `placeholder?` | 清除后焦点回到输入框 | 有内容时出现清除按钮 |
 | `Toast` | 全局消息：边框环绕一周后淡出 | `kind('ok'｜'warn'｜'err')` `text` `onDone` | 错误 role=alert，其余 status；悬停/聚焦暂停；点击关闭；错误停留 6 秒，警告 3.5 秒，成功 2 秒 | 环绕路径的颜色按级别区分，另有文字 |
@@ -43,6 +46,7 @@
 | `Cover` `Thumb` `PriceCell` | 封面、缩略图、价格格 | 卡片 / 详情 / 销售行共用 |
 | `PageHead` `Ledger` | 页头与侧栏账本 | |
 | `forms/fields.tsx` | `Field` `MoneyField` `TextareaField` `DateChipsRow` | 表单字段构造；`MoneyField` 日元只保留整数部分 |
+| `forms/record/*` | 专辑表单的拆分模块：`useReleaseLookup` / `pickRelease`（发行版检索、校验、确认、手动录入）、`releaseCover`（选版后封面并行匹配）、`useCoverSearch`、`useRecordHints`、`useCostPreview`；区块 `ReleaseLookupSection` `PhotoEntry` `ReleaseDetails` `CoverPanel` `MoneySection`；`buildPayload` | 仅供 `RecordForm` 组合，行为与拆分前一致；检索逻辑只改 `useReleaseLookup`，不在区块组件里写请求 |
 | `forms/shared.ts` | `useFormSubmit` `useRate` `bulkAction` | 提交流程统一入口 |
 
 ## 约定

@@ -9,6 +9,7 @@ import type {MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent} f
 import {ChevLeftIco, ChevRightIco} from '../icons';
 import {advanceGalleryMotion, clampGalleryPosition, galleryReleaseVelocity, releaseGalleryMotion} from '../../core/gallery-motion';
 import {thumbnailZoomFrames} from '../../core/gallery-zoom';
+import {useLightboxZoom} from './lightboxZoom';
 import type {GalleryMotionState} from '../../core/gallery-motion';
 
 type View = {list: string[]; pos: number};
@@ -119,7 +120,9 @@ export function Lightbox() {
     const src = cur.list[index];
     return Array.from(root.querySelectorAll<HTMLImageElement>('.lb-slide img')).find(el => el.src === src) ?? null;
   };
+  const pinchZoom = useLightboxZoom(currentImg);
   const teardown = () => {
+    pinchZoom.reset();
     // 收起动画以 fill 定格末帧，随卸载结束即可，不再 cancel 以免闪回全尺寸。
     zoomAnim.current = null;
     setZoom(null);
@@ -129,6 +132,7 @@ export function Lightbox() {
   const close = () => {
     const cur = latest.current.view;
     if (!cur || zoomRef.current === 'out') return;
+    pinchZoom.reset(); // 收起动画以未缩放的落位矩形为基准
     stopMotion();
     gesture.current = null;
     const data = origin.current;
@@ -244,6 +248,16 @@ export function Lightbox() {
     return () => window.clearTimeout(timer);
   }, [zoom]);
 
+  // 翻到另一张时回到 1×；触控板捏合（ctrl+滚轮）在灯箱打开期间接管页面缩放。
+  const shownIndex = view ? clampGalleryPosition(Math.round(view.pos), 0, view.list.length - 1) : -1;
+  useEffect(() => { pinchZoom.reset(); }, [shownIndex]);
+  useEffect(() => {
+    if (!view) return;
+    const onWheel = (e: WheelEvent) => { if (e.target instanceof Element && e.target.closest('#lightbox')) pinchZoom.wheel(e); };
+    document.addEventListener('wheel', onWheel, {passive: false});
+    return () => document.removeEventListener('wheel', onWheel);
+  }, [view !== null]);
+
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
     const onChange = () => {reduced.current = mq.matches;};
@@ -263,6 +277,9 @@ export function Lightbox() {
       zoomRef.current = null;
     }
     introDone.current = true; // 手势一旦开始，本次打开不再补播放大动画
+    const mode = pinchZoom.down(e);
+    if (mode === 'pinch') {gesture.current = null; stopMotion(); settleToRound(); return;} // 第二指落下：翻页手势让位给捏合
+    if (mode === 'pan') return; // 已放大：单指平移，不翻页
     const cur = latest.current.view;
     if (!cur || cur.list.length < 2 || e.pointerType === 'mouse') return;
     if (!e.isPrimary) {gesture.current = null; settleToRound(); return;} // 多指接管：结束拖动并落位
@@ -272,6 +289,7 @@ export function Lightbox() {
       moved: false, axis: '', samples: [{position: posRef.current, at: e.timeStamp}]};
   };
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (pinchZoom.move(e)) {if (e.cancelable) e.preventDefault(); return;}
     const g = gesture.current;
     if (!g || g.id !== e.pointerId || !latest.current.view) return;
     const dx = e.clientX - g.x;
@@ -313,8 +331,20 @@ export function Lightbox() {
     lastAt.current = performance.now();
     schedule();
   };
-  const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => finishGesture(e, false, true);
-  const onPointerCancel = (e: ReactPointerEvent<HTMLDivElement>) => finishGesture(e, true, false);
+  const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (pinchZoom.up(e)) {
+      gesture.current = null;
+      // 缩放 / 平移收尾后浏览器可能补发 click；短暂拦截，且不遗留给下一次真正的点按（捏合不一定有 click）
+      trailingClick.current = true;
+      window.setTimeout(() => {trailingClick.current = false;}, 80);
+      return;
+    }
+    finishGesture(e, false, true);
+  };
+  const onPointerCancel = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (pinchZoom.up(e)) {gesture.current = null; return;}
+    finishGesture(e, true, false);
+  };
   const onLostCapture = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget || !gesture.current?.moved) return;
     gesture.current = null;

@@ -3,6 +3,7 @@ import type {DiscCalibration} from '@diedu/album-engine/disc-calibration';
 // 金额一律是字符串（服务端 Decimal 量化到分），显示时再转 Number。
 import {formatPackagingName} from './core/album-packaging';
 import {copyEditionLabel} from './core/copy-edition';
+import {displayRegion} from './core/release-metadata';
 
 export type Status = 'overseas' | 'transit' | 'domestic' | 'shipping' | 'sold' | 'trash';
 export type SaleStatus = 'shipping' | 'complete' | 'cancelled' | 'returned' | 'refunded';
@@ -148,7 +149,7 @@ export interface ReleaseMedium {
 }
 
 export interface ReleaseInfo {
-  catalogNumber?: string; barcode?: string; musicBrainzReleaseId?: string; label?: string; country?: string;
+  catalogNumber?: string; barcode?: string; musicBrainzReleaseId?: string; discogsReleaseId?: string; manualRelease?: string; label?: string; country?: string;
   releaseDate?: string; edition?: string; packaging?: string; format?: string; discCount?: string;
   matrix?: string; extras?: string; observations?: string; tracklist?: string[]; media?: ReleaseMedium[];
 }
@@ -162,7 +163,7 @@ export interface ListingFields {
 
 export interface ReleaseCandidate {
   id: string; title: string; artist: string; releaseInfo: ReleaseInfo;
-  identifierMatch: boolean; url: string;
+  identifierMatch: boolean; url: string; source?: 'discogs';
 }
 
 export interface SaleItem {
@@ -273,6 +274,15 @@ export const SALE_NAMES: Record<SaleStatus, string> = {
 
 // 实物版次和侧标独立于 MusicBrainz 发行资料；未填写不代表无侧标。
 export function labelTags(r: AlbumRecord): string[] {
-  const p = copyEditionLabel(r.pressing, r.obi);
+  const p = copyEditionLabel(displayRegion(r.releaseInfo?.country, r.pressing), r.obi);
   return [p, formatPackagingName(r.version, r.packaging)].filter(Boolean);
+}
+
+/** 列表行的元信息拆成「地区」+「其他」两层：地区（美国 / 日本…）突出，侧标与包装次之；包装未核对写成「包装待核对」。 */
+export function metaTokens(r: AlbumRecord): {region: string; details: string[]} {
+  const pkg = formatPackagingName(r.version, r.packaging);
+  return {
+    region: displayRegion(r.releaseInfo?.country, r.pressing),
+    details: [r.obi?.trim(), pkg === '待核对' ? '包装待核对' : pkg].filter((x): x is string => !!x),
+  };
 }

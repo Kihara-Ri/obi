@@ -1,7 +1,7 @@
 // 列表中的副本摘要：业务金额与操作由调用方提供，详情/艺人导航互不混用。
 import type {ReactNode} from 'react';
 import type {AlbumRecord} from '../types';
-import {labelTags} from '../types';
+import {metaTokens} from '../types';
 import {ArtistButton} from './ArtistButton';
 import {Cover} from './Cover';
 
@@ -14,7 +14,8 @@ export function AlbumSummary({r, onDetail, onArtist, money, actions, coverOverla
   coverOverlay?: ReactNode;
   metadata?: ReactNode;
 }) {
-  const version = labelTags(r).join(' · ');
+  const {region, details} = metaTokens(r);
+  const version = [region, ...details].filter(Boolean).join(' · ');
   return <div className="album-row">
     <div className={`album-summary${actions ? ' has-actions' : ''}`} data-id={r.id}>
       <div className="album-cover">
@@ -26,7 +27,10 @@ export function AlbumSummary({r, onDetail, onArtist, money, actions, coverOverla
       <div className="album-info">
         <button type="button" className="album-title" title={r.title} onClick={onDetail}><span>{r.title}</span></button>
         {version || metadata ? <div className="album-meta">
-          {version ? <div className="album-version" title={version}>{version}</div> : null}
+          {version ? <div className="album-version" title={version}>
+            {region ? <b className="am-region">{region}</b> : null}
+            {details.map(d => <span key={d}>{d}</span>)}
+          </div> : null}
           {metadata}
         </div> : null}
       </div>

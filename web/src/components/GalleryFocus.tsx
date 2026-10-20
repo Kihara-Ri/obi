@@ -1,4 +1,4 @@
-import {Component, lazy, Suspense, useCallback, useLayoutEffect, useMemo, useRef, useState} from 'react';
+import {Component, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
 import type {ReactNode} from 'react';
 import {createPortal} from 'react-dom';
 import type {AlbumRecord} from '../types';
@@ -9,6 +9,8 @@ import {commitAnimationOpacity, containedImageRect, coverRectFrames} from '../co
 import type {ZoomRect} from '../core/gallery-zoom';
 import {ChevLeftIco, ChevRightIco} from './icons';
 import {Seg} from './ui/Seg';
+import {GearIcon} from './ui/GearIcon';
+import {TwinControls} from './TwinControls';
 import {AlbumFlipCard} from './AlbumFlipCard';
 
 class EngineBoundary extends Component<{children: ReactNode; onUnavailable(): void}, {failed: boolean}> {
@@ -62,6 +64,8 @@ export function GalleryFocus({record, records, originElement, onNavigate, onClos
   const [modelSession, setModelSession] = useState<{id: string; permission: Promise<AlbumOrientationPermission>} | null>(null);
   const [unavailable, setUnavailable] = useState(false);
   const [flipped, setFlipped] = useState(false);
+  // 「实体设置」面板（D-015：数字实体入口在展示灯箱，不在编辑表单）；灯箱是 top-layer 的 dialog，面板必须画在它里面
+  const [twinOpen, setTwinOpen] = useState(false);
   // A failed lazy load belongs to this explicit attempt; the next click may retry.
   const AlbumModel = useMemo(() => lazy(() => import('./AlbumModel').then(module => ({default: module.AlbumModel}))), [modelSession]);
   const currentRecordId = useRef(record.id);
@@ -72,6 +76,9 @@ export function GalleryFocus({record, records, originElement, onNavigate, onClos
   const app = useApp(), job = app.twins.jobs[record.id];
   const published = useMemo(() => publishedAlbum(record, job, app.albumEngine.runtime), [record, job, app.albumEngine.runtime]);
   const showing3D = !!published && modelSession?.id === record.id;
+  const twinOpenRef = useRef(false); twinOpenRef.current = twinOpen;
+  useEffect(() => {setTwinOpen(false);}, [record.id]);
+  const hasTwin = !!job || !!published; // 有实体或有任务才有可设置的内容；生成在 Album Engine 项目里
   const dismissModel = useCallback(() => requestClose.current(), []);
   useLayoutEffect(() => {if (!app.albumEngine.runtime) setModelSession(null);}, [app.albumEngine.runtime]);
   const engineUnavailable = useCallback(() => {setModelSession(null); setUnavailable(true);}, []);
@@ -303,7 +310,10 @@ export function GalleryFocus({record, records, originElement, onNavigate, onClos
     aria-labelledby="gallery-focus-title" data-task-id={job?.id ?? ''} onCancel={event => {event.preventDefault(); requestClose.current();}}
     onKeyDown={event => {
       if (event.defaultPrevented) return;
-      if (event.key === 'Escape') {event.preventDefault(); event.stopPropagation(); requestClose.current();}
+      if (event.key === 'Escape') {
+        event.preventDefault(); event.stopPropagation();
+        if (twinOpenRef.current) setTwinOpen(false); else requestClose.current(); // Esc 先关面板，再关灯箱
+      }
       else if (event.key === 'ArrowLeft') {event.preventDefault(); event.stopPropagation(); navigate(-1);}
       else if (event.key === 'ArrowRight') {event.preventDefault(); event.stopPropagation(); navigate(1);}
       else if (event.key === 'Tab') {
@@ -336,6 +346,13 @@ export function GalleryFocus({record, records, originElement, onNavigate, onClos
           else {setFlipped(false); setUnavailable(false); setModelSession({id: record.id, permission: app.albumEngine.runtime!.requestAlbumOrientationPermission()});}
         }}/>
     </div> : null}
+    {hasTwin ? <button type="button" className="gallery-twin-open" aria-expanded={twinOpen} onClick={() => setTwinOpen(v => !v)}>
+      <GearIcon size={16}/><span>实体设置</span></button> : null}
+    {twinOpen && hasTwin ? <section className="gallery-twin-panel" aria-label="实体设置">
+      <header><strong>实体设置</strong><button type="button" className="quiet" aria-label="关闭实体设置" onClick={() => setTwinOpen(false)}>×</button></header>
+      <TwinControls record={record} releaseId={record.releaseInfo?.musicBrainzReleaseId || ''}
+        onSettings={() => {location.hash = '#settings';}}/>
+    </section> : null}
     {unavailable ? <p className="gallery-engine-unavailable" role="status">3D 暂不可用，可重试</p> : null}
     {record.cover ? <img ref={coverProxy} className="gallery-focus-transition-image" src={record.cover}
       alt="" aria-hidden="true" draggable={false}/> : null}

@@ -91,6 +91,34 @@ class SampleLibraryTests(unittest.TestCase):
         self.assertNotIn('barcode', record.get('releaseInfo', {}))
         self.assertNotIn(record['id'], self.store.twin_index()['jobs'])
 
+    def test_release_info_chain_shops_and_listing_states_cover_the_new_ui(self):
+        records = self.state()['records']
+        with_barcode = [r for r in records if r.get('releaseInfo', {}).get('barcode')]
+        self.assertGreaterEqual(len(with_barcode), 7)
+        for r in with_barcode:
+            code = r['releaseInfo']['barcode']
+            digits = [int(c) for c in code]
+            self.assertEqual(len(code), 13)
+            self.assertTrue(code.startswith('2'), '样本条码必须取 GS1 保留前缀，不冒充真实商品')
+            self.assertEqual((sum(d * (3 if i % 2 else 1) for i, d in enumerate(digits[:12])) + digits[12]) % 10, 0)
+        # 国家：日本 / 美国 / 英国 / 德国 / 香港，列表要显示地区名而不是日版 / 外版
+        self.assertEqual({r['releaseInfo']['country'] for r in with_barcode}, {'JP', 'US', 'GB', 'DE', 'HK'})
+        # 回退场景：没有条码 / 国家的副本仍只显示日版 / 外版
+        self.assertFalse(self.record('islands-jp').get('releaseInfo', {}).get('barcode'))
+        self.assertFalse(self.record('minecraft').get('releaseInfo', {}).get('country'))
+        # 编号被重复拼接的显示场景
+        self.assertEqual(self.record('parachutes')['releaseInfo']['catalogNumber'],
+                         'TOCP-0002 / TOCP-0002 / TOCP-0002')
+        # 连锁渠道：同品牌不同写法 / 分店 / 线上店
+        shops = {r['location'] for r in records}
+        for name in ('BOOKOFF 秋葉原駅前店', 'Book Off 松本店', 'Disk union 下北沢店', 'diskunion 新宿',
+                     'tower.jp', 'Tower Records 渋谷'):
+            self.assertIn(name, shops)
+        # 已上架：售出中的 m83 之外，国内库存里还有两张在售
+        listed = {r['title'] for r in records if r.get('listed')}
+        self.assertTrue({"Hurry Up, We're Dreaming.", 'Parachutes', 'Illinois'} <= listed)
+        self.assertEqual(self.record('parachutes')['listingChannel'], '示例二手平台')
+
     def test_default_samples_do_not_fabricate_album_images(self):
         records = self.state()['records']
         self.assertEqual(len(records), 21)

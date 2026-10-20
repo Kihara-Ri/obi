@@ -253,6 +253,8 @@ def api_records(h, svc, body):
         if not isinstance(info, dict): continue
         new_barcode = info.get('barcode') or ''
         new_edition = info.get('musicBrainzReleaseId') or ''
+        if not new_edition and info.get('discogsReleaseId'): new_edition = 'discogs-' + info['discogsReleaseId']
+        manual = info.get('manualRelease') == '1' and not new_edition
         old_barcode = old_edition = ''
         if item.get('id'):
             with svc.store.connect() as db:
@@ -260,7 +262,11 @@ def api_records(h, svc, body):
             previous_info = previous.get('releaseInfo') or {}
             old_barcode = previous_info.get('barcode') or ''
             old_edition = previous_info.get('musicBrainzReleaseId') or ''
-        if (new_barcode, new_edition) != (old_barcode, old_edition):
+            if not old_edition and previous_info.get('discogsReleaseId'):
+                old_edition = 'discogs-' + previous_info['discogsReleaseId']
+        if manual:
+            pass  # 两个资料库都没有收录：按用户手动录入的版本保存，不做资料库核对，也不伪造来源。
+        elif (new_barcode, new_edition) != (old_barcode, old_edition):
             if new_barcode:
                 verify_barcode_release(svc, new_barcode, new_edition)
             elif old_barcode and new_edition:
@@ -305,26 +311,66 @@ def releases(svc):
 
 
 def api_release(h, svc): h.send({'releaseInfo':releases(svc).release_details(query(h).get('id'))})
+def lookup_sources(svc, barcode, catno, exact, hedge=1.5):
+    """先查 MusicBrainz；没有精确匹配（或暂时不可用）再查备用来源 Discogs，并如实返回各来源结果。
+    MusicBrainz 迟迟没有答复（>hedge 秒）时并行启动 Discogs，不让用户串行等两个来源；
+    MusicBrainz 很快命中则不打扰 Discogs。两个来源都不可用才报错，都没有则返回空候选与 sources 说明。"""
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as Slow
+    sources = {}
+
+    def musicbrainz():
+        return exact(releases(svc).catalog({'title': '', 'artist': '',
+            'releaseInfo': {'barcode': barcode, 'catalogNumber': catno}}))
+
+    def discogs():
+        return releases(svc).fallback(barcode, catno)
+
+    def settle(name, future):
+        try:
+            found = future.result()
+        except ValidationError as exc:
+            sources[name] = str(exc)
+            return []
+        sources[name] = 'found' if found else 'none'
+        return found
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        mb = pool.submit(musicbrainz)
+        dc = None
+        try:
+            mb.exception(timeout=hedge)
+        except Slow:
+            dc = pool.submit(discogs)
+        candidates = settle('musicbrainz', mb)
+        if not candidates:
+            candidates = settle('discogs', dc or pool.submit(discogs))
+    if not candidates and all(v not in ('none', 'found') for v in sources.values()):
+        raise ValidationError('发行资料库暂时不可用，请稍后重试（' + '；'.join(sources.values()) + '）')
+    return candidates, sources
+
+
 def api_barcode_lookup(h, svc, body):
-    """精确条形码检索 MusicBrainz CD 发行版，复用现有节流与缓存。"""
+    """精确条形码检索 CD 发行版（MusicBrainz 优先，Discogs 备用），复用现有节流与缓存。"""
     barcode = body.get('barcode', '')
     from twins import clean_barcode
     barcode = clean_barcode(barcode)
     if not barcode: raise ValidationError('请输入完整的条形码')
-    candidates = releases(svc).catalog({'title': '', 'artist': '',
-        'releaseInfo': {'barcode': barcode}})
-    candidates = [c for c in candidates if c['identifierMatch']
-                  and re.sub(r'\D', '', c['releaseInfo'].get('barcode', '')) == barcode]
-    h.send({'barcode': barcode, 'candidates': candidates})
+    candidates, sources = lookup_sources(svc, barcode, '', lambda found: [c for c in found if c['identifierMatch']
+        and re.sub(r'\D', '', c['releaseInfo'].get('barcode', '')) == barcode])
+    h.send({'barcode': barcode, 'candidates': candidates, 'sources': sources})
 
 
 def verify_barcode_release(svc, barcode, release_id):
-    """Check the full barcode against the exact MusicBrainz release, never by title."""
+    """Check the full barcode against the exact catalog release (MusicBrainz or Discogs), never by title."""
     from twins import clean_barcode, UUID
     barcode = clean_barcode(barcode)
     if not barcode: raise ValidationError('请输入完整的条形码')
+    if isinstance(release_id, str) and release_id.startswith('discogs-'):
+        if clean_barcode(releases(svc).release_details(release_id).get('barcode', '')) != barcode:
+            raise ValidationError('Discogs 中该条码不属于当前发行版本，请重新查询并选择正确版本')
+        return {'barcode': barcode, 'releaseId': release_id, 'valid': True}
     if not isinstance(release_id, str) or not UUID.fullmatch(release_id):
-        raise ValidationError('请先查询并选择对应的 MusicBrainz 发行版本')
+        raise ValidationError('请先查询并选择对应的发行版本')
     published = releases(svc).release_details(release_id)
     if clean_barcode(published.get('barcode', '')) != barcode:
         raise ValidationError('MusicBrainz 中该条码不属于当前发行版本，请重新查询并选择正确版本')
@@ -343,14 +389,13 @@ def api_catalog_number_lookup(h, svc, body):
     number = raw.strip()
     if not re.fullmatch(r'[\w ./+\-]+', number, re.UNICODE):
         raise ValidationError('唱片编号包含不支持的字符')
-    candidates = releases(svc).catalog({'title': '', 'artist': '',
-        'releaseInfo': {'barcode': '', 'catalogNumber': number}})
     normalized = lambda value: re.sub(r'[^\w]', '', str(value)).casefold()
-    # A MusicBrainz release may have multiple labels; compare each independently.
-    exact = [item for item in candidates
-             if any(normalized(part) == normalized(number)
-                    for part in item.get('releaseInfo', {}).get('catalogNumber', '').split(' / '))]
-    h.send({'catalogNumber': number, 'candidates': exact})
+    # A release may have multiple labels; compare each independently.
+    candidates, sources = lookup_sources(svc, '', number, lambda found: [item for item in found
+        if any(normalized(part) == normalized(number)
+               for part in item.get('releaseInfo', {}).get('catalogNumber', '').split(' / '))])
+    exact = candidates
+    h.send({'catalogNumber': number, 'candidates': exact, 'sources': sources})
 
 
 

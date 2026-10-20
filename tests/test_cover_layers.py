@@ -33,6 +33,40 @@ class LayerTests(unittest.TestCase):
         s=CoverService()
         with patch.object(s,'artist_catalog',side_effect=ValidationError('offline')),patch.object(s,'term_candidates',side_effect=ValidationError('offline')),patch.object(s,'archive_candidates',return_value=[]) as archive:
             result=s.search('Other','Green Day');self.assertEqual(len(result['warnings']),4);archive.assert_called_once()
+    def test_slow_itunes_does_not_delay_archive_leg(self):
+        import threading
+        s=CoverService();archive_started=threading.Event()
+        def slow_catalog(artist,country):
+            self.assertTrue(archive_started.wait(2),'iTunes 仍在查时 MusicBrainz 一腿应并行启动')
+            return []
+        def archive(title,artist):
+            archive_started.set();return []
+        with patch.object(s,'artist_catalog',side_effect=slow_catalog),patch.object(s,'term_candidates',return_value=[]),patch.object(s,'archive_candidates',side_effect=archive):
+            result=s.layered_search('Other','Green Day',hedge=0.05)
+        self.assertEqual(result['checked'][-1],'MusicBrainz / Cover Art Archive')
+    def test_archive_exact_hit_stops_slow_itunes_leg(self):
+        import threading,time
+        s=CoverService();release=threading.Event();calls=[]
+        hit={'token':'CAA-1','title':'Other','artist':'Green Day','thumbnail':'https://coverartarchive.org/x.jpg','year':'2000','provider':'MusicBrainz / Cover Art Archive','score':1.0,'exact':True}
+        def slow_catalog(artist,country):
+            calls.append(country);release.wait(3);return []
+        with patch.object(s,'artist_catalog',side_effect=slow_catalog),patch.object(s,'term_candidates',return_value=[]) as term,patch.object(s,'archive_candidates',return_value=[hit]):
+            started=time.monotonic();result=s.layered_search('Other','Green Day',hedge=0.05)
+            elapsed=time.monotonic()-started;release.set()
+        self.assertLess(elapsed,1.5);self.assertEqual(result['candidates'][0]['token'],'CAA-1')
+        time.sleep(0.2);self.assertEqual(calls,['JP']);term.assert_not_called()   # 被叫停后不再走 US 与关键词腿
+    def test_different_hosts_are_paced_independently(self):
+        import threading,time
+        s=CoverService();gate=threading.Event()
+        def read(url,limit):
+            if 'itunes.apple.com' in url: gate.wait(2)   # iTunes 请求卡住
+            return json.dumps({'results':[]}).encode()
+        with patch.object(s,'read',side_effect=read),patch('covers.time.sleep'):
+            t=threading.Thread(target=s.metadata,args=('https://itunes.apple.com/search?term=a',));t.start()
+            started=time.monotonic()
+            s.metadata('https://coverartarchive.org/release/x')   # 不同主机，不应等 iTunes
+            self.assertLess(time.monotonic()-started,1)
+            gate.set();t.join()
     def test_live_and_deluxe_not_exact(self):
         self.assertNotEqual(album_key('Carrie & Lowell'),album_key('Carrie & Lowell Live'))
         self.assertNotEqual(album_key('Dookie'),album_key('Dookie (Deluxe Edition)'))

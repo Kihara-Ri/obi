@@ -54,6 +54,13 @@ from storage import Store, uid  # noqa: E402
 FIXED_RATES = {'2026-07-01': '4.75', '2026-08-01': '4.72', '2026-09-01': '4.70'}
 
 
+def ean13(prefix12):
+    """补全 EAN-13 校验位。样本条码取 GS1 保留的 200–299 前缀（店内自用码，不属于任何真实商品）。"""
+    digits = [int(c) for c in prefix12]
+    check = (10 - (sum(d * (3 if i % 2 else 1) for i, d in enumerate(digits)) % 10)) % 10
+    return prefix12 + str(check)
+
+
 def fake_fetch(start, end):
     return dict(FIXED_RATES)
 
@@ -65,30 +72,46 @@ def open_store(data_dir):
     return Store(data / 'albums.sqlite3', rates)
 
 
-# ── 样本清单（21 副本 / 19 专辑；金额、日期、渠道、备注均为虚构）──────────────
+# ── 样本清单（21 副本 / 19 专辑；金额、日期、备注均为虚构）──────────────
+# 渠道：多数为「示例…」；另有若干公开的连锁零售商名称（BOOKOFF、Disk union、Tower Records、tower.jp），
+# 只用于验证品牌归并与分店层级，不是任何人的真实购买记录。条码用 GS1 保留前缀（ean13），不对应真实商品。
 # 每条 (键名, 记录)。键名仅脚本与测试内部引用。
 RECORDS = [
     # 国内库存 domestic（8）
     ('dookie-jp', dict(title='Dookie', artist='Green Day', currency='JPY', price='220',
-                       date='2026-07-05', location='示例唱片行·A 店', version='Jewel Case',
-                       pressing='日版', status='domestic')),
+                       date='2026-07-05', location='Book Off 松本店', version='Jewel Case',
+                       pressing='日版', status='domestic',
+                       releaseInfo=dict(barcode=ean13('200100000001'), catalogNumber='WPCR-0001',
+                                        country='JP', releaseDate='2026-01-01', label='示例厂牌',
+                                        format='CD', discCount='1'))),
     ('parachutes', dict(title='Parachutes', artist='Coldplay', currency='JPY', price='380',
                         date='2026-07-05', location='示例唱片行·A 店', version='Jewel Case',
                         pressing='日版', obi='带侧标', releaseYear='2000', status='domestic',
-                        storage='示例书架·A-1', noteAlbum='示例专辑笔记：与外版副本共享')),
+                        storage='示例书架·A-1', noteAlbum='示例专辑笔记：与外版副本共享',
+                        # 编号被资料库重复拼接（A / A / A）：列表与详情要去重显示
+                        releaseInfo=dict(barcode=ean13('200100000002'),
+                                         catalogNumber='TOCP-0002 / TOCP-0002 / TOCP-0002',
+                                         country='JP', releaseDate='2026-01-02', label='示例厂牌',
+                                         format='CD', discCount='1'))),
     ('ex-all-time', dict(title='EX All Time Favourites', artist='关淑怡', currency='CNY',
                          price='121', date='2026-07-12', location='示例二手平台',
                          version='Digipak', status='domestic')),
     ('larks', dict(title="Larks' Tongues in Aspic", artist='King Crimson', currency='JPY',
-                   price='1210', fees='35', date='2026-07-18', location='示例唱片行·B 店',
+                   price='1210', fees='35', date='2026-07-18', location='Disk union 下北沢店',
                    version='Mini LP Sleeve', pressing='日版', obi='带侧标', condition='近全新',
-                   status='domestic')),
+                   status='domestic',
+                   releaseInfo=dict(barcode=ean13('200100000003'), catalogNumber='UICE-0003',
+                                    country='JP', releaseDate='2026-01-03', label='示例厂牌',
+                                    format='CD', discCount='1'))),
     ('minecraft', dict(title='Minecraft: Volume Alpha', artist='C418', currency='JPY',
                        price='', date='2026-07-18', location='示例唱片行·B 店',
                        version='Digipak', status='domestic', note='示例：成本未知（null，不当 0）')),
     ('shall-we', dict(title='Shall We Dance? Shall We Talk!', artist='陈奕迅', currency='CNY',
-                      price='138', date='2026-07-25', location='示例二手平台', version='Rigid Box',
-                      status='domestic')),
+                      price='138', date='2026-07-25', location='tower.jp', version='Rigid Box',
+                      status='domestic',
+                      releaseInfo=dict(barcode=ean13('200100000004'), catalogNumber='EMI-0004',
+                                       country='HK', releaseDate='2026-01-04', label='示例厂牌',
+                                       format='CD', discCount='2'))),
     ('illinois', dict(title='Illinois', artist='Sufjan Stevens', currency='JPY', price='2800',
                       date='2026-08-02', location='示例唱片行·A 店', version='Jewel Case',
                       status='domestic',
@@ -104,14 +127,23 @@ RECORDS = [
                        date='2026-08-02', location='示例唱片行·C 店', version='Jewel Case',
                        pressing='外版', status='overseas')),
     ('loveless', dict(title='Loveless', artist='My Bloody Valentine', currency='JPY',
-                      price='1500', date='2026-08-08', location='示例唱片行·C 店',
-                      version='Card Sleeve', pressing='外版', status='overseas')),
+                      price='1500', date='2026-08-08', location='Tower Records 渋谷',
+                      version='Card Sleeve', pressing='外版', status='overseas',
+                      releaseInfo=dict(barcode=ean13('200100000005'), catalogNumber='CRE-0005',
+                                       country='GB', releaseDate='2026-01-05', label='示例厂牌',
+                                       format='CD', discCount='1'))),
     ('tasogare', dict(title='盗作', artist='ヨルシカ', currency='JPY', price='1980',
-                      date='2026-08-08', location='示例唱片行·C 店', version='Jewel Case',
-                      status='overseas')),
+                      date='2026-08-08', location='BOOKOFF 秋葉原駅前店', version='Jewel Case',
+                      status='overseas',
+                      releaseInfo=dict(barcode=ean13('200100000007'), catalogNumber='UPCH-0007',
+                                       country='DE', releaseDate='2026-01-07', label='示例厂牌',
+                                       format='CD', discCount='1'))),
     ('tpab', dict(title='To Pimp a Butterfly', artist='Kendrick Lamar', currency='JPY',
-                  price='1700', date='2026-08-15', location='示例唱片行·B 店', version='Jewel Case',
-                  pressing='日版', obi='带侧标', status='overseas')),
+                  price='1700', date='2026-08-15', location='diskunion 新宿', version='Jewel Case',
+                  pressing='日版', obi='带侧标', status='overseas',
+                  releaseInfo=dict(barcode=ean13('200100000006'), catalogNumber='UICN-0006',
+                                   country='US', releaseDate='2026-01-06', label='示例厂牌',
+                                   format='CD', discCount='1'))),
     ('lift-fists', dict(title='Lift Your Skinny Fists Like Antennas to Heaven',
                         artist='Godspeed You! Black Emperor', currency='JPY', price='2860',
                         date='2026-08-08', location='示例唱片行·C 店', version='Gatefold Sleeve',
@@ -184,6 +216,11 @@ def seed(data_dir):
     store.bulk({'ids': [ids['m83']], 'action': 'list',
                 'listing': {'channel': '示例二手平台', 'url': 'https://example.com/listing/1001',
                             'description': '示例上架描述：全程箱装，碟面无划痕。'}})
+    # 另有两张在售上架（国内库存），用于验证列表上的「已上架」标签与详情的上架资料
+    for key, number in (('parachutes', '1002'), ('illinois', '1003')):
+        store.bulk({'ids': [ids[key]], 'action': 'list',
+                    'listing': {'channel': '示例二手平台', 'url': f'https://example.com/listing/{number}',
+                                'description': '示例上架描述：碟面无划痕，附原装侧标。'}})
     store.sell({'ids': [ids['m83']], 'currency': 'CNY', 'gross': '88.00', 'fees': '4.40',
                 'date': '2026-09-05', 'channel': '示例二手平台', 'orderId': 'DEMO-1001',
                 'note': '示例：售出中（买家未确认收货）'})

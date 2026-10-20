@@ -79,32 +79,26 @@ try {
   assert.ok(!description.includes('需使用实拍重新分析和试听'), '待确认项不能混入正文');
   await page.getByRole('button', {name: '复制售卖文案'}).click();
   assert.match(await page.evaluate(() => navigator.clipboard.readText()), /Godspeed You! Black Emperor/u);
-  // 清晰确定选图起点，再通过 UI 排序、排除一张。
-  for (let index = 1; index <= 4; index++) await page.getByRole('checkbox', {name: `选用照片 ${index}`, exact: true}).check();
-  for (let index = 0; index < 3; index++) {
-    const move = page.getByRole('button', {name: '照片 2 前移', exact: true});
-    if (await move.isDisabled()) break;
-    await move.click();
-  }
-  await page.getByRole('checkbox', {name: '选用照片 4', exact: true}).uncheck();
-  const downloadWait = page.waitForEvent('download');
-  await page.getByRole('button', {name: '下载所选图片包'}).click();
-  const download = await downloadWait;
-  assert.equal(await download.failure(), null);
-  await download.saveAs(join(output, 'listing-photos.zip'));
-  await page.locator('.listing-photos').screenshot({path: join(output, 'listing-photos.png')});
+  // 照片不在上架资料里：保存草稿后到专辑详情，用“实物照片”右侧图标下载。
+  assert.equal(await page.getByRole('button', {name: '下载所选图片包'}).count(), 0);
   await page.getByRole('button', {name: '保存草稿', exact: true}).click();
   await page.getByRole('heading', {name: '售卖与上架资料'}).waitFor({state: 'hidden'});
   const saved = (await state()).records.find(row => row.id === before.id);
   assert.equal(Boolean(saved.listed), Boolean(before.listed));
   assert.equal(saved.price, before.price);
   assert.equal(saved.listingDraft.description, description);
-  assert.equal(saved.listingDraft.photoOrder[0], 1);
-  assert.equal(saved.listingDraft.photoOrder.includes(3), false);
+  assert.deepEqual(saved.listingDraft.photoOrder, [0, 1, 2, 3]);
+  // 桌面：专辑详情“实物照片”右侧图标下载按专辑命名的 ZIP。
+  await page.getByRole('button', {name: title, exact: true}).click();
+  const downloadWait = page.waitForEvent('download');
+  await page.getByRole('button', {name: '下载实物照片'}).click();
+  const download = await downloadWait;
+  assert.equal(await download.failure(), null);
+  await download.saveAs(join(output, 'listing-photos.zip'));
+  await page.keyboard.press('Escape');
   await open();
   assert.equal(await page.getByRole('textbox', {name: '售卖正文', exact: true}).inputValue(), description);
   await page.setViewportSize({width: 390, height: 844});
-  await page.locator('.listing-photos').scrollIntoViewIfNeeded();
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   await page.screenshot({path: join(output, 'listing-mobile.png')});
   // 另一标签真实保存新草稿；返回旧标签不能借刷新覆盖。

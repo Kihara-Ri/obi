@@ -25,6 +25,26 @@ class ReleaseCatalogTests(unittest.TestCase):
         self.assertIn('barcode', request.call_args.args[0])
         self.assertEqual(candidates[0]['releaseInfo']['country'], 'JP')
 
+    def test_short_musicbrainz_rate_limit_is_retried_once(self):
+        from musicbrainz import RateLimited
+        calls = []
+        class Client:
+            def get_url(self, url):
+                calls.append(url)
+                if len(calls) == 1: raise RateLimited('限流')
+                return {'releases': []}
+            def cooldown_remaining(self): return 0.01
+        service = ReleaseCatalog(mb=Client())
+        self.assertEqual(service.catalog(FIELDS), [])
+        self.assertEqual(len(calls), 2)
+
+    def test_long_musicbrainz_cooldown_is_not_waited_for(self):
+        from musicbrainz import RateLimited
+        class Client:
+            def get_url(self, url): raise RateLimited('限流')
+            def cooldown_remaining(self): return 30
+        with self.assertRaises(ValidationError): ReleaseCatalog(mb=Client()).catalog(FIELDS)
+
     def test_release_detail_tracks_cache_and_cd_validation(self):
         ident = '11111111-1111-1111-1111-111111111111'
         release = {'barcode': '1234567890123', 'country': 'JP', 'date': '2001-02-03',

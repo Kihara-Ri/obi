@@ -1,5 +1,5 @@
 // 设置页：分段标签页（功能 / 数据 / 高级 / 账户），一次只看一类；说明性文字折叠，主区只留控件与状态。
-import {useState} from 'react';
+import {useSessionState} from '../core/useSessionState';
 import {useApp} from '../state/AppContext';
 import {PageHead} from '../components/PageHead';
 import {ModuleChooser} from '../components/ModuleChooser';
@@ -22,7 +22,8 @@ const TABS = [
 export function SettingsPage() {
   const app = useApp();
   const {state} = app;
-  const [tab, setTab] = useState<Tab>('modules');
+  // 标签记在会话里：进回收站等子页再返回，仍停在原来的标签（原来是组件内 useState，卸载后回到「功能」）
+  const [tab, setTab] = useSessionState<Tab>('settings-tab', 'modules', TABS.map(t => t.value as Tab));
   return (
     <>
       <PageHead title="设置与备份" label="KEEP IT IN ORDER"/>

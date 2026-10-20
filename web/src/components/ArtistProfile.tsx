@@ -114,8 +114,9 @@ function WorkCover({work, localCover, gate}: {
   return <span className="work-cover cover-fallback pending" ref={ref} aria-hidden="true"><span>◌</span></span>;
 }
 
-function Meta({children}: {children: ReactNode}) {
-  return <span className="profile-meta-item">{children}</span>;
+// 与专辑详情的「标签—数值」行同款（.detail-grid），保证两个抽屉的信息排版一致。
+function Fact({label, children}: {label: string; children: ReactNode}) {
+  return <div><dt>{label}</dt><dd>{children}</dd></div>;
 }
 
 export function ArtistProfile(props: ArtistProfileProps) {
@@ -190,7 +191,6 @@ export function ArtistProfile(props: ArtistProfileProps) {
   return (
     <div className="artist-profile">
       <header className="profile-head">
-        <p className="profile-eyebrow">艺人 · 资料与作品</p>
         <h3 className="profile-name">{profile?.name || artist}</h3>
         {profile?.name && profile.name !== artist
           ? <p className="profile-source-name">收藏署名：{artist}</p> : null}
@@ -204,17 +204,17 @@ export function ArtistProfile(props: ArtistProfileProps) {
         <aside className="profile-sidebar" aria-label="艺人概况与收藏">
           <section className="profile-overview">
         {profile ? (
-          <div className="profile-facts">
-            {artistTypeText(profile.type) ? <Meta>{artistTypeText(profile.type)}</Meta> : null}
-            {profile.area ? <Meta>关联地区 {profile.area}</Meta> : null}
-            {lifeSpan.map(([label, value]) => <Meta key={label}>{label} {value}</Meta>)}
-            {profile.disambiguation ? <Meta>{profile.disambiguation}</Meta> : null}
-          </div>
+          <dl className="detail-grid profile-facts">
+            {artistTypeText(profile.type) ? <Fact label="类型">{artistTypeText(profile.type)}</Fact> : null}
+            {profile.area ? <Fact label="关联地区">{profile.area}</Fact> : null}
+            {lifeSpan.map(([label, value]) => <Fact key={label} label={label}>{value}</Fact>)}
+            {profile.disambiguation ? <Fact label="说明">{profile.disambiguation}</Fact> : null}
+          </dl>
         ) : profileLoading || profileError || resolution ? null : (
           <p className="profile-note">该艺人的详细资料暂未收录。</p>
         )}
         {profile && (aliasList.length || profile.genres.length) ? (
-          <details className="profile-more" open={moreOpen} onToggle={event => setMoreOpen(event.currentTarget.open)}>
+          <details className="adv profile-more" open={moreOpen} onToggle={event => setMoreOpen(event.currentTarget.open)}>
             <summary>别名与音乐类型</summary>
         {profile && aliasList.length ? (
           <p className="profile-aliases">
@@ -242,17 +242,17 @@ export function ArtistProfile(props: ArtistProfileProps) {
         ) : null}
           </section>
           <section className="profile-collection">
-            <h4 className="profile-section-title">我的收藏</h4>
-            <dl className="collection-summary">
-              <div><dt>持有</dt><dd>{collection.counts.holding}</dd></div>
+            <h4 className="section-title">我的收藏</h4>
+            <dl className="detail-grid collection-summary">
+              <Fact label="持有">{collection.counts.holding}</Fact>
               {modules.trading ? <>
-                <div><dt>售出中</dt><dd>{collection.counts.shipping}</dd></div>
-                <div><dt>曾收藏</dt><dd>{collection.counts.sold}</dd></div>
+                <Fact label="售出中">{collection.counts.shipping}</Fact>
+                <Fact label="曾收藏">{collection.counts.sold}</Fact>
               </> : null}
             </dl>
           </section>
       {/* 6. 来源与次要操作 */}
-      <details className="profile-foot">
+      <details className="adv profile-foot">
         <summary>来源与资料管理</summary>
         <p className="small-note">
           {fetchedAt ? `更新于 ${fetchedAt}` : '资料来源 MusicBrainz'}

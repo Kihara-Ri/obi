@@ -24,12 +24,14 @@ export interface ArtistDrawerRestore {
   back?: {label: string; run: () => void};
 }
 
-export function openArtistDrawer(app: AppCtx, artist: string, restore?: ArtistDrawerRestore) {
+export function openArtistDrawer(app: AppCtx, artist: string, restore?: ArtistDrawerRestore, direction?: 'back') {
   app.openDrawer({
     title: '艺人',
     variant: 'artist',
-    back: restore?.back,
     wide: true,
+    // 返回箭头在抽屉头部左侧（spec.back）；底栏留给候选确认区（ArtistProfile 把确认区送进 artist-footer）
+    direction,
+    back: restore?.back,
     // key：按艺人强制重挂载，杜绝任何复用路径下上一位的资料/目录状态残留
     content: <ArtistDrawerBody key={artist} artist={artist} restore={restore}/>,
   });
@@ -228,7 +230,8 @@ function ArtistDrawerBody({artist, restore}: {artist: string; restore?: ArtistDr
   const openCopy = (id: string, unlinkedOpen = false) => {
     const body = bodyRef.current?.closest('.drawer-body') as HTMLElement | null;
     savedViewRef.current = {...restore, category, expanded, unlinkedOpen, scrollTop: body?.scrollTop ?? 0};
-    openDetail(app, id, {label: '返回艺人资料', artist, run: () => openArtistDrawer(app, artist, savedViewRef.current)});
+    // 返回 = 弹栈露出下面那层艺人页（一直挂载着，分类 / 展开项 / 滚动位置原样保留，也不会重新请求资料与目录）
+    openDetail(app, id, {label: '返回艺人资料', artist, run: () => { app.backDrawer(); }});
   };
 
   const doLink = async (record: CollectionRecord, work: ArtistWork) => {

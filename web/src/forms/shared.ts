@@ -1,4 +1,4 @@
-// 表单共享：提交流程（禁用按钮 → API → 关抽屉 → 刷新 → toast → 错误就地显示）、
+// 表单共享：提交流程（禁用按钮 → API → 关抽屉或回到上一层 → 刷新 → toast → 错误就地显示）、
 // 汇率获取与批量操作 helper。
 import {useEffect, useState} from 'react';
 import {api} from '../core/api';
@@ -21,13 +21,20 @@ export function useRate(date: string) {
 export function useFormSubmit() {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const run = async (app: AppCtx, fn: () => Promise<unknown>, successMsg = '已保存') => {
+  // backOnSave：编辑类表单（编辑专辑、上架资料）保存后回到打开它的那一层并显示更新后的内容；
+  // 其余（记录售出、运输、确认类…）保存后专辑状态可能已变，仍关闭整个抽屉。
+  const run = async (app: AppCtx, fn: () => Promise<unknown>, successMsg = '已保存', opts?: {backOnSave?: boolean}) => {
     setSaving(true); setError('');
     try {
       await fn();
-      app.closeDrawer(true);
       app.setSelected(new Set());
-      await app.refresh();
+      if (opts?.backOnSave) {
+        await app.refresh(); // 先刷新再回上一层，上一层（详情 / 管理页）出现时就是新内容
+        app.backDrawer(true);
+      } else {
+        app.closeDrawer(true);
+        await app.refresh();
+      }
       app.toast(successMsg);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

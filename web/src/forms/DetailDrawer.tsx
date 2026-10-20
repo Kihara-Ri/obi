@@ -1,20 +1,26 @@
-// 专辑详情抽屉：封面大图、字段、实物照片墙、双笔记、运输与交易历史。
+// 专辑详情（摘要层）：身份 → 状态行 → 关键信息（≤6 项）→ 照片 → 备注摘要 → 「发行资料」「管理」入口；底栏只放主要操作。
+// 更详细的内容在二级页：发行资料页（forms/detail/ReleasePage）与管理页（forms/detail/ManagePage），决定见 D-015。
+// 备注在这里只截两行，全文在管理页；调回海外 / 移除等流转操作也在管理页。
 import {ArtistButton} from '../components/ArtistButton';
 import {openArtistDrawer} from './ArtistDrawer';
 import {useApp} from '../state/AppContext';
 import type {AppCtx} from '../state/AppContext';
-import {fmt, fmtJPY, jpyCost, rmb, shipFeeText, yuan} from '../core/format';
-import {SALE_NAMES} from '../types';
+import {fmt, fmtJPY, jpyCost, rmb} from '../core/format';
 import {statusName} from '../core/modules';
 import {Cover} from '../components/Cover';
 import {openRecordForm} from './RecordForm';
 import {openSaleForm} from './SaleForm';
-import {openListingForm} from './ListingForm';
+import {PhotoDownload} from '../components/PhotoDownload';
+import {LikeHeart} from '../components/LikeHeart';
+import {CopyButton} from '../components/CopyButton';
+import {NavRow} from '../components/ui/NavRow';
+import {InfoIco, SlidersIco} from '../components/icons';
 import {bulkAction} from './shared';
-import {releaseLabels} from '../core/release-text';
 import {formatPackagingName} from '../core/album-packaging';
-import {Tracklist} from '../components/Tracklist';
-import {releaseRegion, displayReleaseTitle} from '../core/release-metadata';
+import {dedupeCatalog, displayRegion, displayReleaseTitle} from '../core/release-metadata';
+import {Rows} from './detail/Rows';
+import {openReleasePage} from './detail/ReleasePage';
+import {openManagePage} from './detail/ManagePage';
 
 export interface DetailBack {
   label?: string;
@@ -22,10 +28,10 @@ export interface DetailBack {
   run: () => void;
 }
 
-export function openDetail(app: AppCtx, id: string, back?: DetailBack) {
+export function openDetail(app: AppCtx, id: string, back?: DetailBack, direction?: 'back') {
   const r = app.rec(id);
   if (!r) { app.toast('记录不存在，请刷新页面', 'err'); return; }
-  app.openDrawer({title: '专辑详情', content: <DetailBody id={id} back={back}/>, footer: <DetailFooter id={id} back={back}/>});
+  app.openDrawer({title: '专辑详情', direction, back: back && {label: back.label ?? '返回', run: back.run}, content: <DetailBody id={id} back={back}/>, footer: <DetailFooter id={id}/>});
 }
 
 function DetailBody({id, back}: {id: string; back?: DetailBack}) {
@@ -33,142 +39,92 @@ function DetailBody({id, back}: {id: string; back?: DetailBack}) {
   const {modules} = app;
   const r = app.rec(id);
   if (!r) return null;
-  const sales = app.state.sales.filter(s => s.items.some(i => i.recordId === id));
-  const shipment = r.shipmentId ? app.state.shipments.find(s => s.id === r.shipmentId) : undefined;
-  const shipItem = shipment && shipment.currency === 'JPY'
-    ? shipment.items.find(i => i.recordId === id) : undefined;
+  const info = r.releaseInfo ?? {};
+  // 复制钮与标题最后一个词绑在同一个不折行的片段里：标题折行时按钮跟着末词，不会单独掉到下一行
+  const shownTitle = displayReleaseTitle(r.title);
+  const cut = shownTitle.search(/\s\S*$/);
+  const titleHead = cut > 0 ? shownTitle.slice(0, cut + 1) : '';
+  const titleTail = cut > 0 ? shownTitle.slice(cut + 1) : shownTitle;
+  const year = (info.releaseDate || r.releaseYear || '').slice(0, 4);
+  const sub = [displayRegion(info.country, r.pressing), /^\d{4}$/.test(year) ? year : ''].filter(Boolean).join(' · ');
+  const pkg = info.packaging || formatPackagingName(r.version, r.packaging);
+  const catalog = dedupeCatalog(info.catalogNumber);
   const approx = jpyCost(r);
-  const tags: [string, React.ReactNode][] = [
-    ...(modules.acquisition ? [
-    ['买入金额', r.price === '' ? '待补'
-      : `${r.currency === 'JPY' ? fmtJPY(r.price) : fmt(r.price)} ${r.currency === 'JPY' ? '日元' : '人民币'}`
-        + (approx ? ` ` : '')],
-    ['买入日期', r.date || '待补'],
-    ['购买渠道', r.location || '—'],
-    ['当日汇率', r.currency === 'JPY' && r.rate ? `100 円 = ¥${Number(r.rate).toFixed(2)}` : '—'],
-    ['额外费用（含运费分摊）', r.fees && Number(r.fees) ? yuan(r.fees) : '—'],
-    ] as [string, React.ReactNode][] : []),
-    ...(r.obi ? [['侧标（OBI）', r.obi] as [string, React.ReactNode]] : []),
-  ];
+  // 国内 / 海外库存是常态，摘要里不再显示位置标签；在途、售出中、已售、回收站才需要提示（位置在管理页）
+  const special = !['overseas', 'domestic'].includes(r.status);
+  const showStatus = special || (modules.trading && !!r.listed);
+  const hasRelease = !!(pkg || info.barcode || info.catalogNumber || info.releaseDate || info.label || info.tracklist?.length);
+  const price = r.price === '' ? '待补' : <>
+    {r.currency === 'JPY' ? fmtJPY(r.price) + ' 円' : fmt(r.price) + ' 元'}
+    {approx ? <> <span className="rmb">{rmb(approx)}</span></> : null}
+    {r.date ? <span className="rmb"> · {r.date}</span> : null}</>;
   return (
-    <div>
+    <div className="detail-summary">
       <div className="record-detail">
         <div className="big"><Cover r={r}/></div>
-        <div>
-          <h2>{displayReleaseTitle(r.title)}</h2>
-          <>{r.status === 'trash' ? <p className="artist">{r.artist}</p> : <ArtistButton artist={r.artist} onOpen={name => {
+        <div className="record-detail-main">
+          <h2 className="record-detail-title">
+            {titleHead}<span className="record-detail-tail">{titleTail}<CopyButton text={shownTitle} label="复制专辑名"/></span>
+          </h2>
+          {r.status === 'trash' ? <p className="artist">{r.artist}</p> : <ArtistButton artist={r.artist} onOpen={name => {
+            // 从艺人页进到详情、又点同一位艺人：直接弹栈回到下面那层艺人页（它一直挂载着，不重新加载）
             if (back?.artist === name) back.run();
-            else openArtistDrawer(app, name, {back: {label: '返回专辑详情', run: () => openDetail(app, id, back)}});
-          }}/> }</>
-          <span className={`pill ${r.status}`}>{statusName(r.status, app.modules)}</span>
-          {app.modules.trading && r.listed ? <span className="pill listed">已上架</span> : null}
+            else openArtistDrawer(app, name, {back: {label: '返回专辑详情', run: () => { app.backDrawer(); }}});
+          }}/>}
+          {sub ? <p className="record-detail-sub">{sub}</p> : null}
         </div>
+        {r.status !== 'trash' ? <LikeHeart id={id}/> : null}
       </div>
-      <dl className="detail-grid">
-        {tags.map(([k, val]) => (
-          <div key={k}><dt>{k}</dt><dd>
-            {k === '买入金额' && approx ? <>{val} <span className="rmb">{rmb(approx)}</span></> : val}
-            {k === '额外费用（含运费分摊）' && shipItem?.feeOriginal
-              ? <> <span className="rmb">含国际运费 {fmtJPY(shipItem.feeOriginal)} 円 ≈ {yuan(shipItem.fee)}</span></>
-              : null}
-          </dd></div>
-        ))}
-      </dl>
-
-      {app.modules.trading && (r.listingChannel || r.listingUrl) ? <>
-        <h3 className="section-title">上架资料</h3>
-        <p className="small-note">{r.listingChannel || '未填写平台'}
-          {r.listingUrl ? <> · <a href={r.listingUrl} target="_blank" rel="noopener noreferrer">打开商品页面 ↗</a></> : null}
-        </p>
-      </> : null}
-      {r.photoCount ? (
-        <>
-          <h3 className="section-title">实物照片</h3>
-          <div className="photo-strip">
-            {Array.from({length: r.photoCount}, (_, i) => (
-              <a key={i} href={`/api/photo/${r.id}/${i}`} target="_blank" rel="noopener">
-                <img src={`/api/photo/${r.id}/${i}`} loading="lazy" alt={`实物照片 ${i + 1}`}/>
-              </a>
-            ))}
-          </div>
-        </>
-      ) : null}
-      {r.note ? <><h3 className="section-title">备注 · 这张副本</h3><p className="note-text">{r.note}</p></> : null}
-      {r.releaseInfo && Object.values(r.releaseInfo).some(v => Array.isArray(v) ? v.length : v) || r.version || r.packaging ? <>
-        <h3 className="section-title">发行资料</h3>
-        <dl className="detail-grid">
-          {(r.releaseInfo?.packaging || r.version || r.packaging) &&
-            <div><dt>包装</dt><dd>{r.releaseInfo?.packaging || formatPackagingName(r.version, r.packaging)}</dd></div>}
-          {releaseLabels.filter(([key]) => key !== 'packaging').map(([key,label]) => {
-            const value = key === 'country' ? releaseRegion(r.releaseInfo?.country, r.pressing) : r.releaseInfo?.[key];
-            return typeof value === 'string' && value ? <div key={key}><dt>{label}</dt><dd>{value}</dd></div> : null;
-          })}
-        </dl>
-        {r.releaseInfo ? <Tracklist releaseInfo={r.releaseInfo}/> : null}
-      </> : null}
-      {modules.trading && r.listingDescription ? <>
-        <h3 className="section-title">上架描述草稿</h3><p className="note-text listing-description">{r.listingDescription}</p>
-        <button type="button" className="quiet" onClick={async () => {try {await navigator.clipboard.writeText(r.listingDescription!);app.toast('上架描述已复制');}catch{app.toast('复制失败，可选中文字手动复制','warn');}}}>复制上架描述</button>
-      </> : null}
-      {r.noteAlbum ? <><h3 className="section-title">备注 · 这张专辑</h3><p className="note-text">{r.noteAlbum}</p></> : null}
-      {app.modules.circulation && shipment && shipment.status !== 'cancelled' ? (
-        <>
-          <h3 className="section-title">运输包裹</h3>
-          <p className="small-note">
-            {shipment.method} · {shipment.date} 发货
-            {shipment.arrivedDate ? ` · 已签收 ${shipment.arrivedDate}` : ' · 在途'}
-            {' '}· 运费分摊 {shipFeeText(shipment.currency,
-              shipment.items.find(i => i.recordId === id)?.feeOriginal,
-              shipment.items.find(i => i.recordId === id)?.fee || 0)}
-          </p>
-        </>
-      ) : null}
-      {app.modules.trading && sales.length ? (
-        <>
-          <h3 className="section-title">交易历史</h3>
-          {sales.map(s => {
-            const item = s.items.find(i => i.recordId === id)!;
-            return (
-              <p className="small-note" key={s.id}>
-                {s.date} 售出 · {SALE_NAMES[s.status]}
-                {s.receivedDate ? ` · 到账 ${s.receivedDate}` : ''} · 到手 {yuan(item.net)}
-                {app.modules.acquisition && item.profit !== null ? ` · 利润 ${yuan(item.profit)}` : ''}
-                {s.address ? ` · ${s.address}` : ''}
-              </p>
-            );
-          })}
-        </>
-      ) : null}
+      {showStatus ? <div className="detail-status">
+        {special ? <span className={`pill ${r.status}`}>{statusName(r.status, modules)}</span> : null}
+        {modules.trading && r.listed ? <span className="pill listed">已上架</span> : null}
+      </div> : null}
+      <Rows rows={[
+        !!pkg && {label: '包装', value: pkg === '待核对' ? '包装待核对' : pkg},
+        !!r.obi && {label: '侧标', value: r.obi},
+        !!catalog && {label: '唱片编号', value: catalog, copy: info.catalogNumber},
+        !!info.barcode && {label: '条码', value: info.barcode, copy: info.barcode},
+        modules.acquisition && {label: '买入', value: price},
+        modules.acquisition && !!r.location && {label: '渠道', value: r.location},
+      ]}/>
+      {r.photoCount ? <div className="detail-photos">
+        <div className="photo-strip">
+          {Array.from({length: r.photoCount}, (_, i) => (
+            <a key={i} href={`/api/photo/${r.id}/${i}`} target="_blank" rel="noopener">
+              <img src={`/api/photo/${r.id}/${i}`} loading="lazy" alt={`实物照片 ${i + 1}`}/>
+            </a>
+          ))}
+        </div>
+        {modules.trading && ['overseas', 'domestic'].includes(r.status)
+          ? <PhotoDownload id={r.id} count={r.photoCount} revision={r.photoRevision ?? 0} artist={r.artist} title={r.title}/> : null}
+      </div> : null}
+      {r.note || r.noteAlbum ? <button type="button" className="detail-notes" aria-label="查看备注全文"
+        onClick={() => openManagePage(app, id)}>
+        {r.note ? <span><b>副本</b>{r.note}</span> : null}
+        {r.noteAlbum ? <span><b>专辑</b>{r.noteAlbum}</span> : null}
+        <i aria-hidden="true">›</i>
+      </button> : null}
+      <nav className="detail-entries" aria-label="更多">
+        {hasRelease ? <NavRow icon={InfoIco} title="发行资料" onClick={() => openReleasePage(app, id)}/> : null}
+        <NavRow icon={SlidersIco} title="管理" onClick={() => openManagePage(app, id)}/>
+      </nav>
     </div>
   );
 }
 
-function DetailFooter({id, back}: {id: string; back?: DetailBack}) {
+function DetailFooter({id}: {id: string}) {
   const app = useApp();
   const r = app.rec(id);
   if (!r) return null;
+  const inStock = ['overseas', 'domestic'].includes(r.status);
   return (
-    <div className="detail-footer-stack">
-      <div className="detail-footer-row" role="group" aria-label="编辑与上架">
-        {back ? <button className="quiet" onClick={back.run}>{back.label ?? '返回'}</button> : null}
-        <button onClick={() => openRecordForm(app, id)}>编辑</button>
-        {app.modules.trading && ['overseas', 'domestic'].includes(r.status)
-          ? <button className="quiet" onClick={() => openListingForm(app, id)}>上架资料</button> : null}
-        {app.modules.trading && ['overseas', 'domestic'].includes(r.status)
-          ? <button className="quiet" onClick={() => bulkAction(app, r.listed ? 'unlist' : 'list', [id], r.listed ? '已取消上架' : '已标记上架')}>
-              {r.listed ? '取消上架' : '标记上架'}</button> : null}
-      </div>
-      {(app.modules.circulation || app.modules.trading) && ['overseas', 'domestic'].includes(r.status) ? (
-        <div className="detail-footer-row" role="group" aria-label="库存流转与交易">
-          {app.modules.circulation && r.status === 'domestic'
-            ? <button className="quiet" onClick={() => bulkAction(app, 'to_overseas', [id])}>调回海外</button> : null}
-          {['overseas', 'domestic'].includes(r.status) ? (
-            <button className="quiet danger" onClick={() => bulkAction(app, 'delete', [id], '已移入回收站，可在设置中恢复')}>移除</button>
-          ) : null}
-          {app.modules.trading && ['domestic', 'overseas'].includes(r.status)
-            ? <button className="primary" onClick={() => openSaleForm(app, [id])}>记录售出</button> : null}
-        </div>
-      ) : null}
+    <div className="detail-footer-row" role="group" aria-label="主要操作">
+      <button type="button" onClick={() => openRecordForm(app, id)}>编辑</button>
+      {app.modules.trading && inStock
+        ? <button type="button" onClick={() => bulkAction(app, r.listed ? 'unlist' : 'list', [id], r.listed ? '已取消上架' : '已标记上架')}>
+            {r.listed ? '取消上架' : '上架'}</button> : null}
+      {app.modules.trading && inStock
+        ? <button type="button" className="primary" onClick={() => openSaleForm(app, [id])}>记录售出</button> : null}
     </div>
   );
 }

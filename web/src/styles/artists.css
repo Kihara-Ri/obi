@@ -1,21 +1,14 @@
-/* 艺人工作区：桌面宽抽屉 + 概况/封面目录；手机整屏 + 纵向作品列表。 */
-.drawer.artist-drawer{width:min(1000px,calc(100vw - 72px))}
-.artist-drawer .drawer-body{padding:0}
-.artist-drawer .drawer-head{gap:12px;padding:10px 24px;min-height:56px}
-.artist-drawer .drawer-head h2{flex:1;font-size:13px;color:var(--muted);font-weight:600}
-.artist-back{display:flex;align-items:center;gap:6px;font-size:16px}
-.artist-back span{font-size:13px}
-.artist-profile{padding:28px}
-.profile-head{margin-bottom:28px}
-.profile-eyebrow{font-size:11px;letter-spacing:.12em;color:var(--muted);margin-bottom:8px}
-.profile-name{font-size:30px;font-weight:750;letter-spacing:-.025em;line-height:1.2;overflow-wrap:anywhere}
+/* 艺人资料：沿用统一抽屉外壳（桌面右抽屉 / 手机底部 sheet），单列排版，与专辑详情同一套字号与信息行。 */
+.artist-profile{padding:0}
+.profile-head{margin-bottom:16px}
+.profile-name{font-size:20px;font-weight:650;line-height:1.3;overflow-wrap:anywhere}
 .profile-source-name{margin-top:8px;font-size:12px;color:var(--muted);overflow-wrap:anywhere}
-.artist-workspace{display:grid;grid-template-columns:190px minmax(0,1fr);gap:28px;align-items:start}
-.profile-sidebar{display:flex;flex-direction:column;gap:24px;border-right:1px solid var(--border);padding-right:22px;min-width:0}
+.artist-workspace{display:flex;flex-direction:column;gap:20px}
+.profile-sidebar{display:flex;flex-direction:column;gap:4px;min-width:0}
 .profile-content{display:flex;flex-direction:column;gap:24px;min-width:0}
 .profile-overview:empty{display:none}
-.profile-facts{display:flex;flex-direction:column;gap:9px}
-.profile-meta-item{font-size:12px;line-height:1.6;color:var(--muted);overflow-wrap:anywhere}
+.profile-facts{margin:0}
+.profile-meta-item{font-size:12px;line-height:1.6;color:var(--faint);overflow-wrap:anywhere}
 .profile-aliases,.profile-genres{margin-top:14px;font-size:12px;line-height:1.7;color:var(--text);overflow-wrap:anywhere}
 .profile-aliases .profile-meta-item,.profile-genres .profile-meta-item{display:block}
 .alias-toggle{font-size:12px;padding:4px 0;text-decoration:underline}
@@ -27,13 +20,6 @@
 .profile-banner.warn{color:var(--orange)}
 .profile-banner.err{color:var(--red)}
 .profile-banner .quiet{margin-left:6px;padding:4px 8px}
-.profile-section-title{font-size:12px;font-weight:600;color:var(--muted);margin-bottom:12px}
-.collection-summary{display:flex;flex-direction:column;gap:10px}
-.collection-summary>div{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
-.collection-summary dt{font-size:12px;color:var(--muted)}
-.collection-summary dd{font-size:20px;font-weight:650;font-variant-numeric:tabular-nums}
-.profile-foot{border-top:1px solid var(--border);padding-top:12px;font-size:12px}
-.profile-foot summary{cursor:pointer;color:var(--muted);padding:8px 0}
 .profile-foot p{margin-top:10px;overflow-wrap:anywhere;line-height:1.6}
 .profile-ops{display:flex;flex-direction:column;gap:8px;margin-top:12px}
 .profile-ops button{min-height:38px}
@@ -67,25 +53,22 @@
 .artist-cat:hover{background:none;color:var(--text)}
 .artist-cat b{font-size:10px;font-weight:500}
 .artist-cat.on{color:var(--text);font-weight:700;box-shadow:inset 0 -3px var(--accent-deep)}
-.work-list{list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:24px 16px}
-.artist-work{min-width:0}
-.work-row{white-space:normal;display:flex;flex-direction:column;width:100%;align-items:stretch;gap:9px;padding:0;background:none;border:0;border-radius:0;color:var(--text);text-align:left;font:inherit}
+.work-list{list-style:none;display:flex;flex-direction:column}
+.artist-work{min-width:0;border-bottom:1px solid var(--border)}
+.work-row{white-space:normal;display:grid;grid-template-columns:64px minmax(0,1fr);gap:3px 14px;width:100%;align-items:center;padding:12px 0;background:none;border:0;border-radius:0;color:var(--text);text-align:left;font:inherit}
 .work-row:hover{background:none}
-.work-cover{display:block;width:100%;aspect-ratio:1;border-radius:6px;overflow:hidden;background:var(--surface-3)}
+.work-cover{display:block;width:64px;grid-row:1/span 2;aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--surface-3)}
 .work-cover img{display:block;width:100%;height:100%;object-fit:cover;transition:filter .15s}
 .work-row:hover .work-cover img{filter:brightness(1.08)}
 .work-cover.cover-fallback{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:30px;font-weight:500}
 .work-cover.cover-fallback.pending{color:var(--faint)}
 .work-main{display:flex;flex-direction:column;gap:5px;min-width:0}
-.work-title{font-size:13px;font-weight:650;line-height:1.4;overflow-wrap:anywhere}
+.work-title{font-size:14px;font-weight:600;line-height:1.4;overflow-wrap:anywhere}
 .work-meta{font-size:11px;color:var(--muted);line-height:1.5;overflow-wrap:anywhere}
-.work-state{align-self:flex-start;font-size:10px;line-height:1.5;color:var(--muted);padding:3px 6px;background:var(--surface-2);border-radius:5px}
+.work-state{grid-column:2;justify-self:start;font-size:10px;line-height:1.5;color:var(--muted);padding:3px 6px;background:var(--surface-2);border-radius:5px}
 .work-state.owned{background:var(--accent);color:var(--accent-ink)}
 .work-state.maybe{background:var(--accent-wash);color:var(--accent-text)}
-.artist-work.expanded{grid-column:1/-1}
-.artist-work.expanded .work-row{display:grid;grid-template-columns:64px minmax(0,1fr) auto;align-items:center;padding:12px;background:var(--surface-2);border-radius:var(--radius-sm) var(--radius-sm) 0 0}
-.artist-work.expanded .work-cover{width:64px}
-.work-detail{display:flex;flex-direction:column;gap:14px;padding:16px;border:1px solid var(--border);border-radius:0 0 var(--radius-sm) var(--radius-sm)}
+.work-detail{display:flex;flex-direction:column;gap:14px;padding:4px 0 14px}
 .copy-list{list-style:none;display:flex;flex-direction:column;gap:8px}
 .copy-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px;border-radius:8px;background:var(--surface-2)}
 .copy-info{display:flex;flex-direction:column;gap:4px;min-width:0}
@@ -95,40 +78,7 @@
 .suggest-box{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:8px;background:var(--accent-wash)}
 .linker,.profile-unlinked{display:flex;flex-direction:column;gap:10px}
 @media (max-width:840px){
-  .drawer.artist-drawer{top:0;right:0;bottom:0;left:0;width:100%;height:100dvh;border:0;border-radius:0}
-  .artist-drawer::before{display:none}
-  .artist-drawer .drawer-head{padding:calc(6px + env(safe-area-inset-top)) 12px 6px;min-height:56px;touch-action:auto;cursor:auto}
-  .artist-drawer .drawer-head h2{text-align:center}
-  .artist-drawer .drawer-head button{min-height:44px;min-width:44px}
-  .artist-back span{font-size:12px}
-  .artist-profile{padding:24px 20px calc(24px + env(safe-area-inset-bottom))}
-  .profile-head{margin-bottom:20px}
-  .profile-name{font-size:27px;line-height:1.23}
-  .artist-workspace{display:flex;flex-direction:column;gap:24px}
-  .profile-sidebar{width:100%;border-right:0;padding:0;gap:16px}
-  .profile-content{width:100%}
-  .profile-facts{flex-direction:row;flex-wrap:wrap;gap:4px 12px}
-  .profile-aliases,.profile-genres{margin-top:8px}
-  .profile-aliases .profile-meta-item,.profile-genres .profile-meta-item{display:inline;margin-right:6px}
-  .profile-identity{margin-top:8px}
-  .profile-identity a{display:inline}
-  .profile-section-title{margin-bottom:8px}
-  .collection-summary{flex-direction:row;gap:24px}
-  .collection-summary>div{flex-direction:column;gap:3px}
-  .collection-summary dd{font-size:22px}
-  .profile-foot{padding-top:0;border:0}
-  .profile-foot summary{padding:10px 0;min-height:44px}
-  .profile-ops{flex-direction:row}
-  .profile-ops button{flex:1;min-height:44px}
   .artist-cats{gap:20px}
-  .work-list{display:flex;flex-direction:column;gap:0}
-  .artist-work{border-bottom:1px solid var(--border)}
-  .work-row,.artist-work.expanded .work-row{display:grid;grid-template-columns:64px minmax(0,1fr);gap:3px 14px;align-items:center;padding:14px 0;background:none;border-radius:0}
-  .work-cover,.artist-work.expanded .work-cover{width:64px;grid-row:1/span 2}
-  .work-title{font-size:14px}
-  .work-meta{font-size:11px}
-  .work-state{grid-column:2;justify-self:start;font-size:10px}
-  .work-detail{padding:14px 0;border:0}
   .copy-row{flex-wrap:wrap}
   .copy-actions button,.copy-row>button,.linker>button{min-height:44px}
   .candidate{padding:14px;gap:12px}
@@ -136,22 +86,12 @@
   .candidate-confirm{padding:14px}
   .candidate-confirm button{width:100%}
 }
-@media (max-width:360px){
-  .artist-profile{padding-left:16px;padding-right:16px}
-  .profile-name{font-size:25px}
-  .collection-summary{gap:20px}
-  .work-row,.artist-work.expanded .work-row{grid-template-columns:56px minmax(0,1fr);gap:3px 12px}
-  .work-cover,.artist-work.expanded .work-cover{width:56px}
-}
-
-/* 确认区占用抽屉底栏的真实空间，正文/搜索框不被覆盖。 */
-.artist-drawer .artist-footer:empty{display:none}
-.artist-drawer .artist-footer{display:block;padding:14px 28px;background:var(--surface);border-top:1px solid var(--border)}
-.artist-footer .candidate-confirm{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 20px;padding:0;background:none}
+/* 确认区占用抽屉底栏的真实空间；无返回钮也无确认时整栏隐藏。 */
+.artist-footer:empty{display:none}
+.artist-footer .candidate-confirm{flex:1;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 16px;padding:0;background:none}
 .artist-footer .candidate-confirm p{grid-column:1}
 .artist-footer .candidate-confirm button{grid-column:2;grid-row:1/span 2;align-self:center;margin:0;min-width:120px}
 @media (max-width:840px){
-  .artist-drawer .artist-footer{padding:12px 20px calc(12px + env(safe-area-inset-bottom))}
   .artist-footer .candidate-confirm{display:block}
   .artist-footer .candidate-confirm button{margin-top:10px;min-width:0}
 }
@@ -159,5 +99,10 @@
 .candidate-source{display:inline-flex;align-items:center;min-height:36px;padding:4px 0;margin-left:46px;font-size:11px;color:var(--muted)}
 @media (max-width:840px){.candidate-source{min-height:44px;margin-left:44px}}
 
-.profile-more summary{font-size:12px;line-height:1.6;color:var(--muted);cursor:pointer;margin-top:12px}
-@media (max-width:840px){.profile-more summary{min-height:44px;display:flex;align-items:center;margin-top:6px}.profile-more summary::before{content:'▸';margin-right:6px}.profile-more[open] summary::before{content:'▾'}}
+/* 折叠区做成与 detail-grid 行同款的分隔行，不再套边框盒子 */
+details.adv.profile-more,details.adv.profile-foot{margin-top:0;padding:0;border:0;border-bottom:1px solid var(--border);border-radius:0}
+.profile-more summary,.profile-foot summary{display:flex;align-items:center;gap:6px;min-height:44px;font-size:12.5px;color:var(--muted)}
+.profile-more summary::before,.profile-foot summary::before{content:'▸'}
+.profile-more[open] summary::before,.profile-foot[open] summary::before{content:'▾'}
+.profile-more[open] summary,.profile-foot[open] summary{margin-bottom:0}
+.profile-foot>:last-child{margin-bottom:12px}

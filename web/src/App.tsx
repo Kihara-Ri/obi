@@ -87,6 +87,10 @@ export default function App() {
   const setTheme = useCallback((v: ThemePref) => { applyThemePref(v); setThemeState(v); }, []);
   const [drawer, setDrawer] = useState<DrawerSpec | null>(null);
   const [drawerClosing, setDrawerClosing] = useState(false);
+  const [drawerPage, setDrawerPage] = useState({key: 0, direction: 'forward' as 'forward' | 'back'});
+  // 抽屉页面栈：每层都保持挂载（只有栈顶可见），返回时露出上一层而不是重新创建它，
+  // 所以详情页的滚动位置、已加载的图片、爱心与照片预取结果都不会因为进出二级页而重新加载。
+  const [drawerPages, setDrawerPages] = useState<DrawerSpec[]>([]);
   const drawerDirty = useRef(false);
   const [toastMsg, setToastMsg] = useState<{key: number; kind: ToastKind; text: string} | null>(null);
   const [offline, setOffline] = useState(!navigator.onLine);
@@ -159,13 +163,17 @@ export default function App() {
   // 每个抽屉会话在历史里压入同址条目：iOS 边缘右滑的「返回」先消费它，popstate 里
   // 把抽屉收回（脏表单先确认），而不是把路由退回上一个页面——所有上拉窗口统一行为。
   const drawerStack = useRef<DrawerSpec[]>([]);
+  const syncPages = () => setDrawerPages([...drawerStack.current]);
   const drawerEntries = useRef(0);
   const popGuard = useRef(false);
+  const pendingGo = useRef<(() => void) | null>(null);
   const openDrawer = useCallback((spec: DrawerSpec) => {
     drawerDirty.current = false;
     setDrawerClosing(false);
     setDrawer(spec);
+    setDrawerPage(p => ({key: p.key + 1, direction: spec.direction === 'back' ? 'back' : 'forward'}));
     drawerStack.current.push(spec);
+    syncPages();
     history.pushState({diedu: 'drawer'}, '');
     drawerEntries.current++;
   }, []);
@@ -179,19 +187,57 @@ export default function App() {
     return true;
   }, []);
 
+  // 抽屉里的页面跳转：收起后再设 hash。收起时的 history.go(-n) 是异步的，先改 hash 会被它撤销，
+  // 所以把跳转挂到「历史还原完成」的那次 popstate（或无历史条目时直接）之后执行。
+  const afterExit = useRef<(() => void) | null>(null);
+  const closeDrawerAndGo = useCallback((hash: string): boolean => {
+    if (!drawerStack.current.length && !drawer) { location.hash = hash; return true; }
+    if (!closeDrawer()) return false;
+    afterExit.current = () => { location.hash = hash; };
+    return true;
+  }, [closeDrawer, drawer]);
+
+  // 回到上一层（取消键）：与返回手势的 popstate 分支同一语义——弹出栈顶、恢复上一层抽屉、按「返回」方向播动画。
+  // 这里是程序性返回，浏览器历史条目要自己退掉；popGuard 让随之而来的 popstate 被忽略，避免再弹一层。
+  const backDrawer = useCallback((force = false): boolean => {
+    const stack = drawerStack.current;
+    if (stack.length < 2) return closeDrawer(force);
+    if (!force && !confirmDiscard()) return false;
+    stack.pop();
+    drawerEntries.current = Math.max(0, drawerEntries.current - 1);
+    drawerDirty.current = false;
+    setDrawerClosing(false);
+    setDrawer(stack[stack.length - 1]);
+    setDrawerPage(p => ({key: p.key + 1, direction: 'back'}));
+    syncPages();
+    popGuard.current = true;
+    history.back();
+    return true;
+  }, [closeDrawer]);
+
   const drawerExited = useCallback(() => {
     setDrawer(null); setDrawerClosing(false);
     drawerStack.current = [];
+    setDrawerPages([]);
+    const next = afterExit.current;
+    afterExit.current = null;
     if (drawerEntries.current > 0) {
       popGuard.current = true;
+      pendingGo.current = next;
       history.go(-drawerEntries.current);
       drawerEntries.current = 0;
-    }
+    } else next?.();
   }, []);
 
   useEffect(() => {
     const onPop = () => {
-      if (popGuard.current) { popGuard.current = false; return; }
+      if (popGuard.current) {
+        popGuard.current = false;
+        const go = pendingGo.current;
+        pendingGo.current = null;
+        go?.();
+        return;
+      }
       const stack = drawerStack.current;
       if (!stack.length) {
         if (drawerEntries.current > 0) drawerEntries.current--; // 收回动画期间的手势先消费守卫条目
@@ -208,6 +254,8 @@ export default function App() {
         drawerDirty.current = false;
         setDrawerClosing(false);
         setDrawer(stack[stack.length - 1]);
+        setDrawerPage(p => ({key: p.key + 1, direction: 'back'}));
+        setDrawerPages([...stack]);
       } else {
         setDrawerClosing(true);
       }
@@ -405,7 +453,7 @@ export default function App() {
     theme, setTheme,
     rec: id => state.records.find(r => r.id === id),
     refresh, toast, albumEngine, ...twinState,
-    openDrawer, closeDrawer, setDrawerDirty,
+    openDrawer, closeDrawer, backDrawer, closeDrawerAndGo, setDrawerDirty,
   };
 
   const counts: Record<string, number> = {
@@ -491,7 +539,7 @@ export default function App() {
           <span className="tab-label">更多</span>
         </a>
       </nav>
-      {drawer ? <Drawer spec={drawer} closing={drawerClosing}
+      {drawer ? <Drawer spec={drawer} closing={drawerClosing} pages={drawerPages} pageKey={drawerPage.key} direction={drawerPage.direction}
                         onClose={() => closeDrawer()} onClosed={drawerExited}/> : null}
       {toastMsg ? <Toast key={toastMsg.key} kind={toastMsg.kind} text={toastMsg.text} onDone={() => setToastMsg(null)}/> : null}
       <Lightbox/>

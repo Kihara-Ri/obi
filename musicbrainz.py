@@ -74,6 +74,11 @@ class MusicBrainzClient:
         with self._lock:
             return self._cooldown_until > self._clock()
 
+    def cooldown_remaining(self):
+        """限流冷却还剩多少秒（未冷却为 0）。"""
+        with self._lock:
+            return max(0.0, self._cooldown_until - self._clock())
+
     def get(self, path, params, budget=None):
         """GET /ws/2/<path>?<params> → 解析后的 JSON。budget 为剩余秒数（可选）。"""
         url = f'https://{API_HOST}/ws/2/' + str(path).strip('/') + '?' + urlencode(params)

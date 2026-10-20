@@ -1,10 +1,32 @@
 // 表单字段构造：受控 input / 自动长高 textarea / 币种金额组（买入金额同款）/
 // 日期快捷行（今天 / 昨天 / 选日期，记录售出与确认表单共用）。
-import type {InputHTMLAttributes, MouseEvent} from 'react';
+import type {ChangeEvent, FocusEvent, InputHTMLAttributes, MouseEvent} from 'react';
 import {AutoTextarea} from '../components/ui/AutoTextarea';
 import {Seg} from '../components/ui/Seg';
 import {today, yesterday} from '../core/format';
 import type {Currency} from '../types';
+
+// 金额输入：清空后回到 0（费用类金额 0 是合法值），0 在聚焦时整体选中，直接输入即覆盖而不是接在 0 后面。
+// 成本/买入价「未知 = null」的字段传 zeroOnEmpty={false}，保持可留空。
+export function AmountInput({value, onValue, integer = false, zeroOnEmpty = true, ...rest}:
+  Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> &
+  {value: string; onValue: (v: string) => void; integer?: boolean; zeroOnEmpty?: boolean}) {
+  const selectZero = (el: HTMLInputElement) => {
+    if (el.value !== '' && Number(el.value) === 0) requestAnimationFrame(() => el.select());
+  };
+  const change = (e: ChangeEvent<HTMLInputElement>) => {
+    const el = e.currentTarget;
+    let raw = integer ? el.value.split('.')[0].replace(/[^\d]/g, '') : el.value;
+    // 输入到一半（如「1.」「-」）时 value 为空但并非用户清空，不能当成清空重置
+    if (raw === '' && el.validity.badInput) return;
+    if (raw === '' && zeroOnEmpty) raw = '0';
+    else raw = raw.replace(/^0+(?=\d)/, '');
+    onValue(raw);
+    if (raw === '0') requestAnimationFrame(() => el.select());
+  };
+  return <input {...rest} type="number" value={value} onChange={change}
+                onFocus={(e: FocusEvent<HTMLInputElement>) => { selectZero(e.currentTarget); rest.onFocus?.(e); }}/>;
+}
 
 type FieldProps = InputHTMLAttributes<HTMLInputElement> & {label: string; name: string};
 
@@ -33,11 +55,11 @@ export function MoneyField({label, name, currency, value, onCurrency, onChange}:
                c === 'JPY' && value !== '' ? String(Math.round(Number(value))) : value)}/>
         {/* 日元不设步进限制：step=10 会把 1145 円这类非整十金额判为无效，表单提交被浏览器静默拦截；
            整数口径由输入过滤保证（numeric 键盘无小数点；粘贴 1234.5 取整数部分 1234，不会把小数点吞掉变成 12345） */}
-        <input id={`f-${name}`} name={name} type="number" required min="0"
+        <AmountInput id={`f-${name}`} name={name} required min="0"
                step={currency === 'JPY' ? 'any' : '0.01'}
                inputMode={currency === 'JPY' ? 'numeric' : 'decimal'}
-               placeholder="按币种填写" value={value}
-               onChange={e => onChange(currency === 'JPY' ? e.target.value.split('.')[0].replace(/[^\d]/g, '') : e.target.value)}/>
+               placeholder="按币种填写" value={value} integer={currency === 'JPY'} zeroOnEmpty={false}
+               onValue={onChange}/>
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ import {api} from '../core/api';
 import {shipFeeText, sum, today, yuan} from '../core/format';
 import {useApp} from '../state/AppContext';
 import type {BackupFile, Sale} from '../types';
-import {DateChipsRow} from './fields';
+import {AmountInput, DateChipsRow} from './fields';
 import {useFormSubmit} from './shared';
 
 export type ConfirmKind = 'arrive' | 'undo_arrive' | 'cancel_shipment' | 'receive' | 'cancel' | 'refund' | 'restore';
@@ -103,9 +103,9 @@ export function ConfirmForm({kind, id, arriveCount, sale, restoreData}: {
               <div className="row amount-row">
                 <label htmlFor="f-refund">退款总额</label>
                 <div className="row-value">
-                  <input id="f-refund" name="refund" type="number" required min="0"
+                  <AmountInput id="f-refund" name="refund" required min="0"
                          max={sale?.gross} step="0.01" inputMode="decimal" placeholder="0.00"
-                         value={refund} onChange={e => setRefund(e.target.value)}/>
+                         value={refund} onValue={setRefund}/>
                   <span className="unit">元</span>
                 </div>
               </div>
@@ -131,7 +131,7 @@ export function ConfirmForm({kind, id, arriveCount, sale, restoreData}: {
         )}
       </div>
       <div className="drawer-footer">
-        <button type="button" onClick={() => app.closeDrawer()}>取消</button>
+        <button type="button" onClick={() => app.backDrawer()}>取消</button>
         <button type="submit" className="primary" disabled={saving}>
           {kind === 'receive' ? '确认收货' : kind === 'refund' ? '确认退款' : '确认'}
         </button>

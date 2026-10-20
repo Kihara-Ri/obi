@@ -1,4 +1,5 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {useSessionState} from '../core/useSessionState';
 import {useApp} from '../state/AppContext';
 import {api} from '../core/api';
 import type {AlbumCatalog} from '../types';
@@ -26,7 +27,7 @@ export function GalleryPage() {
   const switchOn = useShowcaseSwitch();
   const [preferences, setPreferences] = useState(readGalleryPreferences);
   const scope = preferences.scope;
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useSessionState<string>('gallery-query', '');
   const [immersive, setImmersive] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
   const [roaming, setRoaming] = useState(false);
