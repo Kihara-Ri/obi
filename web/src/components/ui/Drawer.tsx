@@ -118,10 +118,16 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
       const raw = vv.scale > 1.01 ? 0 : Math.round(window.innerHeight - vv.height);
       const kb = raw > KEYBOARD_MIN ? raw : 0;
       panel.style.setProperty('--kb', kb + 'px');
-      if (kb && kb !== lastKb) requestAnimationFrame(reveal);
+      // 键盘弹起时收起底部操作栏（见 drawer.css `[data-kb]`）：键盘上方留给内容，不让「取消 / 保存」挤占纵向空间
+      panel.toggleAttribute('data-kb', kb > 0);
+      if (kb && kb !== lastKb) revealSoon(0);
       lastKb = kb;
     };
-    const onFocusIn = () => { if (lastKb) window.setTimeout(reveal, 60); };
+    // sheet 高度随键盘和操作栏收起有过渡，单次测量会量到半途位置：分几次把输入框对到可见区中间（重复对中是幂等的）
+    const revealSoon = (delay: number) => {
+      [delay, delay + 150, delay + 450].forEach(ms => window.setTimeout(() => { if (lastKb) reveal(); }, ms));
+    };
+    const onFocusIn = () => revealSoon(60);
     apply();
     vv.addEventListener('resize', apply);
     vv.addEventListener('scroll', apply);
@@ -133,6 +139,7 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
       window.removeEventListener('scroll', onScroll);
       panel.style.transform = '';
       panel.style.removeProperty('--kb');
+      panel.removeAttribute('data-kb');
       html.style.overflow = '';
     };
   }, [spec]);

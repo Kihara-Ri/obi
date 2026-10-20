@@ -202,6 +202,10 @@ details.adv:not([open]) > :not(summary){display:none}
   .drawer-footer{gap:8px;flex-wrap:wrap;padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
   .drawer-footer button{flex:1 1 calc((100% - 16px)/3);min-height:42px}
   .footer-hint{flex:1 1 100%;order:-1;margin:0 0 2px;text-align:center}
+  /* 软键盘弹起（Drawer 置 data-kb）：收起底部操作栏与 Home 条留白，把键盘上方的纵向空间全部给内容；键盘收起后原样回来 */
+  #panel[data-kb] .drawer-footer{display:none}
+  #panel[data-kb] .drawer-body{padding-bottom:12px}
+  #panel[data-kb] .drawer-head{padding-top:20px;padding-bottom:6px}
   /* 分组列表行：输入 16px 防 iOS 聚焦放大；快捷块加高到可点 */
   #panel .row-group input{font-size:16px}
   .chip{min-height:34px}
