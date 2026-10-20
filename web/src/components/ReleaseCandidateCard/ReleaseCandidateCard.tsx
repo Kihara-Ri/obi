@@ -1,0 +1,77 @@
+// 发行版卡片：名称 + 来源 → 关键信息网格 → 可展开的曲目与版本资料 → 调用方给的操作区。
+// 「查询」页（复制 / 入库）与专辑表单（选用此版本）共用；详情按需请求，摘要里已有的字段不在详情重复。
+import {useState, type ReactNode} from 'react';
+import {api} from '../../core/api';
+import {dedupeCatalog, regionName} from '../../core/release-metadata';
+import type {ReleaseCandidate, ReleaseInfo} from '../../types';
+import {Tracklist} from '../Tracklist';
+import './ReleaseCandidateCard.css';
+
+const sourceName = (info: {musicBrainzReleaseId?: string; discogsReleaseId?: string}, discogs?: boolean) =>
+  discogs || (info.discogsReleaseId && !info.musicBrainzReleaseId) ? 'Discogs' : 'MusicBrainz';
+
+/** 头部（名称、艺人、来源）+ 关键信息网格；表单里已确认的版本直接用它。 */
+export function ReleaseSummary({title, artist, info, source, url}: {
+  title: string; artist: string; info: ReleaseInfo; source?: string; url?: string;
+}) {
+  const facts: [string, string | undefined][] = [
+    ['唱片编号', dedupeCatalog(info.catalogNumber)], ['条码', info.barcode], ['厂牌', info.label],
+    ['发行地区', regionName(info.country)], ['发行日', info.releaseDate]];
+  return <>
+    <header className="rcc-head">
+      <div className="rcc-main"><strong>{title}</strong><span>{artist}</span></div>
+      {source ? url ? <a className="rcc-source" href={url} target="_blank" rel="noopener noreferrer"
+        aria-label={`在 ${source} 查看`}>{source} ↗</a> : <span className="rcc-source">{source}</span> : null}
+    </header>
+    <dl className="rcc-facts">
+      {facts.filter(([, v]) => v).map(([k, v]) => <div key={k}><dt>{k}</dt><dd className="num">{v}</dd></div>)}
+    </dl>
+  </>;
+}
+
+export interface CardCtx {info: ReleaseInfo; load: () => Promise<ReleaseInfo>; busy: boolean}
+
+export function ReleaseCandidateCard({c, children}: {c: ReleaseCandidate; children?: (ctx: CardCtx) => ReactNode}) {
+  const [full, setFull] = useState<ReleaseInfo | null>(null);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  /** 取详情；失败时回退到精确匹配的基本资料，并说明曲目暂不可用。 */
+  const load = async (): Promise<ReleaseInfo> => {
+    if (full) return full;
+    setBusy(true); setError('');
+    try {
+      const detail = (await api<{releaseInfo: ReleaseInfo}>('release-details?id=' + encodeURIComponent(c.id))).releaseInfo;
+      const merged = {...c.releaseInfo, ...detail};
+      setFull(merged);
+      return merged;
+    } catch (err) {
+      setError((err instanceof Error ? err.message : String(err)) + '（曲目暂不可用，已显示基本资料）');
+      return c.releaseInfo;
+    } finally { setBusy(false); }
+  };
+  const toggle = () => { const next = !open; setOpen(next); if (next) void load(); };
+  const info = full ?? c.releaseInfo;
+  const extra: [string, string | undefined][] = [
+    ['包装', info.packaging], ['版次说明', info.edition], ['介质', info.format],
+    ['碟数', info.discCount ? info.discCount + ' 张' : '']];
+
+  return <li className="rcc">
+    <ReleaseSummary title={c.title} artist={c.artist} info={c.releaseInfo} source={sourceName({}, c.source === 'discogs')} url={c.url}/>
+    <button type="button" className="rcc-more" aria-expanded={open} onClick={toggle}>
+      <span>曲目与版本资料</span><i aria-hidden="true">{open ? '−' : '+'}</i>
+    </button>
+    {open ? <div className="rcc-detail">
+      {busy ? <p className="rcc-msg" role="status">读取详情中…</p> : null}
+      {error ? <p className="rcc-msg">{error}</p> : null}
+      <dl className="rcc-facts">
+        {extra.filter(([, v]) => v).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
+      </dl>
+      <Tracklist releaseInfo={info}/>
+    </div> : null}
+    {children?.({info, load, busy})}
+  </li>;
+}
+
+export {sourceName};

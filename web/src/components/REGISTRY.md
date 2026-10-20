@@ -33,6 +33,7 @@
 | 组件 | 用途 | 备注 |
 | --- | --- | --- |
 | `ModuleChooser` `ModulePresets` `ModuleImpact` | 设置 · 功能与首次设置：使用方式卡片 → 界面变化预览（与已保存配置对比，新增 / 收起用文字标记）→ 微调开关与首页 | 预览数据来自 `core/modules` 的 `SURFACE_GROUPS`，与导航及表单的模块判断同步维护 |
+| `ReleaseCandidateCard` `ReleaseSummary` | 发行版卡片：名称 + 来源 → 关键信息网格 → 可展开的曲目与版本资料（按需取详情，不重复摘要字段）→ 调用方的操作区（render prop）。「查询」页（复制 / 入库）与专辑表单（选用此版本、已确认摘要）共用 | 候选 `c` `children({info, load, busy})`；`ReleaseSummary` 另可 `title` `artist` `info` `source?` `url?` |
 | `ListingSteps` | 上架资料顶部三步进度（分析照片 / 核对 / 生成文案） | `steps[{label,done}]`；当前步 = 第一个未完成 |
 | `PurchaseForm` | 管理页「编辑买入信息」：金额 / 币种 / 日期 / 额外费用 / 渠道 | 复用 `MoneySection`、`ShopField`；管钱的编辑都放这里 |
 | `PhotoDownload` | 专辑详情「实物照片」标题右侧的下载图标：手机把原图交给系统分享面板（存储图像进相册），桌面下载 ZIP | `id` `count` `revision` `artist` `title`；手机进入详情时预取照片，分享须在点击手势内同步调用；加载中禁用，图标有 aria-label |

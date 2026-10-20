@@ -2,6 +2,7 @@
 // 查不到时可按「未收录版本」手动录入。新建没有可信发行版身份，必须由用户确认候选，不按标题猜版次。
 import {useEffect, useRef, useState} from 'react';
 import {api} from '../../core/api';
+import {gs1Valid} from '../../core/lookup';
 import {releaseRegion} from '../../core/release-metadata';
 import type {AlbumRecord, ReleaseCandidate, ReleaseInfo} from '../../types';
 import type {FormCtx} from './context';
@@ -68,9 +69,9 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
     if (inflight.current?.key === key) return inflight.current.promise;
     const seq = ++sequence.current;
     abort.current?.abort();
-    if (kind === 'barcode' && !VALID_BARCODE.test(value)) {
+    if (kind === 'barcode' && !(VALID_BARCODE.test(value) && gs1Valid(value))) {
       setCandidates([]); setNotFound(false);
-      setMessage('条码需 8、12、13 或 14 位数字');
+      setMessage(VALID_BARCODE.test(value) ? '条码校验位不对，请核对是否输错了一位' : '条码需 8、12、13 或 14 位数字');
       return Promise.resolve();
     }
     if (kind === 'catalog' && (value.length < 2 || value.length > 80)) {
@@ -145,8 +146,8 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
           if (sequence.current === seq) setBusy(false);
         }
       }
-      if (!VALID_BARCODE.test(number)) {
-        setVerification('failed'); setMessage('请输入完整条码（8、12、13 或 14 位）');
+      if (!VALID_BARCODE.test(number) || !gs1Valid(number)) {
+        setVerification('failed'); setMessage(VALID_BARCODE.test(number) ? '条码校验位不对，请核对是否输错了一位' : '请输入完整条码（8、12、13 或 14 位）');
         return;
       }
       void search('barcode', number, true);
