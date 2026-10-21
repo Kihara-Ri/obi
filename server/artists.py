@@ -212,6 +212,9 @@ class ArtistService:
         if binding and not force:  # 已有绑定直接使用，不重复搜索名称；更换艺人走 force
             return {'status': 'resolved', 'artist': name, 'binding': binding,
                     'candidates': [], 'evidenceComplete': True, 'searchCount': None}
+        if search_name is None and not force:
+            credit = self._release_credit(name)
+            if credit: return self._resolve_candidate(name, credit, 'release-credit', True, 0)
         query = search_name if search_name is not None else name
         if not isinstance(query, str) or not 1 <= len(query.strip()) <= 500:
             raise ValidationError('搜索名称不正确')
@@ -293,6 +296,28 @@ class ArtistService:
                                           'status': 'ambiguous', 'policy': 'single-or-work-v2',
                                           'titleContext': title_context, 'result': result})
         return result
+
+    def _release_credit(self, name):
+        """库里这位艺人的专辑若已确认 MusicBrainz 发行版，且该版 artist-credit 的署名恰是这个名字
+        （如日版署名「ピンク・フロイド」→ 艺人 Pink Floyd），直接取 credit 里的艺人身份，不靠名字搜索。
+        只认唯一身份；任何来源错误都回落到名称搜索。"""
+        found = {}
+        target = strict_key(name)
+        for record in self._records_of(name):
+            rid = (record.get('releaseInfo') or {}).get('musicBrainzReleaseId')
+            if not is_uuid(rid): continue
+            try:
+                data = self._single('release-credit:' + rid, lambda rid=rid: self.mb.get(
+                    'release/' + rid, {'inc': 'artist-credits', 'fmt': 'json'}))
+            except (SourceUnavailable, BadSource, SourceNotFound):
+                continue
+            for c in data.get('artist-credit', []) if isinstance(data, dict) else []:
+                a = c.get('artist') if isinstance(c, dict) else None
+                if isinstance(a, dict) and is_uuid(a.get('id')) and target in (
+                        strict_key(c.get('name', '')), strict_key(a.get('name', ''))):
+                    found[a['id']] = str(a.get('name') or name)
+            if len(found) > 1: return None
+        return ({'mbid': next(iter(found)), 'name': next(iter(found.values()))}) if len(found) == 1 else None
 
     def _resolve_candidate(self, name, candidate, method, complete, search_count, expected=None):
         try:

@@ -23,7 +23,7 @@ SALE_STATUSES = ('shipping', 'complete', 'cancelled', 'returned', 'refunded')
 PHOTO_RE = re.compile(r'^data:image/(jpeg|png|webp);base64,')
 MBID_RE = re.compile(r'^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$')
 RECORD_ID_RE = re.compile(r'^[0-9a-f]{32}$')
-IDENTITY_METHODS = ('manual', 'corroborated', 'single')
+IDENTITY_METHODS = ('manual', 'corroborated', 'single', 'release-credit')
 
 def clean_artist_identities(value):
     """备份恢复校验：artist-identities-v1 映射结构；字段不全或类型不对即拒绝。"""

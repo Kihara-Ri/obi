@@ -151,7 +151,7 @@ def api_password(h, svc, body):
 
 # ── POST：封面（只读缓存，不进写锁）─────────────────────────────────
 def api_covers_search(h, svc, body):
-    h.send(svc.covers.search(body.get('title', ''), body.get('artist', ''), body.get('country', 'AUTO')))
+    h.send(svc.covers.search(body.get('title', ''), body.get('artist', ''), body.get('country', 'AUTO'), body.get('releaseId')))
 
 
 def api_covers_download(h, svc, body):

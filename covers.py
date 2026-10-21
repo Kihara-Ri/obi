@@ -14,6 +14,7 @@ from urllib.parse import urlencode, urlsplit, quote
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 from domain import ValidationError
 from cjkvariants import T2S
+from kana import romaji
 from musicbrainz import SourceUnavailable as MBSourceUnavailable, BadSource as MBBadSource
 
 
@@ -110,11 +111,27 @@ class CoverService:
         except Exception as exc:
             raise ValidationError('暂时无法连接封面服务，请稍后重试或手动上传') from exc
 
-    def search(self, title, artist, country='AUTO'):
+    def release_identity(self, release_id):
+        """已确认 MusicBrainz 发行版的规范标题 / 艺人 / release-group（日版常署名与翻译名，iTunes 与目录用的是原名）。"""
+        if not re.fullmatch(r'[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}', str(release_id or '')): return None
+        try:
+            r=self.metadata('https://musicbrainz.org/ws/2/release/'+release_id+'?'+urlencode({'inc':'artist-credits+release-groups','fmt':'json'}))
+        except ValidationError:
+            return None
+        g=r.get('release-group') or {}
+        artist=''.join((c.get('artist') or {}).get('name','')+c.get('joinphrase','') for c in r.get('artist-credit',[]) if isinstance(c,dict))
+        gid=g.get('id','') if re.fullmatch(r'[0-9a-f-]{36}',str(g.get('id',''))) else ''
+        return {'title':g.get('title') or r.get('title',''),'artist':artist,'group':gid,'groupTitle':g.get('title','')}
+
+    def search(self, title, artist, country='AUTO', release_id=None):
         title, artist = str(title).strip(), str(artist).strip()
         if not title or not artist: raise ValidationError('请先填写专辑名和艺人')
         if max(len(title),len(artist)) > 500: raise ValidationError('专辑名或艺人过长')
-        if country == 'AUTO': return self.layered_search(title, artist)
+        if country == 'AUTO':
+            result=self.layered_search(title, artist)
+            ident=self.release_identity(release_id) if release_id else None
+            if not ident or (normalized(ident['title'])==normalized(title) and normalized(ident['artist'])==normalized(artist)): return result
+            return self.merge_identity(result, ident)
         if country not in ('JP','US'): raise ValidationError('请选择日本或美国资料库')
         key=(title, artist, country)
         with self.lock:
@@ -137,6 +154,29 @@ class CoverService:
             result={'candidates':candidates[:6],'source':'iTunes','country':country}
             self.cache[key]=(time.monotonic(),result)
             return result
+
+    def merge_identity(self, result, ident):
+        """用发行版的规范名再查一遍，并补上同一 release-group 的封面（版次可能不同，仅作展示、由用户点选）。"""
+        more=[]
+        if ident['title'] and ident['artist']:
+            more=self.layered_search(ident['title'], ident['artist'])['candidates']
+        if ident['group']:
+            try:
+                art=self.metadata('https://coverartarchive.org/release-group/'+ident['group'])
+                front=next((i for i in art.get('images',[]) if i.get('front') and i.get('approved')),None)
+                if front:
+                    u=front.get('thumbnails',{}).get('500') or front.get('thumbnails',{}).get('large') or front.get('image','')
+                    if u.startswith('http://'):u='https://'+u[7:]
+                    c=self.candidate(ident['title'],ident['artist'],ident['groupTitle'],ident['artist'],'CAA-'+ident['group'],u,
+                                     provider='MusicBrainz / Cover Art Archive',page='https://musicbrainz.org/release-group/'+ident['group'])
+                    c['exact']=False   # 同专辑不同版次的图，只作候选
+                    more.append(c)
+            except ValidationError:pass
+        merged={}
+        for c in list(result['candidates'])+more:
+            merged.setdefault((normalized(c['artist']),album_key(c['title']),c['thumbnail']),c)
+        out=sorted(merged.values(),key=lambda c:(c['exact'],c['score']),reverse=True)
+        return {**result,'candidates':out[:8],'checked':result.get('checked',[])+['发行版规范名']}
 
     def download(self, token):
         with self.lock:
@@ -222,7 +262,12 @@ class CoverService:
         # 如「歌物語2」对应「歌物語2 -〈物語〉シリーズ主題歌集-」。exact 仍要求全等。
         if len(tk) >= 2 and len(nk) >= 2 and (nk.startswith(tk) or tk.startswith(nk)):
             t_sim = max(t_sim, .95)
-        exact = tk == nk and artist_matches(artist, who)
+        # iTunes 常把日文标题罗马字化（キセキ → Kiseki）：艺人对得上时，假名与罗马字等价算同名。
+        same_artist = artist_matches(artist, who)
+        if same_artist and tk != nk:
+            rk, rn = album_key(romaji(title)), album_key(romaji(name))
+            if rk == rn: tk, nk, t_sim = rk, rn, 1.0
+        exact = tk == nk and same_artist
         c={'token':token,'title':name,'artist':who,'thumbnail':url,'year':year,'provider':provider,
            'score':round(.65*t_sim+.35*similarity(artist,who),3),'exact':exact}
         with self.lock: self.choices[token]={**c,'url':re.sub(r'/100x100bb\.', '/1200x1200bb.',url),'country':country,'page':page}

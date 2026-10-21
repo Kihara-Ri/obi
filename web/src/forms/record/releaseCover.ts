@@ -13,7 +13,7 @@ export async function matchReleaseCover(candidate: ReleaseCandidate, discogs: bo
                                         isCurrent: () => boolean): Promise<MatchedCover | null> {
   // 优先用确认的这个版本自己的正面图（CAA，Discogs 版本没有）；没有再用 iTunes 标题 + 艺人精确匹配的数字封面。
   // 两路同时发出，CAA 有图就立刻返回，不等 iTunes。
-  const itunes = findItunes(candidate, isCurrent);
+  const itunes = findItunes(candidate, discogs, isCurrent);
   if (!discogs) {
     const front = await api<{cover: string}>('catalog/front-cover?id=' + encodeURIComponent(candidate.id)).catch(() => null);
     if (!isCurrent()) return null;
@@ -27,10 +27,11 @@ export async function matchReleaseCover(candidate: ReleaseCandidate, discogs: bo
   return found ?? {status: '无精确封面，可点「换一张封面」'};
 }
 
-async function findItunes(candidate: ReleaseCandidate, isCurrent: () => boolean): Promise<MatchedCover | null> {
+async function findItunes(candidate: ReleaseCandidate, discogs: boolean, isCurrent: () => boolean): Promise<MatchedCover | null> {
   try {
     const found = await api<{candidates: CoverCandidate[]}>('covers/search',
-      {title: displayReleaseTitle(candidate.title), artist: candidate.artist, country: 'AUTO'});
+      {title: displayReleaseTitle(candidate.title), artist: candidate.artist, country: 'AUTO',
+       releaseId: discogs ? undefined : candidate.id});
     const exact = isCurrent() ? exactDigitalCover(found.candidates) : null;
     if (!exact) return null;
     const image = await api<{cover: string; coverSource: AlbumRecord['coverSource']}>(

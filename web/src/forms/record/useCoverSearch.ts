@@ -35,7 +35,7 @@ export function useCoverSearch(ctx: FormCtx, hadCover: boolean) {
     }
   }
 
-  /** 换一张封面：按当前标题 / 艺人列出候选（iTunes + MusicBrainz / CAA），由用户点选，不自动采用。 */
+  /** 换一张封面：按当前标题 / 艺人（已确认发行版则连同其规范名）列出候选（iTunes + MusicBrainz / CAA），由用户点选，不自动采用。 */
   async function findCover() {
     const key = coverKey();
     const title = v.title.trim(), artist = v.artist.trim();
@@ -45,7 +45,7 @@ export function useCoverSearch(ctx: FormCtx, hadCover: boolean) {
     setCandidates([]);
     try {
       const result = await api<{candidates: CoverCandidate[]; warnings?: string[]}>(
-        'covers/search', {title, artist, country: 'AUTO'});
+        'covers/search', {title, artist, country: 'AUTO', releaseId: v.releaseInfo.musicBrainzReleaseId || undefined});
       if (!stillCurrent(key)) return;
       let status = result.candidates.length ? '点击选择封面' : '未找到封面';
       if (result.warnings?.length) status += ' · 部分来源不可用';
