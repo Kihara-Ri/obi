@@ -86,7 +86,7 @@ function ListingForm({id}: {id: string}) {
         <button type="button" className={facts ? '' : 'primary'} disabled={stale || !r.photoCount || analyzing || !ready}
                 onClick={() => {void analyze();}}>
           {analyzing ? '正在分析照片与查询版本…' : facts ? '重新分析' : '开始分析'}</button>
-        {!ready ? <p className="listing-note">请先在 设置 → 高级 → 售卖照片识别 中连接模型；也可以跳过分析，直接手写核对。</p> : null}
+        {!ready ? <p className="listing-note">请先在 设置 → 高级 → 视觉模型接口 中连接模型；也可以跳过分析，直接手写核对。</p> : null}
       </section>
 
       <ListingReview draft={draft} onChange={change}/>

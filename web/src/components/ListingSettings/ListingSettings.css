@@ -4,7 +4,8 @@
 .listing-credentials{display:grid;gap:var(--listing-gap);width:100%}
 .listing-credentials label{display:grid;gap:var(--listing-gap);width:100%}
 .listing-credentials input{width:100%;min-width:0}
-.provider-list{list-style:none;margin:0;padding:0;display:grid;gap:var(--listing-gap-sm)}
+.provider-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:minmax(0,1fr);gap:var(--listing-gap-sm)}
+.provider-list>li{min-width:0}
 .provider-item{box-sizing:border-box;min-width:0;display:flex;align-items:center;gap:12px;width:100%;min-height:var(--listing-touch-size);padding:10px 12px;text-align:left;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);color:var(--text)}
 .provider-item-main{flex:1;min-width:0;display:grid}
 .provider-item-main small{color:var(--muted);font-size:12px;overflow-wrap:anywhere}
@@ -13,8 +14,7 @@
 .provider-stack>span:nth-child(2){flex:1;min-width:0}
 .provider-stack-icons{display:flex}
 .provider-stack-icons .provider-tile+.provider-tile{margin-left:-10px}
-.provider-badges{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px;margin:4px 0}
-.provider-head .provider-badges{justify-content:flex-start}
+.provider-badges{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 0}
 .provider-badges span{padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;border:1px solid var(--border-strong);color:var(--muted)}
 .provider-badges .badge-ok{color:var(--green);border-color:var(--green)}
 .provider-badges .badge-bad{color:var(--red);border-color:var(--red)}
@@ -30,3 +30,4 @@
 .provider-mask{font-family:ui-monospace,monospace;color:var(--muted);margin-right:auto;overflow-wrap:anywhere}
 .provider-keyrow .danger{color:var(--red)}
 .provider-use{justify-self:stretch;min-height:var(--listing-touch-size)}
+.provider-head>div,.provider-keyrow>*{min-width:0}
