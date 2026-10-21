@@ -8,7 +8,8 @@ import {useEffect, useRef, useState} from 'react';
 import './Splash.css';
 
 const SHOW_DELAY = 150;   // 比这更快就绪：不显示加载画面
-const MIN_SHOW = 500;     // 显示后至少停留，转场才有机会被看清
+const MIN_SHOW = 500;
+const TRANSIT_MIN = 420;  // 转场版：合上后至少停留这么久     // 显示后至少停留，转场才有机会被看清
 const SLOW_AFTER = 8000;  // 加载超过这么久换成「网络较慢」提示
 const EXIT_MS = 720;      // 与 Splash.css 退场动画总时长一致
 const ENTER_MS = 800;     // html.splash-enter 的保留时长（主界面入场动画）
@@ -16,6 +17,10 @@ const ENTER_MS = 800;     // html.splash-enter 的保留时长（主界面入场
 export interface SplashProps {
   /** 数据就绪。变为 true 后播放退场并自行卸载 */
   ready: boolean;
+  /** 页面间转场：立即合上（不等 SHOW_DELAY）、不靠静态占位计时，停留更短 */
+  transit?: boolean;
+  /** 退场结束、组件即将卸载时调用 */
+  onDone?: () => void;
 }
 
 type Phase = 'wait' | 'show' | 'exit' | 'gone';
@@ -30,12 +35,12 @@ function glintAngle(root: HTMLElement | null): number {
   return dur > 0 && Number.isFinite(t) ? (t % dur) / dur * 360 : 0;
 }
 
-export function Splash({ready}: SplashProps) {
-  const boot = useRef(typeof document !== 'undefined' && !!document.getElementById('boot-splash'));
+export function Splash({ready, transit = false, onDone}: SplashProps) {
+  const boot = useRef(!transit && typeof document !== 'undefined' && !!document.getElementById('boot-splash'));
   // 有静态占位时以页面导航起点计时（占位从那时起就在倒计时显示）
   const born = useRef(boot.current ? 0 : performance.now());
   const elapsed = performance.now() - born.current;
-  const [phase, setPhase] = useState<Phase>(ready ? 'gone' : elapsed >= SHOW_DELAY ? 'show' : 'wait');
+  const [phase, setPhase] = useState<Phase>(transit ? 'show' : ready ? 'gone' : elapsed >= SHOW_DELAY ? 'show' : 'wait');
   const [slow, setSlow] = useState(false);
   const root = useRef<HTMLDivElement>(null);
 
@@ -52,11 +57,11 @@ export function Splash({ready}: SplashProps) {
       const t = window.setTimeout(() => setSlow(true), Math.max(0, SLOW_AFTER - (performance.now() - born.current)));
       return () => window.clearTimeout(t);
     }
-    const shownFor = performance.now() - born.current - SHOW_DELAY;
+    const shownFor = performance.now() - born.current - (transit ? 0 : SHOW_DELAY);
     const t = window.setTimeout(() => {
       root.current?.style.setProperty('--glint-a0', `${glintAngle(root.current)}deg`);
       setPhase('exit');
-    }, Math.max(0, MIN_SHOW - shownFor));
+    }, Math.max(0, (transit ? TRANSIT_MIN : MIN_SHOW) - shownFor));
     return () => window.clearTimeout(t);
   }, [phase, ready]);
 
@@ -69,10 +74,14 @@ export function Splash({ready}: SplashProps) {
     return () => { window.clearTimeout(t1); window.clearTimeout(t2); html.classList.remove('splash-enter'); };
   }, [phase]);
 
+  const doneRef = useRef(onDone);
+  doneRef.current = onDone;
+  useEffect(() => { if (phase === 'gone') doneRef.current?.(); }, [phase]);
+
   if (phase === 'gone') return null;
   // 两半唱片同时挂载、同步起转：反光层相位一致，裂开时纹理不错位
   return (
-    <div ref={root} className={`splash is-${phase}${boot.current ? ' no-intro' : ''}`}
+    <div ref={root} className={`splash is-${phase}${boot.current ? ' no-intro' : ''}${transit ? ' is-transit' : ''}`}
          role={phase === 'exit' ? undefined : 'status'} aria-label="加载中">
       <div className="splash-veil"/>
       <div className="splash-disc" aria-hidden="true">

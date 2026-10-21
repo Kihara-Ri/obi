@@ -1,5 +1,5 @@
 // 应用外壳：状态装配、hash 路由、抽屉/toast/PWA 效果、侧栏与页面分发。
-import {useCallback, useEffect, useRef, useState} from 'react';
+import {useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {api, ApiError} from './core/api';
 import {homePage, LEGACY_MODULES, normalizeModules, pageEnabled, PRESETS} from './core/modules';
 import {applyThemePref, themePref} from './core/theme';
@@ -28,6 +28,7 @@ import {SetupPage} from './pages/SetupPage';
 import {MorePage} from './pages/MorePage';
 import {GalleryPage} from './pages/GalleryPage';
 import {Splash} from './components/ui';
+import {PageVeil} from './components/PageVeil';
 
 const NAV = [
   {hash: 'gallery', ico: '▦', label: '收藏展示'},
@@ -321,6 +322,22 @@ export default function App() {
       window.removeEventListener('hashchange', onHash);
     };
   }, []);
+  // 库存 ↔ 展示：幕布合上 → 预加载封面 → 打开（PageVeil）。必须在绘制前挂上，
+  // 否则新页面会先闪一帧；layout effect 在下面的切页 effect 之前运行，能读到旧页面。
+  const [veil, setVeil] = useState<string[] | null>(null);
+  const veilStartedRef = useRef(false);
+  useLayoutEffect(() => {
+    veilStartedRef.current = false;
+    const prev = prevPageRef.current;
+    const isShelf = (p: string) => p === 'domestic' || p === 'overseas';
+    if (prev === page || !((prev === 'gallery' && isShelf(page)) || (page === 'gallery' && isShelf(prev)))) return;
+    if (historyNavRef.current || (Boolean(modules?.showcase) && home === 'gallery')) return;
+    try {
+      if (!matchMedia('(max-width:840px)').matches || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    } catch { return; }
+    veilStartedRef.current = true;
+    setVeil((state?.records ?? []).map(r => r.cover).filter(Boolean));
+  }, [page]);
   useEffect(() => {
     const prev = prevPageRef.current;
     prevPageRef.current = page;
@@ -347,6 +364,7 @@ export default function App() {
     // 只让下方内容柔和淡入（切换控件的滑块自己滑过去）
     const isShelf = (p: string) => p === 'domestic' || p === 'overseas';
     const showcaseTab = Boolean(modules?.showcase) && home === 'gallery';
+    if (veilStartedRef.current) return;   // 已由 PageVeil 接管整场转场
     if (mobile && animate && !fromHistory && !showcaseTab
         && ((prev === 'gallery' && isShelf(page)) || (page === 'gallery' && isShelf(prev)))) {
       main.classList.add('page-in-fade');
@@ -546,6 +564,7 @@ export default function App() {
       <Lightbox/>
     </AppContext.Provider>
     <Splash ready/>
+    {veil ? <PageVeil key={page} covers={veil} onDone={() => setVeil(null)}/> : null}
     </>
   );
 }

@@ -11,6 +11,12 @@
 .splash.splash-boot{animation:splash-in .22s ease-out .15s both}
 @keyframes splash-in{from{opacity:0}to{opacity:1}}
 
+/* 页面间转场：幕布一步合上（底下是刚换好的新页面，不能让它透出来），唱片与文字再淡入 */
+.splash.is-transit{animation:none}
+.splash.is-transit .splash-disc{animation:splash-in .2s ease-out both,splash-breathe var(--beat) ease-in-out infinite}
+.splash.is-transit .splash-text{animation:splash-in .2s ease-out both,splash-text var(--beat) ease-in-out infinite}
+.splash.is-transit.is-exit .splash-text{animation:splash-text-out .18s ease-out both}
+
 /* 背景幕：退场时整层放大，中心的静态孔洞随之扩大，露出下面的主界面。
    孔洞中心对准唱片中心（整组居中，唱片在组的上半，上移 21px）。
    只做 transform 放大，不逐帧重绘遮罩；放大后遮罩边缘会变宽变软，正好是羽化的虹膜效果 */
