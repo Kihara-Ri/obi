@@ -1,0 +1,6 @@
+/* 手动更正发行资料：极少使用，默认折叠；展开后保持两列紧凑（手机端也不退成单列） */
+details.record-release-fields{border-style:dashed;padding:4px 12px}
+details.record-release-fields summary{font-weight:500;color:var(--faint)}
+#panel .rmf-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px 10px}
+.rmf-grid .field label{display:block;margin-bottom:3px;font-size:11.5px;color:var(--muted)}
+.rmf-grid input{padding:7px 10px;font-size:15px}
