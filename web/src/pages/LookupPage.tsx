@@ -1,6 +1,7 @@
 // 查询：按条码 / 唱片编号查发行版资料，只读、不入库；库里已有的先列出，需要时再「以此入库」。
 // 外部检索沿用 /api/catalog/*（MusicBrainz 优先，Discogs 备用，精确匹配，不按标题猜）。
-import {useRef, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
+import {LOOKUP_QUEUED, takeLookup} from '../core/lookup-handoff';
 import {useApp} from '../state/AppContext';
 import {PageHead} from '../components/PageHead';
 import {api} from '../core/api';
@@ -84,6 +85,16 @@ export function LookupPage() {
     const named = `${displayReleaseTitle(r.title)} ${r.artist}`;
     void search(code.length >= 8 ? code : named, named);
   };
+
+  // 照片灯箱识别出的条码：挂载时取一次；已在本页时靠事件接手
+  const searchRef = useRef(search);
+  searchRef.current = search;
+  useEffect(() => {
+    const pickUp = () => { const code = takeLookup(); if (code) void searchRef.current(code); };
+    pickUp();
+    window.addEventListener(LOOKUP_QUEUED, pickUp);
+    return () => window.removeEventListener(LOOKUP_QUEUED, pickUp);
+  }, []);
 
   const local = found && found.kind !== 'text' ? localMatches(state.records, found.kind, found.value) : [];
   const ownedNote = local.length
