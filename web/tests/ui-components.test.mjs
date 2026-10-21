@@ -88,19 +88,19 @@ test('NavRow：链接 / 按钮 / 静态三种形态，右侧数值与箭头', ()
   const link = render(ui.NavRow, {href: '#ledger', icon: '▧', title: '账本概览', value: '16 张'});
   assert.match(link, /<a class="nav-row" href="#ledger"/);
   assert.match(link, /class="nav-row-value">16 张/);
-  assert.match(link, /class="nav-row-arrow"/);
+  assert.match(link, /class="chev chev-right"/);
   const button = render(ui.NavRow, {onClick: () => {}, icon: 'x', title: '安装'});
   assert.match(button, /<button type="button" class="nav-row"/);
   const stat = render(ui.NavRow, {icon: 'x', title: '外观', trailing: createElement('i', null, 'T')});
   assert.match(stat, /<div class="nav-row">/);
   assert.match(stat, /<i>T<\/i>/);
-  assert.doesNotMatch(stat, /nav-row-arrow/);
+  assert.doesNotMatch(stat, /chev/);
   assert.doesNotMatch(render(ui.NavRow, {href: '#a', icon: 'x', title: 't', value: ''}), /nav-row-value/);
 });
 
 test('Disclosure：默认收起，摘要可自定义', () => {
   const html = render(ui.Disclosure, {children: createElement('p', null, '内容')});
-  assert.match(html, /<details class="disclosure"><summary>说明<\/summary>/);
+  assert.match(html, /<details class="disclosure"><summary><span class="chev chev-right"[^>]*>.*<\/span>说明<\/summary>/);
   assert.doesNotMatch(html, /open=""/);
-  assert.match(render(ui.Disclosure, {summary: '各模块说明', children: 'x'}), /<summary>各模块说明<\/summary>/);
+  assert.match(render(ui.Disclosure, {summary: '各模块说明', children: 'x'}), /<\/span>各模块说明<\/summary>/);
 });
