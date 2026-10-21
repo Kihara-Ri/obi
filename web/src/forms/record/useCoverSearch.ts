@@ -1,5 +1,6 @@
-// 封面自动抓取与候选选择：唯一精确匹配自动带入，其余由用户点选。
-import {useEffect, useRef, useState} from 'react';
+// 封面状态与「换一张封面」：封面随确认的发行版自动匹配（pickRelease → releaseCover），
+// 这里只管状态（status / busy / hasCover）和用户主动换封面时的候选点选；不再在标题 / 艺人失焦时自动搜。
+import {useState} from 'react';
 import {api} from '../../core/api';
 import type {FormCtx} from './context';
 
@@ -13,8 +14,7 @@ export function useCoverSearch(ctx: FormCtx, hadCover: boolean) {
   const [coverStatus, setCoverStatus] = useState(hadCover ? '使用现有封面' : '尚无封面');
   const [candidates, setCandidates] = useState<CoverCandidate[]>([]);
   const [hasCover, setHasCover] = useState(hadCover);
-  const lastQuery = useRef<string | null>(null);
-  const timer = useRef<number | undefined>(undefined);
+  const [busy, setBusy] = useState(false);
 
   const coverKey = () => `${v.title.trim()}\n${v.artist.trim()}`;
   const stillCurrent = (key: string) => formRef.current?.isConnected && coverKey() === key;
@@ -35,43 +35,30 @@ export function useCoverSearch(ctx: FormCtx, hadCover: boolean) {
     }
   }
 
-  async function findCover(automatic: boolean) {
+  /** 换一张封面：按当前标题 / 艺人列出候选（iTunes + MusicBrainz / CAA），由用户点选，不自动采用。 */
+  async function findCover() {
     const key = coverKey();
     const title = v.title.trim(), artist = v.artist.trim();
-    if (!title || !artist) {
-      if (!automatic) setCoverStatus('先填专辑名和艺人');
-      return;
-    }
-    if (automatic && (hasCover || lastQuery.current === key)) return;
-    lastQuery.current = key;
+    if (!title || !artist) {setCoverStatus('先填专辑名和艺人'); return;}
+    setBusy(true);
     setCoverStatus('查找中…');
     setCandidates([]);
     try {
       const result = await api<{candidates: CoverCandidate[]; warnings?: string[]}>(
         'covers/search', {title, artist, country: 'AUTO'});
       if (!stillCurrent(key)) return;
-      const cs = result.candidates;
-      const exact = cs.filter(c => c.exact);
-      if (automatic && !hasCover && exact.length === 1) {
-        await chooseCover(exact[0].token, key);
-        return;
-      }
-      let status = cs.length ? '点击选择封面' : '未找到封面';
+      let status = result.candidates.length ? '点击选择封面' : '未找到封面';
       if (result.warnings?.length) status += ' · 部分来源不可用';
       setCoverStatus(status);
-      setCandidates(cs);
+      setCandidates(result.candidates);
     } catch (err) {
       if (stillCurrent(key)) setCoverStatus(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
     }
   }
 
-  const scheduleCover = () => {
-    clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => findCover(true), 450);
-  };
-  useEffect(() => () => { clearTimeout(timer.current); }, []);
-
   return {coverStatus, setCoverStatus, candidates, setCandidates, hasCover, setHasCover,
-    lastQuery, coverKey, chooseCover, findCover, scheduleCover};
+    busy, setBusy, coverKey, chooseCover, findCover};
 }
 export type CoverSearch = ReturnType<typeof useCoverSearch>;

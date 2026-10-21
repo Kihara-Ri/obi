@@ -14,7 +14,8 @@ a{color:inherit}
 /* 触屏基础：去点按高亮、去掉双击缩放延迟（捏合缩放不受影响）；
    overscroll-behavior:none 禁掉 iOS 整页橡皮筋——页面不许被拉变形 */
 a,button{-webkit-tap-highlight-color:transparent}
-html{touch-action:manipulation;overscroll-behavior:none}
+/* pan-x pan-y：不含 pinch-zoom，整个应用禁止双指缩放页面（灯箱缩放走自己的指针事件，不受影响） */
+html{touch-action:pan-x pan-y;overscroll-behavior:none}
 body{overscroll-behavior:none}
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent-deep);outline-offset:2px}
 .num{font-variant-numeric:tabular-nums}

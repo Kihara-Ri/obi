@@ -5,7 +5,9 @@
    系统边缘返回手势（页面才能收到完整 touch 流做跟手下拉）；抽屉内的横向
    滚动条带（封面候选等）单独恢复 pan-x */
 #panel .cover-candidates,#panel .artist-cats{touch-action:pan-x}
-#panel::before{content:"";position:absolute;inset:0;background:var(--scrim);backdrop-filter:blur(3px)}
+#panel::before{content:"";position:absolute;inset:0;background:var(--scrim);backdrop-filter:blur(3px);opacity:var(--scrim-o,1);transition:opacity var(--scrim-t,0s) ease-out}
+/* 手机 sheet 下拉时遮罩随位移淡出（--scrim-o 由 Drawer.tsx 写入），背后页面逐渐清晰；收回时淡到 0 */
+#panel.is-closing::before{opacity:0;transition:opacity .24s ease-in}
 .drawer{position:absolute;top:0;right:0;bottom:0;width:min(460px,100vw);background:var(--surface);border-left:1px solid var(--border-strong);display:flex;flex-direction:column;box-shadow:-18px 0 50px var(--shadow-ink);animation:slide var(--dur-slow) var(--ease-out)}
 .drawer:focus{outline:none}
 .drawer.wide{width:min(560px,100vw)}
@@ -181,10 +183,14 @@ details.adv:not([open]) > :not(summary){display:none}
   .drawer.compact{top:auto;max-height:calc(100% - 56px - var(--kb,0px))}
   /* 表单抽屉 → 底部上滑 sheet：顶部圆角 + 抓手，底部避开 Home 条；
      进入 = 整块自屏底滑入，关闭 = 跟手下滑收回（sheet-down + Drawer 拖拽） */
-  .drawer{top:calc(10px + env(safe-area-inset-top));right:0;bottom:var(--kb,0px);left:0;width:auto;
+  .drawer{top:calc(10px + env(safe-area-inset-top));right:0;bottom:0;left:0;width:auto;
     border-left:none;border-top:1px solid var(--border-strong);border-radius:20px 20px 0 0;
     box-shadow:0 -14px 44px var(--shadow-ink);animation:sheet-up .28s cubic-bezier(.2,.8,.3,1)}
   .drawer.wide{width:auto}
+  /* 软键盘是另一层：表单抽屉保持原高度，键盘盖住下半部，body 补等高的滚动余量让下方字段仍能滚上来；
+     内容高度的 compact 抽屉整体抬到键盘上沿 */
+  .drawer.compact{bottom:var(--kb,0px)}
+  .drawer:not(.compact) .drawer-body{padding-bottom:calc(18px + env(safe-area-inset-bottom) + var(--kb,0px))}
   .drawer.closing{animation:sheet-down .24s ease-in forwards}
   @keyframes sheet-up{from{transform:translateY(100%)}to{transform:none}}
   @keyframes sheet-down{to{transform:translateY(100%)}}
@@ -236,40 +242,6 @@ details.adv:not([open]) > :not(summary){display:none}
 @media(max-width:600px){
   .detail-footer-row button{flex:0 1 auto;min-height:38px}
 }
-.record-barcode-entry{min-width:0}
-.lookup-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
-.lookup-head>label{font-size:13px;color:var(--muted);font-weight:600}
-.record-barcode-row{display:flex;gap:8px;min-width:0}
-#panel .record-barcode-row input{flex:1;min-width:0;font-variant-numeric:tabular-nums}
-.record-barcode-row button{flex:none;min-width:64px}
-/* 状态行：一行图形 + 一句话；形状区分状态（转圈 / ✓ / ! / …），不只靠颜色 */
-.lookup-status{display:flex;align-items:center;gap:8px;min-height:32px;margin-top:8px;font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
-.lookup-status>b{flex:none;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;font-size:11px;background:var(--surface-3);color:var(--muted)}
-.lookup-status.is-ok{color:var(--text)}
-.lookup-status.is-ok>b{background:var(--green);color:var(--accent-ink)}
-.lookup-status.is-miss>b{background:var(--orange);color:var(--accent-ink)}
-.lookup-status button{margin-left:auto;flex:none}
-.lookup-spinner{flex:none;width:14px;height:14px;border-radius:50%;border:2px solid var(--border-strong);border-top-color:var(--accent-deep);animation:lookup-spin .7s linear infinite}
-@keyframes lookup-spin{to{transform:rotate(1turn)}}
-@media (prefers-reduced-motion:reduce){.lookup-spinner{animation-duration:2s}}
-/* 候选与已确认发行版：标题 / 艺人在上，标签行（地区·日期·编号·来源）在下；确认卡用「标签—数值」网格 */
-.release-candidates{list-style:none;display:flex;flex-direction:column;gap:8px;margin:10px 0 0;padding:0}
-.release-candidates button{display:flex;flex-direction:column;align-items:stretch;gap:8px;width:100%;padding:12px 14px;
-  text-align:left;white-space:normal;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface)}
-.release-candidates button:hover:not(:disabled){border-color:var(--accent-deep);background:var(--accent-wash)}
-.rc-main{display:flex;flex-direction:column;gap:2px;min-width:0}
-.rc-main strong{font-size:14px;line-height:1.35;overflow-wrap:anywhere}
-.rc-main>span{font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
-.rc-chips{display:flex;flex-wrap:wrap;gap:6px}
-.rc-chip{display:inline-block;padding:2px 8px;border-radius:99px;background:var(--surface-3);color:var(--muted);font-size:11px;line-height:1.5;font-variant-numeric:tabular-nums}
-.release-card{margin-top:10px;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface-2)}
-.rc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
-.rc-source{flex:none;font-size:12px;color:var(--muted);text-decoration:none;padding:2px 0}
-.rc-source:hover{color:var(--accent-text)}
-.rc-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px;margin:12px 0 0;padding-top:10px;border-top:1px solid var(--border)}
-.rc-meta>div{min-width:0}
-.rc-meta dt{font-size:11px;color:var(--faint)}
-.rc-meta dd{margin:2px 0 0;font-size:13px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .record-remarks{margin-top:16px}
 
 
@@ -405,3 +377,6 @@ details.adv:not([open]) > :not(summary){display:none}
   border-radius:var(--radius-sm);border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text);font-size:14px;font-weight:600}
 .detail-page .entry-btn i{font-style:normal;font-size:22px;color:var(--faint)}
 .detail-page .entry-btn:hover{border-color:var(--accent-deep)}
+/* 封面行嵌在已确认版本卡里：去掉自己的边框背景，缩略图已在卡片头部 */
+.cover-search.is-inline{margin-top:0}
+.cover-search.is-inline .cover-row{padding:0;border:0;background:none}

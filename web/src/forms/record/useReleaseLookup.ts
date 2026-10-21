@@ -2,6 +2,7 @@
 // 查不到时可按「未收录版本」手动录入。新建没有可信发行版身份，必须由用户确认候选，不按标题猜版次。
 import {useEffect, useRef, useState} from 'react';
 import {api} from '../../core/api';
+import {gs1Valid} from '../../core/lookup';
 import {releaseRegion} from '../../core/release-metadata';
 import type {AlbumRecord, ReleaseCandidate, ReleaseInfo} from '../../types';
 import type {FormCtx} from './context';
@@ -15,13 +16,12 @@ const VALID_BARCODE = /^(?:\d{8}|\d{12,14})$/;
 
 export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecord | undefined) {
   const {v, set, setV, live, dirty, formRef} = ctx;
-  const [barcode, setBarcode] = useState(r?.releaseInfo?.barcode || '');
-  const [catalogNumber, setCatalogNumber] = useState(r?.releaseInfo?.catalogNumber || '');
-  const [mode, setModeState] = useState<LookupMode>(
-    r?.releaseInfo?.catalogNumber && !r?.releaseInfo?.barcode ? 'catalog' : 'barcode');
+  const initialInfo = r?.releaseInfo ?? ctx.base.current.releaseInfo;
+  const [barcode, setBarcode] = useState(initialInfo?.barcode || '');
+  const [catalogNumber, setCatalogNumber] = useState(initialInfo?.catalogNumber || '');
+  const [mode, setModeState] = useState<LookupMode>(initialInfo?.catalogNumber && !initialInfo?.barcode ? 'catalog' : 'barcode');
   const [candidates, setCandidates] = useState<ReleaseCandidate[]>([]);
   const [busy, setBusy] = useState(false);
-  const [coverBusy, setCoverBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [notFound, setNotFound] = useState(false);
   const [verification, setVerification] = useState<'verified' | 'pending' | 'failed'>('verified');
@@ -29,13 +29,13 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
   const inflight = useRef<{key: string; promise: Promise<void>} | null>(null);
   const abort = useRef<AbortController | null>(null);
   // 修改条码后，只有旧发行版 ID 经校验通过、或用户从新候选中确认，才有可信身份。
-  const verified = useRef(r?.releaseInfo ? identityOf(r.releaseInfo) : '');
+  const verified = useRef(initialInfo ? identityOf(initialInfo) : '');
   // 两个资料库都没有时用户手动录入的版本：保存时不做资料库核对。
   const manualRelease = v.releaseInfo.manualRelease === '1' && !v.releaseInfo.musicBrainzReleaseId
     && !v.releaseInfo.discogsReleaseId;
   const identified = !!(identityOf(v.releaseInfo) || manualRelease);
 
-  const reset = () => { ++sequence.current; abort.current?.abort(); inflight.current = null; setCoverBusy(false); };
+  const reset = () => { ++sequence.current; abort.current?.abort(); inflight.current = null; cover.setBusy(false); };
   const setMode = (next: LookupMode) => { reset(); setModeState(next); setCandidates([]); setMessage(''); setNotFound(false); };
 
   const changeBarcode = (raw: string) => {
@@ -68,9 +68,9 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
     if (inflight.current?.key === key) return inflight.current.promise;
     const seq = ++sequence.current;
     abort.current?.abort();
-    if (kind === 'barcode' && !VALID_BARCODE.test(value)) {
+    if (kind === 'barcode' && !(VALID_BARCODE.test(value) && gs1Valid(value))) {
       setCandidates([]); setNotFound(false);
-      setMessage('条码需 8、12、13 或 14 位数字');
+      setMessage(VALID_BARCODE.test(value) ? '条码校验位不对，请核对是否输错了一位' : '条码需 8、12、13 或 14 位数字');
       return Promise.resolve();
     }
     if (kind === 'catalog' && (value.length < 2 || value.length > 80)) {
@@ -80,7 +80,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
     // 后端两个来源各有超时；这里再兜底，避免连接卡死时界面一直停在“查询中”。
     const timer = window.setTimeout(() => controller.abort(), 70000);
     const current = () => seq === sequence.current && !!formRef.current?.isConnected;
-    setBusy(true); setCoverBusy(false); setCandidates([]); setNotFound(false);
+    setBusy(true); cover.setBusy(false); setCandidates([]); setNotFound(false);
     setMessage('查询中 · MusicBrainz，无结果时转 Discogs');
     const what = kind === 'barcode' ? '条码' : '编号';
     const promise = (async () => {
@@ -145,8 +145,8 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
           if (sequence.current === seq) setBusy(false);
         }
       }
-      if (!VALID_BARCODE.test(number)) {
-        setVerification('failed'); setMessage('请输入完整条码（8、12、13 或 14 位）');
+      if (!VALID_BARCODE.test(number) || !gs1Valid(number)) {
+        setVerification('failed'); setMessage(VALID_BARCODE.test(number) ? '条码校验位不对，请核对是否输错了一位' : '请输入完整条码（8、12、13 或 14 位）');
         return;
       }
       void search('barcode', number, true);
@@ -189,11 +189,11 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
   };
 
   const chooseRelease = (candidate: ReleaseCandidate) => pickRelease(candidate, {
-    ctx, cover, sequence, verified, setBusy, setCoverBusy, setMessage, setBarcode, setCatalogNumber,
+    ctx, cover, sequence, verified, setBusy, setMessage, setBarcode, setCatalogNumber,
     setCandidates, setVerification});
 
-  return {mode, setMode, barcode, catalogNumber, candidates, busy, coverBusy, message, notFound,
+  return {mode, setMode, barcode, catalogNumber, candidates, busy, message, notFound,
     verification, manualRelease, identified, changeBarcode, changeCatalogNumber, lookup,
-    enterManually, refreshReleaseMetadata, chooseRelease, setCatalogNumber};
+    enterManually, refreshReleaseMetadata, chooseRelease, setCatalogNumber, search};
 }
 export type ReleaseLookup = ReturnType<typeof useReleaseLookup>;

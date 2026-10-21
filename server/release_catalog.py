@@ -71,6 +71,27 @@ class ReleaseCatalog:
         self.catalog_at = time.monotonic()
         return read_json(url)
 
+    @staticmethod
+    def candidate(r, barcode='', catno=''):
+        """MusicBrainz release JSON → 候选（非 CD 或编号异常返回 None）。"""
+        if not re.fullmatch(r'[0-9a-f-]{36}', str(r.get('id',''))): return None
+        media = r.get('media',[])
+        if not any('CD' in str(m.get('format','')) for m in media): return None
+        labels = r.get('label-info',[])
+        numbers = [l.get('catalog-number','') for l in labels if l.get('catalog-number')]
+        digits = lambda s: re.sub(r'\D','',s)
+        norm = lambda s:re.sub(r'[^\w]','',s).casefold()
+        matched = bool(barcode and digits(barcode) and digits(barcode)==digits(r.get('barcode','')) or catno and any(norm(catno)==norm(n) for n in numbers))
+        if barcode and catno:
+            matched = digits(barcode)==digits(r.get('barcode','')) and any(norm(catno)==norm(n) for n in numbers)
+        ri = clean_release_info({'catalogNumber':' / '.join(numbers), 'barcode':r.get('barcode',''),
+            'label':' / '.join(l.get('label',{}).get('name','') for l in labels if l.get('label')),
+            'country':r.get('country',''), 'releaseDate':'' if re.fullmatch(r'[0-]*', str(r.get('date') or '')) else r.get('date',''), 'edition':r.get('disambiguation',''),
+            'packaging': r.get('packaging') or '', 'format':' + '.join(str(m.get('format','')) for m in media), 'discCount':str(len(media)) if media else ''})
+        return {'id':r['id'],'title':display_release_title(r.get('title','')),
+            'artist':''.join(a.get('name','') + a.get('joinphrase','') for a in r.get('artist-credit',[]) if isinstance(a,dict)),
+            'releaseInfo':ri,'identifierMatch':matched,'url':'https://musicbrainz.org/release/' + r['id']}
+
     def catalog(self, fields):
         info = fields['releaseInfo']; barcode = info.get('barcode',''); catno = info.get('catalogNumber','')
         quote = lambda s:'"' + re.sub(r'([\\"+\-!():^\[\]{}~*?|&/])',r'\\\1',s) + '"'
@@ -81,25 +102,7 @@ class ReleaseCatalog:
         with self.catalog_lock:
             if query in self.catalog_cache: return self.catalog_cache[query]
             data = self._mb_json('https://musicbrainz.org/ws/2/release/?' + urlencode({'query':query,'fmt':'json','limit':15}))
-            candidates = []
-            for r in data.get('releases',[]):
-                if not re.fullmatch(r'[0-9a-f-]{36}', str(r.get('id',''))): continue
-                media = r.get('media',[])
-                if not any('CD' in str(m.get('format','')) for m in media): continue
-                labels = r.get('label-info',[])
-                numbers = [l.get('catalog-number','') for l in labels if l.get('catalog-number')]
-                digits = lambda s: re.sub(r'\D','',s)
-                norm = lambda s:re.sub(r'[^\w]','',s).casefold()
-                matched = bool(barcode and digits(barcode) and digits(barcode)==digits(r.get('barcode','')) or catno and any(norm(catno)==norm(n) for n in numbers))
-                if barcode and catno:
-                    matched = digits(barcode)==digits(r.get('barcode','')) and any(norm(catno)==norm(n) for n in numbers)
-                ri = clean_release_info({'catalogNumber':' / '.join(numbers), 'barcode':r.get('barcode',''),
-                    'label':' / '.join(l.get('label',{}).get('name','') for l in labels if l.get('label')),
-                    'country':r.get('country',''), 'releaseDate':r.get('date',''), 'edition':r.get('disambiguation',''),
-                    'packaging': r.get('packaging') or '', 'format':' + '.join(str(m.get('format','')) for m in media), 'discCount':str(len(media)) if media else ''})
-                candidates.append({'id':r['id'],'title':display_release_title(r.get('title','')),
-                    'artist':''.join(a.get('name','') + a.get('joinphrase','') for a in r.get('artist-credit',[]) if isinstance(a,dict)),
-                    'releaseInfo':ri,'identifierMatch':matched,'url':'https://musicbrainz.org/release/' + r['id']})
+            candidates = [c for c in (self.candidate(r, barcode, catno) for r in data.get('releases',[])) if c]
             result = sorted(candidates,key=lambda r:r['identifierMatch'],reverse=True)[:15]
             if len(self.catalog_cache)>=200: self.catalog_cache.clear()
             self.catalog_cache[query] = result

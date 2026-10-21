@@ -33,7 +33,6 @@ export function useRecordHints(ctx: FormCtx, cover: CoverSearch) {
     if (norm(value) !== norm(base.current.title || '')) artistAuto.current = false;
     set({title: value});
     dirty();
-    cover.lastQuery.current = null;
     cover.setCoverStatus(cover.hasCover ? '使用现有封面' : '尚无封面');
     clearTimeout(timer.current);
     timer.current = window.setTimeout(() => {

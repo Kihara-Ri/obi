@@ -9,6 +9,8 @@ export {Disclosure} from './Disclosure';
 export type {DisclosureProps} from './Disclosure';
 export {Dropdown} from './Dropdown';
 export type {DdOption, DropdownProps} from './Dropdown';
+export {FocusInput} from './FocusInput';
+export type {FocusInputProps} from './FocusInput';
 export {NavRow} from './NavRow';
 export type {NavRowProps} from './NavRow';
 export {SearchField} from './SearchField';

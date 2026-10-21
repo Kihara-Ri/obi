@@ -7,7 +7,7 @@ import {today} from '../core/format';
 import {prefs} from '../core/prefs';
 import {useApp} from '../state/AppContext';
 import type {AppCtx} from '../state/AppContext';
-import type {AlbumRecord, Currency, Status} from '../types';
+import type {AlbumRecord, Currency, ReleaseCandidate, Status} from '../types';
 import {CopyEditionFields} from '../components/CopyEditionFields';
 import {Seg} from '../components/ui/Seg';
 import {ShopField} from '../components/ShopField';
@@ -15,22 +15,23 @@ import {Field, TextareaField} from './fields';
 import {usePhotoSlots} from './PhotoSlots';
 import {useFormSubmit} from './shared';
 import {buildPayload} from './record/buildPayload';
-import {initialValues, type FormCtx, type RecordValues} from './record/context';
+import {initialValues, seedFields, type FormCtx, type RecordValues} from './record/context';
 import {CoverPanel} from './record/CoverPanel';
 import {MoneySection} from './record/MoneySection';
 import {PhotoEntry} from './record/PhotoEntry';
 import {PackageReview, ReleaseDetails} from './record/ReleaseDetails';
-import {ReleaseLookupSection} from './record/ReleaseLookupSection';
+import {ReleaseLookupSection, summaryShown} from './record/ReleaseLookupSection';
 import {useCostPreview} from './record/useCostPreview';
 import {useCoverSearch} from './record/useCoverSearch';
 import {useRecordHints} from './record/useRecordHints';
 import {useReleaseLookup} from './record/useReleaseLookup';
 
-export function openRecordForm(app: AppCtx, id?: string) {
-  app.openDrawer({title: id ? '编辑专辑' : '添加专辑', asForm: true, content: <RecordForm id={id}/>});
+/** seed：从「查询」页带入已核对的发行版，作为新增表单的初始资料。 */
+export function openRecordForm(app: AppCtx, id?: string, seed?: ReleaseCandidate) {
+  app.openDrawer({title: id ? '编辑专辑' : '添加专辑', asForm: true, content: <RecordForm id={id} seed={seed}/>});
 }
 
-export function RecordForm({id}: {id?: string}) {
+export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
   const app = useApp();
   const {modules} = app;
   const r = id ? app.rec(id) : undefined;
@@ -40,6 +41,7 @@ export function RecordForm({id}: {id?: string}) {
     title: '', artist: '', price: '', date: modules.acquisition ? today() : '',
     currency: (prefs.get('currency', modules.circulation ? 'JPY' : 'CNY') as Currency) || 'CNY',
     location: modules.acquisition ? prefs.get('location', '') : '', fees: '0', actual: '', note: '',
+    ...(seed ? seedFields(seed) : {}),
   });
   const where: Status | null = r ? null : !modules.circulation ? 'domestic' : (base.current.currency === 'CNY' ? 'domestic' : 'overseas');
   const [v, setV] = useState<RecordValues>(() => initialValues(base.current, where));
@@ -83,7 +85,7 @@ export function RecordForm({id}: {id?: string}) {
       setError('发行版本已改变，请重新查询并选择 MusicBrainz 发行版');return;
     }
     if (lookup.busy) {setError('正在检索发行资料，请稍候');return;}
-    if (lookup.coverBusy) {setError('封面还在匹配中（通常约 10 秒），稍候再保存；也可以之后在编辑里补封面');return;}
+    if (cover.busy) {setError('封面还在匹配中（通常约 10 秒），稍候再保存；也可以之后在编辑里补封面');return;}
     if (photos.hasPending) { setError('还有照片在处理中，等缩略图就绪后再保存'); return; }
     run(app, async () => {
       await api('records', buildPayload(base.current, v, where, photos.slots, modules.acquisition && !id));
@@ -97,16 +99,15 @@ export function RecordForm({id}: {id?: string}) {
         <div className="error" role="alert">{error}</div>
         <PhotoEntry ctx={ctx} photos={photos} recordId={r?.id ?? null}/>
         <h3 className="section-title form-group-title">专辑资料</h3>
-        <ReleaseLookupSection v={v} lookup={lookup}/>
+        <ReleaseLookupSection v={v} lookup={lookup} cover={cover} coverSrc={base.current.cover || ''}/>
         {id && mbId ? <button type="button" className="quiet record-refresh-release"
           disabled={lookup.busy} onClick={() => void lookup.refreshReleaseMetadata()}>从 MusicBrainz 补全缺失发行资料</button> : null}
         <ReleaseDetails ctx={ctx} show={!!(id || identified)}/>
         {id || manualRelease ? <div className="form-grid form-section">
           <Field label={manualRelease && !id ? '专辑名' : '专辑名（更正用）'} name="title" required autoComplete="off" value={v.title}
-                 onChange={e => mbId ? (set({title: e.target.value}), dirty()) : onTitleInput(e.target.value)}
-                 onBlur={cover.scheduleCover}/>
+                 onChange={e => mbId ? (set({title: e.target.value}), dirty()) : onTitleInput(e.target.value)}/>
           <Field label="艺人" name="artist" required autoComplete="off" value={v.artist}
-                 onChange={e => onArtistInput(e.target.value)} onBlur={cover.scheduleCover}/>
+                 onChange={e => onArtistInput(e.target.value)}/>
         </div> : null}
         {id && !mbId ? <div id="ta-hints" className="suggestions">
           {hints.label ? <small>{hints.label}</small> : null}
@@ -115,7 +116,7 @@ export function RecordForm({id}: {id?: string}) {
           ))}
         </div> : null}
         {id && !mbId && dupHint ? <p className="dup-hint">{dupHint}</p> : null}
-        {id || identified || cover.candidates.length ? <CoverPanel cover={cover} src={base.current.cover || ''} busy={lookup.coverBusy}/> : null}
+        {(id || identified || cover.candidates.length) && !summaryShown(v, lookup) ? <CoverPanel cover={cover} src={base.current.cover || ''} busy={cover.busy}/> : null}
         <h3 className="section-title form-group-title">这一张</h3>
         <PackageReview ctx={ctx} record={r}/>
         <CopyEditionFields obi={v.obi} onChange={change => { set(change); dirty(); }}/>

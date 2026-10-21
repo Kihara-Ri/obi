@@ -1,73 +1,86 @@
-// 发行版检索区块：只有一个检索入口（条码 / 编号切换）+ 一条状态行 + 候选 / 已确认摘要。
+// 发行版检索区块：一个输入框（自动识别条码 / 唱片编号，与「查询」页同一套识别）+ 一条状态行 + 候选卡片 / 已确认摘要。
 // 条码与唱片编号只在这里编辑，「发行资料」折叠区不再重复提供；状态一律走 phase，文案保持一行。
-import {Seg} from '../../components/ui/Seg';
-import {dedupeCatalog} from '../../core/release-metadata';
+import {useState} from 'react';
+import {FocusInput} from '../../components/ui/FocusInput';
+import {BarcodeScanner, ScanField} from '../../components/BarcodeScanner';
+import {ReleaseCandidateCard, ReleaseSummary, sourceName} from '../../components/ReleaseCandidateCard/ReleaseCandidateCard';
+import {CoverPanel} from './CoverPanel';
+import type {CoverSearch} from './useCoverSearch';
 import type {RecordValues} from './context';
-import type {LookupMode, ReleaseLookup} from './useReleaseLookup';
+import type {ReleaseLookup} from './useReleaseLookup';
+import './ReleaseLookupSection.css';
 
 type Phase = 'idle' | 'busy' | 'choose' | 'ok' | 'miss' | 'manual';
-const MARK: Record<Phase, string> = {idle: '!', busy: '', choose: '…', ok: '✓', miss: '!', manual: '✎'};
+const MARK: Record<Phase, string> = {idle: '!', busy: '', choose: '', ok: '✓', miss: '!', manual: '✎'};
+// 只含数字、空格、连字符的输入按条码处理，其余按唱片编号（与 core/lookup 的 classify 一致）
+const kindOf = (raw: string) => /^[\d\s-]*$/.test(raw) ? 'barcode' : 'catalog';
 
-export function ReleaseLookupSection({v, lookup: L}: {v: RecordValues; lookup: ReleaseLookup}) {
+/** 已确认 / 手动录入的版本摘要是否显示（显示时封面行嵌在摘要卡里，表单不再单独放封面区块）。 */
+export const summaryShown = (v: RecordValues, L: ReleaseLookup) =>
+  !!(v.title && v.artist && (v.releaseInfo.musicBrainzReleaseId || v.releaseInfo.discogsReleaseId || L.manualRelease));
+
+export function ReleaseLookupSection({v, lookup: L, cover, coverSrc}: {
+  v: RecordValues; lookup: ReleaseLookup; cover: CoverSearch; coverSrc: string;
+}) {
   const info = v.releaseInfo;
-  const enter = (e: React.KeyboardEvent) => {if (e.key === 'Enter') {e.preventDefault(); void L.lookup();}};
-  const source = info.discogsReleaseId && !info.musicBrainzReleaseId ? 'Discogs' : 'MusicBrainz';
+  const [typed, setTyped] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  // 没动过输入框时显示当前模式对应的值（编辑旧记录：条码优先，只有编号时显示编号）
+  const text = typed ?? (L.mode === 'barcode' ? L.barcode : L.catalogNumber);
+  const change = (raw: string) => {
+    setTyped(raw);
+    const kind = kindOf(raw);
+    if (kind !== L.mode) L.setMode(kind);
+    if (kind === 'barcode') L.changeBarcode(raw); else L.changeCatalogNumber(raw);
+  };
+  // 提交后收起输入层，把输入框那一行滚到内容区顶部，下面的状态 / 候选随即可见
+  const submit = () => {
+    setEditing(false); void L.lookup();
+    window.setTimeout(() => document.getElementById('record-lookup')?.scrollIntoView({block: 'start', behavior: 'smooth'}), 120);
+  };
+  const scanned = (code: string) => {
+    setScanning(false); setEditing(false); change(code); void L.search('barcode', code);
+  };
   const confirmed = !!(info.musicBrainzReleaseId || info.discogsReleaseId);
   const working = L.busy || L.verification === 'pending';
   const phase: Phase = working ? 'busy' : L.candidates.length ? 'choose' : L.notFound ? 'miss'
     : L.manualRelease ? 'manual' : confirmed && L.verification === 'verified' ? 'ok' : 'idle';
-  const text = phase === 'ok' ? `已确认 · ${source}` : L.message
+  const status = phase === 'ok' ? `已确认 · ${sourceName(info)}` : L.message
     || (phase === 'manual' ? '手动录入 · 未经资料库核对' : v.title && !confirmed ? '尚未确认发行版' : '');
   return (
     <section className="record-barcode-entry form-section">
-      <div className="lookup-head">
-        <label htmlFor={L.mode === 'barcode' ? 'record-barcode' : 'record-catalog-number'}>发行版</label>
-        <Seg ariaLabel="检索方式" value={L.mode} onValue={mode => L.setMode(mode as LookupMode)}
-          options={[{value: 'barcode', label: '条码'}, {value: 'catalog', label: '编号'}]}/>
-      </div>
+      <label className="lookup-label" htmlFor="record-lookup">发行版</label>
       <div className="record-barcode-row">
-        {L.mode === 'barcode'
-          ? <input id="record-barcode" type="text" inputMode="numeric" autoComplete="off"
-              placeholder="CD 背面的条形码" value={L.barcode}
-              onChange={e => L.changeBarcode(e.target.value)} onKeyDown={enter}/>
-          : <input id="record-catalog-number" type="text" autoComplete="off"
-              placeholder="如 AMCY-2434" value={L.catalogNumber}
-              onChange={e => L.changeCatalogNumber(e.target.value)} onKeyDown={enter}/>}
+        <ScanField onScan={() => setScanning(true)}>
+          <button type="button" id="record-lookup" className={'lookup-field' + (text ? '' : ' is-empty')} onClick={() => setEditing(true)}>
+            {text || '条形码，或唱片编号如 AMCY-2434'}
+          </button>
+        </ScanField>
         <button type="button" className="primary" onClick={() => void L.lookup()} disabled={working}>查询</button>
       </div>
-      {text ? <p className={`lookup-status is-${phase}`} role="status">
-        {phase === 'busy' ? <span className="lookup-spinner" aria-hidden="true"/> : <b aria-hidden="true">{MARK[phase]}</b>}
-        <span>{text}</span>
+      {status ? <p className={`lookup-status is-${phase}`} role="status">
+        {phase === 'busy' ? <span className="lookup-spinner" aria-hidden="true"/> : <b aria-hidden="true">{phase === 'choose' ? L.candidates.length : MARK[phase]}</b>}
+        <span>{status}</span>
         {phase === 'miss' && !L.manualRelease
           ? <button type="button" className="quiet" onClick={L.enterManually}>手动录入</button> : null}
       </p> : null}
       {L.candidates.length ? <ul className="release-candidates" aria-label="选择发行版本">
-        {L.candidates.map(c => <li key={c.id}>
-          <button type="button" disabled={L.busy} onClick={() => void L.chooseRelease(c)}>
-            <span className="rc-main"><strong>{c.title}</strong><span>{c.artist}</span></span>
-            <span className="rc-chips">
-              {[c.releaseInfo.country || '地区未知', c.releaseInfo.releaseDate || '日期未知', dedupeCatalog(c.releaseInfo.catalogNumber),
-                c.source === 'discogs' ? 'Discogs' : ''].filter(Boolean).map(t => <span key={t} className="rc-chip">{t}</span>)}
-            </span>
-          </button>
-        </li>)}
+        {L.candidates.map(c => <ReleaseCandidateCard key={c.id} c={c}>{() =>
+          <button type="button" className="primary rcc-add" disabled={L.busy} onClick={() => void L.chooseRelease(c)}>
+            选用此版本
+          </button>}</ReleaseCandidateCard>)}
       </ul> : null}
-      {v.title && v.artist && (confirmed || L.manualRelease) ? <div className="release-card">
-        <div className="rc-head">
-          <div className="rc-main"><strong>{v.title}</strong><span>{v.artist}</span></div>
-          {confirmed
-            ? <a className="rc-source" href={info.musicBrainzReleaseId ? 'https://musicbrainz.org/release/' + info.musicBrainzReleaseId
-                : 'https://www.discogs.com/release/' + info.discogsReleaseId}
-                target="_blank" rel="noopener noreferrer" aria-label={`在 ${source} 查看发行资料`}>{source} ↗</a>
-            : <span className="rc-chip">手动</span>}
-        </div>
-        {confirmed ? <dl className="rc-meta">
-          <div><dt>地区</dt><dd>{info.country || '—'}</dd></div>
-          <div><dt>发行日</dt><dd>{info.releaseDate || '—'}</dd></div>
-          {dedupeCatalog(info.catalogNumber) ? <div><dt>编号</dt><dd>{dedupeCatalog(info.catalogNumber)}</dd></div> : null}
-          {info.barcode ? <div><dt>条码</dt><dd>{info.barcode}</dd></div> : null}
-        </dl> : null}
+      {summaryShown(v, L) ? <div className="rcc is-confirmed">
+        <ReleaseSummary title={v.title} artist={v.artist} info={info} art={coverSrc}
+          source={confirmed ? sourceName(info) : '手动'}
+          url={confirmed ? (info.musicBrainzReleaseId ? 'https://musicbrainz.org/release/' + info.musicBrainzReleaseId
+            : 'https://www.discogs.com/release/' + info.discogsReleaseId) : undefined}/>
+        <CoverPanel cover={cover} src={coverSrc} busy={cover.busy} inline/>
       </div> : null}
+          <FocusInput open={editing} title="查询发行版" value={text} placeholder="条形码，或唱片编号如 AMCY-2434"
+        submitLabel="查询" onChange={change} onSubmit={submit} onClose={() => setEditing(false)}/>
+    {scanning ? <BarcodeScanner onDetect={scanned} onClose={() => setScanning(false)}/> : null}
     </section>
   );
 }
