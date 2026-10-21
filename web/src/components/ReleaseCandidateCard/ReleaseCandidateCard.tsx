@@ -11,19 +11,19 @@ const sourceName = (info: {musicBrainzReleaseId?: string; discogsReleaseId?: str
   discogs || (info.discogsReleaseId && !info.musicBrainzReleaseId) ? 'Discogs' : 'MusicBrainz';
 
 /** 头部（名称、艺人、来源）+ 关键信息网格；表单里已确认的版本直接用它。 */
-export function ReleaseSummary({title, artist, info, source, url, art}: {
-  title: string; artist: string; info: ReleaseInfo; source?: string; url?: string; art?: string;
+export function ReleaseSummary({title, artist, info, source, url, art, headless}: {
+  title: string; artist: string; info: ReleaseInfo; source?: string; url?: string; art?: string; headless?: boolean;
 }) {
   const facts: [string, string | undefined][] = [
     ['唱片编号', dedupeCatalog(info.catalogNumber)], ['条码', info.barcode], ['厂牌', info.label],
     ['发行地区', regionName(info.country)], ['发行日', info.releaseDate]];
   return <>
-    <header className="rcc-head">
+    {headless ? null : <header className="rcc-head">
       {art ? <img className="rcc-art" src={art} alt="封面"/> : null}
       <div className="rcc-main"><strong>{title}</strong><span>{artist}</span></div>
       {source ? url ? <a className="rcc-source" href={url} target="_blank" rel="noopener noreferrer"
         aria-label={`在 ${source} 查看`}>{source} ↗</a> : <span className="rcc-source">{source}</span> : null}
-    </header>
+    </header>}
     <dl className="rcc-facts">
       {facts.filter(([, v]) => v).map(([k, v]) => <div key={k}><dt>{k}</dt><dd className="num">{v}</dd></div>)}
     </dl>
@@ -34,7 +34,7 @@ export interface CardCtx {info: ReleaseInfo; load: () => Promise<ReleaseInfo>; b
 
 /** fold：默认只显示一行关键信息（编号、地区、日期、条码），点开才出完整资料和操作（查询页用，省纵向空间）。 */
 export function ReleaseCandidateCard({c, fold, children}: {c: ReleaseCandidate; fold?: boolean; children?: (ctx: CardCtx) => ReactNode}) {
-  const [folded, setFolded] = useState(!!fold);
+  const [folded, setFolded] = useState(!!fold);  // 折叠卡片：头部一行始终在原位 + 可展开的主体
   const [full, setFull] = useState<ReleaseInfo | null>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -70,19 +70,8 @@ export function ReleaseCandidateCard({c, fold, children}: {c: ReleaseCandidate; 
     ['碟数', info.discCount ? info.discCount + ' 张' : '']];
 
   const i0 = c.releaseInfo;
-  if (folded) return <li className="rcc is-folded">
-    <button type="button" className="rcc-fold" aria-expanded="false" onClick={() => setFolded(false)}>
-      {art ? <img className="rcc-art" src={art} alt=""/> : <span className="rcc-art" aria-hidden="true"/>}
-      <span className="rcc-main">
-        <strong>{dedupeCatalog(i0.catalogNumber) || c.title}</strong>
-        <span>{[regionName(i0.country), i0.releaseDate, i0.label].filter(Boolean).join(' · ')}</span>
-        {i0.barcode ? <span className="num">{i0.barcode}</span> : null}
-      </span>
-      <i aria-hidden="true">+</i>
-    </button>
-  </li>;
-  return <li className="rcc">
-    <ReleaseSummary title={c.title} artist={c.artist} info={c.releaseInfo} source={sourceName({}, c.source === 'discogs')} url={c.url} art={art}/>
+  const body = <>
+    <ReleaseSummary title={c.title} artist={c.artist} info={c.releaseInfo} source={sourceName({}, c.source === 'discogs')} url={c.url} art={art} headless={fold}/>
     <button type="button" className="rcc-more" aria-expanded={open} onClick={toggle}>
       <span>曲目与版本资料</span><i aria-hidden="true">{open ? '−' : '+'}</i>
     </button>
@@ -95,7 +84,19 @@ export function ReleaseCandidateCard({c, fold, children}: {c: ReleaseCandidate; 
       <Tracklist releaseInfo={info}/>
     </div> : null}
     {children?.({info, load, busy})}
-    {fold ? <button type="button" className="quiet rcc-unfold" onClick={() => setFolded(true)}>收起</button> : null}
+  </>;
+  if (!fold) return <li className="rcc">{body}</li>;
+  return <li className={'rcc is-fold' + (!folded ? ' is-open' : '')}>
+    <button type="button" className="rcc-fold" aria-expanded={!folded} onClick={() => setFolded(!folded)}>
+      {art ? <img className="rcc-art" src={art} alt=""/> : <span className="rcc-art" aria-hidden="true"/>}
+      <span className="rcc-main">
+        <strong>{dedupeCatalog(i0.catalogNumber) || c.title}</strong>
+        <span>{[regionName(i0.country), i0.releaseDate, i0.label].filter(Boolean).join(' · ')}</span>
+        {i0.barcode ? <span className="num">{i0.barcode}</span> : null}
+      </span>
+      <i className="rcc-toggle" aria-hidden="true"/>
+    </button>
+    <div className="rcc-collapse"><div className="rcc-collapse-in" inert={folded}>{body}</div></div>
   </li>;
 }
 
