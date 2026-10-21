@@ -31,6 +31,8 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
   const exitedRef = useRef(false);
   const dragRef = useRef<{startY: number; dy: number; v: number; lastY: number; lastT: number} | null>(null);
   const edgeActiveRef = useRef(false);
+  // 二级页左缘跟手返回：松手确认后，pop 动画从手指当前位置接着播（而不是从头）。nodes 是拖动中被改写样式的两层
+  const popFromRef = useRef<{dx: number; width: number; under: HTMLElement | null; dim: HTMLElement | null} | null>(null);
   const firstPage = useRef(pageKey);
   const pageClass = pageKey !== firstPage.current ? ' is-' + direction : '';
   const pagesRef = useRef<HTMLDivElement>(null);
@@ -175,6 +177,38 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
       sheet.style.transform = '';
       setScrim(0, true);
     };
+    // 二级页返回的跟手：只动标题线以下的页面层——栈顶页随手指右移，下面一层按视差从左侧露出并逐渐亮起
+    let layerTop: HTMLElement | null = null, layerUnder: HTMLElement | null = null, layerDim: HTMLElement | null = null;
+    const layerReset = () => {
+      [layerTop, layerUnder].forEach(n => { if (n) { n.style.transition = ''; n.style.transform = ''; n.style.zIndex = ''; n.classList.remove('edge', 'is-animating'); } });
+      layerDim?.remove();
+      layerTop = layerUnder = layerDim = null;
+    };
+    const layerBegin = () => {
+      const nodes = Array.from(pagesRef.current?.querySelectorAll<HTMLElement>(':scope > .drawer-page:not(.is-leaving)') ?? []);
+      layerTop = nodes[nodes.length - 1] ?? null;
+      layerUnder = nodes[nodes.length - 2] ?? null;
+      if (!layerTop || !layerUnder) return;
+      layerUnder.classList.add('is-animating'); layerUnder.style.zIndex = '1';
+      layerTop.classList.add('edge'); layerTop.style.zIndex = '3';
+      layerDim = document.createElement('div'); layerDim.className = 'drawer-dim'; layerDim.style.opacity = String(MOTION.dim);
+      layerUnder.appendChild(layerDim);
+    };
+    const layerMove = (px: number) => {
+      if (!layerTop || !layerUnder) return;
+      const w = pagesRef.current?.clientWidth || window.innerWidth;
+      const p = Math.min(1, px / w);
+      layerTop.style.transform = `translateX(${px}px)`;
+      layerUnder.style.transform = `translateX(${-MOTION.parallax * (1 - p)}%)`;
+      if (layerDim) layerDim.style.opacity = String(MOTION.dim * (1 - p));
+    };
+    const layerSpringBack = () => {
+      const t = 'transform .26s cubic-bezier(.2,.8,.3,1)';
+      if (layerTop) { layerTop.style.transition = t; layerTop.style.transform = ''; }
+      if (layerUnder) { layerUnder.style.transition = t; layerUnder.style.transform = `translateX(-${MOTION.parallax}%)`; }
+      layerDim?.animate([{opacity: layerDim.style.opacity || '0'}, {opacity: MOTION.dim}], {duration: 260, fill: 'forwards'});
+      window.setTimeout(layerReset, 300);
+    };
     const onStart = (e: TouchEvent) => {
       if (closing || dragRef.current || edgeActiveRef.current) return;
       if (!window.matchMedia(SHEET_QUERY).matches) return;
@@ -186,6 +220,9 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
         if (node.scrollWidth > node.clientWidth + 1) return;
         node = node.parentElement;
       }
+      // 左缘起手：在 touchstart 就拦掉 iOS 的系统「边缘返回」整页滑动（只在 touchmove 里拦，系统手势
+      // 已经起步，会和我们的跟手下拉叠在一起：整页向右推 + sheet 向下拖）。该窄条内不再产生点击 / 原生滚动
+      if (e.cancelable) e.preventDefault();
       // 键盘弹出时 WebKit 会把横向手势整流收归系统（页面收不到 touchmove），
       // 先同步收起键盘：键盘落下后触摸流回到页面，本次滑动继续作为下拉接管
       const focused = document.activeElement;
@@ -198,7 +235,7 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
       if (!start) return;
       if (e.touches.length > 1) {  // 捏合等多指手势不接管
         start = null;
-        if (active) { active = false; edgeActiveRef.current = false; springBack(); }
+        if (active) { active = false; edgeActiveRef.current = false; if (secondary) layerSpringBack(); else springBack(); }
         return;
       }
       const t = e.touches[0];
@@ -209,13 +246,13 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
         if (ddx <= 0 || Math.abs(ddx) <= Math.abs(ddy)) { start = null; return; }
         active = true;
         edgeActiveRef.current = true;
-        if (!secondary) sheet.style.transition = 'none';
+        if (secondary) layerBegin(); else sheet.style.transition = 'none';
       }
       e.preventDefault();  // 中止系统边缘侧滑与页面滚动，本次触摸交给 sheet 拖拽
       dx = Math.max(0, ddx);
       const dt = e.timeStamp - lastT;
       if (dt > 0) { v = (t.clientX - lastX) / dt; lastX = t.clientX; lastT = e.timeStamp; }
-      if (!secondary) { sheet.style.transform = `translateY(${dx}px)`; setScrim(dx); }
+      if (secondary) layerMove(dx); else { sheet.style.transform = `translateY(${dx}px)`; setScrim(dx); }
     };
     const onEnd = () => {
       if (!start) return;
@@ -224,8 +261,19 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
       active = false;
       edgeActiveRef.current = false;
       if (secondary) {
-        // 位移够长或快速甩动才算返回；不跟手，松手后由页面切换动画接管
-        if (dx > 70 || (dx > 30 && v > 0.45)) specRef.current.back?.run();
+        // 位移够长或快速甩动才算返回：保留拖动中的样式直到 pop 动画接手（从当前位置继续），否则回弹
+        if (dx > 70 || (dx > 30 && v > 0.45)) {
+          popFromRef.current = {dx, width: pagesRef.current?.clientWidth || window.innerWidth, under: layerUnder, dim: layerDim};
+          layerTop = layerUnder = layerDim = null;
+          specRef.current.back?.run();
+          window.setTimeout(() => {   // 返回被拒（如脏表单放弃确认被取消）：pop 动画不会来，复位
+            const f = popFromRef.current;
+            if (!f) return;
+            popFromRef.current = null;
+            layerTop = null; layerUnder = f.under; layerDim = f.dim;
+            layerSpringBack();
+          }, 700);
+        } else layerSpringBack();
         return;
       }
       const fling = dx > 40 && v > 0.55;
@@ -238,7 +286,7 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
     };
     // touchstart 必须 capture：iOS 键盘弹出时 WebKit 只把 touchstart 派发到捕获阶段
     // （冒泡阶段收不到，实测），而收键盘、记录手势起点都依赖它。
-    document.addEventListener('touchstart', onStart, {passive: true, capture: true});
+    document.addEventListener('touchstart', onStart, {passive: false, capture: true});
     document.addEventListener('touchmove', onMove, {passive: false});
     document.addEventListener('touchend', onEnd, {passive: true});
     document.addEventListener('touchcancel', onEnd, {passive: true});
@@ -311,6 +359,9 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
     const kind: 'push' | 'pop' | 'sheet' | 'unsheet' = fwd ? (drill ? 'push' : 'sheet') : (drill ? 'pop' : 'unsheet');
     const receded = {transform: `scale(${MOTION.recede.scale}) translateY(-${MOTION.recede.lift}px)`, borderRadius: `${MOTION.recede.radius}px`};
     const resting = {transform: 'none', borderRadius: '0px'};
+    // 手势跟手返回留下的拖动样式：不论走哪条动画分支都在这里收掉
+    const from = popFromRef.current; popFromRef.current = null;
+    if (from) { from.dim?.remove(); if (from.under) { from.under.style.transform = ''; from.under.style.zIndex = ''; } }
     const anims: Animation[] = [];
     const extras: HTMLElement[] = [];
     const play = (node: Element, frames: Keyframe[], ms: number) =>
@@ -330,10 +381,13 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
       play(top, [{transform: 'translateX(100%)'}, {transform: 'none'}], MOTION.push);
       if (other) { play(other, [{transform: 'none'}, {transform: `translateX(-${MOTION.parallax}%)`}], MOTION.push); dim(other, 0, MOTION.dim, MOTION.push); }
     } else if (kind === 'pop') {
+      // 手势跟手返回：从手指松开的位置接着播，时长按剩余距离缩短
+      const p = from ? Math.min(1, from.dx / from.width) : 0;
+      const ms = from ? Math.max(160, MOTION.pop * (1 - p)) : MOTION.pop;
       top.style.zIndex = '1';
-      play(top, [{transform: `translateX(-${MOTION.parallax}%)`}, {transform: 'none'}], MOTION.pop);
-      dim(top, MOTION.dim, 0, MOTION.pop);
-      if (other) { other.classList.add('edge'); other.style.zIndex = '3'; play(other, [{transform: 'none'}, {transform: 'translateX(100%)'}], MOTION.pop); }
+      play(top, [{transform: `translateX(-${MOTION.parallax * (1 - p)}%)`}, {transform: 'none'}], ms);
+      dim(top, MOTION.dim * (1 - p), 0, ms);
+      if (other) { other.classList.add('edge'); other.style.zIndex = '3'; play(other, [{transform: from ? `translateX(${from.dx}px)` : 'none'}, {transform: 'translateX(100%)'}], ms); }
     } else if (kind === 'unsheet') {
       top.style.zIndex = '1';
       play(top, [receded, resting], MOTION.unsheet);

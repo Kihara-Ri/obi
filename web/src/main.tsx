@@ -43,3 +43,7 @@ createRoot(document.getElementById('root')!).render(
     <App/>
   </StrictMode>,
 );
+
+// iOS Safari 无视 viewport 的 user-scalable=no，双指缩放只能靠拦 gesturestart（WebKit 私有事件）；
+// 缩放会让布局错位、fixed 抽屉抽搐。灯箱的捏合缩放走 pointer 事件，不受影响
+document.addEventListener('gesturestart', e => e.preventDefault());
