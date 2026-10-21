@@ -38,7 +38,8 @@ export function Details({summary, children, className = '', open, defaultOpen = 
     const frames = isOpen
       ? [{height: '0px', opacity: 0}, {height: `${full}px`, opacity: 1}]
       : [{height: `${full}px`, opacity: 1}, {height: '0px', opacity: 0}];
-    const anim = el.animate(frames, {duration: MS, easing: EASE});
+    // fill:forwards：动画结束到 React 摘掉 open 之间不能弹回原高度，否则收起后会闪一下
+    const anim = el.animate(frames, {duration: MS, easing: EASE, fill: 'forwards'});
     anim.finished.catch(() => undefined).then(() => { el.style.overflow = ''; setClosing(false); });
     return () => { anim.cancel(); el.style.overflow = ''; };
   }, [isOpen]);
