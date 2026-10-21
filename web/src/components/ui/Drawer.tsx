@@ -39,6 +39,14 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
   const specRef = useRef(spec);
   specRef.current = spec;
 
+  // 下拉时遮罩（背后页面的模糊 + 压暗）随位移淡出；松手回弹则带过渡复位
+  const setScrim = (dy: number, animate = false) => {
+    const panel = panelRef.current, sheet = sheetRef.current;
+    if (!panel || !sheet) return;
+    panel.style.setProperty('--scrim-t', animate ? '.26s' : '0s');
+    panel.style.setProperty('--scrim-o', String(Math.max(0, 1 - dy / Math.max(1, sheet.offsetHeight))));
+  };
+
   const finishClose = () => {
     if (exitedRef.current) return;
     exitedRef.current = true;
@@ -165,6 +173,7 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
     const springBack = () => {
       sheet.style.transition = 'transform .26s cubic-bezier(.2,.8,.3,1)';
       sheet.style.transform = '';
+      setScrim(0, true);
     };
     const onStart = (e: TouchEvent) => {
       if (closing || dragRef.current || edgeActiveRef.current) return;
@@ -206,7 +215,7 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
       dx = Math.max(0, ddx);
       const dt = e.timeStamp - lastT;
       if (dt > 0) { v = (t.clientX - lastX) / dt; lastX = t.clientX; lastT = e.timeStamp; }
-      if (!secondary) sheet.style.transform = `translateY(${dx}px)`;
+      if (!secondary) { sheet.style.transform = `translateY(${dx}px)`; setScrim(dx); }
     };
     const onEnd = () => {
       if (!start) return;
@@ -415,6 +424,7 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
     if (dt > 0) { d.v = (e.clientY - d.lastY) / dt; d.lastY = e.clientY; d.lastT = e.timeStamp; }
     sheet.style.transition = 'none';
     sheet.style.transform = `translateY(${d.dy}px)`;
+    setScrim(d.dy);
   };
 
   const endHeadDrag = () => {
@@ -429,11 +439,12 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
     } else {
       sheet.style.transition = 'transform .26s cubic-bezier(.2,.8,.3,1)';
       sheet.style.transform = '';
+      setScrim(0, true);
     }
   };
 
   return (
-    <div id="panel" ref={panelRef} onKeyDown={onKeyDown}
+    <div id="panel" ref={panelRef} className={closing ? 'is-closing' : undefined} onKeyDown={onKeyDown}
          onClick={e => { if (e.target === e.currentTarget) requestClose(); }}>
       <section ref={sheetRef} onAnimationEnd={onAnimationEnd}
                className={`drawer${spec.wide ? ' wide' : ''}${spec.compact ? ' compact' : ''}${spec.workspace ? ' import-workspace' : ''}${closing ? ' closing' : ''}`}

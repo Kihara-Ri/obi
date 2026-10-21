@@ -5,7 +5,9 @@
    系统边缘返回手势（页面才能收到完整 touch 流做跟手下拉）；抽屉内的横向
    滚动条带（封面候选等）单独恢复 pan-x */
 #panel .cover-candidates,#panel .artist-cats{touch-action:pan-x}
-#panel::before{content:"";position:absolute;inset:0;background:var(--scrim);backdrop-filter:blur(3px)}
+#panel::before{content:"";position:absolute;inset:0;background:var(--scrim);backdrop-filter:blur(3px);opacity:var(--scrim-o,1);transition:opacity var(--scrim-t,0s) ease-out}
+/* 手机 sheet 下拉时遮罩随位移淡出（--scrim-o 由 Drawer.tsx 写入），背后页面逐渐清晰；收回时淡到 0 */
+#panel.is-closing::before{opacity:0;transition:opacity .24s ease-in}
 .drawer{position:absolute;top:0;right:0;bottom:0;width:min(460px,100vw);background:var(--surface);border-left:1px solid var(--border-strong);display:flex;flex-direction:column;box-shadow:-18px 0 50px var(--shadow-ink);animation:slide var(--dur-slow) var(--ease-out)}
 .drawer:focus{outline:none}
 .drawer.wide{width:min(560px,100vw)}
