@@ -47,7 +47,7 @@ export function useCoverSearch(ctx: FormCtx, hadCover: boolean) {
       const result = await api<{candidates: CoverCandidate[]; warnings?: string[]}>(
         'covers/search', {title, artist, country: 'AUTO', releaseId: v.releaseInfo.musicBrainzReleaseId || undefined});
       if (!stillCurrent(key)) return;
-      let status = result.candidates.length ? `找到 ${result.candidates.length} 张封面，点选一张使用` : '未找到封面';
+      let status = result.candidates.length ? `找到 ${result.candidates.length} 张封面` : '未找到封面';
       if (result.warnings?.length) status += ' · 部分来源不可用';
       setCoverStatus(status);
       setCandidates(result.candidates);

@@ -22,7 +22,7 @@ a.rcc-source:hover{color:var(--text)}
 /* 已确认版本（表单里）：和候选同一套头部与网格，只是没有操作区，背景压低一级 */
 .rcc.is-confirmed{padding:14px;gap:12px;background:var(--surface-2)}
 /* 封面缩略图：头部左侧，和名称 / 艺人同一行 */
-.rcc-art{flex:none;width:64px;height:64px;border-radius:8px;object-fit:cover;background:var(--surface-3)}
+.rcc-art{flex:none;width:76px;height:76px;border-radius:8px;object-fit:cover;background:var(--surface-3)}
 .rcc-head{align-items:center}
 .rcc-main{flex:1}
 .rcc-cover{display:flex;flex-direction:column;gap:8px}
