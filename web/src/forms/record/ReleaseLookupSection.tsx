@@ -1,6 +1,7 @@
 // 发行版检索区块：一个输入框（自动识别条码 / 唱片编号，与「查询」页同一套识别）+ 一条状态行 + 候选卡片 / 已确认摘要。
 // 条码与唱片编号只在这里编辑，「发行资料」折叠区不再重复提供；状态一律走 phase，文案保持一行。
 import {useState} from 'react';
+import {FocusInput} from '../../components/ui/FocusInput';
 import {ReleaseCandidateCard, ReleaseSummary, sourceName} from '../../components/ReleaseCandidateCard/ReleaseCandidateCard';
 import type {RecordValues} from './context';
 import type {ReleaseLookup} from './useReleaseLookup';
@@ -14,6 +15,7 @@ const kindOf = (raw: string) => /^[\d\s-]*$/.test(raw) ? 'barcode' : 'catalog';
 export function ReleaseLookupSection({v, lookup: L}: {v: RecordValues; lookup: ReleaseLookup}) {
   const info = v.releaseInfo;
   const [typed, setTyped] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
   // 没动过输入框时显示当前模式对应的值（编辑旧记录：条码优先，只有编号时显示编号）
   const text = typed ?? (L.mode === 'barcode' ? L.barcode : L.catalogNumber);
   const change = (raw: string) => {
@@ -22,7 +24,11 @@ export function ReleaseLookupSection({v, lookup: L}: {v: RecordValues; lookup: R
     if (kind !== L.mode) L.setMode(kind);
     if (kind === 'barcode') L.changeBarcode(raw); else L.changeCatalogNumber(raw);
   };
-  const enter = (e: React.KeyboardEvent) => {if (e.key === 'Enter') {e.preventDefault(); void L.lookup();}};
+  // 提交后收起输入层，把输入框那一行滚到内容区顶部，下面的状态 / 候选随即可见
+  const submit = () => {
+    setEditing(false); void L.lookup();
+    window.setTimeout(() => document.getElementById('record-lookup')?.scrollIntoView({block: 'start', behavior: 'smooth'}), 120);
+  };
   const confirmed = !!(info.musicBrainzReleaseId || info.discogsReleaseId);
   const working = L.busy || L.verification === 'pending';
   const phase: Phase = working ? 'busy' : L.candidates.length ? 'choose' : L.notFound ? 'miss'
@@ -33,9 +39,9 @@ export function ReleaseLookupSection({v, lookup: L}: {v: RecordValues; lookup: R
     <section className="record-barcode-entry form-section">
       <label className="lookup-label" htmlFor="record-lookup">发行版</label>
       <div className="record-barcode-row">
-        <input id="record-lookup" type="text" inputMode="text" autoComplete="off" enterKeyHint="search"
-          placeholder="条形码，或唱片编号如 AMCY-2434" value={text}
-          onChange={e => change(e.target.value)} onKeyDown={enter}/>
+        <button type="button" id="record-lookup" className={'lookup-field' + (text ? '' : ' is-empty')} onClick={() => setEditing(true)}>
+          {text || '条形码，或唱片编号如 AMCY-2434'}
+        </button>
         <button type="button" className="primary" onClick={() => void L.lookup()} disabled={working}>查询</button>
       </div>
       {status ? <p className={`lookup-status is-${phase}`} role="status">
@@ -56,6 +62,8 @@ export function ReleaseLookupSection({v, lookup: L}: {v: RecordValues; lookup: R
           url={confirmed ? (info.musicBrainzReleaseId ? 'https://musicbrainz.org/release/' + info.musicBrainzReleaseId
             : 'https://www.discogs.com/release/' + info.discogsReleaseId) : undefined}/>
       </div> : null}
+          <FocusInput open={editing} title="查询发行版" value={text} placeholder="条形码，或唱片编号如 AMCY-2434"
+        submitLabel="查询" onChange={change} onSubmit={submit} onClose={() => setEditing(false)}/>
     </section>
   );
 }
