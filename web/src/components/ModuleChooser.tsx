@@ -10,6 +10,7 @@ import {ModulePresets} from './ModulePresets';
 import {Disclosure} from './ui/Disclosure';
 import {Seg} from './ui/Seg';
 import {Switch} from './ui/Switch';
+import {navigate} from '../core/nav';
 
 export function ModuleChooser({initial = false}: {initial?: boolean}) {
   const app = useApp();
@@ -39,7 +40,7 @@ export function ModuleChooser({initial = false}: {initial?: boolean}) {
       await app.refresh();
       app.setSelected(new Set());
       app.setShelfFilter('all');
-      if (initial) location.hash = `#${homePage(startPage, enabled)}`;
+      if (initial) navigate(`#${homePage(startPage, enabled)}`);
       app.toast(initial ? '已准备好，添加第一张专辑吧' : '功能与首页选择已更新');
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
     finally { setSaving(false); }

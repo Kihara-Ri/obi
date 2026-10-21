@@ -29,6 +29,7 @@ import {MorePage} from './pages/MorePage';
 import {GalleryPage} from './pages/GalleryPage';
 import {Splash} from './components/ui';
 import {PageVeil} from './components/PageVeil';
+import {installReplaceNav, navigate} from './core/nav';
 
 const NAV = [
   {hash: 'gallery', ico: '▦', label: '收藏展示'},
@@ -195,9 +196,9 @@ export default function App() {
   // 所以把跳转挂到「历史还原完成」的那次 popstate（或无历史条目时直接）之后执行。
   const afterExit = useRef<(() => void) | null>(null);
   const closeDrawerAndGo = useCallback((hash: string): boolean => {
-    if (!drawerStack.current.length && !drawer) { location.hash = hash; return true; }
+    if (!drawerStack.current.length && !drawer) { navigate(hash); return true; }
     if (!closeDrawer()) return false;
-    afterExit.current = () => { location.hash = hash; };
+    afterExit.current = () => { navigate(hash); };
     return true;
   }, [closeDrawer, drawer]);
 
@@ -280,6 +281,7 @@ export default function App() {
     scroll: {index: number; left: number; top: number}[];
     poses: {index: number; name: string; time: number}[]} | null>(null);
   const lastHashRef = useRef(location.hash);
+  useEffect(() => installReplaceNav(), []);
   const clickNavRef = useRef(0);
   const historyNavRef = useRef(false);
   useEffect(() => {

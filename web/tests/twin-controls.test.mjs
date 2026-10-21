@@ -85,7 +85,7 @@ test('数字实体入口在展示灯箱里（实体设置），不在编辑表�
   assert.match(focus, /<TwinControls record=\{record\}/);
   assert.match(focus, /实体设置/);
   // 灯箱是 top-layer dialog：引擎未安装时「打开设置」必须由灯箱自己跳转，而不是走抽屉的 closeDrawerAndGo
-  assert.match(focus, /onSettings=\{\(\) => \{location\.hash = '#settings';\}\}/);
+  assert.match(focus, /onSettings=\{\(\) => goTo\('#settings'\)\}/);
 });
 
 test('返回上一层是弹栈而不是重新打开：二级页 / 艺人页的返回按钮不再调用 openDetail / openArtistDrawer', () => {

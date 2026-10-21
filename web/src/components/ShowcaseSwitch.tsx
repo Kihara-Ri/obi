@@ -4,6 +4,7 @@
 import {homePage} from '../core/modules';
 import {useApp} from '../state/AppContext';
 import {Seg} from './ui/Seg';
+import {navigate} from '../core/nav';
 
 export function useShowcaseSwitch(): boolean {
   const {modules, state} = useApp();
@@ -14,5 +15,5 @@ export function ShowcaseSwitch({current}: {current: 'manage' | 'gallery'}) {
   if (!useShowcaseSwitch()) return null;
   return <Seg className="showcase-switch" persistKey="showcase-switch" ariaLabel="库存与展示" value={current}
     options={[{value: 'manage', label: '库存'}, {value: 'gallery', label: '展示'}]}
-    onValue={v => { location.hash = v === 'gallery' ? '#gallery' : '#domestic'; }}/>;
+    onValue={v => navigate(v === 'gallery' ? '#gallery' : '#domestic')}/>;
 }

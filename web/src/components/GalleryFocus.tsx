@@ -12,6 +12,7 @@ import {Seg} from './ui/Seg';
 import {GearIcon} from './ui/GearIcon';
 import {TwinControls} from './TwinControls';
 import {AlbumFlipCard} from './AlbumFlipCard';
+import {navigate as goTo} from '../core/nav';
 
 class EngineBoundary extends Component<{children: ReactNode; onUnavailable(): void}, {failed: boolean}> {
   state = {failed: false};
@@ -351,7 +352,7 @@ export function GalleryFocus({record, records, originElement, onNavigate, onClos
     {twinOpen && hasTwin ? <section className="gallery-twin-panel" aria-label="实体设置">
       <header><strong>实体设置</strong><button type="button" className="quiet" aria-label="关闭实体设置" onClick={() => setTwinOpen(false)}>×</button></header>
       <TwinControls record={record} releaseId={record.releaseInfo?.musicBrainzReleaseId || ''}
-        onSettings={() => {location.hash = '#settings';}}/>
+        onSettings={() => goTo('#settings')}/>
     </section> : null}
     {unavailable ? <p className="gallery-engine-unavailable" role="status">3D 暂不可用，可重试</p> : null}
     {record.cover ? <img ref={coverProxy} className="gallery-focus-transition-image" src={record.cover}
