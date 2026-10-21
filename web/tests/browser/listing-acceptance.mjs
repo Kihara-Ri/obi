@@ -67,12 +67,12 @@ try {
   await page.getByRole('link', {name: /海外库存/u}).click();
   await open();
   await page.getByRole('textbox', {name: '售卖正文', exact: true}).fill('保留手写正文');
-  await page.getByRole('button', {name: /^(重新)?分析本副本照片$/u}).click();
-  await page.getByRole('button', {name: '重新分析本副本照片', exact: true}).waitFor();
+  await page.getByRole('button', {name: /^(开始|重新)分析$/u}).click();
+  await page.getByRole('button', {name: '重新分析', exact: true}).waitFor();
   assert.equal(await page.getByRole('textbox', {name: '售卖正文', exact: true}).inputValue(), '保留手写正文');
   assert.equal(await page.getByRole('button', {name: '用已确认信息生成正文'}).isDisabled(), true);
-  await page.getByRole('button', {name: '采用照片观察到品相说明'}).click();
-  await page.getByRole('textbox', {name: '版本说明（不确定的内容留空）', exact: true}).fill('');
+  await page.getByRole('button', {name: '采用照片观察到的品相说明'}).click();
+  await page.getByRole('textbox', {name: /^版本说明/u}).fill('');
   await page.getByRole('checkbox', {name: '已核对版本说明，未确定的信息已留空'}).check();
   await page.getByRole('checkbox', {name: '已核对品相与附件；试听情况由我确认'}).check();
   await page.getByRole('textbox', {name: '售卖正文', exact: true}).fill('');
