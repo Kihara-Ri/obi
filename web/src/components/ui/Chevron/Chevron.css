@@ -7,5 +7,5 @@
 .chev-right.is-open{transform:rotate(0)}
 /* 由容器的 aria-expanded / details[open] 驱动时不必逐个传 open */
 [aria-expanded="true"]>.chev-down{transform:rotate(180deg)}
-[aria-expanded="true"]>.chev-right,details[open]>summary>.chev-right{transform:rotate(0)}
+[aria-expanded="true"]>.chev-right{transform:rotate(0)}
 @media (prefers-reduced-motion:reduce){.chev{transition:none}}

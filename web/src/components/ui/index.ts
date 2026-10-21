@@ -7,6 +7,8 @@ export {Collapse} from './Collapse';
 export type {CollapseProps} from './Collapse';
 export {Combobox} from './Combobox';
 export type {ComboOption, ComboboxProps} from './Combobox';
+export {Details} from './Details';
+export type {DetailsProps} from './Details';
 export {Disclosure} from './Disclosure';
 export type {DisclosureProps} from './Disclosure';
 export {Dropdown} from './Dropdown';

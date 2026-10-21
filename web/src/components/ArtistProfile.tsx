@@ -14,6 +14,7 @@ import type {
 import {statusName} from '../core/modules';
 import {copyEditionLabel} from '../core/copy-edition';
 import type {ModuleFlags} from '../types';
+import {Details} from './ui/Details';
 
 export interface WorkLinkRow {
   record: CollectionRecord;
@@ -215,8 +216,7 @@ export function ArtistProfile(props: ArtistProfileProps) {
           <p className="profile-note">该艺人的详细资料暂未收录。</p>
         )}
         {profile && (aliasList.length || profile.genres.length) ? (
-          <details className="adv profile-more" open={moreOpen} onToggle={event => setMoreOpen(event.currentTarget.open)}>
-            <summary>别名与音乐类型</summary>
+          <Details className="adv profile-more" summary="别名与音乐类型" open={moreOpen} onOpenChange={setMoreOpen}>
         {profile && aliasList.length ? (
           <p className="profile-aliases">
             <span className="profile-meta-item">别名</span>
@@ -233,7 +233,7 @@ export function ArtistProfile(props: ArtistProfileProps) {
             {' '}{profile.genres.join('、')}
           </p>
         ) : null}
-          </details>
+          </Details>
         ) : null}
         {identities ? (
           <p className="profile-identity small-note">
@@ -253,8 +253,7 @@ export function ArtistProfile(props: ArtistProfileProps) {
             </dl>
           </section>
       {/* 6. 来源与次要操作 */}
-      <details className="adv profile-foot">
-        <summary>来源与资料管理</summary>
+      <Details className="adv profile-foot" summary="来源与资料管理">
         <p className="small-note">
           {fetchedAt ? `更新于 ${fetchedAt}` : '资料来源 MusicBrainz'}
           {sourceState.cache === 'stale' || sourceState.error ? ' · 当前显示缓存资料' : ''}
@@ -275,7 +274,7 @@ export function ArtistProfile(props: ArtistProfileProps) {
                       onClick={() => onSearchName(searchName.trim())}>搜索</button>
             </div>
         </div> : null}
-      </details>
+      </Details>
         </aside>
         <div className="profile-content">
       {/* 候选确认 */}

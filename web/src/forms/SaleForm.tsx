@@ -12,6 +12,7 @@ import {AmountInput, DateChipsRow, Field, TextareaField} from './fields';
 import {Seg} from '../components/ui/Seg';
 import {AlbumLine} from '../components/SaleCard';
 import {useFormSubmit, useRate} from './shared';
+import {Details} from '../components/ui/Details';
 
 // 点这些渠道自动切日元；遇到新的日本平台就往这里加
 const JP_CHANNELS = new Set(['メルカリ']);
@@ -151,15 +152,14 @@ function SaleForm({ids}: {ids: string[]}) {
           </div>
           <p>买家签收、钱款到账后点「确认收货」转为已售出；平台扣费和运费之后仍可修改。</p>
         </div>
-        <details className="adv">
-          <summary>更多信息</summary>
+        <Details className="adv" summary="更多信息">
           <div className="form-grid">
             <Field label="买家地址（选填）" name="address" placeholder="用于后续数据分析"
                    value={v.address} onChange={e => set({address: e.target.value})}/>
             <Field label="订单号" name="orderId" value={v.orderId} onChange={e => set({orderId: e.target.value})}/>
             <TextareaField label="备注" name="sale-note" value={v.note} onChange={val => set({note: val})}/>
           </div>
-        </details>
+        </Details>
       </div>
       <div className="drawer-footer">
         <button type="button" onClick={() => app.backDrawer()}>取消</button>

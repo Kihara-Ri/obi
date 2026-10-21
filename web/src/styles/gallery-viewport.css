@@ -121,3 +121,9 @@
   .gallery-stage-layout[data-mode=waterfall]:has(.has-roam-viewport){flex-basis:220px;min-height:220px}
   .gallery-stage-layout .gallery-film-shell{--film-rail-padding:56px}
 }
+
+/* 展示模式切换：新场景淡入并从略小回到原大小（key=mode 使每次切换重新挂载）。只用独立的 opacity / scale，不覆盖场景自己的 transform */
+@media (prefers-reduced-motion:no-preference){
+  .gallery-stage-layout{animation:gallery-mode-in .42s cubic-bezier(.2,.7,.2,1) backwards}
+}
+@keyframes gallery-mode-in{from{opacity:0;scale:.97}to{opacity:1;scale:1}}

@@ -1,0 +1,3 @@
+/* Details：summary 去掉原生三角，换成 Chevron；正文由组件做高度动画。 */
+.details>summary{display:flex;align-items:center;gap:6px;list-style:none;cursor:pointer}
+.details>summary::-webkit-details-marker{display:none}

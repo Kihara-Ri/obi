@@ -1,6 +1,8 @@
 // 专辑详情（摘要层）：身份 → 状态行 → 关键信息（≤6 项）→ 照片 → 备注摘要 → 「发行资料」「管理」入口；底栏只放主要操作。
 // 更详细的内容在二级页：发行资料页（forms/detail/ReleasePage）与管理页（forms/detail/ManagePage），决定见 D-015。
 // 备注在这里只截两行，全文在管理页；调回海外 / 移除等流转操作也在管理页。
+import {useEffect, useLayoutEffect, useRef} from 'react';
+import {flyIn, flyOut} from '../core/cover-fly';
 import {Chevron} from '../components/ui/Chevron';
 import {ArtistButton} from '../components/ArtistButton';
 import {openArtistDrawer} from './ArtistDrawer';
@@ -39,6 +41,15 @@ function DetailBody({id, back}: {id: string; back?: DetailBack}) {
   const app = useApp();
   const {modules} = app;
   const r = app.rec(id);
+  const bigRef = useRef<HTMLDivElement>(null);
+  // 封面从库存卡片飞进来，关闭时飞回去（core/cover-fly）。只在首次挂载时飞入；
+  // 抽屉发出 drawer-closing 时，若这一页是当前顶层（可见）才飞回
+  useLayoutEffect(() => { if (bigRef.current) flyIn(id, bigRef.current); }, [id]);
+  useEffect(() => {
+    const onClosing = () => { if (bigRef.current) flyOut(id, bigRef.current); };
+    window.addEventListener('drawer-closing', onClosing);
+    return () => window.removeEventListener('drawer-closing', onClosing);
+  }, [id]);
   if (!r) return null;
   const info = r.releaseInfo ?? {};
   // 复制钮与标题最后一个词绑在同一个不折行的片段里：标题折行时按钮跟着末词，不会单独掉到下一行
@@ -62,7 +73,7 @@ function DetailBody({id, back}: {id: string; back?: DetailBack}) {
   return (
     <div className="detail-summary">
       <div className="record-detail">
-        <div className="big"><Cover r={r}/></div>
+        <div className="big" ref={bigRef}><Cover r={r}/></div>
         <div className="record-detail-main">
           <h2 className="record-detail-title">
             {titleHead}<span className="record-detail-tail">{titleTail}<CopyButton text={shownTitle} label="复制专辑名"/></span>

@@ -14,6 +14,7 @@ import {Dropdown} from '../components/ui/Dropdown';
 import {Seg} from '../components/ui/Seg';
 import {TabPanel} from '../components/ui/TabPanel';
 import {useShelfFlip} from './useShelfFlip';
+import {useListFlip} from './useListFlip';
 import {SearchField} from '../components/ui/SearchField';
 import {ShowcaseSwitch, useShowcaseSwitch} from '../components/ShowcaseSwitch';
 import {useSlidingThumb} from '../components/ui/SlidingThumb';
@@ -79,6 +80,7 @@ export function ShelfPage() {
 
   const pageRef = useRef<HTMLDivElement>(null);
   const snapshotFlip = useShelfFlip(pageRef, app.shelfView);
+  useListFlip(pageRef, rs.map(r => r.id).join(','), `${page}|${app.shelfView}`);
 
   const title = page === 'domestic' && !modules.circulation ? '我的收藏' : page === 'overseas' ? '海外库存' : page === 'domestic' ? '国内库存' : '回收站';
   const desc = !modules.circulation && !isTrash ? '整理每张实物的版本和照片。'

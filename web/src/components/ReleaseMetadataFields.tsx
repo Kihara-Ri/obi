@@ -1,6 +1,7 @@
 import type {ReleaseInfo} from '../types';
 import {releaseRegion} from '../core/release-metadata';
 import './ReleaseMetadataFields.css';
+import {Details} from './ui/Details';
 
 const fields: {key: keyof ReleaseInfo; label: string; hint?: string; short?: boolean}[] = [
   {key: 'catalogNumber', label: '唱片编号'}, {key: 'barcode', label: '条码'},
@@ -17,11 +18,9 @@ export function ReleaseMetadataFields({info, oldPressing, omit = [], onChange, o
   onUnofficial?: (on: boolean) => void;
   onChange: (key: keyof ReleaseInfo, value: string) => void;
 }) {
-  return <details className="adv record-release-fields">
-    <summary>手动更正发行资料（极少用）
+  return <Details className="adv record-release-fields" summary={<>手动更正发行资料（极少用）
       {info.country ? ' · ' + releaseRegion(info.country, oldPressing) : ''}
-      {info.unofficial === '1' ? ' · 非官方' : ''}
-    </summary>
+      {info.unofficial === '1' ? ' · 非官方' : ''}</>}>
     {onUnofficial ? <label className="rmf-unofficial">
       <input type="checkbox" checked={info.unofficial === '1'} onChange={e => onUnofficial(e.target.checked)}/>
       <span><b>非官方发行（私版 / Bootleg）</b><small>资料库里没有条目；按手动录入处理，不核对资料库、不生成 3D</small></span>
@@ -33,5 +32,5 @@ export function ReleaseMetadataFields({info, oldPressing, omit = [], onChange, o
           onChange={e => onChange(key, e.target.value)} title={hint}/>
       </div>)}
     </div>
-  </details>;
+  </Details>;
 }

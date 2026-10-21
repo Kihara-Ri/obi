@@ -6,6 +6,7 @@ import {useApp} from '../state/AppContext';
 import {twinBusy} from '../core/digital-twins';
 import {TwinAccessoriesEditor} from './TwinAccessoriesEditor';
 import {DiscCalibrationEditor} from './DiscCalibrationEditor';
+import {Details} from './ui/Details';
 
 export function TwinControls({record, releaseId, unsaved = false, saving = false, stale = false, onSettings}: {
   record: AlbumRecord; releaseId: string; unsaved?: boolean; saving?: boolean; stale?: boolean;
@@ -51,7 +52,7 @@ export function TwinControls({record, releaseId, unsaved = false, saving = false
       {job?.entity && Object.keys(job.entity.surfaces).some(role => role.startsWith('disc')) ?
         <button type="button" className="quiet" disabled={blocked} onClick={() => setCalibrating(true)}>校准盘面</button> : null}
       {calibrating && job ? <DiscCalibrationEditor job={job} onSaved={app.refreshTwins} onClose={closeCalibration}/> : null}
-      {job?.entity?.warnings?.length ? <details><summary>生成说明</summary>{job.entity.warnings.map((warning, i) => <p key={i}>{warning}</p>)}</details> : null}
+      {job?.entity?.warnings?.length ? <Details summary="生成说明">{job.entity.warnings.map((warning, i) => <p key={i}>{warning}</p>)}</Details> : null}
     </> : <p className="small-note">这张专辑还没有数字实体。数字实体在 Album Engine 项目中生成，发布后会出现在这里。</p>}
   </section>;
 }

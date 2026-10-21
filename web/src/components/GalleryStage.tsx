@@ -52,7 +52,7 @@ export function GalleryStage(props: GalleryStageProps) {
       : props.mode === 'isometric' ? <GalleryIsometric {...props}/>
         : props.mode === 'tiles' || props.mode === 'waterfall' ? <GalleryWall {...props}/>
           : <GalleryOrbit {...props}/>;
-  return <div className="gallery-stage-layout" data-mode={props.mode} onPointerDownCapture={touch}>{scene}</div>;
+  return <div key={props.mode} className="gallery-stage-layout" data-mode={props.mode} onPointerDownCapture={touch}>{scene}</div>;
 }
 import {useEffect, useRef} from 'react';
 import type {PointerEvent as ReactPointerEvent} from 'react';

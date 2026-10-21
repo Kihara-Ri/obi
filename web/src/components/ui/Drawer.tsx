@@ -78,6 +78,7 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
   // 收回动画兜底：reduced-motion 下 animationend 永远不来
   useEffect(() => {
     if (!closing) return;
+    window.dispatchEvent(new Event('drawer-closing'));   // 详情页据此把封面飞回来源（core/cover-fly）
     const t = window.setTimeout(finishClose, CLOSE_FALLBACK_MS);
     return () => window.clearTimeout(t);
   }, [closing]);

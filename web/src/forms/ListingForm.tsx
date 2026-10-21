@@ -11,6 +11,7 @@ import {useFormSubmit} from './shared';
 import {ListingReview} from '../components/ListingReview';
 import {ListingSteps} from '../components/ListingSteps/ListingSteps';
 import './ListingForm.css';
+import {Details} from '../components/ui/Details';
 
 export function openListingForm(app: AppCtx, id: string) {
   app.openDrawer({title: '售卖与上架资料', asForm: true, content: <ListingForm id={id}/>});
@@ -111,7 +112,7 @@ function ListingForm({id}: {id: string}) {
         <p className="small-note">在闲鱼手动发布；照片在专辑详情“实物照片”右侧图标保存。保存草稿不会标记上架。</p>
       </section>
 
-      <details className="listing-publish"><summary>已发布？记录平台与链接</summary>
+      <Details className="listing-publish" summary="已发布？记录平台与链接">
         <Field label="上架平台（选填）" name="listing-channel" value={channel} maxLength={100}
           placeholder="例如：闲鱼" onChange={e => {setChannel(e.target.value);app.setDrawerDirty(true);}}/>
         <Field label="商品链接（选填）" name="listing-url" type="url" value={url} maxLength={2000}
@@ -119,7 +120,7 @@ function ListingForm({id}: {id: string}) {
         <button type="button" disabled={stale || saving || analyzing} onClick={() => {void run(app,
           () => api('listing/draft', {id, revision: r.revision, draft, markListed: true, listing: {channel, url}}),
           '已保存并标记上架', {backOnSave: true});}}>保存并标记上架</button>
-      </details>
+      </Details>
     </div>
     <div className="drawer-footer">
       <button type="button" onClick={() => app.backDrawer()}>取消</button>

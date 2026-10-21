@@ -2,6 +2,7 @@ import {useState} from 'react';
 import type {PackagingSpec} from '../types';
 import {albumPackaging, PACKAGING_PHOTO_ROLES, PACKAGING_PRESETS, packagingSuggestions, setPackagingPhoto} from '../core/album-packaging';
 import {Dropdown} from './ui/Dropdown';
+import {Details} from './ui/Details';
 
 export function PackagingEditor({version, value, photos, onChange, onValidity}: {
   version: string; value: PackagingSpec | null;
@@ -71,12 +72,12 @@ export function PackagingEditor({version, value, photos, onChange, onValidity}: 
       <label><input type="checkbox" checked={value?.miniLP ?? model.miniLP} onChange={e => change({miniLP: e.target.checked})}/>Mini LP · LP 包装复刻</label>
       <label><input type="checkbox" checked={value?.slipcase ?? model.slipcase} onChange={e => change({slipcase: e.target.checked})}/>Slipcase · 外部抽套</label>
     </div>
-    <details className="adv"><summary>实物尺寸（选填，mm）</summary><div className="packaging-dimensions">
+    <Details className="adv" summary="实物尺寸（选填，mm）"><div className="packaging-dimensions">
       {['宽度', '高度', '厚度'].map((label, i) => <label key={label}>{label}<input aria-label={'包装' + label + '（mm）'} type="number" step=".1"
         min={[50, 50, .1][i]} max={[500, 700, 300][i]} value={size[i]} inputMode="decimal"
         onChange={e => dimension(i, e.target.value)}/></label>)}
-    </div></details>
-    <details className="adv"><summary>模型贴图 · 指定实物照片</summary>
+    </div></Details>
+    <Details className="adv" summary="模型贴图 · 指定实物照片">
       <p className="small-note">建议选择正视照片。已校准的印刷区域直接引用原图；更换贴图照片会清除旧区域。缺少背面或中面时保留示意，不复制正面封面。</p>
       <div className="packaging-photo-preview">{photos.map(p => <figure key={p.index}><img src={p.source} alt={'贴图候选照片 ' + (p.index + 1)}/><figcaption>{p.index + 1}</figcaption></figure>)}</div>
       <div className="packaging-fields">{PACKAGING_PHOTO_ROLES.map(role => <div className="field" key={role.value}><label>{role.label}</label>
@@ -84,6 +85,6 @@ export function PackagingEditor({version, value, photos, onChange, onValidity}: 
           options={[{value: '__none', label: role.value === 'front' ? '使用专辑封面' : '暂无贴图'}, ...photos.map(p => ({value: String(p.index), label: '实物照片 ' + (p.index + 1)}))]}
           onPick={v => onChange(setPackagingPhoto(value, role.value, v === '__none' ? undefined : Number(v)))}/>
       </div>)}</div>
-    </details>
+    </Details>
   </section>;
 }

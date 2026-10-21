@@ -100,7 +100,16 @@ test('NavRow：链接 / 按钮 / 静态三种形态，右侧数值与箭头', ()
 
 test('Disclosure：默认收起，摘要可自定义', () => {
   const html = render(ui.Disclosure, {children: createElement('p', null, '内容')});
-  assert.match(html, /<details class="disclosure"><summary><span class="chev chev-right"[^>]*>.*<\/span>说明<\/summary>/);
+  assert.match(html, /<details class="details disclosure"><summary><span class="chev chev-right"[^>]*>.*<\/span>说明<\/summary>/);
   assert.doesNotMatch(html, /open=""/);
   assert.match(render(ui.Disclosure, {summary: '各模块说明', children: 'x'}), /<\/span>各模块说明<\/summary>/);
+});
+
+test('Details：默认收起，defaultOpen 展开，箭头随逻辑状态', () => {
+  const closed = render(ui.Details, {summary: '更多', children: 'x'});
+  assert.doesNotMatch(closed, /open=""/);
+  assert.match(closed, /<summary><span class="chev chev-right"/);
+  const opened = render(ui.Details, {summary: '更多', defaultOpen: true, children: 'x'});
+  assert.match(opened, /<details class="details" open=""/);
+  assert.match(opened, /chev chev-right is-open/);
 });
