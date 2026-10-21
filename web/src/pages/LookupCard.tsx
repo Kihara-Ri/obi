@@ -9,7 +9,7 @@ export function LookupCard({c, owned, onAdd}: {
   c: ReleaseCandidate; owned: string; onAdd: (info: ReleaseInfo) => void;
 }) {
   const app = useApp();
-  return <ReleaseCandidateCard c={c}>{({load, busy}) => {
+  return <ReleaseCandidateCard c={c} fold>{({load, busy}) => {
     const copy = async (ask: boolean) => {
       const text = releaseText(c, await load(), owned);
       app.toast(await copyText(ask ? askText(text) : text) ? (ask ? '已复制，连同提问' : '资料已复制') : '复制失败，请手动选择文字', 'warn');

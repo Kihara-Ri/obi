@@ -32,7 +32,9 @@ export function ReleaseSummary({title, artist, info, source, url, art}: {
 
 export interface CardCtx {info: ReleaseInfo; load: () => Promise<ReleaseInfo>; busy: boolean}
 
-export function ReleaseCandidateCard({c, children}: {c: ReleaseCandidate; children?: (ctx: CardCtx) => ReactNode}) {
+/** fold：默认只显示一行关键信息（编号、地区、日期、条码），点开才出完整资料和操作（查询页用，省纵向空间）。 */
+export function ReleaseCandidateCard({c, fold, children}: {c: ReleaseCandidate; fold?: boolean; children?: (ctx: CardCtx) => ReactNode}) {
+  const [folded, setFolded] = useState(!!fold);
   const [full, setFull] = useState<ReleaseInfo | null>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -67,6 +69,18 @@ export function ReleaseCandidateCard({c, children}: {c: ReleaseCandidate; childr
     ['包装', info.packaging], ['版次说明', info.edition], ['介质', info.format],
     ['碟数', info.discCount ? info.discCount + ' 张' : '']];
 
+  const i0 = c.releaseInfo;
+  if (folded) return <li className="rcc is-folded">
+    <button type="button" className="rcc-fold" aria-expanded="false" onClick={() => setFolded(false)}>
+      {art ? <img className="rcc-art" src={art} alt=""/> : <span className="rcc-art" aria-hidden="true"/>}
+      <span className="rcc-main">
+        <strong>{dedupeCatalog(i0.catalogNumber) || c.title}</strong>
+        <span>{[regionName(i0.country), i0.releaseDate, i0.label].filter(Boolean).join(' · ')}</span>
+        {i0.barcode ? <span className="num">{i0.barcode}</span> : null}
+      </span>
+      <i aria-hidden="true">+</i>
+    </button>
+  </li>;
   return <li className="rcc">
     <ReleaseSummary title={c.title} artist={c.artist} info={c.releaseInfo} source={sourceName({}, c.source === 'discogs')} url={c.url} art={art}/>
     <button type="button" className="rcc-more" aria-expanded={open} onClick={toggle}>
@@ -81,6 +95,7 @@ export function ReleaseCandidateCard({c, children}: {c: ReleaseCandidate; childr
       <Tracklist releaseInfo={info}/>
     </div> : null}
     {children?.({info, load, busy})}
+    {fold ? <button type="button" className="quiet rcc-unfold" onClick={() => setFolded(true)}>收起</button> : null}
   </li>;
 }
 

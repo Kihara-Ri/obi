@@ -12,3 +12,6 @@
 ## 验证
 - 后端 `tests/test_text_search.py`（夹具）；前端 `isTextQuery` / `ownedAlbums` 单测。
 - 浏览器（手机宽度，真实 MusicBrainz）：`illinois sufjan stevens` 只出一张「Illinois」并标已有，展开后日本版在前；`radiohead` 出 10 张专辑。Discogs 兜底只有夹具测试，没有联网验证。
+
+## 追加：版本卡片折叠
+`ReleaseCandidateCard` 新增 `fold` 属性（仅查询页传入）：默认一行摘要，展开才有完整资料和操作，省纵向空间；表单里不传，行为不变。
