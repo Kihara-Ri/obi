@@ -99,8 +99,8 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
         html.style.overflow = '';
       };
     }
-    // 键盘占位：布局视口不变、可视视口缩小，差值 = 键盘高度。把 sheet 底边抬到键盘上沿（--kb），
-    // sheet 随之变矮，drawer-body 在可见区内滚动；再把当前输入框滚到可见区中间，否则会被键盘盖住。
+    // 键盘占位：布局视口不变、可视视口缩小，差值 = 键盘高度（--kb）。键盘是叠在 sheet 之上的另一层，不压矮 sheet：
+    // 表单抽屉只在 drawer-body 底部补一段等高的滚动余量（drawer.css），确认类 compact 抽屉仍整体抬到键盘上沿。
     // 捏合缩放时 vv.height 也会变小，scale>1 不算键盘。
     const KEYBOARD_MIN = 80;
     const reveal = () => {
@@ -108,9 +108,14 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
       const body = panel.querySelector<HTMLElement>('.drawer-body');
       if (!body || !(el instanceof HTMLElement) || !panel.contains(el)
         || !['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)) return;
+      // 键盘盖在 sheet 之上（不再把 sheet 压矮）：输入框被盖住或在内容区之外时，平滑滚到内容区顶部。
+      // 对齐顶部不依赖 sheet 当时的高度，键盘动画期间测量不准也不会量错；body 底部留了键盘高度的滚动余量。
       const box = el.getBoundingClientRect();
       const frame = body.getBoundingClientRect();
-      body.scrollTop += box.top + box.height / 2 - (frame.top + frame.height / 2);
+      const visibleBottom = Math.min(frame.bottom, (vv?.offsetTop ?? 0) + (vv?.height ?? window.innerHeight));
+      if (box.bottom <= visibleBottom - 16 && box.top >= frame.top + 8) return;
+      const reduce = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+      body.scrollTo({top: body.scrollTop + box.top - (frame.top + 16), behavior: reduce ? 'auto' : 'smooth'});
     };
     let lastKb = 0;
     const apply = () => {
@@ -118,8 +123,6 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
       const raw = vv.scale > 1.01 ? 0 : Math.round(window.innerHeight - vv.height);
       const kb = raw > KEYBOARD_MIN ? raw : 0;
       panel.style.setProperty('--kb', kb + 'px');
-      // 键盘弹起时收起底部操作栏（见 drawer.css `[data-kb]`）：键盘上方留给内容，不让「取消 / 保存」挤占纵向空间
-      panel.toggleAttribute('data-kb', kb > 0);
       if (kb && kb !== lastKb) revealSoon(0);
       lastKb = kb;
     };
@@ -139,7 +142,6 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
       window.removeEventListener('scroll', onScroll);
       panel.style.transform = '';
       panel.style.removeProperty('--kb');
-      panel.removeAttribute('data-kb');
       html.style.overflow = '';
     };
   }, [spec]);

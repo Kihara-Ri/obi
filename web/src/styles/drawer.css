@@ -181,10 +181,14 @@ details.adv:not([open]) > :not(summary){display:none}
   .drawer.compact{top:auto;max-height:calc(100% - 56px - var(--kb,0px))}
   /* 表单抽屉 → 底部上滑 sheet：顶部圆角 + 抓手，底部避开 Home 条；
      进入 = 整块自屏底滑入，关闭 = 跟手下滑收回（sheet-down + Drawer 拖拽） */
-  .drawer{top:calc(10px + env(safe-area-inset-top));right:0;bottom:var(--kb,0px);left:0;width:auto;
+  .drawer{top:calc(10px + env(safe-area-inset-top));right:0;bottom:0;left:0;width:auto;
     border-left:none;border-top:1px solid var(--border-strong);border-radius:20px 20px 0 0;
     box-shadow:0 -14px 44px var(--shadow-ink);animation:sheet-up .28s cubic-bezier(.2,.8,.3,1)}
   .drawer.wide{width:auto}
+  /* 软键盘是另一层：表单抽屉保持原高度，键盘盖住下半部，body 补等高的滚动余量让下方字段仍能滚上来；
+     内容高度的 compact 抽屉整体抬到键盘上沿 */
+  .drawer.compact{bottom:var(--kb,0px)}
+  .drawer:not(.compact) .drawer-body{padding-bottom:calc(18px + env(safe-area-inset-bottom) + var(--kb,0px))}
   .drawer.closing{animation:sheet-down .24s ease-in forwards}
   @keyframes sheet-up{from{transform:translateY(100%)}to{transform:none}}
   @keyframes sheet-down{to{transform:translateY(100%)}}
@@ -202,10 +206,6 @@ details.adv:not([open]) > :not(summary){display:none}
   .drawer-footer{gap:8px;flex-wrap:wrap;padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
   .drawer-footer button{flex:1 1 calc((100% - 16px)/3);min-height:42px}
   .footer-hint{flex:1 1 100%;order:-1;margin:0 0 2px;text-align:center}
-  /* 软键盘弹起（Drawer 置 data-kb）：收起底部操作栏与 Home 条留白，把键盘上方的纵向空间全部给内容；键盘收起后原样回来 */
-  #panel[data-kb] .drawer-footer{display:none}
-  #panel[data-kb] .drawer-body{padding-bottom:12px}
-  #panel[data-kb] .drawer-head{padding-top:20px;padding-bottom:6px}
   /* 分组列表行：输入 16px 防 iOS 聚焦放大；快捷块加高到可点 */
   #panel .row-group input{font-size:16px}
   .chip{min-height:34px}
