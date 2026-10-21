@@ -37,6 +37,7 @@
 | --- | --- | --- |
 | `ModuleChooser` `ModulePresets` `ModuleImpact` | 设置 · 功能与首次设置：使用方式卡片 → 界面变化预览（与已保存配置对比，新增 / 收起用文字标记）→ 微调开关与首页 | 预览数据来自 `core/modules` 的 `SURFACE_GROUPS`，与导航及表单的模块判断同步维护 |
 | `Details` | 带展开 / 收起高度动画的 `<details>`：用 Chevron 做箭头，替代所有裸 `<details>`；`Disclosure` 基于它 | `summary` `children` `className?` `open?`+`onOpenChange?` 或 `defaultOpen?` |
+| `BarcodeButton` | 条码值旁的「显示条码」按钮：按数字重新绘制白底黑条的全屏 EAN-13 / UPC-A / EAN-8（`core/ean.ts`），供扫码器直接扫手机屏幕；非这三种位数不显示 | `code: string` |
 | `PageVeil` | 库存 ↔ 展示的转场幕布：Splash 转场版合上 → 预加载封面（`core/preload-covers`，上限 48 张、5 秒兜底）→ 打开。仅手机、非历史导航、非减少动态 | `covers: string[]` `onDone` |
 | `ReleaseCandidateCard` `ReleaseSummary` | 发行版卡片：名称 + 来源 → 关键信息网格 → 可展开的曲目与版本资料（按需取详情，不重复摘要字段）→ 调用方的操作区（render prop）。「查询」页（复制 / 入库）与专辑表单（选用此版本、已确认摘要）共用 | 候选 `c` `children({info, load, busy})`；`ReleaseSummary` 另可 `title` `artist` `info` `source?` `url?` |
 | `ListingSteps` | 上架资料顶部三步进度（分析照片 / 核对 / 生成文案） | `steps[{label,done}]`；当前步 = 第一个未完成 |

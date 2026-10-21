@@ -3,6 +3,7 @@
 // 备注在这里只截两行，全文在管理页；调回海外 / 移除等流转操作也在管理页。
 import {useEffect, useLayoutEffect, useRef} from 'react';
 import {flyIn, flyOut} from '../core/cover-fly';
+import {BarcodeButton} from '../components/BarcodeSheet';
 import {Chevron} from '../components/ui/Chevron';
 import {ArtistButton} from '../components/ArtistButton';
 import {openArtistDrawer} from './ArtistDrawer';
@@ -95,7 +96,7 @@ function DetailBody({id, back}: {id: string; back?: DetailBack}) {
         !!pkg && {label: '包装', value: pkg === '待核对' ? '包装待核对' : pkg},
         !!r.obi && {label: '侧标', value: r.obi},
         !!catalog && {label: '唱片编号', value: catalog, copy: info.catalogNumber},
-        !!info.barcode && {label: '条码', value: info.barcode, copy: info.barcode},
+        !!info.barcode && {label: '条码', value: <>{info.barcode}<BarcodeButton code={info.barcode}/></>, copy: info.barcode},
         modules.acquisition && {label: '买入', value: price},
         modules.acquisition && !!r.location && {label: '渠道', value: r.location},
       ]}/>

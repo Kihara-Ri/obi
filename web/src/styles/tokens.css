@@ -35,6 +35,7 @@
   --album-plastic-light:#fff; --album-plastic-base:#c7cbd0; --album-plastic-edge:#80868e;
   --album-plastic-dark:#34383e; --album-plastic-ink:#25282c;
   --album-paper-base:#cfc5b2; --album-paper-edge:#a79c86; --album-paper-ink:#464237; --album-paper-cut:#e9e2d6;
+  --barcode-bg:#fff; --barcode-ink:#000;   /* 条码必须白底黑条，不随主题变 */
   --album-lightbox-bg:rgba(4,6,10,.9);
   --album-tray-black:#151719; --album-tray-white:#f1f0e9; --album-tray-clear:rgba(203,211,218,.16);
   --album-disc-base:#b8bec2; --album-disc-light:#f2f5f4; --album-disc-shade:#858c92; --album-disc-edge:#91989e;
