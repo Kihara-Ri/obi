@@ -14,3 +14,9 @@
 
 ## 验证
 后端新增 `ProviderPageTests`；前端 typecheck 通过。未用真实 DeepSeek 密钥走完整流程。
+
+## 追加：溢出、折叠、品牌图标
+- 溢出：网格子项缺 `min-width:0`，徽章与文字撑出屏幕；已补，徽章允许换行。
+- 设置页只显示"分析在用"（或已连接的）一个服务商，其余折叠成"切换或添加服务商（N）"一行，叠放小图标，点开展开。
+- 图标改为 Lobe Icons（MIT）的 SVG：DeepSeek、Claude 用品牌色（`--brand-*` token），OpenAI 单色随文字色；兼容 API 用通用插头图标。
+- 未在真机/浏览器截图确认版式。

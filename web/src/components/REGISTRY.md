@@ -44,6 +44,7 @@
 | `ListingSettings` | 服务商列表：连接/测试/在用状态，点入详情抽屉 | 复用 Drawer；密钥/令牌不回传，只显示末四位 |
 | `ProviderPage` | 服务商详情：头部状态、三步进度、密钥/模型/测试三块 | 复用 ListingSteps、Dropdown；状态只走 token |
 | `ProviderAccess` | 详情页「密钥/授权」区（按服务商分支） | 密钥输入后即清空；移除/更换分开 |
+| `ProviderIcon` | 服务商品牌 SVG 图标（Lobe Icons, MIT） | 品牌色走 `--brand-*` token；OpenAI 单色随文字色 |
 | `ui/Drawer` | 抽屉 / 手机底部 sheet：遮罩、焦点圈、Esc、下拉收起、脏表单确认 | 存量文件（见 `.ai-kit/legacy.txt`），动到时拆分 |
 | `ui/Lightbox` | 照片灯箱 | 同上 |
 | `EngineMount` | 挂载已安装 Album Engine 插件里的视图（3D 查看器、校准、编辑器） | `kind` `props` `onUnavailable?` | 未安装时不渲染；失败显示 role=alert 提示 | — |

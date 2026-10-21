@@ -3,6 +3,7 @@ import {api} from '../../core/api';
 import type {ListingProviderId} from '../../core/listing';
 import {ListingSteps} from '../ListingSteps/ListingSteps';
 import {Dropdown} from '../ui/Dropdown';
+import {ProviderIcon} from './ProviderIcon';
 import {ProviderAccess} from './ProviderAccess';
 import {PROVIDER_NAMES} from './providerNames';
 import {useProvider} from './useProvider';
@@ -21,7 +22,7 @@ export function ProviderPage({id}: {id: ListingProviderId}) {
     {label: '测试连接', done: !!tested?.ok}];
   return <div className="provider-page">
     <header className="provider-head">
-      <span className="provider-tile" aria-hidden="true">{meta.mark}</span>
+      <ProviderIcon id={id}/>
       <div>
         <h3>{meta.name}</h3>
         <div className="provider-badges">
