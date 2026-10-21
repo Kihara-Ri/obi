@@ -18,6 +18,7 @@
 | `CopyButton` | 一键复制：专辑详情的专辑名、唱片编号、条码旁的图标按钮，复制后图标变对勾并弹提示 | `text` `label` | 复制图标 → 对勾，`aria-label` | 图标变色 |
 | `ShipmentStack` | 包裹内专辑：默认收起为叠放封面（≤5 张 + `+N`），点击展开为列表 | `records` `children`（展开后的列表） | 叠放 vs 列表 + 箭头朝向，`aria-expanded` | 封面收成小缩略、箭头翻转 |
 | `Disclosure` | 折叠说明：把解释性文字收起来，主界面只留控件和数字 | `summary?`（默认「说明」） `children` | 原生 details，键盘/读屏开箱可用 | 前置箭头旋转 |
+| `Splash` | 启动加载画面 + 进入主界面的转场：唱片转动 → 沿中线裂成上下两半 → 主界面从中心圆形扩散露出；极快就绪不显示，显示后至少停留 500ms | `ready` | role=status、aria-label「加载中」；`prefers-reduced-motion` 只淡出 | 唱片转动与退场形变 |
 | `SearchField` | 搜索框：放大镜 + 清除按钮，Esc 清空 | `value` `onChange` `ariaLabel` `placeholder?` | 清除后焦点回到输入框 | 有内容时出现清除按钮 |
 | `BarcodeScanner` / `ScanField` | 相机扫码层；`ScanField` 把扫码图标嵌进输入框右端：全屏后置摄像头取景，识别到校验位正确的 EAN / UPC 条码即回调并关闭（portal 到 body） | `onDetect(code)` `onClose` | 无权限 / 无 HTTPS / 无摄像头给一句原因并可返回；关闭即停相机 | 识别器见 `core/barcode-detector`（原生优先，iPhone 用 zxing-wasm） |
 | `FocusInput` | 聚焦输入层：点表单输入框后在键盘正上方升起独立输入面板（portal 到 body，背后页面不动） | `open` `title` `value` `submitLabel` `onChange` `onSubmit` `onClose` `placeholder?` | 打开即聚焦；Esc / 遮罩 / 取消关闭 | 动画进场，减少动画偏好下无动画 |

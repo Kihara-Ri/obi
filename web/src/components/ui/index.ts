@@ -17,6 +17,8 @@ export {SearchField} from './SearchField';
 export type {SearchFieldProps} from './SearchField';
 export {Seg} from './Seg';
 export type {SegOption, SegProps} from './Seg';
+export {Splash} from './Splash';
+export type {SplashProps} from './Splash';
 export {Switch} from './Switch';
 export type {SwitchProps} from './Switch';
 export {TabPanel} from './TabPanel';

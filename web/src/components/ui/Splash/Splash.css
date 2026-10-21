@@ -1,0 +1,76 @@
+/* 启动加载画面与转场（见 Splash.tsx）。颜色只用 token；唱片外观沿用 login.css 的 .vinyl。
+   退场总时长 720ms，与 Splash.tsx 的 EXIT_MS 保持一致。
+   所有动画只用 transform / opacity（走合成层，不触发整屏重绘）；
+   .splash 前缀提高优先级：login.css（后加载）的 .vinyl 带 104px 尺寸与 margin，不能盖过这里。 */
+.splash{--beat:1.5s;position:fixed;inset:0;z-index:2000;display:grid;place-content:center;justify-items:center;gap:22px;
+  animation:splash-in .22s ease-out both}
+.splash.is-wait{visibility:hidden}
+.splash.no-intro{animation:none}
+.splash.is-exit{pointer-events:none;animation:none}
+/* index.html 里的静态占位：JS 下载期间也有画面，晚 150ms 淡入，与「极速就绪不显示」一致 */
+.splash.splash-boot{animation:splash-in .22s ease-out .15s both}
+@keyframes splash-in{from{opacity:0}to{opacity:1}}
+
+/* 背景幕：退场时整层放大，中心的静态孔洞随之扩大，露出下面的主界面。
+   孔洞中心对准唱片中心（整组居中，唱片在组的上半，上移 21px）。
+   只做 transform 放大，不逐帧重绘遮罩；放大后遮罩边缘会变宽变软，正好是羽化的虹膜效果 */
+.splash-veil{position:absolute;inset:0;background:var(--bg)}
+.is-exit .splash-veil{transform-origin:50% calc(50% - 21px);will-change:transform,opacity;
+  -webkit-mask-image:radial-gradient(circle at 50% calc(50% - 21px),transparent 30px,black 40px);
+          mask-image:radial-gradient(circle at 50% calc(50% - 21px),transparent 30px,black 40px);
+  animation:splash-hole .56s cubic-bezier(.65,0,.25,1) .14s both}
+@keyframes splash-hole{from{transform:scale(1);opacity:1}85%{opacity:1}to{transform:scale(20);opacity:0}}
+
+/* 唱片：两半叠在同一位置，加载时严丝合缝。投影单独一层（半片各带投影会在中线接缝处出一道发丝线），
+   半片只保留盘内暗角 */
+.splash-disc{position:relative;width:76px;height:76px}
+.splash-disc::before{content:"";position:absolute;inset:0;border-radius:50%;box-shadow:0 14px 34px color-mix(in srgb,black 50%,transparent)}
+.splash .splash-half{position:absolute;inset:0;margin:0;width:76px;height:76px;box-shadow:inset 0 0 22px color-mix(in srgb,black 65%,transparent)}
+.splash .splash-half::before{animation-duration:var(--beat)}
+.splash .splash-top{clip-path:inset(0 0 calc(50% - .5px) 0)}
+.splash .splash-bottom{clip-path:inset(calc(50% - .5px) 0 0 0)}
+.splash .splash-disc{animation:splash-breathe var(--beat) ease-in-out infinite}
+@keyframes splash-breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+
+/* 退场：呼吸暂停在当前大小；反光从当前角度缓动减速到停（不是硬停）→ 上下分开并放大飞出 */
+.is-exit .splash-disc{animation-play-state:paused}
+.is-exit .splash-disc::before{animation:splash-fade .2s ease-out both}
+@keyframes splash-fade{to{opacity:0}}
+.is-exit .splash-half::before{
+  animation:splash-glint-stop .34s cubic-bezier(.15,.6,.35,1) both}
+@keyframes splash-glint-stop{
+  from{transform:rotate(var(--glint-a0,0deg))}
+  to{transform:rotate(calc(var(--glint-a0,0deg) + 42deg))}}
+.is-exit .splash-top{animation:splash-up .56s cubic-bezier(.7,0,.2,1) .1s both}
+.is-exit .splash-bottom{animation:splash-down .56s cubic-bezier(.7,0,.2,1) .1s both}
+@keyframes splash-up{
+  from{transform:translateY(0) scale(1);opacity:1}
+  40%{opacity:1}
+  to{transform:translateY(-52vh) scale(2.2);opacity:0}}
+@keyframes splash-down{
+  from{transform:translateY(0) scale(1);opacity:1}
+  40%{opacity:1}
+  to{transform:translateY(52vh) scale(2.2);opacity:0}}
+
+/* 文字呼吸与唱片同一节拍 */
+.splash-text{position:relative;color:var(--muted);font-size:13.5px;letter-spacing:.12em;margin-right:-.12em;
+  animation:splash-text var(--beat) ease-in-out infinite}
+.is-exit .splash-text{animation:splash-text-out .18s ease-out both}
+@keyframes splash-text{0%,100%{opacity:.55}50%{opacity:1}}
+@keyframes splash-text-out{to{opacity:0;transform:translateY(6px)}}
+
+/* 主界面入场：孔洞扩散的同时，页面内容从略小略淡回到原位，底栏轻轻升起。
+   用独立的 scale / translate 属性，不覆盖元素自己的 transform（页面切换动画也用它） */
+@media (prefers-reduced-motion:no-preference){
+  html.splash-enter #main{animation:splash-main-in .6s cubic-bezier(.2,.7,.2,1) .12s both}
+  html.splash-enter .mobile-nav{animation:splash-nav-in .5s cubic-bezier(.2,.7,.2,1) .2s both}
+}
+@keyframes splash-main-in{from{opacity:0;scale:.965}to{opacity:1;scale:1}}
+@keyframes splash-nav-in{from{opacity:0;translate:0 16px}to{opacity:1;translate:0 0}}
+
+@media (prefers-reduced-motion:reduce){
+  .splash .splash-half::before,.splash-text,.splash .splash-disc{animation:none}
+  .is-exit .splash-veil{-webkit-mask-image:none;mask-image:none;animation:splash-fade .2s ease-out both}
+  .is-exit .splash-disc,.is-exit .splash-text{animation:splash-fade .2s ease-out both}
+  .is-exit .splash-half,.is-exit .splash-half::before{animation:none}
+}

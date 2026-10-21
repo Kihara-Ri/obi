@@ -27,6 +27,7 @@ import {SettingsPage} from './pages/SettingsPage';
 import {SetupPage} from './pages/SetupPage';
 import {MorePage} from './pages/MorePage';
 import {GalleryPage} from './pages/GalleryPage';
+import {Splash} from './components/ui';
 
 const NAV = [
   {hash: 'gallery', ico: '▦', label: '收藏展示'},
@@ -435,12 +436,8 @@ export default function App() {
         </div>
       );
     }
-    return (
-      <div className="loading">
-        <div className="vinyl vinyl-small" aria-hidden="true"><i className="vinyl-hole"/></div>
-        <p>加载中</p>
-      </div>
-    );
+    // Splash 在加载 / 就绪两个分支里处于同一位置（第二个子节点），就绪后不重挂载，才能接着播退场转场
+    return <>{null}<Splash ready={false}/></>;
   }
 
   const ctx: AppCtx = {
@@ -491,6 +488,7 @@ export default function App() {
   const pillIndex = activeTab >= 0 ? activeTab : mobileTabs.length;
 
   return (
+    <>
     <AppContext.Provider value={ctx}>
       <a className="skip" href="#main">跳至内容</a>
       <div id="shell" className={page === 'gallery' ? 'showcase-shell' : undefined}>
@@ -547,5 +545,7 @@ export default function App() {
       {toastMsg ? <Toast key={toastMsg.key} kind={toastMsg.kind} text={toastMsg.text} action={toastMsg.action} onDone={() => setToastMsg(null)}/> : null}
       <Lightbox/>
     </AppContext.Provider>
+    <Splash ready/>
+    </>
   );
 }
