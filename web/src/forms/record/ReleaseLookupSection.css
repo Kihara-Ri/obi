@@ -18,3 +18,5 @@
 @media (prefers-reduced-motion:reduce){.lookup-spinner{animation-duration:2s}}
 .release-candidates{list-style:none;display:flex;flex-direction:column;gap:10px;margin:10px 0 0;padding:0}
 .record-barcode-entry>.rcc.is-confirmed{margin-top:10px}
+.record-barcode-row .scan-btn{min-width:44px;padding:0 10px;background:var(--surface-2);border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center}
+.record-barcode-row .scan-btn svg{width:20px;height:20px}

@@ -13,6 +13,8 @@ import {openDetail} from '../forms/DetailDrawer';
 import {openRecordForm} from '../forms/RecordForm';
 import type {ReleaseCandidate, ReleaseInfo} from '../types';
 import {LookupCard} from './LookupCard';
+import {BarcodeScanner} from '../components/BarcodeScanner';
+import {CamIco} from '../components/icons';
 import './LookupPage.css';
 
 interface Found {kind: LookupKind; value: string; candidates: ReleaseCandidate[]; note: string}
@@ -24,6 +26,7 @@ export function LookupPage() {
   const [found, setFound] = useState<Found | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [recent, setRecent] = useState(loadRecent);
   const abort = useRef<AbortController | null>(null);
 
@@ -67,8 +70,10 @@ export function LookupPage() {
         <input type="text" inputMode="text" autoComplete="off" enterKeyHint="search" aria-label="条码或唱片编号"
           placeholder="条形码，或唱片编号如 AMCY-2434" value={text}
           onChange={e => { setText(e.target.value); setError(''); }}/>
+        <button type="button" className="scan-btn" aria-label="扫描条码" onClick={() => setScanning(true)}>{CamIco}</button>
         <button type="submit" className="primary" disabled={busy}>{busy ? '查询中…' : '查询'}</button>
       </form>
+      {scanning ? <BarcodeScanner onDetect={code => { setScanning(false); void search(code); }} onClose={() => setScanning(false)}/> : null}
       {error ? <p className="lookup-msg is-error" role="alert">{error}</p> : null}
       {!found && !busy && !error && recent.length ? <div className="lookup-recent">
         <span>最近查过</span>

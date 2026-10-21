@@ -194,6 +194,6 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
 
   return {mode, setMode, barcode, catalogNumber, candidates, busy, message, notFound,
     verification, manualRelease, identified, changeBarcode, changeCatalogNumber, lookup,
-    enterManually, refreshReleaseMetadata, chooseRelease, setCatalogNumber};
+    enterManually, refreshReleaseMetadata, chooseRelease, setCatalogNumber, search};
 }
 export type ReleaseLookup = ReturnType<typeof useReleaseLookup>;
