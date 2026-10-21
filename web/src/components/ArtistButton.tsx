@@ -1,11 +1,10 @@
-import {Chevron} from './ui/Chevron';
 // 艺人入口与专辑详情入口独立；页面/表单负责导航。
 export function ArtistButton({artist, onOpen}: {artist: string; onOpen: (artist: string) => void}) {
   return <div className="artist-entry">
     <span className="artist-entry-label">艺人</span>
     <button type="button" className="artist-button" title={artist} aria-haspopup="dialog" aria-label={`查看 ${artist} 的资料与作品`}
             onClick={() => onOpen(artist)}>
-      <span>{artist}</span><Chevron dir="right" className="artist-entry-arrow"/>
+      <span>{artist}</span>
     </button>
   </div>;
 }
