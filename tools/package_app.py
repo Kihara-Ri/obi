@@ -21,7 +21,7 @@ try:
 except Exception:
     version = 'untagged'
 
-files = [root / n for n in ['app.py', 'domain.py', 'domain_listing.py', 'storage.py', 'covers.py', 'cjkvariants.py',
+files = [root / n for n in ['app.py', 'domain.py', 'domain_listing.py', 'storage.py', 'covers.py', 'cjkvariants.py', 'kana.py',
                             'musicbrainz.py', 'rates.py', 'security.py', 'backups.py', 'twins.py',
                             'README.md', '使用说明.md', '部署说明.md', 'CHANGELOG.md']]
 files += list((root / 'server').rglob('*.py'))
