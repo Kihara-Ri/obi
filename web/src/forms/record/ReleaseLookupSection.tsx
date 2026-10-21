@@ -48,7 +48,7 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc}: {
   const phase: Phase = working ? 'busy' : L.candidates.length ? 'choose' : L.notFound ? 'miss'
     : L.manualRelease ? 'manual' : confirmed && L.verification === 'verified' ? 'ok' : 'idle';
   const status = phase === 'ok' ? `已确认 · ${sourceName(info)}` : L.message
-    || (phase === 'manual' ? '手动录入 · 未经资料库核对' : v.title && !confirmed ? '尚未确认发行版' : '');
+    || (phase === 'manual' ? (info.unofficial === '1' ? '非官方发行 · 未经资料库核对' : '手动录入 · 未经资料库核对') : v.title && !confirmed ? '尚未确认发行版' : '');
   return (
     <section className="record-barcode-entry form-section">
       <label className="lookup-label" htmlFor="record-lookup">发行版</label>
@@ -66,6 +66,10 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc}: {
         {phase === 'miss' && !L.manualRelease
           ? <button type="button" className="quiet" onClick={L.enterManually}>手动录入</button> : null}
       </p> : null}
+      <label className="lookup-unofficial">
+        <input type="checkbox" checked={info.unofficial === '1'} onChange={e => L.setUnofficial(e.target.checked)}/>
+        <span>这是非官方发行（私版 / Bootleg，资料库里没有）</span>
+      </label>
       {L.candidates.length ? <ul className="release-candidates" aria-label="选择发行版本">
         {L.candidates.map(c => <ReleaseCandidateCard key={c.id} c={c}>{() =>
           <button type="button" className="primary rcc-add" disabled={L.busy} onClick={() => void L.chooseRelease(c)}>
@@ -74,7 +78,7 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc}: {
       </ul> : null}
       {summaryShown(v, L) ? <div className="rcc is-confirmed">
         <ReleaseSummary title={v.title} artist={v.artist} info={info} art={coverSrc}
-          source={confirmed ? sourceName(info) : L.manualRelease ? '手动' : '未确认'}
+          source={confirmed ? sourceName(info) : info.unofficial === '1' ? '非官方' : L.manualRelease ? '手动' : '未确认'}
           url={confirmed ? (info.musicBrainzReleaseId ? 'https://musicbrainz.org/release/' + info.musicBrainzReleaseId
             : 'https://www.discogs.com/release/' + info.discogsReleaseId) : undefined}/>
         <CoverPanel cover={cover} src={coverSrc} busy={cover.busy} inline/>

@@ -26,6 +26,7 @@ function ReleaseBody({id}: {id: string}) {
   return <div className="detail-page">
     <h3 className="section-title">身份</h3>
     <Rows rows={[
+      info.unofficial === '1' && {label: '来源', value: '非官方发行（私版）· 无资料库条目'},
       source && {label: '来源', value: <a href={source.url} target="_blank" rel="noopener noreferrer">{source.name} ↗</a>},
       {label: '地区', value: code ? `${regionName(code)}（${code.toUpperCase()}）` : displayRegion(code, r.pressing)},
       info.releaseDate && {label: '发行日期', value: info.releaseDate},

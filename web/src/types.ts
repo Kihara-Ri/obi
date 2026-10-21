@@ -149,7 +149,7 @@ export interface ReleaseMedium {
 }
 
 export interface ReleaseInfo {
-  catalogNumber?: string; barcode?: string; musicBrainzReleaseId?: string; discogsReleaseId?: string; manualRelease?: string; label?: string; country?: string;
+  catalogNumber?: string; barcode?: string; musicBrainzReleaseId?: string; discogsReleaseId?: string; manualRelease?: string; unofficial?: string; label?: string; country?: string;
   releaseDate?: string; edition?: string; packaging?: string; format?: string; discCount?: string;
   matrix?: string; extras?: string; observations?: string; tracklist?: string[]; media?: ReleaseMedium[];
 }

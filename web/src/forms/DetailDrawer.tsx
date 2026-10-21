@@ -46,7 +46,7 @@ function DetailBody({id, back}: {id: string; back?: DetailBack}) {
   const titleHead = cut > 0 ? shownTitle.slice(0, cut + 1) : '';
   const titleTail = cut > 0 ? shownTitle.slice(cut + 1) : shownTitle;
   const year = (info.releaseDate || r.releaseYear || '').slice(0, 4);
-  const sub = [displayRegion(info.country, r.pressing), /^\d{4}$/.test(year) ? year : ''].filter(Boolean).join(' · ');
+  const sub = [displayRegion(info.country, r.pressing), /^\d{4}$/.test(year) ? year : '', info.unofficial === '1' ? '非官方' : ''].filter(Boolean).join(' · ');
   const pkg = info.packaging || formatPackagingName(r.version, r.packaging);
   const catalog = dedupeCatalog(info.catalogNumber);
   const approx = jpyCost(r);

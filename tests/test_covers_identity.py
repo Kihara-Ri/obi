@@ -36,3 +36,13 @@ class ReleaseCredit(unittest.TestCase):
             {'name': 'ピンク・フロイド', 'artist': {'id': aid, 'name': 'Pink Floyd'}}]}})()
         self.assertEqual(svc._release_credit('ピンク・フロイド'), {'mbid': aid, 'name': 'Pink Floyd'})
         self.assertIsNone(svc._release_credit('Someone Else'))
+
+
+class UnofficialRelease(unittest.TestCase):
+    def test_unofficial_forces_manual_and_rejects_external_ids(self):
+        from domain import clean_release_info, ValidationError
+        self.assertEqual(clean_release_info({'unofficial': '1'})['manualRelease'], '1')
+        with self.assertRaises(ValidationError):
+            clean_release_info({'unofficial': '1', 'discogsReleaseId': '12'})
+        with self.assertRaises(ValidationError):
+            clean_release_info({'unofficial': 'x'})

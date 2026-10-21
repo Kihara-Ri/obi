@@ -30,7 +30,7 @@ class ConflictError(ValidationError, EngineConflictError):
 
 RELEASE_FIELDS = ('catalogNumber', 'barcode', 'label', 'country', 'releaseDate', 'packaging',
                   'edition', 'format', 'discCount', 'matrix', 'extras', 'observations', 'musicBrainzReleaseId',
-                  'discogsReleaseId', 'manualRelease')
+                  'discogsReleaseId', 'manualRelease', 'unofficial')
 
 
 def clean_release_info(value):
@@ -48,6 +48,11 @@ def clean_release_info(value):
     if result['discogsReleaseId'] and not re.fullmatch(r'[1-9][0-9]{0,9}', result['discogsReleaseId']):
         raise ValidationError('Discogs 发行版本编号不正确')
     if result['manualRelease'] not in ('', '1'): raise ValidationError('手动录入标记不正确')
+    if result['unofficial'] not in ('', '1'): raise ValidationError('非官方发行标记不正确')
+    if result['unofficial']:
+        # 私版没有资料库条目：只能是手动录入，不能同时绑定 MusicBrainz / Discogs 版本
+        if release_id or result['discogsReleaseId']: raise ValidationError('非官方发行不能绑定资料库版本')
+        result['manualRelease'] = '1'
     tracks = value.get('tracklist', [])
     if not isinstance(tracks, list) or len(tracks) > 500 or any(not isinstance(t, str) or len(t) > 500 for t in tracks):
         raise ValidationError('曲目资料格式不正确')

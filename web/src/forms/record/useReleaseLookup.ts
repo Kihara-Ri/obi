@@ -6,7 +6,7 @@ import {gs1Valid} from '../../core/lookup';
 import {releaseRegion} from '../../core/release-metadata';
 import type {AlbumRecord, ReleaseCandidate, ReleaseInfo} from '../../types';
 import type {FormCtx} from './context';
-import {identityOf, failedSources, pickRelease} from './pickRelease';
+import {identityOf, failedSources, fillMissing, pickRelease} from './pickRelease';
 import type {CoverSearch} from './useCoverSearch';
 
 export type LookupMode = 'barcode' | 'catalog';
@@ -30,7 +30,6 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
   const abort = useRef<AbortController | null>(null);
   // 修改条码后，只有旧发行版 ID 经校验通过、或用户从新候选中确认，才有可信身份。
   const verified = useRef(initialInfo ? identityOf(initialInfo) : '');
-  // 两个资料库都没有时用户手动录入的版本：保存时不做资料库核对。
   const manualRelease = v.releaseInfo.manualRelease === '1' && !v.releaseInfo.musicBrainzReleaseId
     && !v.releaseInfo.discogsReleaseId;
   const identified = !!(identityOf(v.releaseInfo) || manualRelease);
@@ -154,14 +153,21 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
     return () => window.clearTimeout(timer);
   }, [barcode, verification]);
 
-  /** 资料库都查不到时，把已输入的条码/编号带入，由用户手填名称、艺人等；明确标记为未经核对。 */
-  const enterManually = () => {
+  /** 手动录入（资料库都查不到）：带入已输入的条码 / 编号，由用户手填名称、艺人；明确标记为未经核对。
+   * unofficial：私版 / Bootleg，同样按手动录入，另有「非官方」标记。 */
+  const markManual = (unofficial: boolean) => {
     reset(); verified.current = '';
     setVerification('verified'); setCandidates([]); setNotFound(false);
     set({releaseInfo: {...v.releaseInfo, barcode: barcode.trim(), catalogNumber: catalogNumber.trim(),
-      musicBrainzReleaseId: '', discogsReleaseId: '', manualRelease: '1'}, packaging: null});
-    setMessage('手动录入 · 请填写专辑名、艺人；不核对资料库，不生成 3D');
+      musicBrainzReleaseId: '', discogsReleaseId: '', manualRelease: '1', unofficial: unofficial ? '1' : ''},
+      ...(manualRelease ? {} : {packaging: null})});
+    setMessage(unofficial ? '非官方发行 · 请填写专辑名、艺人，版本说明里写明来源'
+      : '手动录入 · 请填写专辑名、艺人；不核对资料库，不生成 3D');
     dirty();
+  };
+  const enterManually = () => markManual(false);
+  const setUnofficial = (on: boolean) => {
+    if (on) markManual(true); else { set({releaseInfo: {...v.releaseInfo, unofficial: ''}}); dirty(); } // 取消只去标记
   };
 
   const refreshReleaseMetadata = async () => {
@@ -171,12 +177,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
     try {
       const result = await api<{releaseInfo: ReleaseInfo}>('release-details?id=' + encodeURIComponent(id));
       if (!formRef.current?.isConnected || live.current.releaseInfo.musicBrainzReleaseId !== id) return;
-      const merged = {...live.current.releaseInfo};
-      for (const [key, value] of Object.entries(result.releaseInfo)) {
-        const prior = merged[key as keyof ReleaseInfo];
-        if ((!prior || Array.isArray(prior) && prior.length === 0) && value)
-          Object.assign(merged, {[key]: value});
-      }
+      const merged = fillMissing(live.current.releaseInfo, result.releaseInfo);
       setBarcode(merged.barcode || '');
       setCatalogNumber(merged.catalogNumber || '');
       set({releaseInfo: merged, version: live.current.version || merged.packaging || '',
@@ -194,6 +195,6 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
 
   return {mode, setMode, barcode, catalogNumber, candidates, busy, message, notFound,
     verification, manualRelease, identified, changeBarcode, changeCatalogNumber, lookup,
-    enterManually, refreshReleaseMetadata, chooseRelease, setCatalogNumber, search};
+    enterManually, setUnofficial, refreshReleaseMetadata, chooseRelease, setCatalogNumber, search};
 }
 export type ReleaseLookup = ReturnType<typeof useReleaseLookup>;

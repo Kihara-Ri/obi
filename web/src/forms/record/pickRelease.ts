@@ -18,6 +18,16 @@ export const identityOf = (info: ReleaseInfo) =>
   info.musicBrainzReleaseId || (info.discogsReleaseId ? 'discogs-' + info.discogsReleaseId : '');
 
 
+/** 只补当前缺失的字段，已有（含人工修改）的值保持不变。 */
+export function fillMissing(current: ReleaseInfo, incoming: ReleaseInfo): ReleaseInfo {
+  const merged = {...current};
+  for (const [key, value] of Object.entries(incoming)) {
+    const prior = merged[key as keyof ReleaseInfo];
+    if ((!prior || Array.isArray(prior) && prior.length === 0) && value) Object.assign(merged, {[key]: value});
+  }
+  return merged;
+}
+
 export interface PickDeps {
   ctx: FormCtx; cover: CoverSearch;
   sequence: MutableRefObject<number>; verified: MutableRefObject<string>;
