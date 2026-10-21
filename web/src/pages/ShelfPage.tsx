@@ -13,6 +13,7 @@ import {AlbumCard, CardGrid} from '../components/Cards';
 import {Dropdown} from '../components/ui/Dropdown';
 import {Seg} from '../components/ui/Seg';
 import {TabPanel} from '../components/ui/TabPanel';
+import {useShelfFlip} from './useShelfFlip';
 import {SearchField} from '../components/ui/SearchField';
 import {ShowcaseSwitch, useShowcaseSwitch} from '../components/ShowcaseSwitch';
 import {useSlidingThumb} from '../components/ui/SlidingThumb';
@@ -75,6 +76,9 @@ export function ShelfPage() {
   // 国内/海外的滑动下划线：与 Seg 共用 useSlidingThumb（测量选中项平移，首次不滑入，跨重挂保持）。
   const scopeNavRef = useRef<HTMLElement>(null);
   useSlidingThumb(scopeNavRef, {thumb: '.shelf-tab-thumb', active: 'a[aria-current=page]', persistKey: 'shelf-location'});
+
+  const pageRef = useRef<HTMLDivElement>(null);
+  const snapshotFlip = useShelfFlip(pageRef, app.shelfView);
 
   const title = page === 'domestic' && !modules.circulation ? '我的收藏' : page === 'overseas' ? '海外库存' : page === 'domestic' ? '国内库存' : '回收站';
   const desc = !modules.circulation && !isTrash ? '整理每张实物的版本和照片。'
@@ -178,7 +182,7 @@ export function ShelfPage() {
   }
 
   return (
-    <div className={`shelf-page shelf-${app.shelfView}${alignList ? ' align-list' : ''}${app.mobileSelecting || curSelected.size ? ' is-selecting' : ''}`}>
+    <div ref={pageRef} className={`shelf-page shelf-${app.shelfView}${alignList ? ' align-list' : ''}${app.mobileSelecting || curSelected.size ? ' is-selecting' : ''}`}>
       <PageHead title={titleNode} desc={keepDesc ? desc : undefined} label="COLLECTION" actions={isTrash ? null : (
         <>
           {modules.showcase ? <a className="link-button gallery-link" href="#gallery">展示收藏</a> : null}
@@ -232,7 +236,7 @@ export function ShelfPage() {
                   onPick={v => app.setSort(v as SortMode)}/>
         <Seg className="view-seg" persistKey="shelf-view" ariaLabel="库存显示方式" value={app.shelfView}
              options={[{value: 'list', label: '☷ 列表', ariaLabel: '列表视图'}, {value: 'cards', label: '▦ 卡片', ariaLabel: '卡片视图'}]}
-             onValue={v => app.setShelfView(v as 'list' | 'cards')}/>
+             onValue={v => { snapshotFlip(); app.setShelfView(v as 'list' | 'cards'); }}/>
         {!isTrash && selectable.length ? <button className="mobile-select-toggle" aria-pressed={app.mobileSelecting || !!curSelected.size}
           onClick={() => {
             const next = !(app.mobileSelecting || curSelected.size);
@@ -242,7 +246,7 @@ export function ShelfPage() {
       </div>
       <BulkBar page={page} ids={[...curSelected]} isTrash={isTrash}/>
       <TabPanel value={page} order={['domestic', 'overseas']}>
-        <TabPanel value={app.shelfView} order={['list', 'cards']} plain>{body}</TabPanel>
+        {body}
       </TabPanel>
     </div>
   );

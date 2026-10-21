@@ -216,3 +216,7 @@
 
 /* 列表卡片 overflow:hidden 会裁掉贴边按钮的外圈焦点环：改为内缩 */
 .album-list-card button:focus-visible{outline-offset:-3px}
+
+/* 列表 ↔ 卡片的共享封面转场（pages/useShelfFlip.ts）：飞行期间卡片不裁切封面 */
+.shelf-page.is-flipping .card,.shelf-page.is-flipping .copy-group{overflow:visible}
+.shelf-page.is-flipping .cover-wrap,.shelf-page.is-flipping .album-cover{position:relative;will-change:transform}
