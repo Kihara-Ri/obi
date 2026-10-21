@@ -1,6 +1,7 @@
 // 发行版检索区块：一个输入框（自动识别条码 / 唱片编号，与「查询」页同一套识别）+ 一条状态行 + 候选卡片 / 已确认摘要。
 // 条码与唱片编号只在这里编辑，「发行资料」折叠区不再重复提供；状态一律走 phase，文案保持一行。
-import {useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
+import {barcodeFromPhotos} from '../../core/photo-barcode';
 import {FocusInput} from '../../components/ui/FocusInput';
 import {BarcodeScanner, ScanField} from '../../components/BarcodeScanner';
 import {ReleaseCandidateCard, ReleaseSummary, sourceName} from '../../components/ReleaseCandidateCard/ReleaseCandidateCard';
@@ -17,11 +18,14 @@ const kindOf = (raw: string) => /^[\d\s-]*$/.test(raw) ? 'barcode' : 'catalog';
 
 /** 当前这张的信息卡（封面、版本资料、换封面都在这一张卡里，表单不再单独放封面区块）；
  * 正在从候选里选版本时隐藏，免得与候选卡重复。 */
+const working0 = (L: ReleaseLookup) => L.busy || L.verification === 'pending';
 const summaryShown = (v: RecordValues, L: ReleaseLookup) =>
   !!(v.title && v.artist) && !L.candidates.length;
 
-export function ReleaseLookupSection({v, lookup: L, cover, coverSrc}: {
+export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, photoSources = []}: {
   v: RecordValues; lookup: ReleaseLookup; cover: CoverSearch; coverSrc: string;
+  /** 已就绪的实物照片（key 标识同一张，src 可直接加载）；条码为空时自动从中识别 */
+  photoSources?: {key: string; src: string}[];
 }) {
   const info = v.releaseInfo;
   const [typed, setTyped] = useState<string | null>(null);
@@ -43,6 +47,23 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc}: {
   const scanned = (code: string) => {
     setScanning(false); setEditing(false); change(code); void L.search('barcode', code);
   };
+  // 从照片识别条码：条码还是空时，新就绪的照片自动识别；手动按钮会重看全部照片
+  const [reading, setReading] = useState(false);
+  const [readMsg, setReadMsg] = useState('');
+  const seen = useRef(new Set<string>());
+  const readPhotos = async (all: boolean) => {
+    const list = photoSources.filter(p => all || !seen.current.has(p.key));
+    list.forEach(p => seen.current.add(p.key));
+    if (!list.length) return;
+    setReading(true); setReadMsg('');
+    const code = await barcodeFromPhotos(list.map(p => p.src));
+    setReading(false);
+    if (code) { setReadMsg(`已从照片识别条码 ${code}`); scanned(code); }
+    else setReadMsg(all ? '照片里没有识别到条码，可以手动输入或用相机扫' : '');
+  };
+  const barcodeEmpty = !text && !working0(L);
+  const sourceKeys = photoSources.map(p => p.key).join(',');
+  useEffect(() => { if (barcodeEmpty && !reading) void readPhotos(false); }, [sourceKeys, barcodeEmpty]);
   const confirmed = !!(info.musicBrainzReleaseId || info.discogsReleaseId);
   const working = L.busy || L.verification === 'pending';
   const phase: Phase = working ? 'busy' : L.candidates.length ? 'choose' : L.notFound ? 'miss'
@@ -60,6 +81,11 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc}: {
         </ScanField>
         <button type="button" className="primary" onClick={() => void L.lookup()} disabled={working}>查询</button>
       </div>
+      {photoSources.length && !text ? <p className="lookup-photo-read">
+        <button type="button" className="quiet" disabled={reading} onClick={() => void readPhotos(true)}>
+          {reading ? '正在从照片识别条码…' : '从照片识别条码'}</button>
+        {readMsg ? <span role="status">{readMsg}</span> : null}
+      </p> : readMsg ? <p className="lookup-photo-read"><span role="status">{readMsg}</span></p> : null}
       {status ? <p className={`lookup-status is-${phase}`} role="status">
         {phase === 'busy' ? <span className="lookup-spinner" aria-hidden="true"/> : <b aria-hidden="true">{phase === 'choose' ? L.candidates.length : MARK[phase]}</b>}
         <span>{status}</span>

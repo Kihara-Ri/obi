@@ -98,7 +98,9 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
         <div className="error" role="alert">{error}</div>
         <PhotoEntry ctx={ctx} photos={photos} recordId={r?.id ?? null}/>
         <h3 className="section-title form-group-title">专辑资料</h3>
-        <ReleaseLookupSection v={v} lookup={lookup} cover={cover} coverSrc={base.current.cover || ''}/>
+        <ReleaseLookupSection v={v} lookup={lookup} cover={cover} coverSrc={base.current.cover || ''}
+          photoSources={photos.slots.flatMap((p, i) => 'existing' in p ? [{key: `e${p.existing}`, src: `/api/photo/${r?.id}/${p.existing}`}]
+            : 'data' in p ? [{key: p.token ?? `d${i}`, src: p.data}] : [])}/>
         {id && mbId ? <button type="button" className="quiet record-refresh-release"
           disabled={lookup.busy} onClick={() => void lookup.refreshReleaseMetadata()}>从 MusicBrainz 补全缺失发行资料</button> : null}
         <ReleaseDetails ctx={ctx} show={!!(id || identified)} onUnofficial={lookup.setUnofficial}/>
