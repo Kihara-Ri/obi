@@ -63,13 +63,10 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc}: {
       {status ? <p className={`lookup-status is-${phase}`} role="status">
         {phase === 'busy' ? <span className="lookup-spinner" aria-hidden="true"/> : <b aria-hidden="true">{phase === 'choose' ? L.candidates.length : MARK[phase]}</b>}
         <span>{status}</span>
-        {phase === 'miss' && !L.manualRelease
-          ? <button type="button" className="quiet" onClick={L.enterManually}>手动录入</button> : null}
+        {phase === 'miss' && !L.manualRelease ? <span className="lookup-miss-actions">
+          <button type="button" className="quiet" onClick={() => L.setUnofficial(true)}>非官方发行</button>
+          <button type="button" className="quiet" onClick={L.enterManually}>手动录入</button></span> : null}
       </p> : null}
-      <label className="lookup-unofficial">
-        <input type="checkbox" checked={info.unofficial === '1'} onChange={e => L.setUnofficial(e.target.checked)}/>
-        <span>这是非官方发行（私版 / Bootleg，资料库里没有）</span>
-      </label>
       {L.candidates.length ? <ul className="release-candidates" aria-label="选择发行版本">
         {L.candidates.map(c => <ReleaseCandidateCard key={c.id} c={c}>{() =>
           <button type="button" className="primary rcc-add" disabled={L.busy} onClick={() => void L.chooseRelease(c)}>

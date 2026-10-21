@@ -4,3 +4,7 @@ details.record-release-fields summary{font-weight:500;color:var(--faint)}
 #panel .rmf-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px 10px}
 .rmf-grid .field label{display:block;margin-bottom:3px;font-size:11.5px;color:var(--muted)}
 .rmf-grid input{padding:7px 10px;font-size:15px}
+.rmf-unofficial{display:flex;align-items:flex-start;gap:10px;margin:4px 0 12px;font-size:14px}
+.rmf-unofficial input{flex:none;width:20px;height:20px;margin:1px 0 0}
+.rmf-unofficial span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.rmf-unofficial small{font-size:12px;color:var(--muted)}

@@ -18,5 +18,5 @@
 @media (prefers-reduced-motion:reduce){.lookup-spinner{animation-duration:2s}}
 .release-candidates{list-style:none;display:flex;flex-direction:column;gap:10px;margin:10px 0 0;padding:0}
 .record-barcode-entry>.rcc.is-confirmed{margin-top:10px}
-.lookup-unofficial{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12.5px;color:var(--muted)}
-.lookup-unofficial input{flex:none;width:18px;height:18px;margin:0}
+.lookup-miss-actions{margin-left:auto;display:flex;gap:6px;flex:none}
+.lookup-status .lookup-miss-actions button{margin-left:0}

@@ -6,11 +6,11 @@ import {releaseRegion} from '../../core/release-metadata';
 import type {AlbumRecord} from '../../types';
 import type {FormCtx} from './context';
 
-export function ReleaseDetails({ctx, show}: {ctx: FormCtx; show: boolean}) {
+export function ReleaseDetails({ctx, show, onUnofficial}: {ctx: FormCtx; show: boolean; onUnofficial: (on: boolean) => void}) {
   const {v, set, dirty} = ctx;
   return <>
     {show ? <ReleaseMetadataFields info={v.releaseInfo} oldPressing={v.pressing}
-      omit={['barcode', 'catalogNumber']} onChange={(key, value) => {
+      omit={['barcode', 'catalogNumber']} onUnofficial={onUnofficial} onChange={(key, value) => {
       const next = {...v.releaseInfo, [key]: value};
       const preset = key === 'packaging' ? PACKAGING_PRESETS.find(p => p.label === value) : undefined;
       set({releaseInfo: next,
