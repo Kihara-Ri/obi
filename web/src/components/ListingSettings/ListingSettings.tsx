@@ -25,7 +25,7 @@ export function ListingSettings() {
     return () => {alive = false; off();};
   }, []);
   const rows = provider?.providers ?? [];
-  const current = rows.find(row => row.inUse && row.connected) ?? rows.find(row => row.connected);
+  const current = rows.find(row => row.inUse) ?? rows[0];
   const others = rows.filter(row => row !== current);
   const Row = ({row}: {row: Row}) => {
     const meta = PROVIDER_NAMES[row.id];
@@ -48,14 +48,14 @@ export function ListingSettings() {
     {provider ? <>
       {current ? <ul className="provider-list"><Row row={current}/></ul> : null}
       {others.length ? <>
-        {current ? <button type="button" className="provider-stack" aria-expanded={open}
+        <button type="button" className="provider-stack" aria-expanded={open}
           onClick={() => setOpen(!open)}>
           <span className="provider-stack-icons" aria-hidden="true">
             {others.map(row => <ProviderIcon key={row.id} id={row.id} size={26}/>)}</span>
           <span>{open ? '收起其他服务商' : `切换或添加服务商（${others.length}）`}</span>
           <Chevron open={open}/>
-        </button> : null}
-        <Collapse open={open || !current}>
+        </button>
+        <Collapse open={open}>
           <ul className="provider-list">{others.map(row => <Row key={row.id} row={row}/>)}</ul></Collapse>
       </> : null}
     </> : <p role="status">正在读取识别配置…</p>}
