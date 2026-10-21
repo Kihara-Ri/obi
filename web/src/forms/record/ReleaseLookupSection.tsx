@@ -15,9 +15,10 @@ const MARK: Record<Phase, string> = {idle: '!', busy: '', choose: '', ok: '✓',
 // 只含数字、空格、连字符的输入按条码处理，其余按唱片编号（与 core/lookup 的 classify 一致）
 const kindOf = (raw: string) => /^[\d\s-]*$/.test(raw) ? 'barcode' : 'catalog';
 
-/** 已确认 / 手动录入的版本摘要是否显示（显示时封面行嵌在摘要卡里，表单不再单独放封面区块）。 */
-export const summaryShown = (v: RecordValues, L: ReleaseLookup) =>
-  !!(v.title && v.artist && (v.releaseInfo.musicBrainzReleaseId || v.releaseInfo.discogsReleaseId || L.manualRelease));
+/** 当前这张的信息卡（封面、版本资料、换封面都在这一张卡里，表单不再单独放封面区块）；
+ * 正在从候选里选版本时隐藏，免得与候选卡重复。 */
+const summaryShown = (v: RecordValues, L: ReleaseLookup) =>
+  !!(v.title && v.artist) && !L.candidates.length;
 
 export function ReleaseLookupSection({v, lookup: L, cover, coverSrc}: {
   v: RecordValues; lookup: ReleaseLookup; cover: CoverSearch; coverSrc: string;
@@ -73,7 +74,7 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc}: {
       </ul> : null}
       {summaryShown(v, L) ? <div className="rcc is-confirmed">
         <ReleaseSummary title={v.title} artist={v.artist} info={info} art={coverSrc}
-          source={confirmed ? sourceName(info) : '手动'}
+          source={confirmed ? sourceName(info) : L.manualRelease ? '手动' : '未确认'}
           url={confirmed ? (info.musicBrainzReleaseId ? 'https://musicbrainz.org/release/' + info.musicBrainzReleaseId
             : 'https://www.discogs.com/release/' + info.discogsReleaseId) : undefined}/>
         <CoverPanel cover={cover} src={coverSrc} busy={cover.busy} inline/>

@@ -16,11 +16,10 @@ import {usePhotoSlots} from './PhotoSlots';
 import {useFormSubmit} from './shared';
 import {buildPayload} from './record/buildPayload';
 import {initialValues, seedFields, type FormCtx, type RecordValues} from './record/context';
-import {CoverPanel} from './record/CoverPanel';
 import {MoneySection} from './record/MoneySection';
 import {PhotoEntry} from './record/PhotoEntry';
 import {PackageReview, ReleaseDetails} from './record/ReleaseDetails';
-import {ReleaseLookupSection, summaryShown} from './record/ReleaseLookupSection';
+import {ReleaseLookupSection} from './record/ReleaseLookupSection';
 import {useCostPreview} from './record/useCostPreview';
 import {useCoverSearch} from './record/useCoverSearch';
 import {useRecordHints} from './record/useRecordHints';
@@ -116,7 +115,6 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
           ))}
         </div> : null}
         {id && !mbId && dupHint ? <p className="dup-hint">{dupHint}</p> : null}
-        {(id || identified || cover.candidates.length) && !summaryShown(v, lookup) ? <CoverPanel cover={cover} src={base.current.cover || ''} busy={cover.busy}/> : null}
         <h3 className="section-title form-group-title">这一张</h3>
         <PackageReview ctx={ctx} record={r}/>
         <CopyEditionFields obi={v.obi} onChange={change => { set(change); dirty(); }}/>
