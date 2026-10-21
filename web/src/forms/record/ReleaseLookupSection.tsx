@@ -68,7 +68,7 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc}: {
           <button type="button" className="quiet" onClick={L.enterManually}>手动录入</button></span> : null}
       </p> : null}
       {L.candidates.length ? <ul className="release-candidates" aria-label="选择发行版本">
-        {L.candidates.map(c => <ReleaseCandidateCard key={c.id} c={c}>{() =>
+        {L.candidates.map(c => <ReleaseCandidateCard key={c.id} c={c} fold>{() =>
           <button type="button" className="primary rcc-add" disabled={L.busy} onClick={() => void L.chooseRelease(c)}>
             选用此版本
           </button>}</ReleaseCandidateCard>)}
