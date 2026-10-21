@@ -86,7 +86,7 @@ class ReleaseCatalog:
             matched = digits(barcode)==digits(r.get('barcode','')) and any(norm(catno)==norm(n) for n in numbers)
         ri = clean_release_info({'catalogNumber':' / '.join(numbers), 'barcode':r.get('barcode',''),
             'label':' / '.join(l.get('label',{}).get('name','') for l in labels if l.get('label')),
-            'country':r.get('country',''), 'releaseDate':r.get('date',''), 'edition':r.get('disambiguation',''),
+            'country':r.get('country',''), 'releaseDate':'' if re.fullmatch(r'[0-]*', str(r.get('date') or '')) else r.get('date',''), 'edition':r.get('disambiguation',''),
             'packaging': r.get('packaging') or '', 'format':' + '.join(str(m.get('format','')) for m in media), 'discCount':str(len(media)) if media else ''})
         return {'id':r['id'],'title':display_release_title(r.get('title','')),
             'artist':''.join(a.get('name','') + a.get('joinphrase','') for a in r.get('artist-credit',[]) if isinstance(a,dict)),

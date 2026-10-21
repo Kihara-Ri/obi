@@ -33,7 +33,7 @@ export function ReleaseSummary({title, artist, info, source, url, art, headless}
 export interface CardCtx {info: ReleaseInfo; load: () => Promise<ReleaseInfo>; busy: boolean}
 
 /** fold：默认只显示一行关键信息（编号、地区、日期、条码），点开才出完整资料和操作（查询页用，省纵向空间）。 */
-export function ReleaseCandidateCard({c, fold, children}: {c: ReleaseCandidate; fold?: boolean; children?: (ctx: CardCtx) => ReactNode}) {
+export function ReleaseCandidateCard({c, fold, tag, children}: {c: ReleaseCandidate; fold?: boolean; tag?: string; children?: (ctx: CardCtx) => ReactNode}) {
   const [folded, setFolded] = useState(!!fold);  // 折叠卡片：头部一行始终在原位 + 可展开的主体
   const [full, setFull] = useState<ReleaseInfo | null>(null);
   const [open, setOpen] = useState(false);
@@ -90,7 +90,7 @@ export function ReleaseCandidateCard({c, fold, children}: {c: ReleaseCandidate; 
     <button type="button" className="rcc-fold" aria-expanded={!folded} onClick={() => setFolded(!folded)}>
       {art ? <img className="rcc-art" src={art} alt=""/> : <span className="rcc-art" aria-hidden="true"/>}
       <span className="rcc-main">
-        <strong>{dedupeCatalog(i0.catalogNumber) || c.title}</strong>
+        <strong>{dedupeCatalog(i0.catalogNumber) || c.title}{tag ? <em className="rcc-tag">{tag}</em> : null}</strong>
         <span>{[regionName(i0.country), i0.releaseDate, i0.label].filter(Boolean).join(' · ')}</span>
         {i0.barcode ? <span className="num">{i0.barcode}</span> : null}
       </span>

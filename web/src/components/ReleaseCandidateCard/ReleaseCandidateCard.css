@@ -44,3 +44,4 @@ a.rcc-source:hover{color:var(--text)}
 .is-open .rcc-collapse{grid-template-rows:1fr}
 .rcc-collapse-in{overflow:hidden;min-height:0;display:flex;flex-direction:column;gap:14px}
 .is-open .rcc-collapse-in{padding:2px 14px 14px}
+.rcc-tag{font-style:normal;font-size:11px;font-weight:600;margin-left:8px;padding:1px 8px;border-radius:99px;border:1px solid var(--accent-deep);color:var(--accent-deep);vertical-align:middle}

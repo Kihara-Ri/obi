@@ -3,7 +3,7 @@
 import {useState} from 'react';
 import {useApp} from '../state/AppContext';
 import {api} from '../core/api';
-import {ownedAlbums} from '../core/lookup';
+import {normalizeCatno, ownedAlbums} from '../core/lookup';
 import {statusName} from '../core/modules';
 import {openDetail} from '../forms/DetailDrawer';
 import type {AlbumRecord, ReleaseCandidate, ReleaseInfo} from '../types';
@@ -27,7 +27,11 @@ function Album({hit, owned, onAdd}: {hit: AlbumHit; owned: AlbumRecord[]; onAdd:
       .then(r => setVersions(r.candidates)).catch(err => setError(err instanceof Error ? err.message : String(err)));
   };
   const note = owned.length ? `已有 ${owned.length} 张（${owned.map(r => statusName(r.status, app.modules)).join('、')}）` : '还没有';
-  const list = versions ? (more ? versions : versions.slice(0, SHOWN)) : [];
+  // 库里这张的唱片编号（没有条码的旧记录靠它认）：对上的版本打标并排最前
+  const mine = new Set(owned.flatMap(r => (r.releaseInfo?.catalogNumber || '').split(' / ').map(normalizeCatno)).filter(Boolean));
+  const isMine = (c: ReleaseCandidate) => (c.releaseInfo.catalogNumber || '').split(' / ').some(n => mine.has(normalizeCatno(n)));
+  const ordered = versions ? [...versions].sort((a, b) => Number(isMine(b)) - Number(isMine(a))) : [];
+  const list = more ? ordered : ordered.slice(0, SHOWN);
   return <li className="album-hit">
     <div className="ah-row">
       <button type="button" className="ah-main" aria-expanded={open} onClick={toggle}>
@@ -40,7 +44,7 @@ function Album({hit, owned, onAdd}: {hit: AlbumHit; owned: AlbumRecord[]; onAdd:
     {open ? <div className="ah-versions">
       {error ? <p className="lookup-msg is-error" role="alert">{error}</p> : !versions ? <p className="lookup-msg" role="status">读取版本中…</p>
         : !versions.length ? <p className="lookup-msg">没有找到 CD 版本</p> : <ul>
-          {list.map(c => <LookupCard key={c.id} c={c} owned={note} onAdd={info => onAdd(c, info)}/>)}
+          {list.map(c => <LookupCard key={c.id} c={c} owned={note} tag={isMine(c) ? '库里这张' : undefined} onAdd={info => onAdd(c, info)}/>)}
           {!more && versions.length > SHOWN
             ? <button type="button" className="quiet" onClick={() => setMore(true)}>还有 {versions.length - SHOWN} 个版本</button> : null}
         </ul>}

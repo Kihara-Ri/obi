@@ -35,6 +35,13 @@ class TextSearchTests(unittest.TestCase):
             found = group_versions(ReleaseCatalog(), GID)
         self.assertEqual([c['releaseInfo']['country'] for c in found], ['JP', 'US'])
 
+    def test_identical_versions_collapse_and_zero_date_hidden(self):
+        data = {'releases': [release('22222222-2222-2222-2222-22222222222%d' % n, 'US', '', '0') for n in range(4)]}
+        with patch('server.release_catalog.read_json', return_value=data):
+            found = group_versions(ReleaseCatalog(), GID)
+        self.assertEqual(len(found), 1)
+        self.assertEqual(found[0]['releaseInfo']['releaseDate'], '')
+
     def test_rejects_short_text_and_bad_ids(self):
         with self.assertRaises(ValidationError): search_albums(ReleaseCatalog(), ' a ')
         with self.assertRaises(ValidationError): group_versions(ReleaseCatalog(), '../x')

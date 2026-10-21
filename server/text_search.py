@@ -84,5 +84,10 @@ def group_versions(cat, ident):
     with cat.catalog_lock:
         data = cat._mb_json('https://musicbrainz.org/ws/2/release/?' + urlencode(
             {'release-group': ident, 'inc': 'labels+media', 'fmt': 'json', 'limit': 100}))
-    found = [c for c in (cat.candidate(r) for r in data.get('releases', [])) if c]
+    found, seen = [], set()
+    for c in (cat.candidate(r) for r in data.get('releases', [])):
+        if not c: continue
+        i = c['releaseInfo']   # 同编号 / 地区 / 日期 / 厂牌 / 条码的重复收录只留一个，免得列表里一排一模一样的行
+        key = tuple(i.get(k, '') for k in ('catalogNumber', 'country', 'releaseDate', 'label', 'barcode', 'edition'))
+        if key not in seen: seen.add(key); found.append(c)
     return sorted(found, key=_rank)
