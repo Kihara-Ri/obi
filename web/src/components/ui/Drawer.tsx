@@ -214,6 +214,8 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
       if (!window.matchMedia(SHEET_QUERY).matches) return;
       const t = e.touches[0];
       if (t.clientX > 28) return;
+      // 贴边的按钮（头部返回箭头左缘就在 28px 内）不拦：preventDefault 会吞掉它的点击，表现为按下有反应却没效果
+      if (e.target instanceof Element && e.target.closest('button, a')) return;
       // 手起点落在 sheet 内部横向滚动条带上（如封面候选）时让位给原生横向滚动
       let node: Element | null = e.target instanceof Element ? e.target : null;
       while (node && node !== sheet) {
