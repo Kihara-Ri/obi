@@ -12,6 +12,7 @@ import {BulkBar} from '../components/BulkBar';
 import {AlbumCard, CardGrid} from '../components/Cards';
 import {Dropdown} from '../components/ui/Dropdown';
 import {Seg} from '../components/ui/Seg';
+import {TabPanel} from '../components/ui/TabPanel';
 import {SearchField} from '../components/ui/SearchField';
 import {ShowcaseSwitch, useShowcaseSwitch} from '../components/ShowcaseSwitch';
 import {useSlidingThumb} from '../components/ui/SlidingThumb';
@@ -229,10 +230,9 @@ export function ShelfPage() {
         ) : null}
         <Dropdown id="sort" value={sort} options={modules.acquisition ? SORTS : [{value: 'new', label: '最近添加'}, {value: 'artist', label: '按艺人'}]} label="排序方式"
                   onPick={v => app.setSort(v as SortMode)}/>
-        <div className="view-switch" role="group" aria-label="库存显示方式">
-          <button aria-label="列表视图" aria-pressed={app.shelfView === 'list'} onClick={() => app.setShelfView('list')}>☷ 列表</button>
-          <button aria-label="卡片视图" aria-pressed={app.shelfView === 'cards'} onClick={() => app.setShelfView('cards')}>▦ 卡片</button>
-        </div>
+        <Seg className="view-seg" persistKey="shelf-view" ariaLabel="库存显示方式" value={app.shelfView}
+             options={[{value: 'list', label: '☷ 列表', ariaLabel: '列表视图'}, {value: 'cards', label: '▦ 卡片', ariaLabel: '卡片视图'}]}
+             onValue={v => app.setShelfView(v as 'list' | 'cards')}/>
         {!isTrash && selectable.length ? <button className="mobile-select-toggle" aria-pressed={app.mobileSelecting || !!curSelected.size}
           onClick={() => {
             const next = !(app.mobileSelecting || curSelected.size);
@@ -241,7 +241,9 @@ export function ShelfPage() {
           }}>{app.mobileSelecting || curSelected.size ? '取消选择' : '选择'}</button> : null}
       </div>
       <BulkBar page={page} ids={[...curSelected]} isTrash={isTrash}/>
-      {body}
+      <TabPanel value={page} order={['domestic', 'overseas']}>
+        <TabPanel value={app.shelfView} order={['list', 'cards']} plain>{body}</TabPanel>
+      </TabPanel>
     </div>
   );
 }

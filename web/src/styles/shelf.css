@@ -100,9 +100,6 @@
 .shelf-location,.mobile-shelf-title,.mobile-select-toggle,.list-badges{display:none}
 
 /* 库存显示方式切换：桌面与手机共用同一偏好（本浏览器记忆）。 */
-.view-switch{display:flex;gap:2px;align-items:center;border:1px solid var(--border);border-radius:10px;padding:2px}
-.view-switch button{padding:7px 8px;min-height:36px;font-size:12px;background:none;border-color:transparent}
-.view-switch button[aria-pressed=true]{background:var(--surface-3);color:var(--accent-deep)}
 
 /* 列表视图（桌面 / 手机同一套行布局）：单列行 + 64px 封面，徽标移到行内。 */
 .shelf-list .grid{max-width:1000px;grid-template-columns:minmax(0,1fr);gap:0}
