@@ -31,6 +31,7 @@ class ProviderConfig(Credentials):
             state.setdefault('provider', 'api' if legacy.get('method') == 'api' else 'openai')
             state.setdefault('profiles', {})
             state.setdefault('catalogues', {})
+            state.setdefault('tests', {})
 
     def read(self):
         with self.locked() as state: return copy.deepcopy(state)

@@ -18,7 +18,9 @@ export interface ListingModelOption {
 }
 export interface ListingProvider {
   provider: ListingProviderId; effort: string; models: ListingModelOption[]; ready: boolean;
-  providers: {id: ListingProviderId; connected: boolean}[];
+  providers: {id: ListingProviderId; connected: boolean; inUse: boolean; tested?: boolean}[];
+  inUse: boolean; keyTail: string; keySource: 'saved' | 'server';
+  tested: {ok: boolean; at: number; error: string} | null;
   claudeInstalled: boolean; loginUrl: string;
   connected: boolean; method: 'oauth' | 'api'; model: string; active: string;
   accounts: {id: string; label: string}[]; hostId: string; apiConfigured: boolean;

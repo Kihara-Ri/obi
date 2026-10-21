@@ -128,3 +128,18 @@ class ProviderTests(unittest.TestCase):
             payload = json.loads(upstream.call_args.args[1])
             self.assertEqual(payload['thinking'], {'type': 'disabled'})
             self.assertNotIn('reasoning_effort', payload)
+
+
+class ProviderPageTests(ProviderTests):
+    def test_view_without_activating_and_connection_test_result(self):
+        self.providers.connect({'provider': 'deepseek', 'apiKey': 'test-only-abcd'})
+        view = self.providers.status('deepseek')
+        self.assertEqual((view['provider'], view['inUse'], view['keyTail'], view['tested']), ('deepseek', False, 'abcd', None))
+        self.assertNotEqual(self.providers.status()['provider'], 'deepseek')
+        with patch('server.listing_providers.request', return_value={'data': [{'id': 'm'}]}):
+            self.assertTrue(self.providers.test('deepseek')['tested']['ok'])
+        with patch('server.listing_providers.request', side_effect=ValidationError('授权已失效')):
+            tested = self.providers.test('deepseek')['tested']
+        self.assertEqual((tested['ok'], tested['error']), (False, '授权已失效'))
+        self.providers.connect({'provider': 'deepseek', 'apiKey': 'test-only-wxyz'})
+        self.assertIsNone(self.providers.status('deepseek')['tested'])

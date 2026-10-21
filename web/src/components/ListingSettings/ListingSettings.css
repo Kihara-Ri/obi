@@ -1,6 +1,26 @@
-.listing-settings{display:grid;gap:var(--listing-gap);justify-items:start}
-.listing-settings .dd{max-width:100%}
+.listing-settings{display:grid;gap:var(--listing-gap);justify-items:stretch}
+.listing-settings .small-note{overflow-wrap:anywhere}
 .listing-credentials{display:grid;gap:var(--listing-gap);width:100%}
 .listing-credentials label{display:grid;gap:var(--listing-gap);width:100%}
 .listing-credentials input{width:100%;min-width:0}
-.listing-settings .small-note{overflow-wrap:anywhere}
+.provider-list{list-style:none;margin:0;padding:0;display:grid;gap:var(--listing-gap-sm)}
+.provider-item{display:flex;align-items:center;gap:12px;width:100%;min-height:var(--listing-touch-size);padding:10px 12px;text-align:left;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);color:var(--text)}
+.provider-item-main{flex:1;min-width:0;display:grid}
+.provider-item-main small{color:var(--muted);font-size:12px;overflow-wrap:anywhere}
+.provider-tile{flex:none;display:inline-grid;place-items:center;width:40px;height:40px;border-radius:var(--radius-sm);background:var(--accent-wash);color:var(--accent-text);font-weight:700;font-size:18px}
+.provider-badges{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}
+.provider-badges span{padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;border:1px solid var(--border-strong);color:var(--muted)}
+.provider-badges .badge-ok{color:var(--green);border-color:var(--green)}
+.provider-badges .badge-bad{color:var(--red);border-color:var(--red)}
+.provider-badges .badge-warn{color:var(--orange);border-color:var(--orange)}
+.provider-badges .badge-use{color:var(--accent-ink);background:var(--accent);border-color:var(--accent)}
+.provider-page{display:grid;gap:var(--listing-gap)}
+.provider-head{display:flex;gap:12px;align-items:flex-start}
+.provider-head h3{margin:0}
+.provider-section{display:grid;gap:var(--listing-gap-sm);padding:14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2)}
+.provider-section h4{margin:0;font-size:14px}
+.provider-block{display:grid;gap:var(--listing-gap-sm)}
+.provider-keyrow{display:flex;flex-wrap:wrap;align-items:center;gap:var(--listing-gap-sm)}
+.provider-mask{font-family:ui-monospace,monospace;color:var(--muted);margin-right:auto;overflow-wrap:anywhere}
+.provider-keyrow .danger{color:var(--red)}
+.provider-use{justify-self:stretch;min-height:var(--listing-touch-size)}

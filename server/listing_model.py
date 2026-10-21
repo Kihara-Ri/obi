@@ -50,7 +50,7 @@ class ListingModel:
         self.auth.cancel()
         with self.providers.claude.operation: self.providers.claude.login.cancel()
 
-    def status(self): return self.providers.status()
+    def status(self, provider=None): return self.providers.status(provider)
 
     def snapshot(self): return self.providers.snapshot()
 

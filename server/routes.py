@@ -18,7 +18,7 @@ from .artists import SourceUnavailableError
 from .version import uptime, version
 from .listing_routes import (api_listing_status, api_listing_analyze, api_listing_job,
     api_listing_draft, api_listing_photos, api_listing_login, api_listing_disconnect,
-    api_listing_provider, api_listing_models, api_listing_connection, api_listing_auth_code)
+    api_listing_provider, api_listing_models, api_listing_connection, api_listing_auth_code, api_listing_test)
 
 # 所有改状态的 store 调用共用一把锁，串行化并发写
 WRITE_LOCK = threading.Lock()
@@ -571,6 +571,7 @@ POST = {
     '/api/listing/disconnect': (api_listing_disconnect, True, False),
     '/api/listing/provider': (api_listing_provider, True, False),
     '/api/listing/connection': (api_listing_connection, True, False),
+    '/api/listing/test': (api_listing_test, True, False),
     '/api/listing/auth-code': (api_listing_auth_code, True, False),
     '/api/catalog/barcode': (api_barcode_lookup, True, False),
     '/api/catalog/barcode/verify': (api_verify_barcode, True, False),

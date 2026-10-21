@@ -1,6 +1,7 @@
 """独立保存各服务商连接、模型和强度；目录按授权身份隔离，任务快照不对外返回。"""
 import copy
 import os
+import time
 from domain import ValidationError
 from .chatgpt_credentials import RESOURCE
 from .listing_capabilities import normalize_models
@@ -30,9 +31,9 @@ class ListingProviders:
         name = provider + ':' + scope
         return name, state['profiles'].get(name, {}), connected
 
-    def status(self):
+    def status(self, view=None):
         state = self.config.read()
-        provider = state['provider']
+        provider = provider_id(view) if view else state['provider']
         name, profile, connected = self.profile(provider, state)
         legacy, claude = self.auth.status(), self.claude.status()
         models = state['catalogues'].get(name, [])
@@ -40,13 +41,16 @@ class ListingProviders:
         selected = next((row for row in models if row['value'] == model), None)
         ready = connected and bool(model) and (provider == 'api' or selected is not None and selected['vision'] is not False)
         login = claude if provider == 'anthropic' else legacy
-        return {**legacy, 'provider': provider, 'method': 'api' if provider in ('api', 'deepseek') else 'oauth',
+        key = api_key(provider, state) if provider in ('api', 'deepseek') else ''
+        return {**legacy, 'provider': provider, 'inUse': provider == state['provider'], 'keyTail': key[-4:],
+                'tested': state.get('tests', {}).get(name), 'keySource': 'saved' if state['profiles'].get(provider, {}).get('apiKey') else 'server', 'method': 'api' if provider in ('api', 'deepseek') else 'oauth',
                 'model': model, 'effort': profile.get('effort', ''), 'connected': connected, 'ready': bool(ready),
                 'models': models, 'apiConfigured': bool(api_key('api', state) and os.getenv('LISTING_API_MODEL')),
                 'apiModel': os.getenv('LISTING_API_MODEL', ''), 'loginPending': login.get('loginPending', False),
                 'loginError': login.get('loginError', ''), 'loginUrl': login.get('loginUrl', ''),
                 'claudeInstalled': claude['installed'], 'providers': [
-                    {'id': item, 'connected': self.identity(item, state)[1]} for item in ('openai', 'deepseek', 'anthropic', 'api')]}
+                    {'id': item, 'connected': self.identity(item, state)[1], 'inUse': item == state['provider'],
+                     'tested': (state.get('tests', {}).get(self.profile(item, state)[0]) or {}).get('ok')} for item in ('openai', 'deepseek', 'anthropic', 'api')]}
 
     def configure(self, data):
         state = self.config.read()
@@ -78,7 +82,7 @@ class ListingProviders:
             raise ValidationError('请输入有效的 DeepSeek API Key')
         with self.config.locked() as state:
             state['profiles'][provider] = {'apiKey': key}
-            for field in ('profiles', 'catalogues'):
+            for field in ('profiles', 'catalogues', 'tests'):
                 for name in list(state[field]):
                     if name.startswith(provider + ':'): del state[field][name]
         return self.status()
@@ -103,6 +107,17 @@ class ListingProviders:
             elif profile.get('effort') and profile['effort'] not in selected['efforts']: profile['effort'] = ''
         return rows
 
+    def test(self, provider):
+        provider = provider_id(provider)
+        name = self.profile(provider, self.config.read())[0]
+        try:
+            self.models(provider)
+            result = {'ok': True, 'at': int(time.time()), 'error': ''}
+        except Exception as e:
+            result = {'ok': False, 'at': int(time.time()), 'error': str(e) if isinstance(e, ValidationError) else '连接失败，请稍后重试'}
+        with self.config.locked() as state: state.setdefault('tests', {})[name] = result
+        return self.status(provider)
+
     def snapshot(self):
         state = self.config.read()
         provider = state['provider']
@@ -122,7 +137,7 @@ class ListingProviders:
         if provider == 'api': raise ValidationError('请在服务端移除 API 密钥配置')
         with self.config.locked() as state:
             state['profiles'][provider] = {'disabled': True}
-            for field in ('profiles', 'catalogues'):
+            for field in ('profiles', 'catalogues', 'tests'):
                 for name in list(state[field]):
                     if name.startswith(provider + ':'): del state[field][name]
         return {'revoked': True}
