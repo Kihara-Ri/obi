@@ -6,7 +6,6 @@ div.nav-row{cursor:default}
 .nav-row-icon{display:flex;align-items:center;justify-content:center;flex:none;width:24px;font-size:19px;color:var(--muted)}
 .nav-row-title{flex:1;min-width:0}
 .nav-row-value{flex:none;font-size:13px;font-weight:500;color:var(--muted);font-variant-numeric:tabular-nums}
-.nav-row-arrow{flex:none;font-size:24px;line-height:1;color:var(--faint)}
 @media (max-width:840px){
   .nav-row{min-height:60px}
 }

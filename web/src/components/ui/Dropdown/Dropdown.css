@@ -3,8 +3,6 @@
 .dd-btn{display:inline-flex;align-items:center;gap:9px;padding:9px 13px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);font-weight:500;font-size:13px;color:var(--text);white-space:nowrap;transition:border-color .15s,background .15s}
 .dd-btn:hover{background:var(--surface-3);border-color:var(--border-strong)}
 .dd-btn:disabled{opacity:.5;cursor:not-allowed}
-.dd-caret{display:flex;align-items:center;justify-content:center;flex:none;width:14px;height:14px;color:var(--muted);transition:transform var(--dur) var(--ease-out)}
-.dd-btn[aria-expanded=true] .dd-caret{transform:rotate(180deg)}
 
 .dd-list{position:absolute;top:calc(100% + 5px);left:auto;right:0;width:max-content;min-width:100%;z-index:20;background:var(--surface-3);border:1px solid var(--border-strong);border-radius:11px;box-shadow:var(--shadow);max-height:236px;overflow-y:auto;overscroll-behavior:contain;padding:5px}
 .dd-list{transform-origin:top right;animation:menu-in var(--dur) var(--ease-out)}

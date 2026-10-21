@@ -9,10 +9,9 @@
 .ship-stack-layer:nth-child(1){z-index:5}.ship-stack-layer:nth-child(2){z-index:4}.ship-stack-layer:nth-child(3){z-index:3}
 .ship-stack-layer:nth-child(4){z-index:2}.ship-stack-layer:nth-child(5){z-index:1}
 .ship-stack-count{font-size:13px;font-weight:650;font-variant-numeric:tabular-nums;min-width:2ch}
-.ship-stack-chev{margin-left:auto;display:inline-flex;transition:transform var(--dur) var(--ease-out)}
-.ship-stack.is-open .ship-stack-chev{transform:rotate(180deg)}
+.ship-stack-chev{margin-left:auto}
 /* 展开后摞子淡出收成一行小缩略，避免与下方列表重复占高 */
 .ship-stack.is-open .ship-stack-pile{height:28px;width:calc(28px + (var(--n,1) - 1) * 10px)}
 .ship-stack.is-open .ship-stack-layer{width:28px;height:28px;left:calc(var(--i) * 10px);border-radius:4px;transform:none}
 .ship-stack-pile{transition:height var(--dur) var(--ease-out),width var(--dur) var(--ease-out)}
-@media (prefers-reduced-motion:reduce){.ship-stack-layer,.ship-stack-pile,.ship-stack-chev{transition:none}}
+@media (prefers-reduced-motion:reduce){.ship-stack-layer,.ship-stack-pile{transition:none}}

@@ -1,5 +1,5 @@
 import {useEffect, useId, useRef, useState, type KeyboardEvent} from 'react';
-import {ChevDownIco} from './icons';
+import {Chevron} from './ui/Chevron';
 
 const SPEEDS = Object.freeze(Array.from({length: 29}, (_, index) => index + 2));
 
@@ -89,7 +89,7 @@ export function GalleryRoamingSpeed({disabled = false, discrete = false, isometr
       aria-haspopup="dialog" aria-expanded={open} aria-controls={`${id}-dialog`} disabled={disabled}
       onClick={() => {setDraft(current); setOpen(true);}}>
       <span><strong>{current}</strong> {unit}</span>
-      <span className="dd-caret" aria-hidden="true">{ChevDownIco}</span>
+      <Chevron/>
     </button>
     <dialog ref={dialogRef} id={`${id}-dialog`} className="gallery-speed-picker"
       aria-modal="true" aria-labelledby={`${id}-title`} aria-describedby={`${id}-description`}

@@ -14,7 +14,7 @@ import {GalleryRoamingSwitch, GalleryRoamingSpeed} from '../components/GalleryRo
 import {Dropdown} from '../components/ui/Dropdown';
 import {Seg} from '../components/ui/Seg';
 import {ShowcaseSwitch, useShowcaseSwitch} from '../components/ShowcaseSwitch';
-import {ChevDownIco} from '../components/icons';
+import {Chevron} from '../components/ui/Chevron';
 import {openArtistDrawer} from '../forms/ArtistDrawer';
 import {ShowcaseGroupForm} from '../forms/ShowcaseGroupForm';
 
@@ -208,7 +208,7 @@ export function GalleryPage() {
         <div className="gallery-filter-inputs">
           <button type="button" className="gallery-scope-trigger" onClick={chooseScope} aria-haspopup="dialog"
                   aria-label={`展示范围：${scopeLabel}`} title={scopeLabel}>
-            <strong>{scopeLabel}</strong><span className="dd-caret" aria-hidden="true">{ChevDownIco}</span>
+            <strong>{scopeLabel}</strong><Chevron/>
           </button>
           <label className="gallery-search"><span className="gallery-visually-hidden">搜索收藏</span>
             <input type="search" placeholder="搜索专辑或艺人" value={query} onChange={e => setQuery(e.target.value)}/>
@@ -217,7 +217,7 @@ export function GalleryPage() {
         <div className="gallery-toolbar">
           <button type="button" className="gallery-mode-trigger" onClick={chooseMode} aria-haspopup="dialog"
                   aria-label={`展示方式：${modeLabel}`}>
-            <strong>{modeLabel}</strong><span className="dd-caret" aria-hidden="true">{ChevDownIco}</span>
+            <strong>{modeLabel}</strong><Chevron/>
           </button>
           <span className="gallery-count" role="status" aria-atomic="true"
                 title={`${records.length} 张${query.trim() ? '匹配的' : ''}收藏`}>
@@ -225,7 +225,7 @@ export function GalleryPage() {
           </span>
           <button type="button" className="gallery-adjust-trigger" aria-expanded={adjusting}
             aria-controls="gallery-adjustments" onClick={() => setAdjusting(v => !v)}>
-            展示设置<span className="dd-caret" aria-hidden="true">{ChevDownIco}</span>
+            展示设置<Chevron/>
           </button>
           <GalleryRoamingSwitch enabled={roaming} disabled={!records.length && !roaming} onToggle={() => setRoaming(v => !v)}/>
           <a className="gallery-manage-link" href="#domestic" aria-label="管理收藏" title="管理收藏">管理</a>

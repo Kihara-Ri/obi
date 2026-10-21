@@ -1,5 +1,6 @@
 // 管理页（详情的二级页）：管钱——买入信息（可编辑）、这一张的备注全文、上架、运输、交易历史，以及流转（海外 / 国内库存切换 + 移除）。
 // 按用户的操作顺序排，不按字段排；流转操作放最底并保留原有的移除确认语义（回收站可恢复）。
+import {Chevron} from '../../components/ui/Chevron';
 import {useApp} from '../../state/AppContext';
 import type {AppCtx} from '../../state/AppContext';
 import {fmt, fmtJPY, jpyCost, rmb, shipFeeText, yuan} from '../../core/format';
@@ -41,7 +42,7 @@ function ManageBody({id}: {id: string}) {
         {label: '折合成本', value: r.cost === null ? '待补' : <b>{yuan(r.cost)}</b>},
       ]}/>
       <button type="button" className="entry-btn" onClick={() => openPurchaseForm(app, id)}>
-        编辑买入信息<i aria-hidden="true">›</i></button>
+        编辑买入信息<Chevron dir="right"/></button>
     </> : null}
     {r.note || r.noteAlbum ? <>
       <h3 className="section-title">备注</h3>
@@ -57,7 +58,7 @@ function ManageBody({id}: {id: string}) {
       {r.listingDescription ? <p className="note-text listing-description">{r.listingDescription}
         <CopyButton text={r.listingDescription} label="复制上架描述"/></p> : null}
       {inStock ? <button type="button" className="entry-btn" onClick={() => openListingForm(app, id)}>
-        编辑上架资料<i aria-hidden="true">›</i></button> : null}
+        编辑上架资料<Chevron dir="right"/></button> : null}
     </> : null}
     {modules.circulation && shipment && shipment.status !== 'cancelled' ? <>
       <h3 className="section-title">运输</h3>

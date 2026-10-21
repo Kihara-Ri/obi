@@ -5,7 +5,7 @@ import {useId, useState, type ReactNode} from 'react';
 import type {AlbumRecord} from '../../types';
 import {Cover} from '../Cover';
 import {Collapse} from '../ui/Collapse';
-import {ChevDownIco} from '../icons';
+import {Chevron} from '../ui/Chevron';
 import './ShipmentStack.css';
 
 const MAX_LAYERS = 5;
@@ -28,7 +28,7 @@ export function ShipmentStack({records, children}: {records: AlbumRecord[]; chil
           ))}
         </span>
         <span className="ship-stack-count">{rest > 0 ? `+${rest}` : ''}</span>
-        <span className="ship-stack-chev">{ChevDownIco}</span>
+        <Chevron className="ship-stack-chev" open={open}/>
       </button>
       <Collapse id={panelId} open={open}>{children}</Collapse>
     </div>

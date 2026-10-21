@@ -2,8 +2,6 @@
 .disclosure{margin:8px 0}
 .disclosure>summary{display:inline-flex;align-items:center;gap:6px;min-height:28px;cursor:pointer;color:var(--muted);font-size:12.5px;list-style:none}
 .disclosure>summary::-webkit-details-marker{display:none}
-.disclosure>summary::before{content:"›";display:inline-block;font-size:16px;line-height:1;transition:transform var(--dur) var(--ease-out)}
-.disclosure[open]>summary::before{transform:rotate(90deg)}
 .disclosure>summary:hover{color:var(--text)}
 .disclosure[open]>.disclosure-body{animation:disclosure-in var(--dur) var(--ease-out)}
 @keyframes disclosure-in{from{opacity:0;transform:translateY(-4px)}}

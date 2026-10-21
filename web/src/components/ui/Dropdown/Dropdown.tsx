@@ -7,7 +7,7 @@
 // 浮层靠近视口底部、且上方更宽裕时向上展开。
 import {useEffect, useId, useLayoutEffect, useRef, useState} from 'react';
 import type {KeyboardEvent} from 'react';
-import {ChevDownIco} from '../../icons';
+import {Chevron} from '../Chevron';
 import {useLeaving} from '../useLeaving';
 import './Dropdown.css';
 
@@ -153,7 +153,7 @@ export function Dropdown({id, value, options, label, onPick, className = '', dis
               aria-label={`${label}：${cur?.label ?? ''}`} disabled={disabled}
               onClick={() => (open ? close() : openList())}>
         <span className="dd-label">{cur?.label}</span>
-        <span className="dd-caret" aria-hidden="true">{ChevDownIco}</span>
+        <Chevron open={open}/>
       </button>
       <div className={`dd-list${up ? ' dd-list--up' : ''}${leaving ? ' is-leaving' : ''}`} id={`${uid}-list`} role="listbox" aria-label={label}
            data-nav={keyNav ? 'key' : undefined} hidden={!open && !leaving} ref={listRef}>

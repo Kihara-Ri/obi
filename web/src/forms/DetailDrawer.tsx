@@ -1,6 +1,7 @@
 // 专辑详情（摘要层）：身份 → 状态行 → 关键信息（≤6 项）→ 照片 → 备注摘要 → 「发行资料」「管理」入口；底栏只放主要操作。
 // 更详细的内容在二级页：发行资料页（forms/detail/ReleasePage）与管理页（forms/detail/ManagePage），决定见 D-015。
 // 备注在这里只截两行，全文在管理页；调回海外 / 移除等流转操作也在管理页。
+import {Chevron} from '../components/ui/Chevron';
 import {ArtistButton} from '../components/ArtistButton';
 import {openArtistDrawer} from './ArtistDrawer';
 import {useApp} from '../state/AppContext';
@@ -102,7 +103,7 @@ function DetailBody({id, back}: {id: string; back?: DetailBack}) {
         onClick={() => openManagePage(app, id)}>
         {r.note ? <span><b>副本</b>{r.note}</span> : null}
         {r.noteAlbum ? <span><b>专辑</b>{r.noteAlbum}</span> : null}
-        <i aria-hidden="true">›</i>
+        <Chevron dir="right"/>
       </button> : null}
       <nav className="detail-entries" aria-label="更多">
         {hasRelease ? <NavRow icon={InfoIco} title="发行资料" onClick={() => openReleasePage(app, id)}/> : null}

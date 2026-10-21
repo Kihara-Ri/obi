@@ -3,6 +3,7 @@ import {useEffect, useState} from 'react';
 import {api} from '../../core/api';
 import type {ListingProvider} from '../../core/listing';
 import {useApp} from '../../state/AppContext';
+import {Chevron, Collapse} from '../ui';
 import {PROVIDER_NAMES} from './providerNames';
 import {ProviderIcon} from './ProviderIcon';
 import {ProviderPage} from './ProviderPage';
@@ -37,7 +38,7 @@ export function ListingSettings() {
           <span className={row.tested ? 'badge-ok' : row.connected ? 'badge-warn' : 'badge-off'}>
             {row.tested ? '已通过测试' : row.connected ? '未测试' : '未连接'}</span>
         </span></span>
-      <span aria-hidden="true">›</span>
+      <Chevron dir="right"/>
     </button></li>;
   };
   return <section className="settings-section listing-settings" aria-label="视觉模型接口设置">
@@ -52,10 +53,10 @@ export function ListingSettings() {
           <span className="provider-stack-icons" aria-hidden="true">
             {others.map(row => <ProviderIcon key={row.id} id={row.id} size={26}/>)}</span>
           <span>{open ? '收起其他服务商' : `切换或添加服务商（${others.length}）`}</span>
-          <i className="chev" aria-hidden="true"/>
+          <Chevron open={open}/>
         </button> : null}
-        <div className={'fold-box' + (open || !current ? ' is-open' : '')}><div className="fold-in" inert={!(open || !current)}>
-          <ul className="provider-list">{others.map(row => <Row key={row.id} row={row}/>)}</ul></div></div>
+        <Collapse open={open || !current}>
+          <ul className="provider-list">{others.map(row => <Row key={row.id} row={row}/>)}</ul></Collapse>
       </> : null}
     </> : <p role="status">正在读取识别配置…</p>}
   </section>;

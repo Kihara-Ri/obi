@@ -6,7 +6,7 @@ import {searchScore} from '../core/search';
 import {useApp} from '../state/AppContext';
 import {PageHead} from '../components/PageHead';
 import {SaleCard} from '../components/SaleCard';
-import {Dropdown} from '../components/ui/Dropdown';
+import {Seg} from '../components/ui/Seg';
 import {SearchField} from '../components/ui/SearchField';
 import {openSaleCostsForm} from '../forms/SaleCostsForm';
 
@@ -47,8 +47,8 @@ export function TradesPage() {
       <div className="toolbar">
         <SearchField id="sale-search" ariaLabel="搜索交易" placeholder="搜索专辑、艺人或地址…"
                      value={query} onChange={app.setQuery}/>
-        <Dropdown id="trade-filter" value={tradeFilter} options={TRADE_FILTERS}
-                  label="交易状态" onPick={v => app.setTradeFilter(v)}/>
+        <Seg className="filter-seg" persistKey="trade-filter" ariaLabel="交易状态" options={TRADE_FILTERS}
+             value={tradeFilter} onValue={app.setTradeFilter}/>
       </div>
       <div id="sales-list">
         {sales.length

@@ -25,7 +25,6 @@
 .showcase-group-record-copy>span{display:block;font-size:10px;color:var(--muted);overflow-wrap:anywhere}
 .showcase-group-reorder{display:flex;flex:none;gap:2px}
 .showcase-group-reorder button{width:44px;min-height:44px;padding:4px;font-size:17px}
-.showcase-group-reorder .group-move-up svg{transform:rotate(180deg)}
 .showcase-group-missing{display:flex;align-items:center;justify-content:center;background:var(--surface-2);color:var(--muted)}
 .showcase-group-available{display:flex;flex-direction:column;gap:8px}
 .showcase-group-add{display:flex;align-items:center;gap:10px;min-height:48px;padding:6px 8px;text-align:left;white-space:normal}

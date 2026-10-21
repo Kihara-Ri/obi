@@ -1,5 +1,6 @@
 // 艺人资料面板（纯展示）：结构化概况、我的收藏、分类目录、候选确认与副本关联。
 // 只接收 props 与回调，不做请求；打开、状态与详情往返由 forms/ArtistDrawer 负责。
+import {Chevron} from './ui/Chevron';
 import {useEffect, useRef, useState} from 'react';
 import {createPortal} from 'react-dom';
 import type {ReactNode} from 'react';
@@ -479,7 +480,7 @@ export function ArtistProfile(props: ArtistProfileProps) {
         <section className="profile-unlinked">
           <button type="button" className="quiet" aria-expanded={unlinkedOpen}
                   onClick={() => setUnlinkedOpen(v => !v)}>
-            未关联的本地副本 · {unlinked.length} 张 {unlinkedOpen ? '▾' : '▸'}
+            未关联的本地副本 · {unlinked.length} 张 <Chevron open={unlinkedOpen}/>
           </button>
           {unlinkedOpen ? (
             <ul className="copy-list">

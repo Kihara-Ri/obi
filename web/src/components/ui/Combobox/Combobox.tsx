@@ -6,7 +6,7 @@
 // 每个选项可带 leading（图标/标记），输入框左侧可放 leading 元素。
 import {useEffect, useId, useMemo, useRef, useState} from 'react';
 import type {KeyboardEvent, ReactNode} from 'react';
-import {ChevDownIco} from '../../icons';
+import {Chevron} from '../Chevron';
 import {useLeaving} from '../useLeaving';
 import './Combobox.css';
 
@@ -101,7 +101,7 @@ export function Combobox({
                onClick={() => { if (!open) show(); }}
                onKeyDown={onKeyDown}/>
         <button type="button" className="cb-toggle" aria-label={toggleLabel} disabled={disabled}
-                onClick={() => { if (open) close(); else show(); }}>{ChevDownIco}</button>
+                onClick={() => { if (open) close(); else show(); }}><Chevron open={open}/></button>
       </div>
       <div id={listId} className={leaving ? 'cb-list is-leaving' : 'cb-list'} role="listbox" aria-label={listLabel} hidden={!open && !leaving} ref={listRef}>
         {matches.map((o, i) => (

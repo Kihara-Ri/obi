@@ -102,7 +102,5 @@
 /* 折叠区做成与 detail-grid 行同款的分隔行，不再套边框盒子 */
 details.adv.profile-more,details.adv.profile-foot{margin-top:0;padding:0;border:0;border-bottom:1px solid var(--border);border-radius:0}
 .profile-more summary,.profile-foot summary{display:flex;align-items:center;gap:6px;min-height:44px;font-size:12.5px;color:var(--muted)}
-.profile-more summary::before,.profile-foot summary::before{content:'▸'}
-.profile-more[open] summary::before,.profile-foot[open] summary::before{content:'▾'}
 .profile-more[open] summary,.profile-foot[open] summary{margin-bottom:0}
 .profile-foot>:last-child{margin-bottom:12px}

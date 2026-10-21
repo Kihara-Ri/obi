@@ -1,0 +1,11 @@
+/* Chevron：14px 固定尺寸，颜色随上下文（默认 muted）。旋转动画统一用 --dur + --ease-out。 */
+.chev{display:inline-flex;align-items:center;justify-content:center;flex:none;width:14px;height:14px;color:var(--muted);
+  transition:transform var(--dur) var(--ease-out)}
+.chev>svg{width:100%;height:100%;display:block}
+.chev-right{transform:rotate(-90deg)}
+.chev-down.is-open{transform:rotate(180deg)}
+.chev-right.is-open{transform:rotate(0)}
+/* 由容器的 aria-expanded / details[open] 驱动时不必逐个传 open */
+[aria-expanded="true"]>.chev-down{transform:rotate(180deg)}
+[aria-expanded="true"]>.chev-right,details[open]>summary>.chev-right{transform:rotate(0)}
+@media (prefers-reduced-motion:reduce){.chev{transition:none}}

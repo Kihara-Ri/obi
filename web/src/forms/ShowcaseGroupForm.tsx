@@ -6,7 +6,7 @@ import {isCollectedRecord} from '../core/gallery';
 import type {ShowcaseGroup, ShowcaseGroups} from '../core/gallery';
 import {labelTags} from '../types';
 import {GalleryArtwork} from '../components/GalleryMedia';
-import {ChevDownIco} from '../components/icons';
+import {Chevron} from '../components/ui/Chevron';
 
 export function ShowcaseGroupForm({group, store, onSaved, onDeleted}: {
   group?: ShowcaseGroup; store: ShowcaseGroups; onSaved(id: string): void; onDeleted(id: string): void;
@@ -75,8 +75,8 @@ export function ShowcaseGroupForm({group, store, onSaved, onDeleted}: {
           <div className="showcase-group-record-copy"><strong>{r?.title ?? '已不存在的副本'}</strong>
             <span>{r ? [r.artist, ...labelTags(r)].join(' · ') : '保留的组成员'}{r && !isCollectedRecord(r) ? ' · 当前不展示' : ''}</span></div>
           <div className="showcase-group-reorder">
-            <button type="button" className="quiet group-move-up" disabled={saving || i === 0} aria-label={`上移：${r?.title ?? '组成员'}`} onClick={() => move(i, -1)}>{ChevDownIco}</button>
-            <button type="button" className="quiet" disabled={saving || i === ids.length - 1} aria-label={`下移：${r?.title ?? '组成员'}`} onClick={() => move(i, 1)}>{ChevDownIco}</button>
+            <button type="button" className="quiet group-move-up" disabled={saving || i === 0} aria-label={`上移：${r?.title ?? '组成员'}`} onClick={() => move(i, -1)}><Chevron open/></button>
+            <button type="button" className="quiet" disabled={saving || i === ids.length - 1} aria-label={`下移：${r?.title ?? '组成员'}`} onClick={() => move(i, 1)}><Chevron/></button>
             <button type="button" className="quiet" disabled={saving} aria-label={`移出组：${r?.title ?? '组成员'}`} onClick={() => change(ids.filter(value => value !== id))}>×</button>
           </div>
         </div>;

@@ -11,6 +11,7 @@ import {PageHead} from '../components/PageHead';
 import {BulkBar} from '../components/BulkBar';
 import {AlbumCard, CardGrid} from '../components/Cards';
 import {Dropdown} from '../components/ui/Dropdown';
+import {Seg} from '../components/ui/Seg';
 import {SearchField} from '../components/ui/SearchField';
 import {ShowcaseSwitch, useShowcaseSwitch} from '../components/ShowcaseSwitch';
 import {useSlidingThumb} from '../components/ui/SlidingThumb';
@@ -223,8 +224,8 @@ export function ShelfPage() {
                   onClick={() => app.setFlip(!flip)}>⇅</button>
         ) : null}
         {!isTrash && modules.trading ? (
-          <Dropdown id="listed" value={shelfFilter} options={LISTED_FILTERS} label="上架筛选"
-                    onPick={v => app.setShelfFilter(v)}/>
+          <Seg className="filter-seg" persistKey="shelf-listed" ariaLabel="上架筛选" options={LISTED_FILTERS}
+               value={shelfFilter} onValue={app.setShelfFilter}/>
         ) : null}
         <Dropdown id="sort" value={sort} options={modules.acquisition ? SORTS : [{value: 'new', label: '最近添加'}, {value: 'artist', label: '按艺人'}]} label="排序方式"
                   onPick={v => app.setSort(v as SortMode)}/>

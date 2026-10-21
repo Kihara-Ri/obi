@@ -1,4 +1,5 @@
 import {useState} from 'react';
+import {Chevron} from './ui/Chevron';
 import type {ReleaseInfo, ReleaseMedium} from '../types';
 import {trackDiscs, trackDuration} from '../core/tracklist';
 
@@ -49,9 +50,7 @@ export function Tracklist({releaseInfo}: {releaseInfo: ReleaseInfo}) {
               {disc.title ? <small>{disc.title}</small> : null}
             </span>
             <span className="record-track-disc-count">{disc.tracks.length} 首</span>
-            <svg className={`record-track-chevron${isOpen ? ' is-open' : ''}`} aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="m6 9 6 6 6-6"/>
-            </svg>
+            <Chevron open={isOpen}/>
           </button>
           {isOpen ? <DiscTracks disc={disc}/> : null}
         </section>;
