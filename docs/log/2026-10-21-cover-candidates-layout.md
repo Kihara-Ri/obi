@@ -23,3 +23,8 @@ typecheck、web 测试、构建通过；未在真机截图确认。
 
 ## 追加：「使用」按钮遮住文字
 候选行是 `<button>`，按钮继承了 `white-space:nowrap`，说明文字不换行、被右侧「使用」压住（grid 单列也是 auto 宽）。行上显式 `white-space:normal`，文字列改 `minmax(0,1fr)`；服务商行同样处理。未在真机确认。
+
+## 追加：折叠箭头与展开动画
+- 原来展开/收起用 ⌄ / ⌃ 两个字符，是两个不同的图形，切换时跳变。改为同一个 CSS 画的箭头（`.chev`），展开时整体旋转 180°（`styles/components.css`）。
+- 列表原先条件渲染（出现/消失瞬变）；改为始终渲染在 `.fold-box` 里，用 grid 行高 `0fr↔1fr` + 透明度过渡，收起时 `inert`。封面候选与服务商「切换或添加服务商」共用。
+- 支持 `prefers-reduced-motion`。未在真机确认动画观感。

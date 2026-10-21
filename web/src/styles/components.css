@@ -102,3 +102,11 @@ img.cover.is-ready{opacity:1}
 @keyframes spin-ico{to{transform:rotate(1turn)}}
 @media (prefers-reduced-motion:reduce){.spin-ico{animation-duration:2s}}
 .summary .hint-link{color:var(--accent-deep);text-decoration:none}
+/* 通用折叠：.chev 是同一个箭头，展开时整体转 180°；.fold-box 用 grid 行高 0fr↔1fr 做高度动画（无需量高度）。 */
+.chev{flex:none;position:relative;width:18px;height:18px;transition:transform var(--dur-slow) var(--ease-out)}
+.chev::before{content:"";position:absolute;left:4px;top:3px;width:8px;height:8px;border:solid currentColor;border-width:0 2px 2px 0;border-radius:1px;transform:rotate(45deg)}
+[aria-expanded="true"]>.chev{transform:rotate(180deg)}
+.fold-box{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows var(--dur-slow) var(--ease-out),opacity var(--dur-slow) var(--ease-soft)}
+.fold-box.is-open{grid-template-rows:1fr;opacity:1}
+.fold-in{min-height:0;overflow:hidden}
+@media (prefers-reduced-motion:reduce){.chev,.fold-box{transition:none}}

@@ -22,16 +22,17 @@ export function CoverPanel({cover, src, busy, inline}: {cover: CoverSearch; src:
           <span className="cover-deck-stack" aria-hidden="true">
             {cover.candidates.slice(0, 5).map(c => <img key={c.token} src={c.thumbnail} alt=""/>)}</span>
           <span>{open ? '收起候选' : `${cover.candidates.length} 张候选，点开选择`}</span>
-          <i aria-hidden="true">{open ? '⌃' : '⌄'}</i>
+          <i className="chev" aria-hidden="true"/>
         </button> : null}
-        {open || !many ? <ul className="cover-list" aria-label="封面候选">
+        <div className={'fold-box' + (open || !many ? ' is-open' : '')}><div className="fold-in" inert={!(open || !many)}>
+        <ul className="cover-list" aria-label="封面候选">
           {cover.candidates.map(c => <li key={c.token}>
             <button type="button" className="cover-pick" onClick={() => cover.chooseCover(c.token, cover.coverKey())}>
               <img src={c.thumbnail} alt=""/>
               <span><b>{c.title}</b><small>{[c.artist, c.year, c.provider].filter(Boolean).join(' · ')}</small></span>
               <em>使用</em>
             </button></li>)}
-        </ul> : null}
+        </ul></div></div>
       </> : null}
     </section>
   );

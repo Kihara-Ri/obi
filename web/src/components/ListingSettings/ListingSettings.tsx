@@ -52,9 +52,10 @@ export function ListingSettings() {
           <span className="provider-stack-icons" aria-hidden="true">
             {others.map(row => <ProviderIcon key={row.id} id={row.id} size={26}/>)}</span>
           <span>{open ? '收起其他服务商' : `切换或添加服务商（${others.length}）`}</span>
-          <span aria-hidden="true">{open ? '⌃' : '⌄'}</span>
+          <i className="chev" aria-hidden="true"/>
         </button> : null}
-        {open || !current ? <ul className="provider-list">{others.map(row => <Row key={row.id} row={row}/>)}</ul> : null}
+        <div className={'fold-box' + (open || !current ? ' is-open' : '')}><div className="fold-in" inert={!(open || !current)}>
+          <ul className="provider-list">{others.map(row => <Row key={row.id} row={row}/>)}</ul></div></div>
       </> : null}
     </> : <p role="status">正在读取识别配置…</p>}
   </section>;
