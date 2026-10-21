@@ -145,11 +145,14 @@ details.adv:not([open]) > :not(summary){display:none}
 .cover-status{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);overflow-wrap:anywhere}
 .cover-status.is-busy{color:var(--text)}
 .cover-row>button{flex:none;padding:6px 12px;font-size:13px}
-.cover-candidates{display:flex;gap:9px;overflow-x:auto;padding:8px 0 2px}
+.cover-candidates{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px;padding:10px 0 2px}
 .cover-candidates:empty{display:none}
-.cover-choice{flex:none;width:96px;display:flex;flex-direction:column;align-items:stretch;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--surface-2);padding:0;text-align:left}
+.cover-choice{min-width:0;display:flex;flex-direction:column;align-items:stretch;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;background:var(--surface);padding:0;text-align:left}
 .cover-choice img{width:100%;aspect-ratio:1;object-fit:cover;display:block;flex:none}
-.cover-choice span,.cover-choice small{display:block;padding:2px 7px;font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cover-choice span,.cover-choice small{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;padding:0 9px;overflow-wrap:anywhere}
+.cover-choice span{margin-top:7px;font-size:13px;font-weight:600;color:var(--text)}
+.cover-choice small{margin-top:2px;font-size:11.5px;color:var(--muted)}
+.cover-choice::after{content:'使用这张';display:block;margin:8px 9px 9px;padding:6px 0;text-align:center;font-size:12.5px;font-weight:600;border-radius:var(--radius-sm);background:var(--accent);color:var(--accent-ink)}
 .cover-choice:hover{border-color:var(--accent-deep)}
 
 /* 专辑详情 */
