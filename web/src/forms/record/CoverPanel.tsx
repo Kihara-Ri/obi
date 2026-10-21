@@ -3,16 +3,16 @@
 import {SpinIco} from '../../components/icons';
 import type {CoverSearch} from './useCoverSearch';
 
-export function CoverPanel({cover, src, busy}: {cover: CoverSearch; src: string; busy: boolean}) {
+export function CoverPanel({cover, src, busy, inline}: {cover: CoverSearch; src: string; busy: boolean; inline?: boolean}) {
   return (
-    <section className="cover-search">
+    <section className={'cover-search' + (inline ? ' is-inline' : '')}>
       <div className="cover-row">
-        <span className="cover-thumb">{src ? <img src={src} alt="当前封面"/> : <span aria-hidden="true">无</span>}</span>
+        {inline ? null : <span className="cover-thumb">{src ? <img src={src} alt="当前封面"/> : <span aria-hidden="true">无</span>}</span>}
         <div className="cover-info">
-          <strong>封面</strong>
+          {inline ? null : <strong>封面</strong>}
           <span className={`cover-status${busy ? ' is-busy' : ''}`} role="status">{busy ? SpinIco : null}{cover.coverStatus}</span>
         </div>
-        <button type="button" disabled={busy} onClick={() => cover.findCover(false)}>重新匹配</button>
+        <button type="button" disabled={busy} onClick={() => cover.findCover()}>换一张封面</button>
       </div>
       {cover.candidates.length ? <div className="cover-candidates">
         {cover.candidates.map(c => (

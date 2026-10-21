@@ -22,7 +22,6 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
   const [mode, setModeState] = useState<LookupMode>(initialInfo?.catalogNumber && !initialInfo?.barcode ? 'catalog' : 'barcode');
   const [candidates, setCandidates] = useState<ReleaseCandidate[]>([]);
   const [busy, setBusy] = useState(false);
-  const [coverBusy, setCoverBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [notFound, setNotFound] = useState(false);
   const [verification, setVerification] = useState<'verified' | 'pending' | 'failed'>('verified');
@@ -36,7 +35,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
     && !v.releaseInfo.discogsReleaseId;
   const identified = !!(identityOf(v.releaseInfo) || manualRelease);
 
-  const reset = () => { ++sequence.current; abort.current?.abort(); inflight.current = null; setCoverBusy(false); };
+  const reset = () => { ++sequence.current; abort.current?.abort(); inflight.current = null; cover.setBusy(false); };
   const setMode = (next: LookupMode) => { reset(); setModeState(next); setCandidates([]); setMessage(''); setNotFound(false); };
 
   const changeBarcode = (raw: string) => {
@@ -81,7 +80,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
     // 后端两个来源各有超时；这里再兜底，避免连接卡死时界面一直停在“查询中”。
     const timer = window.setTimeout(() => controller.abort(), 70000);
     const current = () => seq === sequence.current && !!formRef.current?.isConnected;
-    setBusy(true); setCoverBusy(false); setCandidates([]); setNotFound(false);
+    setBusy(true); cover.setBusy(false); setCandidates([]); setNotFound(false);
     setMessage('查询中 · MusicBrainz，无结果时转 Discogs');
     const what = kind === 'barcode' ? '条码' : '编号';
     const promise = (async () => {
@@ -190,10 +189,10 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
   };
 
   const chooseRelease = (candidate: ReleaseCandidate) => pickRelease(candidate, {
-    ctx, cover, sequence, verified, setBusy, setCoverBusy, setMessage, setBarcode, setCatalogNumber,
+    ctx, cover, sequence, verified, setBusy, setMessage, setBarcode, setCatalogNumber,
     setCandidates, setVerification});
 
-  return {mode, setMode, barcode, catalogNumber, candidates, busy, coverBusy, message, notFound,
+  return {mode, setMode, barcode, catalogNumber, candidates, busy, message, notFound,
     verification, manualRelease, identified, changeBarcode, changeCatalogNumber, lookup,
     enterManually, refreshReleaseMetadata, chooseRelease, setCatalogNumber};
 }

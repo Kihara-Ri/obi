@@ -375,3 +375,6 @@ details.adv:not([open]) > :not(summary){display:none}
   border-radius:var(--radius-sm);border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text);font-size:14px;font-weight:600}
 .detail-page .entry-btn i{font-style:normal;font-size:22px;color:var(--faint)}
 .detail-page .entry-btn:hover{border-color:var(--accent-deep)}
+/* 封面行嵌在已确认版本卡里：去掉自己的边框背景，缩略图已在卡片头部 */
+.cover-search.is-inline{margin-top:0}
+.cover-search.is-inline .cover-row{padding:0;border:0;background:none}

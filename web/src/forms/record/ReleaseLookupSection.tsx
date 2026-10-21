@@ -3,6 +3,8 @@
 import {useState} from 'react';
 import {FocusInput} from '../../components/ui/FocusInput';
 import {ReleaseCandidateCard, ReleaseSummary, sourceName} from '../../components/ReleaseCandidateCard/ReleaseCandidateCard';
+import {CoverPanel} from './CoverPanel';
+import type {CoverSearch} from './useCoverSearch';
 import type {RecordValues} from './context';
 import type {ReleaseLookup} from './useReleaseLookup';
 import './ReleaseLookupSection.css';
@@ -12,7 +14,13 @@ const MARK: Record<Phase, string> = {idle: '!', busy: '', choose: '…', ok: '�
 // 只含数字、空格、连字符的输入按条码处理，其余按唱片编号（与 core/lookup 的 classify 一致）
 const kindOf = (raw: string) => /^[\d\s-]*$/.test(raw) ? 'barcode' : 'catalog';
 
-export function ReleaseLookupSection({v, lookup: L}: {v: RecordValues; lookup: ReleaseLookup}) {
+/** 已确认 / 手动录入的版本摘要是否显示（显示时封面行嵌在摘要卡里，表单不再单独放封面区块）。 */
+export const summaryShown = (v: RecordValues, L: ReleaseLookup) =>
+  !!(v.title && v.artist && (v.releaseInfo.musicBrainzReleaseId || v.releaseInfo.discogsReleaseId || L.manualRelease));
+
+export function ReleaseLookupSection({v, lookup: L, cover, coverSrc}: {
+  v: RecordValues; lookup: ReleaseLookup; cover: CoverSearch; coverSrc: string;
+}) {
   const info = v.releaseInfo;
   const [typed, setTyped] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -56,11 +64,12 @@ export function ReleaseLookupSection({v, lookup: L}: {v: RecordValues; lookup: R
             选用此版本
           </button>}</ReleaseCandidateCard>)}
       </ul> : null}
-      {v.title && v.artist && (confirmed || L.manualRelease) ? <div className="rcc is-confirmed">
-        <ReleaseSummary title={v.title} artist={v.artist} info={info}
+      {summaryShown(v, L) ? <div className="rcc is-confirmed">
+        <ReleaseSummary title={v.title} artist={v.artist} info={info} art={coverSrc}
           source={confirmed ? sourceName(info) : '手动'}
           url={confirmed ? (info.musicBrainzReleaseId ? 'https://musicbrainz.org/release/' + info.musicBrainzReleaseId
             : 'https://www.discogs.com/release/' + info.discogsReleaseId) : undefined}/>
+        <CoverPanel cover={cover} src={coverSrc} busy={cover.busy} inline/>
       </div> : null}
           <FocusInput open={editing} title="查询发行版" value={text} placeholder="条形码，或唱片编号如 AMCY-2434"
         submitLabel="查询" onChange={change} onSubmit={submit} onClose={() => setEditing(false)}/>

@@ -21,7 +21,7 @@ export const identityOf = (info: ReleaseInfo) =>
 export interface PickDeps {
   ctx: FormCtx; cover: CoverSearch;
   sequence: MutableRefObject<number>; verified: MutableRefObject<string>;
-  setBusy: Dispatch<SetStateAction<boolean>>; setCoverBusy: Dispatch<SetStateAction<boolean>>;
+  setBusy: Dispatch<SetStateAction<boolean>>;
   setMessage: Dispatch<SetStateAction<string>>; setBarcode: Dispatch<SetStateAction<string>>;
   setCatalogNumber: Dispatch<SetStateAction<string>>; setCandidates: Dispatch<SetStateAction<ReleaseCandidate[]>>;
   setVerification: Dispatch<SetStateAction<'verified' | 'pending' | 'failed'>>;
@@ -64,12 +64,12 @@ export async function pickRelease(candidate: ReleaseCandidate, d: PickDeps) {
   if (!coverTask) cover.setCoverStatus('保留现有封面');
   if (coverTask) {
     // 只有找到新封面才写入；没找到时保持无封面状态，不会动任何已有封面
-    cover.lastQuery.current = null; cover.setCandidates([]);
+    cover.setCandidates([]);
     cover.setCoverStatus('查找中…');
-    d.setCoverBusy(true);
+    cover.setBusy(true);
     const found = await coverTask;
     if (!current()) return;
-    d.setCoverBusy(false);
+    cover.setBusy(false);
     if (found) {
       if (found.cover) {
         base.current = {...base.current, cover: found.cover, coverSource: found.coverSource};

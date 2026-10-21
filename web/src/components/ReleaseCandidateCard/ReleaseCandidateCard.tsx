@@ -1,6 +1,6 @@
 // 发行版卡片：名称 + 来源 → 关键信息网格 → 可展开的曲目与版本资料 → 调用方给的操作区。
 // 「查询」页（复制 / 入库）与专辑表单（选用此版本）共用；详情按需请求，摘要里已有的字段不在详情重复。
-import {useState, type ReactNode} from 'react';
+import {useEffect, useState, type ReactNode} from 'react';
 import {api} from '../../core/api';
 import {dedupeCatalog, regionName} from '../../core/release-metadata';
 import type {ReleaseCandidate, ReleaseInfo} from '../../types';
@@ -11,14 +11,15 @@ const sourceName = (info: {musicBrainzReleaseId?: string; discogsReleaseId?: str
   discogs || (info.discogsReleaseId && !info.musicBrainzReleaseId) ? 'Discogs' : 'MusicBrainz';
 
 /** 头部（名称、艺人、来源）+ 关键信息网格；表单里已确认的版本直接用它。 */
-export function ReleaseSummary({title, artist, info, source, url}: {
-  title: string; artist: string; info: ReleaseInfo; source?: string; url?: string;
+export function ReleaseSummary({title, artist, info, source, url, art}: {
+  title: string; artist: string; info: ReleaseInfo; source?: string; url?: string; art?: string;
 }) {
   const facts: [string, string | undefined][] = [
     ['唱片编号', dedupeCatalog(info.catalogNumber)], ['条码', info.barcode], ['厂牌', info.label],
     ['发行地区', regionName(info.country)], ['发行日', info.releaseDate]];
   return <>
     <header className="rcc-head">
+      {art ? <img className="rcc-art" src={art} alt="封面"/> : null}
       <div className="rcc-main"><strong>{title}</strong><span>{artist}</span></div>
       {source ? url ? <a className="rcc-source" href={url} target="_blank" rel="noopener noreferrer"
         aria-label={`在 ${source} 查看`}>{source} ↗</a> : <span className="rcc-source">{source}</span> : null}
@@ -36,6 +37,15 @@ export function ReleaseCandidateCard({c, children}: {c: ReleaseCandidate; childr
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // 此版本自己的正面图（Cover Art Archive）：卡片一出现就取，查询结果和封面放在一起；Discogs 版本没有
+  const [art, setArt] = useState('');
+  useEffect(() => {
+    if (c.source === 'discogs') return;
+    let live = true;
+    api<{cover: string}>('catalog/front-cover?id=' + encodeURIComponent(c.id))
+      .then(r => { if (live && r.cover) setArt(r.cover); }).catch(() => {});
+    return () => { live = false; };
+  }, [c.id, c.source]);
 
   /** 取详情；失败时回退到精确匹配的基本资料，并说明曲目暂不可用。 */
   const load = async (): Promise<ReleaseInfo> => {
@@ -58,7 +68,7 @@ export function ReleaseCandidateCard({c, children}: {c: ReleaseCandidate; childr
     ['碟数', info.discCount ? info.discCount + ' 张' : '']];
 
   return <li className="rcc">
-    <ReleaseSummary title={c.title} artist={c.artist} info={c.releaseInfo} source={sourceName({}, c.source === 'discogs')} url={c.url}/>
+    <ReleaseSummary title={c.title} artist={c.artist} info={c.releaseInfo} source={sourceName({}, c.source === 'discogs')} url={c.url} art={art}/>
     <button type="button" className="rcc-more" aria-expanded={open} onClick={toggle}>
       <span>曲目与版本资料</span><i aria-hidden="true">{open ? '−' : '+'}</i>
     </button>
