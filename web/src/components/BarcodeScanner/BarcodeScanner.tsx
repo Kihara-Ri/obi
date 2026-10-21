@@ -6,6 +6,19 @@ import {makeDetector} from '../../core/barcode-detector';
 import {gs1Valid} from '../../core/lookup';
 import './BarcodeScanner.css';
 
+/** 输入框右端的扫码图标按钮：children 是输入框本体，图标嵌在框内，不另占一格。 */
+export function ScanField({onScan, children}: {onScan: () => void; children: React.ReactNode}) {
+  return <div className="scan-wrap">
+    {children}
+    <button type="button" className="scan-inline" aria-label="扫描条码" onClick={onScan}>
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"
+           strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M7 12h10"/>
+      </svg>
+    </button>
+  </div>;
+}
+
 export function BarcodeScanner({onDetect, onClose}: {onDetect: (code: string) => void; onClose: () => void}) {
   const video = useRef<HTMLVideoElement>(null);
   const [msg, setMsg] = useState('正在打开相机…');

@@ -13,8 +13,7 @@ import {openDetail} from '../forms/DetailDrawer';
 import {openRecordForm} from '../forms/RecordForm';
 import type {ReleaseCandidate, ReleaseInfo} from '../types';
 import {LookupCard} from './LookupCard';
-import {BarcodeScanner} from '../components/BarcodeScanner';
-import {CamIco} from '../components/icons';
+import {BarcodeScanner, ScanField} from '../components/BarcodeScanner';
 import './LookupPage.css';
 
 interface Found {kind: LookupKind; value: string; candidates: ReleaseCandidate[]; note: string}
@@ -67,10 +66,11 @@ export function LookupPage() {
     <PageHead title="查询" label="LOOKUP" desc="按条码或唱片编号查发行版资料，不会入库"/>
     <div className="lookup-page">
       <form className="lookup-form" onSubmit={e => { e.preventDefault(); void search(); }}>
-        <input type="text" inputMode="text" autoComplete="off" enterKeyHint="search" aria-label="条码或唱片编号"
-          placeholder="条形码，或唱片编号如 AMCY-2434" value={text}
-          onChange={e => { setText(e.target.value); setError(''); }}/>
-        <button type="button" className="scan-btn" aria-label="扫描条码" onClick={() => setScanning(true)}>{CamIco}</button>
+        <ScanField onScan={() => setScanning(true)}>
+          <input type="text" inputMode="text" autoComplete="off" enterKeyHint="search" aria-label="条码或唱片编号"
+            placeholder="条形码，或唱片编号如 AMCY-2434" value={text}
+            onChange={e => { setText(e.target.value); setError(''); }}/>
+        </ScanField>
         <button type="submit" className="primary" disabled={busy}>{busy ? '查询中…' : '查询'}</button>
       </form>
       {scanning ? <BarcodeScanner onDetect={code => { setScanning(false); void search(code); }} onClose={() => setScanning(false)}/> : null}

@@ -2,8 +2,7 @@
 // 条码与唱片编号只在这里编辑，「发行资料」折叠区不再重复提供；状态一律走 phase，文案保持一行。
 import {useState} from 'react';
 import {FocusInput} from '../../components/ui/FocusInput';
-import {BarcodeScanner} from '../../components/BarcodeScanner';
-import {CamIco} from '../../components/icons';
+import {BarcodeScanner, ScanField} from '../../components/BarcodeScanner';
 import {ReleaseCandidateCard, ReleaseSummary, sourceName} from '../../components/ReleaseCandidateCard/ReleaseCandidateCard';
 import {CoverPanel} from './CoverPanel';
 import type {CoverSearch} from './useCoverSearch';
@@ -12,7 +11,7 @@ import type {ReleaseLookup} from './useReleaseLookup';
 import './ReleaseLookupSection.css';
 
 type Phase = 'idle' | 'busy' | 'choose' | 'ok' | 'miss' | 'manual';
-const MARK: Record<Phase, string> = {idle: '!', busy: '', choose: '…', ok: '✓', miss: '!', manual: '✎'};
+const MARK: Record<Phase, string> = {idle: '!', busy: '', choose: '', ok: '✓', miss: '!', manual: '✎'};
 // 只含数字、空格、连字符的输入按条码处理，其余按唱片编号（与 core/lookup 的 classify 一致）
 const kindOf = (raw: string) => /^[\d\s-]*$/.test(raw) ? 'barcode' : 'catalog';
 
@@ -53,14 +52,15 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc}: {
     <section className="record-barcode-entry form-section">
       <label className="lookup-label" htmlFor="record-lookup">发行版</label>
       <div className="record-barcode-row">
-        <button type="button" id="record-lookup" className={'lookup-field' + (text ? '' : ' is-empty')} onClick={() => setEditing(true)}>
-          {text || '条形码，或唱片编号如 AMCY-2434'}
-        </button>
-        <button type="button" className="scan-btn" aria-label="扫描条码" onClick={() => setScanning(true)}>{CamIco}</button>
+        <ScanField onScan={() => setScanning(true)}>
+          <button type="button" id="record-lookup" className={'lookup-field' + (text ? '' : ' is-empty')} onClick={() => setEditing(true)}>
+            {text || '条形码，或唱片编号如 AMCY-2434'}
+          </button>
+        </ScanField>
         <button type="button" className="primary" onClick={() => void L.lookup()} disabled={working}>查询</button>
       </div>
       {status ? <p className={`lookup-status is-${phase}`} role="status">
-        {phase === 'busy' ? <span className="lookup-spinner" aria-hidden="true"/> : <b aria-hidden="true">{MARK[phase]}</b>}
+        {phase === 'busy' ? <span className="lookup-spinner" aria-hidden="true"/> : <b aria-hidden="true">{phase === 'choose' ? L.candidates.length : MARK[phase]}</b>}
         <span>{status}</span>
         {phase === 'miss' && !L.manualRelease
           ? <button type="button" className="quiet" onClick={L.enterManually}>手动录入</button> : null}

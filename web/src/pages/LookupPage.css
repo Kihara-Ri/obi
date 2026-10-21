@@ -15,5 +15,3 @@
 .ll-text strong,.ll-text span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ll-text span{color:var(--muted);font-size:12px}
 .lookup-local .pill{flex:none}
-.lookup-form .scan-btn{flex:none;min-width:44px;padding:0 10px;background:var(--surface-2);border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center}
-.lookup-form .scan-btn svg{width:20px;height:20px}

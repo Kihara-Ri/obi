@@ -1,1 +1,1 @@
-export {BarcodeScanner} from './BarcodeScanner';
+export {BarcodeScanner, ScanField} from './BarcodeScanner';
