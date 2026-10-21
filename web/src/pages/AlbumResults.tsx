@@ -13,7 +13,7 @@ export interface AlbumHit {id: string; title: string; artist: string; year: stri
 const KIND: Record<string, string> = {album: '专辑', ep: 'EP', single: '单曲', other: ''};
 const SHOWN = 5;
 
-function Album({hit, owned, onAdd}: {hit: AlbumHit; owned: AlbumRecord[]; onAdd: (c: ReleaseCandidate, info: ReleaseInfo) => void}) {
+function Album({hit, owned, confirming, onAdd}: {hit: AlbumHit; owned: AlbumRecord[]; confirming: boolean; onAdd: (c: ReleaseCandidate, info: ReleaseInfo) => void}) {
   const app = useApp();
   const [open, setOpen] = useState(false);
   const [more, setMore] = useState(false);
@@ -44,7 +44,7 @@ function Album({hit, owned, onAdd}: {hit: AlbumHit; owned: AlbumRecord[]; onAdd:
     {open ? <div className="ah-versions">
       {error ? <p className="lookup-msg is-error" role="alert">{error}</p> : !versions ? <p className="lookup-msg" role="status">读取版本中…</p>
         : !versions.length ? <p className="lookup-msg">没有找到 CD 版本</p> : <ul>
-          {list.map(c => <LookupCard key={c.id} c={c} owned={note} tag={isMine(c) ? '库里这张' : undefined} onAdd={info => onAdd(c, info)}/>)}
+          {list.map(c => <LookupCard key={c.id} c={c} owned={note} tag={isMine(c) ? '库里这张' : undefined} confirming={confirming} onAdd={info => onAdd(c, info)}/>)}
           {!more && versions.length > SHOWN
             ? <button type="button" className="quiet" onClick={() => setMore(true)}>还有 {versions.length - SHOWN} 个版本</button> : null}
         </ul>}
@@ -52,10 +52,10 @@ function Album({hit, owned, onAdd}: {hit: AlbumHit; owned: AlbumRecord[]; onAdd:
   </li>;
 }
 
-export function AlbumResults({albums, records, onAdd}: {
-  albums: AlbumHit[]; records: AlbumRecord[]; onAdd: (c: ReleaseCandidate, info: ReleaseInfo) => void;
+export function AlbumResults({albums, records, confirming, onAdd}: {
+  albums: AlbumHit[]; records: AlbumRecord[]; confirming: boolean; onAdd: (c: ReleaseCandidate, info: ReleaseInfo) => void;
 }) {
   const rows = albums.map(hit => ({hit, owned: ownedAlbums(records, hit.title, hit.artist)}))
     .sort((a, b) => Number(!!b.owned.length) - Number(!!a.owned.length));
-  return <ul>{rows.map(({hit, owned}) => <Album key={hit.id} hit={hit} owned={owned} onAdd={onAdd}/>)}</ul>;
+  return <ul>{rows.map(({hit, owned}) => <Album key={hit.id} hit={hit} owned={owned} confirming={confirming} onAdd={onAdd}/>)}</ul>;
 }

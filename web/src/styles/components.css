@@ -101,3 +101,4 @@ img.cover.is-ready{opacity:1}
 .spin-ico{display:inline-block;width:16px;height:16px;border-radius:50%;border:2px solid var(--border-strong);border-top-color:var(--accent-deep);animation:spin-ico .7s linear infinite}
 @keyframes spin-ico{to{transform:rotate(1turn)}}
 @media (prefers-reduced-motion:reduce){.spin-ico{animation-duration:2s}}
+.summary .hint-link{color:var(--accent-deep);text-decoration:none}

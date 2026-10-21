@@ -4,6 +4,7 @@ import {useApp} from '../state/AppContext';
 import type {AlbumRecord, SortMode} from '../types';
 import {fmtMonth, sum, yuan} from '../core/format';
 import {searchScore} from '../core/search';
+import {releasePending} from '../core/lookup';
 import {onShelf} from '../core/modules';
 import type {ModuleFlags} from '../types';
 import {PageHead} from '../components/PageHead';
@@ -54,6 +55,7 @@ export function ShelfPage() {
   const isTrash = page === 'trash';
   const all = state.records.filter(r => onShelf(r.status, page, modules));
   const known = all.filter(r => r.cost !== null);
+  const pendingCount = state.records.filter(releasePending).length;
   const listedCount = all.filter(r => r.listed).length;
   const rs = shelfRecords(state.records, page, query, sort, shelfFilter, modules);
   const selectable = rs.filter(r => r.status !== 'transit');
@@ -198,6 +200,7 @@ export function ShelfPage() {
           <>
             {modules.acquisition ? <span>总成本 <strong>{known.length ? yuan(sum(known, 'cost')) : '—'}</strong></span> : null}
             {modules.acquisition && all.length - known.length ? <span className="hint">{all.length - known.length} 张成本待补</span> : null}
+            {pendingCount ? <a className="hint hint-link" href="#lookup">{pendingCount} 张待确认版本 ›</a> : null}
             {modules.trading ? <span className="hint">已上架 {listedCount} 张</span> : null}
             {page === 'overseas' ? <span className="hint">✈ 勾选多张可打包为一趟运输</span> : null}
           </>

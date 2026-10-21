@@ -5,7 +5,7 @@ import {join} from 'node:path';
 
 const {output, require} = compiledSources();
 const {releaseText, askText} = require(join(output, 'core/lookup-text.js'));
-const {classify, isTextQuery, ownedAlbums, gs1Valid, localMatches, pushRecent} = require(join(output, 'core/lookup.js'));
+const {classify, isTextQuery, releasePending, ownedAlbums, gs1Valid, localMatches, pushRecent} = require(join(output, 'core/lookup.js'));
 
 test('条码校验位按 GS1 规则计算', () => {
   assert.equal(gs1Valid('4006381333931'), true);
@@ -64,4 +64,15 @@ test('查询页文字搜索识别：条码 / 编号不受影响，专辑名与�
 test('文字搜索结果里库里已有的同名专辑', () => {
   const records = [{id: '1', title: 'Illinois', artist: 'Sufjan Stevens'}, {id: '2', title: 'Illinois', artist: 'Other'}];
   assert.deepEqual(ownedAlbums(records, 'illinois', 'Sufjan Stevens').map(r => r.id), ['1']);
+});
+
+test('待确认发行版：已绑定版本或标过手动的不算，已售出与回收站不管', () => {
+  const r = (status, releaseInfo) => ({status, releaseInfo});
+  assert.equal(releasePending(r('domestic', undefined)), true);
+  assert.equal(releasePending(r('overseas', {barcode: '123'})), true);
+  assert.equal(releasePending(r('domestic', {musicBrainzReleaseId: 'x'})), false);
+  assert.equal(releasePending(r('domestic', {discogsReleaseId: '7'})), false);
+  assert.equal(releasePending(r('domestic', {manualRelease: '1'})), false);
+  assert.equal(releasePending(r('sold', {})), false);
+  assert.equal(releasePending(r('trash', {})), false);
 });

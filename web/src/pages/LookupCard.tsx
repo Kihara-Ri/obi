@@ -5,8 +5,8 @@ import {askText, releaseText} from '../core/lookup-text';
 import {ReleaseCandidateCard} from '../components/ReleaseCandidateCard/ReleaseCandidateCard';
 import type {ReleaseCandidate, ReleaseInfo} from '../types';
 
-export function LookupCard({c, owned, tag, onAdd}: {
-  c: ReleaseCandidate; owned: string; tag?: string; onAdd: (info: ReleaseInfo) => void;
+export function LookupCard({c, owned, tag, confirming, onAdd}: {
+  c: ReleaseCandidate; owned: string; tag?: string; confirming?: boolean; onAdd: (info: ReleaseInfo) => void;
 }) {
   const app = useApp();
   return <ReleaseCandidateCard c={c} fold tag={tag}>{({load, busy}) => {
@@ -20,7 +20,7 @@ export function LookupCard({c, owned, tag, onAdd}: {
         <button type="button" onClick={() => void copy(true)} disabled={busy}>复制为提问</button>
       </div>
       <button type="button" className="primary rcc-add" onClick={async () => onAdd(await load())} disabled={busy}>
-        {busy ? '读取中…' : '以此入库'}
+        {busy ? '读取中…' : confirming ? '确认为这张的版本' : '以此入库'}
       </button>
     </>;
   }}</ReleaseCandidateCard>;
