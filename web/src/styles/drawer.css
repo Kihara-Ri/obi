@@ -310,7 +310,7 @@ details.adv:not([open]) > :not(summary){display:none}
 .detail-page .note-text{margin:0 0 8px}
 .detail-page .note-text b{display:block;margin-bottom:2px;font-size:11px;font-weight:600;color:var(--faint)}
 .detail-page .listing-description{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
-.detail-flow{display:flex;gap:8px}
+.detail-flow{display:flex;gap:8px;margin-top:14px}
 .detail-flow button{flex:1}
 .drawer-footer>.detail-footer-row{display:flex;flex:1;min-width:0;gap:8px;flex-wrap:nowrap;justify-content:stretch;padding:0;border:0}
 .drawer-footer>.detail-footer-row button{flex:1 1 0;max-width:none;min-height:42px;white-space:nowrap}
