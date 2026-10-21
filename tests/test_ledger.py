@@ -320,6 +320,17 @@ class LedgerTests(unittest.TestCase):
         self.store.bulk({'action':'to_overseas','ids':[c]})
         self.assertEqual(self.record(c)['status'],'overseas')
         with self.assertRaises(ValidationError):self.store.bulk({'action':'to_overseas','ids':[c]})
+    def test_to_domestic_manual_and_undo(self):
+        a=self.buy()
+        self.assertEqual(self.record(a)['status'],'overseas')
+        self.store.bulk({'action':'to_domestic','ids':[a]})
+        self.assertEqual(self.record(a)['status'],'domestic')
+        with self.assertRaises(ValidationError):self.store.bulk({'action':'to_domestic','ids':[a]})
+        self.store.bulk({'action':'undo_to_domestic','ids':[a]})
+        self.assertEqual(self.record(a)['status'],'overseas')
+    def test_to_domestic_blocked_in_transit(self):
+        a=self.buy();self.ship([a])
+        with self.assertRaises(ValidationError):self.store.bulk({'action':'to_domestic','ids':[a]})
     def test_delete_blocked_in_transit(self):
         a=self.buy();self.ship([a])
         with self.assertRaises(ValidationError):self.store.bulk({'action':'delete','ids':[a]})

@@ -1,15 +1,14 @@
-// 管理页（详情的二级页）：管钱——买入信息（可编辑）、这一张的备注全文、上架、运输、交易历史，以及流转（当前位置 + 调回海外 / 移除）。
+// 管理页（详情的二级页）：管钱——买入信息（可编辑）、这一张的备注全文、上架、运输、交易历史，以及流转（海外 / 国内库存切换 + 移除）。
 // 按用户的操作顺序排，不按字段排；流转操作放最底并保留原有的移除确认语义（回收站可恢复）。
 import {useApp} from '../../state/AppContext';
 import type {AppCtx} from '../../state/AppContext';
 import {fmt, fmtJPY, jpyCost, rmb, shipFeeText, yuan} from '../../core/format';
 import {SALE_NAMES} from '../../types';
-import {statusName} from '../../core/modules';
 import {CopyButton} from '../../components/CopyButton';
-import {bulkAction} from '../shared';
 import {openListingForm} from '../ListingForm';
 import {openPurchaseForm} from '../PurchaseForm';
 import {Rows} from './Rows';
+import {FlowSection} from './FlowSection';
 
 export function openManagePage(app: AppCtx, id: string) {
   app.openDrawer({title: '管理', content: <ManageBody id={id}/>,
@@ -80,14 +79,6 @@ function ManageBody({id}: {id: string}) {
         ]}/>;
       })}
     </> : null}
-    <h3 className="section-title">流转</h3>
-    <Rows rows={[{label: '当前位置', value: statusName(r.status, modules)}]}/>
-    {inStock && (modules.circulation || modules.trading) ? <>
-      <div className="detail-flow">
-        {modules.circulation && r.status === 'domestic'
-          ? <button type="button" onClick={() => bulkAction(app, 'to_overseas', [id], '已调回海外', {action: 'undo_to_overseas'})}>调回海外</button> : null}
-        <button type="button" className="danger" onClick={() => bulkAction(app, 'delete', [id], '已移入回收站，可在设置中恢复')}>移除</button>
-      </div>
-    </> : null}
+    <FlowSection r={r}/>
   </div>;
 }

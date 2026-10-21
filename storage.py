@@ -620,17 +620,20 @@ class Store:
             self.audit(db, '保存并标记上架' if mark else '保存售卖草稿', {'id': r['id']})
         return {'id': r['id'], 'revision': r['revision']}
 
-    def last_to_overseas(self, db, id):
-        for (raw,) in db.execute("SELECT data FROM audit WHERE action='to_overseas' ORDER BY id DESC LIMIT 500"):
+    def last_audit(self, db, action, id):
+        for (raw,) in db.execute("SELECT data FROM audit WHERE action=? ORDER BY id DESC LIMIT 500", (action,)):
             d=json.loads(raw)
             if d.get('id')==id: return d.get('before')
         return None
+
+    def last_to_overseas(self, db, id):
+        return self.last_audit(db,'to_overseas',id)
 
     def bulk(self, data):
         ids=list(dict.fromkeys(data.get('ids',[])));action=data.get('action')
         if not ids: raise ValidationError('请先选择专辑')
         if action in ('list', 'unlist'): self.require_module('trading')
-        if action in ('to_overseas', 'undo_to_overseas'): self.require_module('circulation')
+        if action in ('to_overseas', 'undo_to_overseas', 'to_domestic', 'undo_to_domestic'): self.require_module('circulation')
         listing = data.get('listing')
         if listing is not None:
             if action != 'list' or not isinstance(listing, dict): raise ValidationError('上架资料格式不正确')
@@ -651,6 +654,15 @@ class Store:
                     r['status']='domestic'
                     if before.get('shipmentId'): r['shipmentId']=before['shipmentId']
                     if before.get('listed'): r['listed']=before['listed']
+                elif action=='to_domestic':
+                    # 手动标为国内库存（不走包裹：例如自己带回、本就在国内买的）；运费分摊等钱的记录不动
+                    if r['status']!='overseas': raise ValidationError('只有海外库存的专辑能手动标为国内库存')
+                    r['status']='domestic'
+                elif action=='undo_to_domestic':
+                    before=self.last_audit(db,'to_domestic',id)
+                    if not before or r['status']!='domestic' or r['revision']!=before['revision']+1:
+                        raise ValidationError('这张专辑之后又有变动，无法撤销；请手动处理')
+                    r['status']='overseas'
                 elif action=='list':
                     if r['status'] not in ('overseas','domestic'): raise ValidationError('只有库存中的专辑能标记上架')
                     r['listed']=True
