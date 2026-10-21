@@ -398,6 +398,20 @@ def api_catalog_number_lookup(h, svc, body):
     h.send({'catalogNumber': number, 'candidates': exact, 'sources': sources})
 
 
+def api_album_search(h, svc, body):
+    """查询页文字搜索：返回按专辑去重的结果（MusicBrainz release group，Discogs master 兜底）。"""
+    from server.text_search import search_albums
+    text = body.get('text', '')
+    if not isinstance(text, str) or len(text) > 120: raise ValidationError('搜索内容不正确')
+    groups, sources = search_albums(releases(svc), text)
+    h.send({'text': text.strip(), 'albums': groups, 'sources': sources})
+
+
+def api_album_versions(h, svc, body):
+    """展开一张专辑：列出它的 CD 版本（与条码检索同形的候选）。"""
+    from server.text_search import group_versions
+    h.send({'candidates': group_versions(releases(svc), body.get('id', ''))})
+
 
 def catalog_art(svc):
     return getattr(svc, 'catalog_art', None) or twins(svc).art
@@ -561,6 +575,8 @@ POST = {
     '/api/catalog/barcode': (api_barcode_lookup, True, False),
     '/api/catalog/barcode/verify': (api_verify_barcode, True, False),
     '/api/catalog/number': (api_catalog_number_lookup, True, False),
+    '/api/catalog/search': (api_album_search, True, False),
+    '/api/catalog/versions': (api_album_versions, True, False),
     '/api/shops/retry': (api_shop_retry, True, False),
     '/api/covers/search': (api_covers_search, True, False),
     '/api/covers/download': (api_covers_download, True, False),

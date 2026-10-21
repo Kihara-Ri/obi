@@ -1,0 +1,14 @@
+# 2026-10-21 · 查询页文字搜索
+
+- **作者**：Claude
+- **范围**：`server/text_search.py`、`server/release_catalog.py`（抽出 `candidate`）、`server/routes.py`、`web/src/pages/{LookupPage,AlbumResults}`、`core/lookup.ts`
+
+## 改了什么
+- `/api/catalog/search`：词逐个在 release group 标题或艺人里匹配（Lucene 转义），按专辑去重，返回封面（Cover Art Archive release-group 图）、年份、类型；MusicBrainz 无结果或不可用再用 Discogs master 兜底。
+- `/api/catalog/versions`：某专辑的 CD 版本，候选与条码检索同形，日本版 / 有条码 / 较早的在前。
+- 前端：`isTextQuery` 判断文字；结果两层（专辑行 → 版本卡片，沿用 `LookupCard` 的复制 / 入库）；库里已有的专辑排前并有「库里已有」入口；版本超过 5 个折叠。编号无精确匹配时自动再按文字搜一次。
+- 只在查询页；专辑表单的发行版检索不变。
+
+## 验证
+- 后端 `tests/test_text_search.py`（夹具）；前端 `isTextQuery` / `ownedAlbums` 单测。
+- 浏览器（手机宽度，真实 MusicBrainz）：`illinois sufjan stevens` 只出一张「Illinois」并标已有，展开后日本版在前；`radiohead` 出 10 张专辑。Discogs 兜底只有夹具测试，没有联网验证。

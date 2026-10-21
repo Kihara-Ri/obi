@@ -32,6 +32,25 @@ export function classify(raw: string): Classified {
   return {ok: true, kind: 'catalog', value: text};
 }
 
+/** 查询页专用：是否按文字（专辑名 / 艺人名）搜索。条码与专辑表单不走这里，仍只用 classify。
+ *  有非编号字符、或没有数字（编号几乎都带数字）、或词太多，都视为文字；单个带连字符的词仍按编号。 */
+export function isTextQuery(raw: string): boolean {
+  const text = raw.trim();
+  if (!text || (/^[\d\s\-]+$/.test(text) && BARCODE_LENGTHS.has(compact(text).length))) return false;
+  if (!/^[\w ./+\-]+$/.test(text) || /[^\x00-\x7f]/.test(text)) return true;
+  const tokens = text.split(/\s+/);
+  if (!/\d/.test(text)) return !(tokens.length === 1 && text.includes('-'));
+  return tokens.length > 2 || text.length > 20;
+}
+
+const plain = (value: string) => value.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+
+/** 文字搜索结果里，库里已有的同名专辑（标题一致，艺人互相包含）。 */
+export function ownedAlbums(records: AlbumRecord[], title: string, artist: string): AlbumRecord[] {
+  const t = plain(title), a = plain(artist);
+  return !t ? [] : records.filter(r => plain(r.title) === t && (!a || !plain(r.artist) || plain(r.artist).includes(a) || a.includes(plain(r.artist))));
+}
+
 /** 本地库里已有的同条码 / 同编号记录（含已售出与回收站，状态由调用方展示）。 */
 export function localMatches(records: AlbumRecord[], kind: LookupKind, value: string): AlbumRecord[] {
   return records.filter(r => {

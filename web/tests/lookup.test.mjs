@@ -5,7 +5,7 @@ import {join} from 'node:path';
 
 const {output, require} = compiledSources();
 const {releaseText, askText} = require(join(output, 'core/lookup-text.js'));
-const {classify, gs1Valid, localMatches, pushRecent} = require(join(output, 'core/lookup.js'));
+const {classify, isTextQuery, ownedAlbums, gs1Valid, localMatches, pushRecent} = require(join(output, 'core/lookup.js'));
 
 test('条码校验位按 GS1 规则计算', () => {
   assert.equal(gs1Valid('4006381333931'), true);
@@ -52,4 +52,16 @@ test('复制文字：含版本资料与曲目，不含实物观察与个人信�
   assert.doesNotMatch(text, /secret/);
   assert.ok(askText(text).endsWith(text));
   assert.match(askText(text), /不要编造/);
+});
+
+test('查询页文字搜索识别：条码 / 编号不受影响，专辑名与艺人名走文字', () => {
+  for (const q of ['illinois sufjan stevens', 'Sufjan', 'radiohead ok computer', 'kid a 2000', '宇多田ヒカル First Love'])
+    assert.equal(isTextQuery(q), true, q);
+  for (const q of ['4006381333931', '4006 3813-33931', 'AMCY-2434', 'AMCY 2434', '123456', 'ABC-DEF'])
+    assert.equal(isTextQuery(q), false, q);
+});
+
+test('文字搜索结果里库里已有的同名专辑', () => {
+  const records = [{id: '1', title: 'Illinois', artist: 'Sufjan Stevens'}, {id: '2', title: 'Illinois', artist: 'Other'}];
+  assert.deepEqual(ownedAlbums(records, 'illinois', 'Sufjan Stevens').map(r => r.id), ['1']);
 });
