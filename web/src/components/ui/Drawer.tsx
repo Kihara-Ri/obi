@@ -119,9 +119,11 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
     };
     let lastKb = 0;
     const apply = () => {
-      panel.style.transform = vv.offsetTop > 1 ? `translateY(${vv.offsetTop}px)` : '';
       const raw = vv.scale > 1.01 ? 0 : Math.round(window.innerHeight - vv.height);
       const kb = raw > KEYBOARD_MIN ? raw : 0;
+      // 只在键盘弹出时跟着平移：Safari 工具栏伸缩 / 橡皮筋 / 缩放也会让 offsetTop 非零，
+      // 那时平移会把 sheet 顶下去一截（上面一块空、底部被切、内容滑不动）
+      panel.style.transform = kb && vv.offsetTop > 1 ? `translateY(${vv.offsetTop}px)` : '';
       panel.style.setProperty('--kb', kb + 'px');
       if (kb && kb !== lastKb) revealSoon(0);
       lastKb = kb;
