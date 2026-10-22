@@ -27,8 +27,8 @@
 
 ## I-005 · 专用开关各写一份
 - **发现于**：2026-10-17
-- **影响**：低。`ui/Switch` 未被使用；喜欢开关（`album-like-switch`）、漫游开关（`gallery-roaming-switch`）是各自专用实现。
-- **为什么还没修**：漫游开关的标记被 `gallery-roaming-switch.test.mjs` 逐字断言，需先同步改测试。
+- **影响**：低。`ui/Switch` 未被使用；喜欢开关（`album-like-switch`）、巡游开关（`gallery-roaming-switch`）是各自专用实现。
+- **为什么还没修**：巡游开关的标记被 `gallery-roaming-switch.test.mjs` 逐字断言，需先同步改测试。
 
 ## I-006 · Docker 镜像缺 `kana.py`，容器启动即崩（已解决：2026-10-21-remove-legacy-pipeline.md，Dockerfile 改为 `COPY *.py ./`，与补丁包共用一份清单）
 - **发现于**：2026-10-21（日志 2026-10-21-dead-code-sweep.md）

@@ -69,7 +69,7 @@ export function GalleryPage() {
       content: <GallerySettings mode={preferences.mode} inGroup={preferences.scope.kind === 'group'} roaming={roaming}
         discrete={galleryModeHasFocus(preferences.mode)}
         initial={{sort: preferences.sort === 'group' && preferences.scope.kind !== 'group' ? 'recent' : preferences.sort,
-          density: preferences.density, showTitles: preferences.showTitles, seconds: roamingSeconds}}
+          density: preferences.density, axis: preferences.axis, showTitles: preferences.showTitles, seconds: roamingSeconds}}
         onChange={updatePreference}
         onSpeed={seconds => setPreferences(p => ({...p, roamingSpeeds: {...p.roamingSpeeds, [p.mode]: seconds}}))}/>,
     });
@@ -234,10 +234,10 @@ export function GalleryPage() {
           <GalleryRoamingSwitch enabled={roaming} disabled={!records.length && !roaming} onToggle={() => setRoaming(v => !v)}/>
         </div>
       </div>
-      {reducedMotion && roaming ? <span className="gallery-waterfall-note" role="status">减少动态效果已开启，漫游暂时暂停</span> : null}
+      {reducedMotion && roaming ? <span className="gallery-waterfall-note" role="status">减少动态效果已开启，巡游暂时暂停</span> : null}
     </div>
     {records.length ? <GalleryStage records={records} mode={preferences.mode} currentId={currentId}
-      density={preferences.density} showTitles={preferences.showTitles} onPick={pick} onFocus={focus}
+      density={preferences.density} axis={preferences.axis} showTitles={preferences.showTitles} onPick={pick} onFocus={focus}
       roaming={roaming} roamingSpeed={roamingSeconds}
       onArtist={(artist, recordId) => {
         pick(recordId); openArtistDrawer(app, artist);

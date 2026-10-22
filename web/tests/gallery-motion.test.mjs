@@ -97,7 +97,7 @@ test('唱片箱正常竖向划动只翻一张，小幅碰触与横向移动不�
   }
 });
 
-test('有界漫游沿原轨道连续折返，越过任意多个端点也不跳到另一张', () => {
+test('有界巡游沿原轨道连续折返，越过任意多个端点也不跳到另一张', () => {
   const upper = motion.advanceGalleryRoaming(3.8, 1, .5, 1, 0, 4);
   assert.ok(Math.abs(upper.position - 3.7) < 1e-10);
   assert.equal(upper.direction, -1);
@@ -473,4 +473,17 @@ test('扇形快速连翻不附加上下跳或缩放脉冲，横向让位和转�
     assert.ok(Math.abs(next.rotateY - visual.rotateY) / .001 <= 255,
       `offset ${offset}: avoid compressing the turn into a sharp phase`);
   }
+});
+
+test('巡游起停曲线：两端平滑、单调，端点附近减速但不停', () => {
+  const {smootherstep, edgeEase} = motion;
+  assert.equal(smootherstep(0), 0);
+  assert.equal(smootherstep(1), 1);
+  assert.equal(smootherstep(.5), .5);
+  assert.ok(smootherstep(.05) < .05 && smootherstep(.95) > .95);   // 起步与收尾都比线性慢
+  let last = -1;
+  for (let i = 0; i <= 20; i++) {const v = smootherstep(i / 20); assert.ok(v >= last); last = v;}
+  assert.ok(edgeEase(0, 1000, 200) > 0 && edgeEase(0, 1000, 200) < .2);
+  assert.equal(edgeEase(500, 1000, 200), 1);
+  assert.ok(edgeEase(1000, 1000, 200) < .2);
 });

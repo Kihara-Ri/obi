@@ -45,8 +45,8 @@ test('Seg：整组禁用时每段都禁用', () => {
 });
 
 test('Switch：role=switch、aria-checked、名称与禁用', () => {
-  const on = render(ui.Switch, {on: true, onToggle: () => {}, label: '自动漫游'});
-  assert.match(on, /role="switch" aria-checked="true" aria-label="自动漫游"/);
+  const on = render(ui.Switch, {on: true, onToggle: () => {}, label: '自动巡游'});
+  assert.match(on, /role="switch" aria-checked="true" aria-label="自动巡游"/);
   assert.match(on, /class="switch on"/);
   const off = render(ui.Switch, {on: false, onToggle: () => {}, disabled: true});
   assert.match(off, /aria-checked="false"/);

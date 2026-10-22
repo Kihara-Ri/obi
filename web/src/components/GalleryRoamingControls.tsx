@@ -7,15 +7,15 @@ function validSeconds(seconds: number): number {
   return Math.max(2, Math.min(30, Math.round(Number.isFinite(seconds) ? seconds : 8)));
 }
 
-/** 漫游开关：与工具栏其它按钮同款的胶囊按钮（按下态 = 开启），不用 iOS 式拨动开关 */
+/** 巡游开关：与工具栏其它按钮同款的胶囊按钮（按下态 = 开启），不用 iOS 式拨动开关 */
 export function GalleryRoamingSwitch({enabled, disabled = false, onToggle}: {
   enabled: boolean;
   disabled?: boolean;
   onToggle: () => void;
 }) {
-  return <button type="button" className="gallery-roaming-toggle" aria-pressed={enabled} aria-label="自动漫游"
+  return <button type="button" className="gallery-roaming-toggle" aria-pressed={enabled} aria-label="自动巡游"
     disabled={disabled} onClick={onToggle}>
-    <i aria-hidden="true"/>漫游
+    <i aria-hidden="true"/>巡游
   </button>;
 }
 
@@ -32,7 +32,7 @@ export function GalleryRoamingSpeed({disabled = false, discrete = false, isometr
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(() => validSeconds(seconds));
   const current = validSeconds(seconds);
-  const title = discrete ? '切换间隔' : '漫游速度';
+  const title = discrete ? '切换间隔' : '巡游速度';
   const unit = discrete ? '秒' : isometric ? '秒/排' : '秒/张';
   const description = discrete ? '每张停留时间' : isometric ? '等距轨道移动一排（3 张封面）的时间' : '移动一张封面所需时间';
 
@@ -99,9 +99,9 @@ export function GalleryRoamingSpeed({disabled = false, discrete = false, isometr
         if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) setOpen(false);
       }}>
       <div className="gallery-speed-picker-head">
-        <button type="button" className="gallery-speed-picker-cancel" aria-label="取消漫游速度设置" onClick={() => setOpen(false)}>×</button>
+        <button type="button" className="gallery-speed-picker-cancel" aria-label="取消巡游速度设置" onClick={() => setOpen(false)}>×</button>
         <h3 id={`${id}-title`}>{title}</h3>
-        <button type="button" className="gallery-speed-picker-confirm" aria-label="确认漫游速度" onClick={confirm}>✓</button>
+        <button type="button" className="gallery-speed-picker-confirm" aria-label="确认巡游速度" onClick={confirm}>✓</button>
       </div>
       <p id={`${id}-description`} className="gallery-speed-picker-description">{description}</p>
       <div className="gallery-speed-wheel-frame">

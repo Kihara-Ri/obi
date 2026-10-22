@@ -313,3 +313,17 @@ export function projectGalleryOrbit(mode: GalleryOrbitMode, point: GalleryPoint,
   }
   return Math.max(-4, Math.min(4, best));
 }
+
+/** 五次平滑阶梯：两端速度和加速度都为 0，起步、收尾没有顿挫。 */
+export const smootherstep = (t: number): number => {
+  const x = Math.max(0, Math.min(1, Number.isFinite(t) ? t : 0));
+  return x * x * x * (x * (x * 6 - 15) + 10);
+};
+
+/** 两端各留一段缓冲：靠近端点时减速、折返后再加速，不在端点处突然掉头。 */
+export function edgeEase(position: number, maximum: number, zone: number): number {
+  if (!(zone > 0)) return 1;
+  const near = Math.min(position, maximum - position);
+  return .14 + .86 * smootherstep(near / zone);
+}
+

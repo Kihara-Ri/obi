@@ -390,7 +390,7 @@ export function GalleryIsometric({records, currentId, density, roaming = false, 
       <StageControls index={nearest} count={records.length} start={false} end={false} step={step} showPosition={false}/>
     </div>
     <span className="gallery-visually-hidden" aria-live={roaming ? 'off' : 'polite'} aria-atomic="true">
-      {roaming ? '正在缓慢循环漫游' : '可沿斜向轨道循环浏览'}，当前范围共 {records.length} 张
+      {roaming ? '正在缓慢循环巡游' : '可沿斜向轨道循环浏览'}，当前范围共 {records.length} 张
     </span>
   </div>;
 }

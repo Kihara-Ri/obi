@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react';
 import type {MouseEvent, PointerEvent} from 'react';
-import {advanceGalleryCarousel, advanceGalleryMotion, advanceGalleryRoaming, clampGalleryPosition, galleryReleaseVelocity, releaseGalleryMotion, wrapGalleryPosition} from '../core/gallery-motion';
+import {advanceGalleryCarousel, advanceGalleryMotion, advanceGalleryRoaming, clampGalleryPosition, galleryReleaseVelocity, releaseGalleryMotion, smootherstep, wrapGalleryPosition} from '../core/gallery-motion';
 import type {GalleryMotionState, GalleryPoint} from '../core/gallery-motion';
 
 export interface GalleryMotionOptions {
@@ -36,8 +36,8 @@ interface Gesture {
   samples: Array<{position: number; at: number}>;
 }
 
-const hasGalleryOverlay = () => !!(document.getElementById('panel') || document.getElementById('lightbox') ||
-  document.querySelector('dialog[open]'));
+// 只有全屏看图会让出舞台；设置抽屉、速度滚轮等不打断自动运动（调速度时能一边看效果）。
+const hasGalleryOverlay = () => !!document.getElementById('lightbox');
 
 /** One continuous rail position. React and saved preferences only see committed anchors. */
 export function useGalleryMotion(options: GalleryMotionOptions) {
@@ -58,6 +58,8 @@ export function useGalleryMotion(options: GalleryMotionOptions) {
   const reduced = useRef(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const tickRef = useRef<(at: number) => void>(() => {});
   const resumeAt = useRef(0);
+  const autoRamp = useRef(0);
+  const lastAutoVelocity = useRef(0);
   const wasAutoRunning = useRef(false);
   const autoDirection = useRef(1);
   const carousel = useRef({elapsed: 0, direction: 1});
@@ -95,6 +97,7 @@ export function useGalleryMotion(options: GalleryMotionOptions) {
     resumeAt.current = current.autoInterval ? 0 : performance.now() + 2800;
   }, []);
   const stop = useCallback((save = true) => {
+    autoRamp.current = 0; lastAutoVelocity.current = 0;
     if (frame.current) cancelAnimationFrame(frame.current);
     frame.current = 0;
     motion.current = null;
@@ -143,7 +146,10 @@ export function useGalleryMotion(options: GalleryMotionOptions) {
           autoTransition.current = true;
         }
       } else {
-        const velocity = latest.current.autoVelocity?.() || 0;
+        // 自动匀速运动起步按 S 形曲线加速（任何一次中断后重新出发都会重新爬升）
+        autoRamp.current = Math.min(1, autoRamp.current + seconds / 1.2);
+        const velocity = (latest.current.autoVelocity?.() || 0) * smootherstep(autoRamp.current);
+        lastAutoVelocity.current = velocity;
         if (latest.current.autoBounce) {
           const next = advanceGalleryRoaming(positionRef.current, autoDirection.current, seconds, velocity,
             latest.current.min, latest.current.max);
@@ -225,7 +231,14 @@ export function useGalleryMotion(options: GalleryMotionOptions) {
       schedule();
     } else if (wasAutoRunning.current && !options.autoRun && !gesture.current && (!motion.current || autoTransition.current)) {
       if (options.snap) moveTo(Math.round(positionRef.current));
-      else stop();
+      else if (Math.abs(lastAutoVelocity.current) > .01 && !reduced.current) {
+        // 关闭自动运动：带着当前速度滑行减速到停，而不是瞬间定住
+        const v = lastAutoVelocity.current; lastAutoVelocity.current = 0;
+        stop(false);
+        motion.current = {position: positionRef.current, velocity: v, phase: 'coast', target: null};
+        previousAt.current = performance.now();
+        schedule();
+      } else stop();
     }
     wasAutoRunning.current = !!options.autoRun;
   }, [options.autoRun, options.snap, autoInterval, canAutoRun, moveTo, resetAutoClock, schedule, stop]);
@@ -246,7 +259,7 @@ export function useGalleryMotion(options: GalleryMotionOptions) {
       } else resume();
     };
     const hide = () => {if (document.hidden) stop(); else resume();};
-    const blur = () => {blurred.current = true; pressedPointers.current.clear(); stop();};
+    const blur = () => {pressedPointers.current.clear();};   // 窗口失焦不再打断运动；真正切走（页面隐藏）由 visibilitychange 处理
     const focus = () => {blurred.current = false; resume();};
     const release = (event: globalThis.PointerEvent) => {
       if (!pressedPointers.current.delete(event.pointerId)) return;

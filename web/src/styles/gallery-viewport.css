@@ -127,3 +127,28 @@
   .gallery-stage-layout{animation:gallery-mode-in .42s cubic-bezier(.2,.7,.2,1) backwards}
 }
 @keyframes gallery-mode-in{from{opacity:0;scale:.97}to{opacity:1;scale:1}}
+
+/* 滑动方向 = 水平（封面墙 / 瀑布流）：舞台自己是横向滚动容器，行数与格子边长由 GalleryWall 按舞台高度算出（--axis-*）。 */
+.gallery-stage-layout>.gallery-stage.is-axis-x{
+  height:100cqh;overflow-x:auto;overflow-y:hidden;overscroll-behavior:contain;scrollbar-width:none;
+}
+.gallery-stage-layout>.gallery-stage.is-axis-x::-webkit-scrollbar{display:none}
+.gallery-page .gallery-stage-layout .gallery-stage.is-axis-x .gallery-wall{
+  display:grid;grid-template-columns:none;grid-template-rows:repeat(var(--axis-rows,3),auto);
+  grid-auto-flow:column;grid-auto-columns:var(--axis-cell,112px);gap:var(--axis-gap,9px);
+  width:max-content;height:100%;align-content:center;
+}
+.gallery-page .gallery-stage-layout .gallery-stage.is-axis-x .gallery-waterfall{
+  flex-direction:column;align-items:flex-start;justify-content:center;gap:var(--axis-gap,12px);
+  width:max-content;min-width:100%;height:100%;flex:none;
+}
+.gallery-page .gallery-stage-layout .gallery-stage.is-axis-x .gallery-waterfall-column{
+  flex:none;flex-direction:row;align-items:flex-start;gap:var(--axis-gap,12px);height:auto;overflow:visible;padding:0 6px 0 0;
+}
+.gallery-page .gallery-stage-layout .gallery-stage.is-axis-x .gallery-waterfall-column:nth-child(2n){padding:0 6px 0 26px}
+.gallery-page .gallery-stage-layout .gallery-stage.is-axis-x .gallery-waterfall-column:nth-child(3n){padding:0 6px 0 11px}
+.gallery-stage.is-axis-x .gallery-waterfall-column>.gallery-item{flex:none;width:var(--axis-cell,140px)}
+.gallery-stage.is-axis-x .gallery-tile-caption .gallery-title,
+.gallery-stage.is-axis-x .gallery-tile-caption .artist-button{min-height:0}
+.gallery-stage.is-axis-x .gallery-tile-caption{padding-top:6px}
+.gallery-page .gallery-stage-layout .gallery-stage.is-axis-x .gallery-waterfall{justify-content:space-evenly}

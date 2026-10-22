@@ -81,7 +81,7 @@ test('九种展示模式的偏好均可保存恢复', () => {
   for (const mode of gallery.GALLERY_MODES) {
     assert.ok(mode.label.trim());
     assert.ok(mode.description.trim());
-    const preferences = {mode: mode.value, density: 'large', showTitles: true, sort: 'artist', currentId: 'copy-b', scope: {kind: 'all'}, roamingSpeeds: {}};
+    const preferences = {mode: mode.value, density: 'large', axis: 'horizontal', showTitles: true, sort: 'artist', currentId: 'copy-b', scope: {kind: 'all'}, roamingSpeeds: {}};
     gallery.saveGalleryPreferences(preferences);
     assert.deepEqual(gallery.readGalleryPreferences(), preferences, mode.value);
   }
@@ -95,7 +95,7 @@ test('当前副本移除后回退到有效起点', () => {
   assert.equal(gallery.galleryIndex([], 'current'), 0);
 });
 
-test('每种布局独立恢复漫游速度，旧偏好和非法速度回退，不保存漫游启动状态', () => {
+test('每种布局独立恢复巡游速度，旧偏好和非法速度回退，不保存巡游启动状态', () => {
   storage.set('album-gallery-v1', JSON.stringify({mode: 'crate', roaming: true,
     roamingSpeeds: {crate: 3, film: 30, flow: 1, ring: 31, tiles: '8', waterfall: 2.5}}));
   const preferences = gallery.readGalleryPreferences();
@@ -174,4 +174,12 @@ test('展示范围选择器提供独立我喜欢入口，且使用收藏中的�
   assert.match(file, /scope\.kind === 'favorites'/);
   assert.match(file, /onSelect\(\{kind: 'favorites'\}\)/);
   assert.match(file, /eligible\.filter\(r => favorites\[r\.id\] === true\)\.length/);
+});
+
+test('滑动方向只对封面墙与瀑布流有意义，非法值回退为垂直', () => {
+  assert.deepEqual(gallery.GALLERY_MODES.map(m => m.value).filter(gallery.galleryHasAxis), ['tiles', 'waterfall']);
+  localStorage.setItem('album-gallery-v1', JSON.stringify({mode: 'tiles', axis: 'diagonal'}));
+  assert.equal(gallery.readGalleryPreferences().axis, 'vertical');
+  localStorage.setItem('album-gallery-v1', JSON.stringify({mode: 'tiles', axis: 'horizontal'}));
+  assert.equal(gallery.readGalleryPreferences().axis, 'horizontal');
 });

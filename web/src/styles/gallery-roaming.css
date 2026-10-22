@@ -1,4 +1,4 @@
-/* 展示页常驻漫游开关与闹钟式速度滚轮。 */
+/* 展示页常驻巡游开关与闹钟式速度滚轮。 */
 /* Only the 44×28 track is interactive; never apply the global button:active 1px shift. */
 .gallery-roaming-speed{display:flex;align-items:center;gap:8px;min-height:44px;padding:8px 12px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:var(--surface-2);font-size:12px;font-weight:500;line-height:1;white-space:nowrap;color:var(--text)}
 .gallery-roaming-speed:hover{background:var(--surface-3);border-color:var(--muted)}
@@ -29,7 +29,7 @@
 @media(prefers-reduced-motion:reduce){
   }
 
-/* 漫游：胶囊按钮，关闭 = 描边、开启 = 强调色底 + 实心点 */
+/* 巡游：胶囊按钮，关闭 = 描边、开启 = 强调色底 + 实心点 */
 .gallery-roaming-toggle{display:flex;flex:none;align-items:center;gap:8px;min-height:44px;padding:8px 14px;border:1px solid var(--border-strong);border-radius:999px;background:var(--surface-2);color:var(--muted);font-size:12px;font-weight:550;line-height:1;white-space:nowrap}
 .gallery-roaming-toggle i{width:8px;height:8px;border-radius:50%;border:1.5px solid currentColor;transition:background .18s ease,border-color .18s ease}
 .gallery-roaming-toggle[aria-pressed="true"]{background:var(--accent-wash);border-color:var(--accent);color:var(--text)}

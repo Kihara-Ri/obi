@@ -6,6 +6,9 @@ export const GALLERY_ROAMING_DEFAULTS: Readonly<Record<GalleryMode, number>> = {
   tiles: 8, waterfall: 10, film: 6, flow: 4, crate: 5,
   table: 10, fan: 4, isometric: 4, ring: 4,
 };
+export type GalleryAxis = 'vertical' | 'horizontal';
+/** 滑动方向只对这两种自然铺开的布局有意义；其余布局的轨道方向由各自的造型决定。 */
+export const galleryHasAxis = (mode: GalleryMode): boolean => mode === 'tiles' || mode === 'waterfall';
 export type GalleryDensity = 'small' | 'medium' | 'large';
 export type GallerySort = 'recent' | 'artist' | 'title' | 'group';
 export type GalleryScope = {kind: 'all'} | {kind: 'favorites'} | {kind: 'artist'; artist: string} | {kind: 'group'; groupId: string};
@@ -23,13 +26,13 @@ export function showcaseGroups(settings: Record<string, unknown>): ShowcaseGroup
 
 export const GALLERY_MODES: ReadonlyArray<{value: GalleryMode; label: string; description: string}> = [
   {value: 'tiles', label: '封面墙', description: '像瓷砖一样铺开全部收藏'},
-  {value: 'waterfall', label: '瀑布流', description: '错落纵列，可开启缓慢漫游'},
+  {value: 'waterfall', label: '瀑布流', description: '错落纵列，可开启缓慢巡游'},
   {value: 'film', label: '胶片', description: '自由滑动胶片，停在任何位置'},
   {value: 'flow', label: '翻阅', description: '当前封面居中，两侧向后展开'},
   {value: 'crate', label: '唱片箱', description: '像从唱片箱中翻出下一张'},
   {value: 'table', label: '桌面铺开', description: '自然散落在桌面，连续向下铺开'},
   {value: 'fan', label: '扇形展开', description: '封面围绕底部支点展开'},
-  {value: 'isometric', label: '等距封面墙', description: '沿斜向轨道循环浏览，可开启缓慢漫游'},
+  {value: 'isometric', label: '等距封面墙', description: '沿斜向轨道循环浏览，可开启缓慢巡游'},
   {value: 'ring', label: '环形展架', description: '沿弧形展架转到下一张'},
 ];
 
@@ -41,6 +44,7 @@ export function galleryModeHasFocus(mode: GalleryMode): boolean {
 export interface GalleryPreferences {
   mode: GalleryMode;
   density: GalleryDensity;
+  axis: GalleryAxis;
   showTitles: boolean;
   sort: GallerySort;
   currentId: string | null;
@@ -52,7 +56,7 @@ const PREF_KEY = 'album-gallery-v1';
 
 export function readGalleryPreferences(): GalleryPreferences {
   const fallback: GalleryPreferences = {
-    mode: 'tiles', density: 'medium', showTitles: false,
+    mode: 'tiles', density: 'medium', axis: 'vertical', showTitles: false,
     sort: 'recent', currentId: null, scope: {kind: 'all'}, roamingSpeeds: {},
   };
   try {
@@ -67,6 +71,7 @@ export function readGalleryPreferences(): GalleryPreferences {
       roamingSpeeds,
       mode: GALLERY_MODES.some(m => m.value === p.mode) ? p.mode! : fallback.mode,
       density: ['small', 'medium', 'large'].includes(p.density || '') ? p.density! : fallback.density,
+      axis: p.axis === 'horizontal' ? 'horizontal' : 'vertical',
       showTitles: typeof p.showTitles === 'boolean' ? p.showTitles : fallback.showTitles,
       sort: ['recent', 'artist', 'title', 'group'].includes(p.sort || '') ? p.sort! : fallback.sort,
       currentId: typeof p.currentId === 'string' ? p.currentId : null,
