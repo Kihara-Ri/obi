@@ -168,13 +168,13 @@ export function Lightbox() {
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       const t = e.target as HTMLElement;
-      const ph = t.closest?.('.photo-thumb img,.photo-strip a') as HTMLElement | null;
+      const ph = t.closest?.('.photo-thumb img,.photo-strip a,.cover-zoom-img') as HTMLElement | null;
       if (ph && !latest.current.view) {
         if (ph.tagName === 'A') e.preventDefault();
         const img = (ph.tagName === 'A' ? ph.querySelector('img') : ph) as HTMLImageElement;
         const box = ph.closest('.photo-thumbs,.batch-photos,.photo-strip,.import-photo-line');
         const els = box ? Array.from(box.querySelectorAll('img')) : [img];
-        const list = els.map(el => el.currentSrc || el.src);
+        const list = els.map(el => el.dataset.zoomSrc || el.currentSrc || el.src);
         const index = Math.max(0, els.indexOf(img));
         posRef.current = index;
         // 记录容器内逐张对应的缩略图与圆角；位置到动画启动时再量（见下）。
@@ -182,7 +182,7 @@ export function Lightbox() {
         origin.current = {radius: Number.isFinite(radius) ? radius : 0,
           thumbs: els.map(el => el instanceof HTMLImageElement ? el : null)};
         introDone.current = false;
-        setView({list: list.length ? list : [img.currentSrc || img.src], pos: index, scan: ph.closest('.photo-thumbs') ? 'form' : ph.closest('.photo-strip') ? 'detail' : undefined});
+        setView({list: list.length ? list : [img.dataset.zoomSrc || img.currentSrc || img.src], pos: index, scan: ph.closest('.photo-thumbs') ? 'form' : ph.closest('.photo-strip') ? 'detail' : undefined});
         return;
       }
       if (!latest.current.view) return;

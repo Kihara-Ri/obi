@@ -8,6 +8,7 @@ export interface CoverCandidate {
   token: string; title: string; artist: string; year?: string;
   thumbnail: string; exact: boolean; provider?: string;
 }
+export const dropCandidate = (list: CoverCandidate[], token: string) => list.filter(c => c.token !== token);
 
 export function useCoverSearch(ctx: FormCtx, hadCover: boolean) {
   const {v, base, dirty, formRef} = ctx;
@@ -42,7 +43,13 @@ export function useCoverSearch(ctx: FormCtx, hadCover: boolean) {
     if (!title || !artist) {setCoverStatus('先填专辑名和艺人'); return;}
     setBusy(true);
     setCoverStatus('查找中…');
-    setCandidates([]);
+    // 已确认发行版：它自己的正面图不用等搜索，浏览器直取缩略图，先摆出来供点选（没有图时缩略图加载失败会自动撤下）
+    const rid = v.releaseInfo.musicBrainzReleaseId;
+    const own: CoverCandidate[] = rid && /^[0-9a-f-]{36}$/.test(rid) ? [{
+      token: 'CAAR-' + rid, title: '此版本的封面', artist: '', exact: true, provider: 'Cover Art Archive',
+      thumbnail: `https://coverartarchive.org/release/${rid}/front-250`}] : [];
+    setCandidates(own);
+    if (own.length) setCoverStatus('此版本的封面已列出，继续查找更多…');
     try {
       const result = await api<{candidates: CoverCandidate[]; warnings?: string[]}>(
         'covers/search', {title, artist, country: 'AUTO', releaseId: v.releaseInfo.musicBrainzReleaseId || undefined});
@@ -50,9 +57,10 @@ export function useCoverSearch(ctx: FormCtx, hadCover: boolean) {
       let status = result.candidates.length ? `找到 ${result.candidates.length} 张封面` : '未找到封面';
       if (result.warnings?.length) status += ' · 部分来源不可用';
       setCoverStatus(status);
-      setCandidates(result.candidates);
+      // 搜索结果里同一张图不重复；本版封面仍排最前
+      setCandidates(prev => [...prev.filter(c => c.token.startsWith('CAAR-')), ...result.candidates.filter(c => c.thumbnail !== own[0]?.thumbnail)]);
     } catch (err) {
-      if (stillCurrent(key)) setCoverStatus(err instanceof Error ? err.message : String(err));
+      if (stillCurrent(key)) setCoverStatus(own.length ? '此版本的封面已列出；其他来源暂时查不到' : err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }

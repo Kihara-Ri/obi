@@ -41,3 +41,7 @@ class ArtClient:
     def image(self, edition, ident, preview=False):
         suffix = '-1200.jpg' if preview else '.jpg'
         return self.read(f'https://coverartarchive.org/release/{edition}/{ident}{suffix}', 24 * 1024 * 1024)
+
+    def front(self, edition):
+        """此发行版的正面图（1200px 预览）；没有正面图 → ArtNotFound。"""
+        return self.read(f'https://coverartarchive.org/release/{edition}/front-1200', 24 * 1024 * 1024)

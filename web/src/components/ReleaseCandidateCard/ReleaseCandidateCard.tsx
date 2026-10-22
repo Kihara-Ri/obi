@@ -39,19 +39,14 @@ export function ReleaseCandidateCard({c, fold, tag, children}: {c: ReleaseCandid
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  // 此版本自己的正面图（Cover Art Archive）：卡片一出现就取，查询结果和封面放在一起；Discogs 版本没有
-  // artState：取图中 / 数据库没有（Discogs 版本不带图）/ 已有，让用户分得清「还在找」和「没有」
-  const [art, setArt] = useState('');
-  const [artState, setArtState] = useState<'loading' | 'none' | 'ok'>(c.source === 'discogs' ? 'none' : 'loading');
-  useEffect(() => {
-    if (c.source === 'discogs') return;
-    let live = true;
-    setArtState('loading');
-    api<{cover: string}>('catalog/front-cover?id=' + encodeURIComponent(c.id))
-      .then(r => { if (!live) return; if (r.cover) { setArt(r.cover); setArtState('ok'); } else setArtState('none'); })
-      .catch(() => { if (live) setArtState('none'); });
-    return () => { live = false; };
-  }, [c.id, c.source]);
+  // 此版本自己的正面图（Cover Art Archive）：浏览器直接取 front-250（一次请求、不经本机服务、浏览器自带缓存）；
+  // 404 = 这个版本没有正面图。Discogs 版本不带图。放大时换 front-1200。
+  const caa = c.source !== 'discogs' && /^[0-9a-f-]{36}$/.test(c.id) ? 'https://coverartarchive.org/release/' + c.id + '/' : '';
+  const [artState, setArtState] = useState<'loading' | 'none' | 'ok'>(caa ? 'loading' : 'none');
+  useEffect(() => { setArtState(caa ? 'loading' : 'none'); }, [caa]);
+  const art = artState === 'ok' ? caa + 'front-250' : '';
+  const artImg = caa ? <img className="rcc-art cover-zoom-img" src={caa + 'front-250'} data-zoom-src={caa + 'front-1200'} alt="封面"
+    hidden={artState !== 'ok'} onLoad={() => setArtState('ok')} onError={() => setArtState('none')}/> : null;
 
   /** 取详情；失败时回退到精确匹配的基本资料，并说明曲目暂不可用。 */
   const load = async (): Promise<ReleaseInfo> => {
@@ -93,9 +88,10 @@ export function ReleaseCandidateCard({c, fold, tag, children}: {c: ReleaseCandid
   </>;
   if (!fold) return <li className="rcc">{body}</li>;
   return <li className={'rcc is-fold' + (!folded ? ' is-open' : '')}>
-    <button type="button" className="rcc-fold" aria-expanded={!folded} onClick={() => setFolded(!folded)}>
-      {art ? <img className="rcc-art" src={art} alt=""/>
-        : <span className={'rcc-art is-' + artState} aria-hidden="true">{artState === 'none' ? '无封面' : '找封面…'}</span>}
+    <button type="button" className="rcc-fold" aria-expanded={!folded}
+      onClick={e => { if (!(e.target as Element).closest('.cover-zoom-img:not([hidden])')) setFolded(!folded); }}>
+      {artImg}
+      {artState !== 'ok' ? <span className={'rcc-art is-' + artState} aria-hidden="true">{artState === 'none' ? '无封面' : '找封面…'}</span> : null}
       <span className="rcc-main">
         <strong>{dedupeCatalog(i0.catalogNumber) || c.title}{tag ? <em className="rcc-tag">{tag}</em> : null}</strong>
         <span>{[regionName(i0.country), i0.releaseDate, i0.label].filter(Boolean).join(' · ')}</span>

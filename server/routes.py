@@ -419,25 +419,38 @@ def catalog_art(svc):
     return getattr(svc, 'catalog_art', None) or twins(svc).art
 
 
+_FRONT_MEMO = {}   # MB 发行版 id → 响应；入库自动配封面会再取一次，不必重复下载
+
+
 def api_release_front_cover(h, svc):
-    """Use ONLY the front of the confirmed MB release, not title-matched unrelated editions."""
+    """Use ONLY the front of the confirmed MB release, not title-matched unrelated editions.
+    直接取 /front-1200：CAA 对没有正面图的版本返回 404，省掉先读图集列表再下图的两次串行请求。"""
     from twins import UUID, image_type
-    from server.catalog_art import ArtNotFound
+    from server.catalog_art import ArtClient, ArtNotFound
     ident = query(h).get('id', '')
     if not isinstance(ident, str) or not UUID.fullmatch(ident):
         raise ValidationError('发行版本编号不正确')
+    hit = _FRONT_MEMO.get(ident)
+    if hit: return h.send(hit)
+    art = catalog_art(svc)
     try:
-        images = catalog_art(svc).catalog(ident).get('images', [])
+        if isinstance(art, ArtClient): raw = art.front(ident)
+        else:   # 插件提供的图集接口：只有「列表 + 取图」，沿用两步
+            images = art.catalog(ident).get('images', [])
+            front = next((item for item in images if isinstance(item, dict) and str(item.get('id', '')).isdigit()
+                          and 'Front' in item.get('types', [])), None)
+            if front is None: return h.send({'cover': '', 'reason': 'no-front'})
+            raw = art.image(ident, str(front['id']), preview=True)
     except ArtNotFound:
-        return h.send({'cover': '', 'reason': 'no-artwork'})
-    front = next((item for item in images if isinstance(item, dict) and str(item.get('id', '')).isdigit()
-                  and 'Front' in item.get('types', [])), None)
-    if front is None: return h.send({'cover': '', 'reason': 'no-front'})
-    raw = catalog_art(svc).image(ident, str(front['id']), preview=True)
+        return h.send({'cover': '', 'reason': 'no-front'})
     if len(raw) > 2500000: raise ValidationError('这一发行版的封面预览过大，请手动选择封面')
     _, mime = image_type(raw)
-    h.send({'cover': 'data:' + mime + ';base64,' + base64.b64encode(raw).decode('ascii'),
-            'coverSource': {'title': '', 'artist': ''}})
+    out = {'cover': 'data:' + mime + ';base64,' + base64.b64encode(raw).decode('ascii'),
+           'coverSource': {'title': '', 'artist': ''}}
+    if isinstance(art, ArtClient):
+        if len(_FRONT_MEMO) > 16: _FRONT_MEMO.pop(next(iter(_FRONT_MEMO)))
+        _FRONT_MEMO[ident] = out
+    h.send(out)
 
 
 def api_engine_plugin(h, svc): h.send(svc.plugins.status())

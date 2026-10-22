@@ -3,7 +3,7 @@
 import {useState} from 'react';
 import {Chevron, Collapse} from '../../components/ui';
 import {SpinIco} from '../../components/icons';
-import type {CoverSearch} from './useCoverSearch';
+import {dropCandidate, type CoverSearch} from './useCoverSearch';
 
 export function CoverPanel({cover, src, busy, inline}: {cover: CoverSearch; src: string; busy: boolean; inline?: boolean}) {
   const [open, setOpen] = useState(false);
@@ -29,7 +29,7 @@ export function CoverPanel({cover, src, busy, inline}: {cover: CoverSearch; src:
         <ul className="cover-list" aria-label="封面候选">
           {cover.candidates.map(c => <li key={c.token}>
             <button type="button" className="cover-pick" onClick={() => cover.chooseCover(c.token, cover.coverKey())}>
-              <img src={c.thumbnail} alt=""/>
+              <img src={c.thumbnail} alt="" onError={() => cover.setCandidates(list => dropCandidate(list, c.token))}/>
               <span><b>{c.title}</b><small>{[c.artist, c.year, c.provider].filter(Boolean).join(' · ')}</small></span>
               <em>使用</em>
             </button></li>)}

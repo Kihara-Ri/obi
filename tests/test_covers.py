@@ -5,6 +5,14 @@ from covers import CoverService, artwork_url, normalized
 from domain import ValidationError
 
 class CoverTests(unittest.TestCase):
+    def test_release_front_token_downloads_without_prior_search(self):
+        rid='76df3287-6cda-33eb-8e9a-044b5e15ffdd'
+        svc=CoverService()
+        with patch.object(CoverService,'read',return_value=b'\x89PNG\r\n\x1a\nx') as read:
+            result=svc.download('CAAR-'+rid)
+        self.assertEqual(read.call_args.args[0],f'https://coverartarchive.org/release/{rid}/front-1200')
+        self.assertTrue(result['cover'].startswith('data:image/png'))
+        with self.assertRaises(ValidationError):svc.download('CAAR-not-a-uuid')
     def test_normalization(self):
         self.assertEqual(normalized('Ｆirst Love'),normalized('First Love'))
     def test_only_apple_images(self):

@@ -182,6 +182,10 @@ class CoverService:
         with self.lock:
             if token in self.images: return self.images[token]
             item=self.choices.get(token)
+        m=re.fullmatch(r'CAAR-([0-9a-f-]{36})',str(token))
+        if not item and m:   # 此发行版的正面图：无需先搜索，由前端直接给出候选
+            item={'url':f'https://coverartarchive.org/release/{m.group(1)}/front-1200','provider':'Cover Art Archive（此版本）',
+                  'page':'https://musicbrainz.org/release/'+m.group(1),'title':'此版本的封面','artist':'','country':'AUTO'}
         if not item: raise ValidationError('候选封面已过期，请重新查找')
         data=self.read(artwork_url(item['url']),2*1024*1024)
         if data.startswith(b'\xff\xd8\xff'): mime='image/jpeg'
@@ -302,19 +306,30 @@ class CoverService:
             time.sleep(1.2)
             url='https://musicbrainz.org/ws/2/release-group/?'+urlencode({'query':f'releasegroup:{lucene_quote(title)}','fmt':'json','limit':10}, quote_via=quote)
             groups=self.metadata(url).get('release-groups',[])
-        candidates=[]
+        wanted=[]
         for g in groups[:4]:
             name=g.get('title','');who=''.join(c.get('name',c.get('artist',{}).get('name',''))+c.get('joinphrase','') for c in g.get('artist-credit',[]))
             if similarity(title,name)<.65 or not artist_matches(artist,who,loose=True):continue
-            gid=g.get('id','')
-            if not re.fullmatch(r'[0-9a-f-]{36}',gid):continue
+            if not re.fullmatch(r'[0-9a-f-]{36}',g.get('id','')):continue
+            wanted.append((g,name,who))
+        def front_url(gid):
             url=self.group_cd_front(gid)
-            if not url:
-                art=self.metadata('https://coverartarchive.org/release-group/'+gid)
-                front=next((i for i in art.get('images',[]) if i.get('front') and i.get('approved')),None)
-                if not front:continue
-                url=front.get('thumbnails',{}).get('500') or front.get('thumbnails',{}).get('large') or front.get('image','')
-                if url.startswith('http://'):url='https://'+url[7:]
+            if url:return url
+            art=self.metadata('https://coverartarchive.org/release-group/'+gid)
+            front=next((i for i in art.get('images',[]) if i.get('front') and i.get('approved')),None)
+            if not front:return None
+            url=front.get('thumbnails',{}).get('500') or front.get('thumbnails',{}).get('large') or front.get('image','')
+            return 'https://'+url[7:] if url.startswith('http://') else url
+        # 各专辑组互不依赖：并行取图（MusicBrainz 仍由共用节流排队，CAA 是另一主机，可同时进行）
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=max(1,len(wanted))) as pool:
+            futures=[pool.submit(front_url,g['id']) for g,_,_ in wanted]
+        candidates=[]
+        for (g,name,who),future in zip(wanted,futures):
+            gid=g['id']
+            try:url=future.result()
+            except ValidationError:continue
+            if not url:continue
             try:c=self.candidate(title,artist,name,who,'CAA-'+gid,url,g.get('first-release-date','')[:4],'MusicBrainz / Cover Art Archive','https://musicbrainz.org/release-group/'+gid)
             except ValidationError:continue
             # A group can represent different editions; multiple matches remain manual.

@@ -99,6 +99,23 @@ class ConfirmedReleaseArtTests(unittest.TestCase):
         self.assertEqual(self.http.send.call_args.args[0]['cover'], '')
         self.art.image.assert_called_once()
 
+    def test_front_cover_single_request_and_memo(self):
+        from server.catalog_art import ArtClient, ArtNotFound
+        from server import routes
+        routes._FRONT_MEMO.clear()
+        art = ArtClient()
+        art.read = Mock(return_value=b'\x89PNG\r\n\x1a\nvalid')
+        svc = SimpleNamespace(catalog_art=art)
+        self.http.path = '/api/catalog/front-cover?id=' + self.EDITION
+        api_release_front_cover(self.http, svc)
+        api_release_front_cover(self.http, svc)
+        art.read.assert_called_once()
+        self.assertTrue(self.http.send.call_args.args[0]['cover'].startswith('data:image/png'))
+        routes._FRONT_MEMO.clear()
+        art.read = Mock(side_effect=ArtNotFound('x'))
+        api_release_front_cover(self.http, svc)
+        self.assertEqual(self.http.send.call_args.args[0]['cover'], '')
+
 
 if __name__ == '__main__':
     unittest.main()

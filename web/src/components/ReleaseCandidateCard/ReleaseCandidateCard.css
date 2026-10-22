@@ -50,3 +50,5 @@ a.rcc-source:hover{color:var(--text)}
 @keyframes rcc-pulse{from{opacity:.45}to{opacity:1}}
 @media (prefers-reduced-motion:reduce){.rcc-art.is-loading{animation:none}}
 .rcc-art.is-loading{display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;line-height:1.2;color:var(--muted)}
+.rcc-art[hidden]{display:none}
+.rcc-fold img.cover-zoom-img{cursor:zoom-in}
