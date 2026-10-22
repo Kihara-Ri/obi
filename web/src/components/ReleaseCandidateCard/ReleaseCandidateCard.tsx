@@ -5,6 +5,7 @@ import {api} from '../../core/api';
 import {dedupeCatalog, regionName} from '../../core/release-metadata';
 import type {ReleaseCandidate, ReleaseInfo} from '../../types';
 import {Tracklist} from '../Tracklist';
+import {useArtExpand} from './useArtExpand';
 import './ReleaseCandidateCard.css';
 
 const sourceName = (info: {musicBrainzReleaseId?: string; discogsReleaseId?: string}, discogs?: boolean) =>
@@ -34,6 +35,7 @@ export interface CardCtx {info: ReleaseInfo; load: () => Promise<ReleaseInfo>; b
 
 /** fold：默认只显示一行关键信息（编号、地区、日期、条码），点开才出完整资料和操作（查询页用，省纵向空间）。 */
 export function ReleaseCandidateCard({c, fold, tag, children}: {c: ReleaseCandidate; fold?: boolean; tag?: string; children?: (ctx: CardCtx) => ReactNode}) {
+  const expand = useArtExpand();
   const [folded, setFolded] = useState(!!fold);  // 折叠卡片：头部一行始终在原位 + 可展开的主体
   const [full, setFull] = useState<ReleaseInfo | null>(null);
   const [open, setOpen] = useState(false);
@@ -45,8 +47,9 @@ export function ReleaseCandidateCard({c, fold, tag, children}: {c: ReleaseCandid
   const [artState, setArtState] = useState<'loading' | 'none' | 'ok'>(caa ? 'loading' : 'none');
   useEffect(() => { setArtState(caa ? 'loading' : 'none'); }, [caa]);
   const art = artState === 'ok' ? caa + 'front-250' : '';
-  const artImg = caa ? <img className="rcc-art cover-zoom-img" src={caa + 'front-250'} data-zoom-src={caa + 'front-1200'} alt="封面"
-    hidden={artState !== 'ok'} onLoad={() => setArtState('ok')} onError={() => setArtState('none')}/> : null;
+  const artImg = caa ? <img className="rcc-art rcc-art-img" ref={expand.art} src={caa + (expand.big ? 'front-500' : 'front-250')} alt="封面"
+    style={expand.big ? {backgroundImage: `url(${caa}front-250)`} : undefined}
+    onClick={fold ? expand.toggle : undefined} hidden={artState !== 'ok'} onLoad={() => setArtState('ok')} onError={() => setArtState('none')}/> : null;
 
   /** 取详情；失败时回退到精确匹配的基本资料，并说明曲目暂不可用。 */
   const load = async (): Promise<ReleaseInfo> => {
@@ -88,9 +91,10 @@ export function ReleaseCandidateCard({c, fold, tag, children}: {c: ReleaseCandid
   </>;
   if (!fold) return <li className="rcc">{body}</li>;
   return <li className={'rcc is-fold' + (!folded ? ' is-open' : '')}>
-    <button type="button" className="rcc-fold" aria-expanded={!folded}
-      onClick={e => { if (!(e.target as Element).closest('.cover-zoom-img:not([hidden])')) setFolded(!folded); }}>
+    <button type="button" className={'rcc-fold' + (expand.big ? ' is-big' : '')} ref={expand.head} aria-expanded={!folded}
+      onClick={e => { if (!(e.target as Element).closest('.rcc-art-img')) setFolded(!folded); }}>
       {artImg}
+      <span className="rcc-break" aria-hidden="true"/>
       {artState !== 'ok' ? <span className={'rcc-art is-' + artState} aria-hidden="true">{artState === 'none' ? '无封面' : '找封面…'}</span> : null}
       <span className="rcc-main">
         <strong>{dedupeCatalog(i0.catalogNumber) || c.title}{tag ? <em className="rcc-tag">{tag}</em> : null}</strong>

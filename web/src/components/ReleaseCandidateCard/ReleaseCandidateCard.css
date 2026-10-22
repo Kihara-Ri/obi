@@ -51,4 +51,9 @@ a.rcc-source:hover{color:var(--text)}
 @media (prefers-reduced-motion:reduce){.rcc-art.is-loading{animation:none}}
 .rcc-art.is-loading{display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;line-height:1.2;color:var(--muted)}
 .rcc-art[hidden]{display:none}
-.rcc-fold img.cover-zoom-img{cursor:zoom-in}
+.rcc-fold{flex-wrap:wrap}
+.rcc-fold .rcc-main{flex:1}
+.rcc-fold img.rcc-art-img{cursor:zoom-in;background-size:cover}
+.rcc-break{display:none;flex-basis:100%;height:0;margin:-12px 0 0}
+.rcc-fold.is-big .rcc-break{display:block}
+.rcc-fold.is-big .rcc-art-img{width:min(100%,420px);height:auto;aspect-ratio:1;margin-inline:auto;border-radius:12px;cursor:zoom-out}
