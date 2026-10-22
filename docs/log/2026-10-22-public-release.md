@@ -27,3 +27,9 @@
 
 ## 关联
 D-020 · D-013
+
+## 追加：发布与线上迁移结果
+- GitHub：原仓库改名为私有的 `Kihara-Ri/obi-archive`（保留 PR #1 与 v2.x Release）；新建 `Kihara-Ri/obi` 推送改写后的历史（211 个提交、26 个 tag），CI 全绿后公开，发布 v3.0.0（附 SHA256）。原地强推不够：PR 的 `refs/pull/1/head` 与动态记录会让旧提交在公开后仍可访问。
+- CI：浏览器验收两次失败——封面服务连不上、Discogs 素材哈希不符（I-013），第三次重跑通过。
+- 公开时 GitHub 短暂报「Repository is disabled」，几秒后恢复，推 tag 成功。
+- 服务器：停服 → 数据目录整份备份到 `/opt/obi-prerename-data-<时间>` → `/opt/diedu` 移到 `/opt/obi`，用户与组 `diedu` 改名 `obi` → 删除旧单元，`update.env` 改为新目录、服务名与仓库 → `tools/deploy.sh --init` 用官方 Release 包发布 v3.0.0（装 `obi.service`）→ 装 `obi-update.timer`。本机与公网健康检查通过；记录 / 销售 / 包裹条数与备份一致；更新器 `--check` 能读到公开 Release。
