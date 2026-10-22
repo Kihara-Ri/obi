@@ -12,6 +12,7 @@ export interface FocusInputProps {
   placeholder?: string;
   submitLabel: string;
   enterKeyHint?: 'search' | 'done' | 'go';
+  inputMode?: 'text' | 'numeric' | 'decimal';
   onChange: (v: string) => void;
   onSubmit: () => void;
   onClose: () => void;
@@ -47,7 +48,7 @@ export function FocusInput(p: FocusInputProps) {
       <div className="fi-card" role="dialog" aria-label={p.title}>
         <div className="fi-head"><b>{p.title}</b><button type="button" className="quiet" onClick={p.onClose}>取消</button></div>
         <div className="fi-row">
-          <input ref={ref} type="text" autoComplete="off" enterKeyHint={p.enterKeyHint ?? 'search'}
+          <input ref={ref} type="text" autoComplete="off" inputMode={p.inputMode} enterKeyHint={p.enterKeyHint ?? 'search'}
             placeholder={p.placeholder} value={p.value} onChange={e => p.onChange(e.target.value)} onKeyDown={key}/>
           <button type="button" className="primary" onClick={p.onSubmit}>{p.submitLabel}</button>
         </div>

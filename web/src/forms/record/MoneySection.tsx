@@ -16,14 +16,11 @@ export function MoneySection({ctx, preview, shipItem}: {
       <label htmlFor="f-price">买入金额</label>
       <div className="row-value amount">
         {/* 日元不设步进限制：step 会把 1145 円这类非整十金额判为无效，编辑历史数据时保存被静默拦截 */}
-        <input id="f-price" name="price" type="number" min="0"
+        <AmountInput id="f-price" name="price" min="0"
                step={v.currency === 'JPY' ? 'any' : '0.01'}
                inputMode={v.currency === 'JPY' ? 'numeric' : 'decimal'}
-               placeholder="选填" value={v.price}
-               onChange={e => {
-                 set({price: v.currency === 'JPY' ? e.target.value.replace(/[^\d]/g, '') : e.target.value});
-                 dirty();
-               }}/>
+               placeholder="选填" value={v.price} integer={v.currency === 'JPY'} zeroOnEmpty={false}
+               onValue={x => {set({price: x}); dirty();}}/>
         <Seg className="seg-cur" ariaLabel="币种"
              options={[{value: 'JPY', label: '円'}, {value: 'CNY', label: '元'}]}
              value={v.currency}

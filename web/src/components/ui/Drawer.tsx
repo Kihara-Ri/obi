@@ -119,7 +119,8 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
       const el = document.activeElement;
       const body = panel.querySelector<HTMLElement>('.drawer-body');
       if (!body || !(el instanceof HTMLElement) || !panel.contains(el)
-        || !['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)) return;
+        || !['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)
+        || (el as HTMLInputElement).readOnly) return;
       // 键盘盖在 sheet 之上（不再把 sheet 压矮）：输入框被盖住或在内容区之外时，平滑滚到内容区顶部。
       // 对齐顶部不依赖 sheet 当时的高度，键盘动画期间测量不准也不会量错；body 底部留了键盘高度的滚动余量。
       const box = el.getBoundingClientRect();

@@ -1,13 +1,15 @@
 /* 聚焦输入层：fixed 铺满可视视口（top/bottom 由组件按 visualViewport 给出），卡片贴底 = 键盘正上方 */
-.fi-layer{position:fixed;left:0;right:0;z-index:60;display:flex;flex-direction:column;justify-content:flex-end;touch-action:none}
+.fi-layer{position:fixed;left:0;right:0;z-index:60;display:flex;flex-direction:column;justify-content:flex-end;touch-action:none;
+  transition:top .26s var(--ease-out),bottom .26s var(--ease-out)}
 .fi-dim{position:absolute;inset:0;background:var(--shadow-ink);opacity:0;transition:opacity .22s var(--ease-soft)}
 .fi-card{position:relative;margin:0 8px 8px;padding:14px 14px 16px;border-radius:var(--radius);background:var(--surface);
   border:1px solid var(--border);box-shadow:0 -8px 32px var(--shadow-ink);
   transform:translateY(24px) scale(.96);opacity:0;transform-origin:50% 100%;
-  transition:transform .28s var(--ease-out),opacity .2s var(--ease-soft)}
+  transition:transform .32s var(--ease-out),opacity .22s var(--ease-soft);will-change:transform,opacity}
 .fi-layer.is-shown .fi-dim{opacity:1}
 .fi-layer.is-shown .fi-card{transform:none;opacity:1}
 .fi-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-size:13px;color:var(--muted)}
 .fi-row{display:flex;gap:8px}
 .fi-row input{flex:1;min-width:0;font-size:17px;padding:12px 14px}
 .fi-row button{flex:none;min-width:64px}
+@media (prefers-reduced-motion:reduce){.fi-layer,.fi-dim,.fi-card{transition:none}}

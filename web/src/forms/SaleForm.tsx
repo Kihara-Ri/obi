@@ -92,9 +92,9 @@ function SaleForm({ids}: {ids: string[]}) {
           <div className="row amount-row">
             <label htmlFor="f-gross">成交价</label>
             <div className="row-value amount">
-              <input id="f-gross" name="gross" type="number" required min="0" step={step}
+              <AmountInput id="f-gross" name="gross" required min="0" step={step}
                      inputMode="decimal" placeholder={v.currency === 'JPY' ? '0' : '0.00'} value={v.gross}
-                     onChange={e => set({gross: e.target.value})}/>
+                     zeroOnEmpty={false} onValue={x => set({gross: x})}/>
               <Seg className="seg-cur" ariaLabel="币种"
                    options={[{value: 'JPY', label: '円'}, {value: 'CNY', label: '元'}]}
                    value={v.currency} onValue={c => switchCurrency(c as Currency)}/>

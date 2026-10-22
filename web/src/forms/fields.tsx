@@ -1,7 +1,9 @@
 // 表单字段构造：受控 input / 自动长高 textarea / 币种金额组（买入金额同款）/
 // 日期快捷行（今天 / 昨天 / 选日期，记录售出与确认表单共用）。
+import {useEffect, useState} from 'react';
 import type {ChangeEvent, FocusEvent, InputHTMLAttributes, MouseEvent} from 'react';
 import {AutoTextarea} from '../components/ui/AutoTextarea';
+import {FocusInput} from '../components/ui/FocusInput/FocusInput';
 import {Seg} from '../components/ui/Seg';
 import {today, yesterday} from '../core/format';
 import type {Currency} from '../types';
@@ -11,6 +13,8 @@ import type {Currency} from '../types';
 export function AmountInput({value, onValue, integer = false, zeroOnEmpty = true, ...rest}:
   Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> &
   {value: string; onValue: (v: string) => void; integer?: boolean; zeroOnEmpty?: boolean}) {
+  const sheet = useSheet();
+  const [open, setOpen] = useState(false);
   const selectZero = (el: HTMLInputElement) => {
     if (el.value !== '' && Number(el.value) === 0) requestAnimationFrame(() => el.select());
   };
@@ -24,8 +28,38 @@ export function AmountInput({value, onValue, integer = false, zeroOnEmpty = true
     onValue(raw);
     if (raw === '0') requestAnimationFrame(() => el.select());
   };
-  return <input {...rest} type="number" value={value} onChange={change}
-                onFocus={(e: FocusEvent<HTMLInputElement>) => { selectZero(e.currentTarget); rest.onFocus?.(e); }}/>;
+  if (!sheet) {
+    return <input {...rest} type="number" value={value} onChange={change}
+                  onFocus={(e: FocusEvent<HTMLInputElement>) => { selectZero(e.currentTarget); rest.onFocus?.(e); }}/>;
+  }
+  // 手机：输入框只读（不拉键盘、不触发抽屉的键盘避让），点一下升起悬浮输入层，页面全程不动
+  const draft = (v: string) => {
+    let raw = v.replace(integer ? /[^\d]/g : /[^\d.]/g, '');
+    if (!integer) { const i = raw.indexOf('.'); if (i >= 0) raw = raw.slice(0, i + 1) + raw.slice(i + 1).replace(/\./g, ''); }
+    if (raw === '' && zeroOnEmpty) raw = '0';
+    else raw = raw.replace(/^0+(?=\d)/, '');
+    onValue(raw);
+  };
+  const title = (rest.id && document.querySelector(`label[for="${rest.id}"]`)?.textContent) || '输入金额';
+  return <>
+    <input {...rest} type="number" readOnly inputMode="none" value={value} onChange={() => {}}
+           onClick={() => setOpen(true)}/>
+    <FocusInput open={open} title={title} value={value} placeholder={rest.placeholder}
+                inputMode={integer ? 'numeric' : 'decimal'} submitLabel="完成" enterKeyHint="done"
+                onChange={draft} onSubmit={() => setOpen(false)} onClose={() => setOpen(false)}/>
+  </>;
+}
+
+function useSheet() {
+  const q = '(max-width:840px)';
+  const [m, setM] = useState(() => window.matchMedia(q).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(q);
+    const f = () => setM(mq.matches);
+    mq.addEventListener('change', f);
+    return () => mq.removeEventListener('change', f);
+  }, []);
+  return m;
 }
 
 type FieldProps = InputHTMLAttributes<HTMLInputElement> & {label: string; name: string};
