@@ -69,7 +69,7 @@ export function PurchaseForm({id}: {id: string}) {
       </div>
       <div className="drawer-footer">
         <button type="button" onClick={() => { setError(''); app.backDrawer(); }}>取消</button>
-        <button type="submit" className="primary" disabled={saving || !edited}>保存</button>
+        <button type="submit" className="primary" aria-busy={saving} disabled={saving || !edited}>保存</button>
       </div>
     </form>
   );

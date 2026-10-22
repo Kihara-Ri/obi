@@ -111,7 +111,7 @@ export function LookupPage() {
             placeholder="条形码、唱片编号，或专辑名 艺人" value={text}
             onChange={e => { setText(e.target.value); setError(''); }}/>
         </ScanField>
-        <button type="submit" className="primary" disabled={busy}>{busy ? '查询中…' : '查询'}</button>
+        <button type="submit" className="primary" aria-busy={busy} disabled={busy}>{busy ? '查询中…' : '查询'}</button>
       </form>
       {target ? <div className="lookup-target" role="status">
         <span>正在为「{displayReleaseTitle(target.title)}」确认发行版</span>

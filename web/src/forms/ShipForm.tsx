@@ -93,7 +93,7 @@ function ShipForm({ids}: {ids: string[]}) {
       </div>
       <div className="drawer-footer">
         <button type="button" onClick={() => app.backDrawer()}>取消</button>
-        <button type="submit" className="primary" disabled={saving}>创建运输</button>
+        <button type="submit" className="primary" aria-busy={saving} disabled={saving}>创建运输</button>
       </div>
     </form>
   );
@@ -155,7 +155,7 @@ function ShipmentEditForm({id}: {id: string}) {
       </div>
       <div className="drawer-footer">
         <button type="button" onClick={() => app.backDrawer()}>取消</button>
-        <button type="submit" className="primary" disabled={saving || !edited}>保存修改</button>
+        <button type="submit" className="primary" aria-busy={saving} disabled={saving || !edited}>保存修改</button>
       </div>
     </form>
   );

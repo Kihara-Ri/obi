@@ -79,7 +79,7 @@ function SaleCostsForm({sale}: {sale: Sale}) {
     </div>
     <div className="drawer-footer">
       <button type="button" onClick={() => app.backDrawer()}>取消</button>
-      <button type="submit" className="primary" disabled={saving}>保存费用</button>
+      <button type="submit" className="primary" aria-busy={saving} disabled={saving}>保存费用</button>
     </div>
   </form>;
 }

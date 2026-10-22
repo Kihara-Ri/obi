@@ -132,7 +132,7 @@ export function ConfirmForm({kind, id, arriveCount, sale, restoreData}: {
       </div>
       <div className="drawer-footer">
         <button type="button" onClick={() => app.backDrawer()}>取消</button>
-        <button type="submit" className="primary" disabled={saving}>
+        <button type="submit" className="primary" aria-busy={saving} disabled={saving}>
           {kind === 'receive' ? '确认收货' : kind === 'refund' ? '确认退款' : '确认'}
         </button>
       </div>

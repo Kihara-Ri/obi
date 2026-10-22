@@ -97,7 +97,7 @@ export function ShowcaseGroupForm({group, store, onSaved, onDeleted}: {
     {error ? <p className="error" role="alert">{error}</p> : null}
     <div className="showcase-group-actions">
       {group ? <button type="button" className="quiet" disabled={saving} onClick={remove}>删除组</button> : null}
-      <button type="submit" className="primary" disabled={saving}>{saving ? '正在保存…' : '保存展示组'}</button>
+      <button type="submit" className="primary" aria-busy={saving} disabled={saving}>{saving ? '正在保存…' : '保存展示组'}</button>
     </div>
   </form>;
 }

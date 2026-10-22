@@ -163,7 +163,7 @@ function SaleForm({ids}: {ids: string[]}) {
       </div>
       <div className="drawer-footer">
         <button type="button" onClick={() => app.backDrawer()}>取消</button>
-        <button type="submit" className="primary" disabled={saving}>确认售出</button>
+        <button type="submit" className="primary" aria-busy={saving} disabled={saving}>确认售出</button>
       </div>
     </form>
   );

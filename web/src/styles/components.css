@@ -8,7 +8,14 @@ button.quiet{background:transparent;border-color:transparent;color:var(--muted)}
 button.quiet:hover{background:var(--surface-2);color:var(--text)}
 button.danger{color:var(--red)}
 button:disabled{opacity:.5;cursor:default}
-button:disabled:hover{background:var(--surface-2)}
+button:disabled:hover{background:var(--surface-2);border-color:var(--border)}
+/* 主按钮禁用时保持黄色底（触屏点按后 :hover 会残留，不能被上一条刷成深色）；处理中（aria-busy）再加流光 + 转圈 */
+button.primary:disabled,button.primary:disabled:hover{background:var(--accent);border-color:var(--accent)}
+button.primary[aria-busy=true]{opacity:1;cursor:progress;position:relative;overflow:hidden}
+button.primary[aria-busy=true]::before{content:"";width:12px;height:12px;flex:none;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:spin-ico .8s linear infinite}
+button.primary[aria-busy=true]::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,var(--accent-strong) 50%,transparent 70%);transform:translateX(-100%);animation:btn-sheen 1.3s var(--ease-soft) infinite}
+@keyframes btn-sheen{to{transform:translateX(100%)}}
+@media (prefers-reduced-motion:reduce){button.primary[aria-busy=true]::after{animation:none}}
 
 /* 外观切换（三段滑块：浅色/深色/跟随系统；页头右上角，手机端收进「更多」页的行） */
 .theme-seg svg{display:block}

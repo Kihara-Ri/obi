@@ -124,7 +124,7 @@ function ListingForm({id}: {id: string}) {
     </div>
     <div className="drawer-footer">
       <button type="button" onClick={() => app.backDrawer()}>取消</button>
-      <button type="submit" className="primary" disabled={stale || saving || analyzing}>保存草稿</button>
+      <button type="submit" className="primary" aria-busy={saving || analyzing} disabled={stale || saving || analyzing}>保存草稿</button>
     </div>
   </form>;
 }

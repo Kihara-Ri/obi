@@ -91,7 +91,7 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, photoSource
             {text || '条形码，或唱片编号如 AMCY-2434'}
           </button>
         </ScanField>
-        <button type="button" className="primary" onClick={() => void L.lookup()} disabled={working}>查询</button>
+        <button type="button" className="primary" aria-busy={working} onClick={() => void L.lookup()} disabled={working}>查询</button>
       </div>
       {photoSources.length && !text ? <p className="lookup-photo-read">
         <button type="button" className="quiet" disabled={reading} onClick={() => void readPhotos(true)}>

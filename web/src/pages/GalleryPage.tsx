@@ -13,7 +13,7 @@ import {GalleryScopePicker} from '../components/GalleryScopePicker';
 import {GalleryRoamingSwitch} from '../components/GalleryRoamingControls';
 import {GallerySettings} from '../components/GallerySettings/GallerySettings';
 import {ShowcaseSwitch, useShowcaseSwitch} from '../components/ShowcaseSwitch';
-import {Chevron} from '../components/ui/Chevron';
+import {GearIcon} from '../components/ui/GearIcon';
 import {openArtistDrawer} from '../forms/ArtistDrawer';
 import {ShowcaseGroupForm} from '../forms/ShowcaseGroupForm';
 
@@ -213,7 +213,7 @@ export function GalleryPage() {
         <div className="gallery-filter-inputs">
           <button type="button" className="gallery-scope-trigger" onClick={chooseScope} aria-haspopup="dialog"
                   aria-label={`展示范围：${scopeLabel}`} title={scopeLabel}>
-            <strong>{scopeLabel}</strong><Chevron/>
+            <span className="gallery-trigger-cap">范围</span><strong>{scopeLabel}</strong>
           </button>
           <label className="gallery-search"><span className="gallery-visually-hidden">搜索收藏</span>
             <input type="search" placeholder="搜索专辑或艺人" value={query} onChange={e => setQuery(e.target.value)}/>
@@ -222,14 +222,14 @@ export function GalleryPage() {
         <div className="gallery-toolbar">
           <button type="button" className="gallery-mode-trigger" onClick={chooseMode} aria-haspopup="dialog"
                   aria-label={`展示方式：${modeLabel}`}>
-            <strong>{modeLabel}</strong><Chevron/>
+            <span className="gallery-trigger-cap">方式</span><strong>{modeLabel}</strong>
           </button>
           <span className="gallery-count" role="status" aria-atomic="true"
                 title={`${records.length} 张${query.trim() ? '匹配的' : ''}收藏`}>
             {records.length} 张<span className="gallery-visually-hidden">{query.trim() ? '匹配的收藏' : '收藏'}</span>
           </span>
           <button type="button" className="gallery-adjust-trigger" aria-haspopup="dialog" onClick={openSettings}>
-            展示设置<Chevron/>
+            <GearIcon size={14}/>展示设置
           </button>
           <GalleryRoamingSwitch enabled={roaming} disabled={!records.length && !roaming} onToggle={() => setRoaming(v => !v)}/>
         </div>
