@@ -3,7 +3,11 @@
  * tools may inject accept.toString() into an existing Playwright page without
  * importing Node modules. It reads samples; it never mutates ledger records.
  */
-export async function accept(page, {baseURL, expectations, screenshotDir, saveShot} = {}) {
+// Parts can run in separate browsers (CI shards them across runners; software GL
+// makes each 3D mount slow). The gallery check always runs — every part opens covers.
+export const PARTS = ['card', 'models', 'mobile'];
+
+export async function accept(page, {baseURL, expectations, screenshotDir, saveShot, parts = PARTS} = {}) {
   const check = (condition, message) => {if (!condition) throw new Error(message);};
   check(baseURL, 'baseURL is required');
   check(expectations?.galleryCount === 16 && expectations?.models?.length === 3,
@@ -25,7 +29,11 @@ export async function accept(page, {baseURL, expectations, screenshotDir, saveSh
   const onRequest = request => {if (/\.glb(?:\?|$)/.test(request.url())) modelRequests.push(request.url());};
   page.on('pageerror', onError); page.on('console', onConsole);
   page.on('requestfailed', onFailure); page.on('response', onResponse); page.on('request', onRequest);
+  const selected = new Set(parts);
+  check([...selected].every(part => PARTS.includes(part)), 'Unknown acceptance part: ' + [...selected].join(','));
   const results = [];
+  let lap = Date.now();
+  const record = result => {results.push({...result, ms: Date.now() - lap}); lap = Date.now();};
   const settle = () => page.waitForTimeout(800); // 260 ms focus zoom, 690 ms card flip.
   // The engine's open/rotate/disc motion is a JS physics loop, not CSS: it keeps
   // requesting frames regardless of preferences, and under CI's software GL each
@@ -181,88 +189,90 @@ export async function accept(page, {baseURL, expectations, screenshotDir, saveSh
     }
     check(modelRequests.length === 0 && await page.evaluate(() => window.__showcaseContexts) === 0,
       'Browsing 2D must not download GLB or create WebGL');
-    results.push({check: 'gallery', decodedCovers: decoded.length});
-
-    // Actual card behavior replaces source-string assertions. PBR reflection
-    // coefficients belong to rendering, rather than a test of JS spelling.
+    record({check: 'gallery', decodedCovers: decoded.length});
     const first = expectations.models[0];
-    await open(first);
-    check(await page.evaluate(() => window.__showcaseContexts) === 0, 'Opening 2D must not create WebGL');
-    const card = page.locator('#gallery-focus .album-flip-card');
-    const face = page.locator('#gallery-focus .album-flip-rotor');
-    check(await face.getAttribute('aria-pressed') === 'false', 'Initial front accessibility state');
-    const frontBox = await card.boundingBox();
-    check(frontBox.width <= 680.5 && frontBox.height <= 680.5, 'Desktop focus card must fit viewport');
-    await face.click(); await settle();
-    check(await face.getAttribute('aria-pressed') === 'true', 'Flip exposes the reverse accessible state');
-    check(await page.locator('.album-flip-back').getAttribute('aria-hidden') === 'false', 'Back face must be accessible');
-    check(await page.locator('.album-flip-date-label').textContent() === 'Collected on', 'Collection date label is visible');
-    check((await page.locator('.album-flip-handwritten').textContent()).trim().length > 0, 'Collection date or missing-date text is visible');
-    // Regression: long release-group names must wrap inside the keepsake,
-    // stay centred, and never inherit button white-space: nowrap. This only
-    // temporarily edits DOM text in an isolated acceptance browser session.
-    const longTitleFit = await page.locator('.album-flip-album-title').evaluate(node => {
-      const original = node.textContent;
-      const face = node.closest('.album-flip-back');
-      const cases = [
-        'Lift Your Skinny Fists Like Antennas to Heaven',
-        'A Longer Story of the Night We Learned How to Name Every Star in the Sky — Special Collector Edition 2026',
-        'THE_SUPER_LONG_UNBROKEN_ALBUM_TITLE_WITH_NO_SPACES_THAT_MUST_NOT_OVERFLOW_EVEN_ON_MOBILE',
-      ];
-      const snapshots = [];
-      for (const text of cases) {
-        node.textContent = text;
-        const faceBox = face.getBoundingClientRect();
-        const titleBox = node.getBoundingClientRect();
-        const lineHeight = parseFloat(getComputedStyle(node).lineHeight);
-        snapshots.push({
-          lines: Math.round(titleBox.height / lineHeight),
-          leftOverflow: titleBox.left < faceBox.left - 1,
-          rightOverflow: titleBox.right > faceBox.right + 1,
-          overflow: node.scrollWidth > node.clientWidth + 1,
-          centering: Math.abs((titleBox.left + titleBox.right - faceBox.left - faceBox.right) / 2),
-        });
-      }
-      node.textContent = original;
-      return snapshots;
-    });
-    check(longTitleFit.every(item => item.lines >= 2 && !item.leftOverflow
-      && !item.rightOverflow && !item.overflow && item.centering <= 2),
-    'Long album titles must wrap and remain centered inside the flip card: ' + JSON.stringify(longTitleFit));
-    await page.locator('.album-metal-canvas[data-metal-status="rendered"]').waitFor({timeout: 30000});
-    check([...responses.keys()].some(url => url.includes('studio_small_05_1k.hdr')), 'Real studio HDR must load');
-    check(await page.locator('#gallery-focus .album-like-toggle').count() === 0, 'Gallery cannot edit likes');
-    await page.mouse.move(frontBox.x + frontBox.width * .75, frontBox.y + frontBox.height * .25);
-    const tilt = await card.evaluate(node => node.style.getPropertyValue('--card-tilt-y'));
-    check(tilt && tilt !== '0deg', 'Pointer tilts the whole card');
-    check(await card.evaluate(node => getComputedStyle(node.querySelector('.album-flip-back'), '::before').content) === 'none', 'No cursor spotlight pseudo-layer');
-    await page.mouse.move(1, 1);
-    check(await card.evaluate(node => node.style.getPropertyValue('--card-tilt-y')) === '0deg', 'Pointer leave resets tilt');
-    await face.click(); await settle();
-    check(await face.getAttribute('aria-pressed') === 'false', 'Reverse flip restores front');
-    const beforeMetalClose = await page.evaluate(() => window.__showcaseLosses);
-    await close();
-    check(await page.evaluate(() => window.__showcaseLosses) > beforeMetalClose, 'Closing must release decorative GPU context');
-    check(await page.locator('.album-metal-canvas').count() === 0, 'Closing removes decorative GPU canvas');
-    results.push({check: 'card', flip: true, hdr: true, tilt: true, cleanup: true});
-    await open(first);
-    const next = page.locator('.gallery-focus-next');
-    const forward = await next.isEnabled();
-    const navigation = forward ? next : page.locator('.gallery-focus-prev');
-    check(await navigation.isEnabled(), 'Multiple collected albums must allow navigation');
-    {
-      await navigation.click();
-      await page.waitForFunction(title => document.querySelector('#gallery-focus-title')?.textContent !== title, first.title);
-      await settle();
-      check(await page.locator('.album-flip-rotor').getAttribute('aria-pressed') === 'false', 'Changing album resets flip');
-      check(await page.locator('.album-webgl-canvas').count() === 0, 'Changing album resets to 2D');
-      await page.locator(forward ? '.gallery-focus-prev' : '.gallery-focus-next').click();
-      await page.waitForFunction(title => document.querySelector('#gallery-focus-title')?.textContent === title, first.title);
-      await settle();
-    }
-    await close();
 
-    for (const model of expectations.models) {
+    if (selected.has('card')) {
+      // Actual card behavior replaces source-string assertions. PBR reflection
+      // coefficients belong to rendering, rather than a test of JS spelling.
+      await open(first);
+      check(await page.evaluate(() => window.__showcaseContexts) === 0, 'Opening 2D must not create WebGL');
+      const card = page.locator('#gallery-focus .album-flip-card');
+      const face = page.locator('#gallery-focus .album-flip-rotor');
+      check(await face.getAttribute('aria-pressed') === 'false', 'Initial front accessibility state');
+      const frontBox = await card.boundingBox();
+      check(frontBox.width <= 680.5 && frontBox.height <= 680.5, 'Desktop focus card must fit viewport');
+      await face.click(); await settle();
+      check(await face.getAttribute('aria-pressed') === 'true', 'Flip exposes the reverse accessible state');
+      check(await page.locator('.album-flip-back').getAttribute('aria-hidden') === 'false', 'Back face must be accessible');
+      check(await page.locator('.album-flip-date-label').textContent() === 'Collected on', 'Collection date label is visible');
+      check((await page.locator('.album-flip-handwritten').textContent()).trim().length > 0, 'Collection date or missing-date text is visible');
+      // Regression: long release-group names must wrap inside the keepsake,
+      // stay centred, and never inherit button white-space: nowrap. This only
+      // temporarily edits DOM text in an isolated acceptance browser session.
+      const longTitleFit = await page.locator('.album-flip-album-title').evaluate(node => {
+        const original = node.textContent;
+        const face = node.closest('.album-flip-back');
+        const cases = [
+          'Lift Your Skinny Fists Like Antennas to Heaven',
+          'A Longer Story of the Night We Learned How to Name Every Star in the Sky — Special Collector Edition 2026',
+          'THE_SUPER_LONG_UNBROKEN_ALBUM_TITLE_WITH_NO_SPACES_THAT_MUST_NOT_OVERFLOW_EVEN_ON_MOBILE',
+        ];
+        const snapshots = [];
+        for (const text of cases) {
+          node.textContent = text;
+          const faceBox = face.getBoundingClientRect();
+          const titleBox = node.getBoundingClientRect();
+          const lineHeight = parseFloat(getComputedStyle(node).lineHeight);
+          snapshots.push({
+            lines: Math.round(titleBox.height / lineHeight),
+            leftOverflow: titleBox.left < faceBox.left - 1,
+            rightOverflow: titleBox.right > faceBox.right + 1,
+            overflow: node.scrollWidth > node.clientWidth + 1,
+            centering: Math.abs((titleBox.left + titleBox.right - faceBox.left - faceBox.right) / 2),
+          });
+        }
+        node.textContent = original;
+        return snapshots;
+      });
+      check(longTitleFit.every(item => item.lines >= 2 && !item.leftOverflow
+        && !item.rightOverflow && !item.overflow && item.centering <= 2),
+      'Long album titles must wrap and remain centered inside the flip card: ' + JSON.stringify(longTitleFit));
+      await page.locator('.album-metal-canvas[data-metal-status="rendered"]').waitFor({timeout: 30000});
+      check([...responses.keys()].some(url => url.includes('studio_small_05_1k.hdr')), 'Real studio HDR must load');
+      check(await page.locator('#gallery-focus .album-like-toggle').count() === 0, 'Gallery cannot edit likes');
+      await page.mouse.move(frontBox.x + frontBox.width * .75, frontBox.y + frontBox.height * .25);
+      const tilt = await card.evaluate(node => node.style.getPropertyValue('--card-tilt-y'));
+      check(tilt && tilt !== '0deg', 'Pointer tilts the whole card');
+      check(await card.evaluate(node => getComputedStyle(node.querySelector('.album-flip-back'), '::before').content) === 'none', 'No cursor spotlight pseudo-layer');
+      await page.mouse.move(1, 1);
+      check(await card.evaluate(node => node.style.getPropertyValue('--card-tilt-y')) === '0deg', 'Pointer leave resets tilt');
+      await face.click(); await settle();
+      check(await face.getAttribute('aria-pressed') === 'false', 'Reverse flip restores front');
+      const beforeMetalClose = await page.evaluate(() => window.__showcaseLosses);
+      await close();
+      check(await page.evaluate(() => window.__showcaseLosses) > beforeMetalClose, 'Closing must release decorative GPU context');
+      check(await page.locator('.album-metal-canvas').count() === 0, 'Closing removes decorative GPU canvas');
+      record({check: 'card', flip: true, hdr: true, tilt: true, cleanup: true});
+      await open(first);
+      const next = page.locator('.gallery-focus-next');
+      const forward = await next.isEnabled();
+      const navigation = forward ? next : page.locator('.gallery-focus-prev');
+      check(await navigation.isEnabled(), 'Multiple collected albums must allow navigation');
+      {
+        await navigation.click();
+        await page.waitForFunction(title => document.querySelector('#gallery-focus-title')?.textContent !== title, first.title);
+        await settle();
+        check(await page.locator('.album-flip-rotor').getAttribute('aria-pressed') === 'false', 'Changing album resets flip');
+        check(await page.locator('.album-webgl-canvas').count() === 0, 'Changing album resets to 2D');
+        await page.locator(forward ? '.gallery-focus-prev' : '.gallery-focus-next').click();
+        await page.waitForFunction(title => document.querySelector('#gallery-focus-title')?.textContent === title, first.title);
+        await settle();
+      }
+      await close();
+    }
+
+    if (selected.has('models')) for (const model of expectations.models) {
       await open(model); await to3D(); await viewport();
       const scene = page.locator('#gallery-focus .album-model-scene');
       check((await scene.getAttribute('data-model-asset')).endsWith('.glb'), 'Blender GLB must be active: ' + model.title);
@@ -292,57 +302,61 @@ export async function accept(page, {baseURL, expectations, screenshotDir, saveSh
       await close(); await open(model);
       check(await page.locator('.album-webgl-canvas').count() === 0, 'Reopening returns to 2D');
       await close();
-      results.push({check: 'model', title: model.title, textures: model.assets.length, reopenedIn2D: true});
+      record({check: 'model', title: model.title, textures: model.assets.length, reopenedIn2D: true});
     }
-    // Read-only response substitution exercises both liked/unliked display
-    // without changing the fixed ledger or its favorite records.
-    const favoriteResponse = await page.request.get(origin + '/api/album-favorites');
-    check(favoriteResponse.ok(), 'Album favorite catalog must load');
-    const favoriteCatalog = await favoriteResponse.json();
-    const metalColors = [];
-    for (const liked of [false, true]) {
-      const route = async request => request.fulfill({status: 200, contentType: 'application/json',
-        body: JSON.stringify({...favoriteCatalog, favorites: {...favoriteCatalog.favorites, [first.recordId]: liked}})});
-      await page.route('**/api/album-favorites', route);
-      try {
-        await page.reload({waitUntil: 'networkidle'}); await open(first);
-        check(await page.locator('.album-flip-card').evaluate(node => node.classList.contains('is-liked')) === liked,
-          'Gold must follow album favorite state');
-        await page.locator('.album-flip-rotor').click(); await settle();
-        await page.locator('.album-metal-canvas[data-metal-status="rendered"]').waitFor();
-        metalColors.push(await page.locator('.album-flip-back').evaluate(node => getComputedStyle(node).backgroundImage));
-        if (screenshotDir) await shot(screenshotDir + (liked ? '/card-gold.png' : '/card-silver.png'));
-        await close();
-      } finally {await page.unroute('**/api/album-favorites', route);}
+    if (selected.has('card')) {
+      // Read-only response substitution exercises both liked/unliked display
+      // without changing the fixed ledger or its favorite records.
+      const favoriteResponse = await page.request.get(origin + '/api/album-favorites');
+      check(favoriteResponse.ok(), 'Album favorite catalog must load');
+      const favoriteCatalog = await favoriteResponse.json();
+      const metalColors = [];
+      for (const liked of [false, true]) {
+        const route = async request => request.fulfill({status: 200, contentType: 'application/json',
+          body: JSON.stringify({...favoriteCatalog, favorites: {...favoriteCatalog.favorites, [first.recordId]: liked}})});
+        await page.route('**/api/album-favorites', route);
+        try {
+          await page.reload({waitUntil: 'networkidle'}); await open(first);
+          check(await page.locator('.album-flip-card').evaluate(node => node.classList.contains('is-liked')) === liked,
+            'Gold must follow album favorite state');
+          await page.locator('.album-flip-rotor').click(); await settle();
+          await page.locator('.album-metal-canvas[data-metal-status="rendered"]').waitFor();
+          metalColors.push(await page.locator('.album-flip-back').evaluate(node => getComputedStyle(node).backgroundImage));
+          if (screenshotDir) await shot(screenshotDir + (liked ? '/card-gold.png' : '/card-silver.png'));
+          await close();
+        } finally {await page.unroute('**/api/album-favorites', route);}
+      }
+      check(metalColors[0] !== metalColors[1], 'Liked and ordinary cards must have distinct gold/silver surfaces');
+      await page.reload({waitUntil: 'networkidle'});
+      record({check: 'card-material-variants', silver: true, gold: true, ledgerWrites: 0});
     }
-    check(metalColors[0] !== metalColors[1], 'Liked and ordinary cards must have distinct gold/silver surfaces');
-    await page.reload({waitUntil: 'networkidle'});
-    results.push({check: 'card-material-variants', silver: true, gold: true, ledgerWrites: 0});
 
-    // Device-sized viewport, context loss, explicit retry, and background hit
-    // testing replace CSS selector string tests against the real mounted UI.
-    await page.setViewportSize({width: 390, height: 844});
-    await open(first); await to3D(); await viewport();
-    await page.locator('.album-webgl-canvas').evaluate(canvas => canvas.dispatchEvent(new Event('webglcontextlost', {cancelable: true})));
-    await page.locator('.gallery-engine-unavailable').waitFor();
-    check(await page.locator('.album-webgl-canvas').count() === 0, 'Context failure must clean up 3D');
-    check(await page.locator('.gallery-renderer-switch button.on').textContent() === '2D', 'Context failure returns to 2D');
-    await to3D(); await close();
-    await page.emulateMedia({reducedMotion: 'reduce'});
-    await open(first);
-    const reducedCard = page.locator('.album-flip-card');
-    const reducedBox = await reducedCard.boundingBox();
-    check(reducedBox.x >= 0 && reducedBox.x + reducedBox.width <= 391 && reducedBox.height < 844, 'Mobile card must remain within viewport');
-    await page.mouse.move(reducedBox.x + reducedBox.width * .75, reducedBox.y + reducedBox.height * .25);
-    check(await reducedCard.evaluate(node => !node.style.getPropertyValue('--card-tilt-y')
-      || node.style.getPropertyValue('--card-tilt-y') === '0deg'), 'Reduced motion must suppress pointer tilt');
-    check(await reducedCard.evaluate(node => Number.parseFloat(getComputedStyle(node.querySelector('.album-flip-rotor')).transitionDuration)) < .01,
-      'Reduced motion must suppress flip transition');
-    check(await page.locator('#gallery-focus').evaluate(node => getComputedStyle(node).cursor) === 'default', 'Blank lightbox uses ordinary cursor');
-    // Blank space above the image goes through the visual container to shade.
-    await page.mouse.click(3, 4);
-    await page.locator('#gallery-focus').waitFor({state: 'detached'});
-    results.push({check: 'mobile/fallback', fullViewport: true, retry: true, reducedMotion: true, backgroundDismiss: true});
+    if (selected.has('mobile')) {
+      // Device-sized viewport, context loss, explicit retry, and background hit
+      // testing replace CSS selector string tests against the real mounted UI.
+      await page.setViewportSize({width: 390, height: 844});
+      await open(first); await to3D(); await viewport();
+      await page.locator('.album-webgl-canvas').evaluate(canvas => canvas.dispatchEvent(new Event('webglcontextlost', {cancelable: true})));
+      await page.locator('.gallery-engine-unavailable').waitFor();
+      check(await page.locator('.album-webgl-canvas').count() === 0, 'Context failure must clean up 3D');
+      check(await page.locator('.gallery-renderer-switch button.on').textContent() === '2D', 'Context failure returns to 2D');
+      await to3D(); await close();
+      await page.emulateMedia({reducedMotion: 'reduce'});
+      await open(first);
+      const reducedCard = page.locator('.album-flip-card');
+      const reducedBox = await reducedCard.boundingBox();
+      check(reducedBox.x >= 0 && reducedBox.x + reducedBox.width <= 391 && reducedBox.height < 844, 'Mobile card must remain within viewport');
+      await page.mouse.move(reducedBox.x + reducedBox.width * .75, reducedBox.y + reducedBox.height * .25);
+      check(await reducedCard.evaluate(node => !node.style.getPropertyValue('--card-tilt-y')
+        || node.style.getPropertyValue('--card-tilt-y') === '0deg'), 'Reduced motion must suppress pointer tilt');
+      check(await reducedCard.evaluate(node => Number.parseFloat(getComputedStyle(node.querySelector('.album-flip-rotor')).transitionDuration)) < .01,
+        'Reduced motion must suppress flip transition');
+      check(await page.locator('#gallery-focus').evaluate(node => getComputedStyle(node).cursor) === 'default', 'Blank lightbox uses ordinary cursor');
+      // Blank space above the image goes through the visual container to shade.
+      await page.mouse.click(3, 4);
+      await page.locator('#gallery-focus').waitFor({state: 'detached'});
+      record({check: 'mobile/fallback', fullViewport: true, retry: true, reducedMotion: true, backgroundDismiss: true});
+    }
     check(errors.length === 0, 'Browser errors: ' + errors.join('\n'));
     check(failures.length === 0, 'HTTP/transport failures: ' + failures.join('\n'));
     return {ok: true, sampleVersion: expectations.sampleVersion, results, errors, failures};
@@ -375,7 +389,8 @@ if (typeof process !== 'undefined' && process.argv[1] && import.meta.url === new
   const value = flag => args[args.indexOf(flag) + 1];
   const baseURL = args.includes('--url') ? value('--url') : process.env.OBI_PREVIEW_URL;
   const file = args.includes('--expectations') ? value('--expectations') : process.env.OBI_PREVIEW_EXPECTATIONS;
-  if (!baseURL || !file) throw new Error('Usage: npm run test:browser -- --url http://127.0.0.1:<port> --expectations <check.json>');
+  if (!baseURL || !file) throw new Error('Usage: npm run test:browser -- --url http://127.0.0.1:<port> --expectations <check.json> [--parts card,models,mobile]');
+  const parts = args.includes('--parts') ? value('--parts').split(',').filter(Boolean) : PARTS;
   const modulePath = process.env.OBI_PLAYWRIGHT_MODULE;
   const {chromium} = await import(modulePath?.startsWith('/') ? pathToFileURL(modulePath).href : modulePath || 'playwright');
   // Apple's Metal renderer keeps real GL animations running in macOS headless
@@ -388,6 +403,6 @@ if (typeof process !== 'undefined' && process.argv[1] && import.meta.url === new
     if (screenshotDir) await mkdir(screenshotDir, {recursive: true});
     const {writeFile} = await import('node:fs/promises');
     const saveShot = (path, base64) => writeFile(path, Buffer.from(base64, 'base64'));
-    console.log(JSON.stringify(await accept(page, {baseURL, expectations: JSON.parse(await readFile(file, 'utf8')), screenshotDir, saveShot}), null, 2));
+    console.log(JSON.stringify(await accept(page, {baseURL, expectations: JSON.parse(await readFile(file, 'utf8')), screenshotDir, saveShot, parts}), null, 2));
   } finally {await browser.close();}
 }

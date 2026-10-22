@@ -34,7 +34,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python3 -m unittest discover -s tests -v
+      # 各测试模块并行跑在独立进程里（与 unittest discover 同一批测试）
+      - run: python3 tools/run_tests.py
 
   web:
     name: 前端契约测试 + typecheck + 构建
@@ -51,10 +52,18 @@ jobs:
       - run: npm --prefix web run typecheck
       - run: npm --prefix web run build
 
+  # 软件 GL 下 3D 挂载很慢：把浏览器验收拆成三个并行 runner，墙钟取最长的一片。
   sample-browser:
-    name: 真实封面与模型贴图浏览器验收
+    name: 浏览器验收 · ${{ matrix.suite.name }}
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+          - {id: card, name: 真实封面 · 卡片 · 移动端, parts: 'card,mobile'}
+          - {id: models, name: 3D 参考实体贴图, parts: models}
+          - {id: listing, name: 售卖草稿与图片下载（模拟模型）}
     steps:
       # job 级 env 不能引用 runner 上下文（会让整个工作流文件无效），改在首个步骤里写入环境
       - name: 准备预览目录变量
@@ -72,19 +81,33 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm --prefix web ci
       - run: npm --prefix web run build
+      - name: 缓存 Playwright Chromium
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
       - name: 安装 Chromium 与系统依赖
         working-directory: web
-        run: npx --no-install playwright install --with-deps chromium
+        run: |
+          if [ '${{ steps.playwright-cache.outputs.cache-hit }}' = true ]; then
+            npx --no-install playwright install-deps chromium
+          else
+            npx --no-install playwright install --with-deps chromium
+          fi
       - name: 缓存锁定的公开素材包
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/obi-preview/bundle
           key: sample-bundle-${{ runner.os }}-${{ hashFiles('tools/sample-bundle.json') }}
+          # 锁文件变了也先拿旧包：未变的素材按哈希复用，只下载新增 / 变更的
+          restore-keys: sample-bundle-${{ runner.os }}-
       - name: 准备并校验固定样本
         run: |
           python3 tools/preview_samples.py prepare --download
           python3 tools/preview_samples.py check > "$RUNNER_TEMP/obi-preview-check.json"
       - name: 启动隔离预览并验证真实封面与贴图
+        if: matrix.suite.parts
         run: |
           python3 tools/preview_samples.py start --port 63282 > "$RUNNER_TEMP/obi-preview-server.log" 2>&1 &
           preview_pid=$!
@@ -105,8 +128,9 @@ jobs:
             cat "$RUNNER_TEMP/obi-preview-server.log"
             exit 1
           fi
-          npm --prefix web run test:browser -- --url http://127.0.0.1:63282 --expectations "$RUNNER_TEMP/obi-preview-check.json"
+          npm --prefix web run test:browser -- --url http://127.0.0.1:63282 --expectations "$RUNNER_TEMP/obi-preview-check.json" --parts '${{ matrix.suite.parts }}'
       - name: 售卖草稿与图片下载验收（模拟模型）
+        if: matrix.suite.id == 'listing'
         run: |
           python3 - <<'PY'
           import os
@@ -128,7 +152,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: sample-browser-failure
+          name: sample-browser-failure-${{ matrix.suite.id }}
           if-no-files-found: warn
           path: |
             ${{ runner.temp }}/obi-preview-screenshots/

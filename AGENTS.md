@@ -95,7 +95,7 @@
 ## 验证门槛（全部通过才算完成）
 
 ```sh
-python3 -m unittest discover -s tests -v                                   # 后端全绿
+python3 tools/run_tests.py                                                 # 后端全绿（按模块并行；-j 1 即串行）
 npm --prefix web run typecheck && npm --prefix web run build               # 前端
 OBI_DEV_HOME=/private/tmp/obi-acceptance python3 tools/preview_samples.py prepare --download
 OBI_DEV_HOME=/private/tmp/obi-acceptance python3 tools/preview_samples.py --port <空闲端口>

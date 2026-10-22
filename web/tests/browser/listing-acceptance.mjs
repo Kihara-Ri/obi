@@ -35,7 +35,15 @@ try {
   };
   const openProvider = async name => {
     const row = page.locator('.provider-item').filter({has: page.locator('b', {hasText: new RegExp(`^${name}$`, 'u')})});
-    if (!await row.isVisible()) await page.getByRole('button', {name: /切换或添加服务商/u}).click();
+    // 收起的折叠区仍挂载（高度 0、透明度 0），isVisible() 会误判为可见；按所在折叠区是否展开来决定，
+    // 并先等列表读完，避免在「正在读取识别配置…」时判断。
+    await row.waitFor({state: 'attached'});
+    const stack = page.locator('.provider-stack');
+    if (await row.locator('xpath=ancestor::div[contains(concat(" ", @class, " "), " collapse ")]').count()
+        && await stack.getAttribute('aria-expanded') !== 'true') {
+      await stack.click();
+      await page.locator('.listing-settings .collapse.is-open').waitFor();
+    }
     await row.click();
     await page.getByRole('heading', {name, exact: true, level: 3}).waitFor();
   };

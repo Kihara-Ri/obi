@@ -20,7 +20,7 @@ settle = 2
 
 [build]
 test = [
-  "python3 -m unittest discover -s tests -q",
+  "python3 tools/run_tests.py",
   "npm --prefix web test",
   "npm --prefix web run typecheck",
 ]

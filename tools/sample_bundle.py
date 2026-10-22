@@ -8,6 +8,7 @@ import hashlib
 import json
 import shutil
 import sys
+import time
 from urllib.parse import urlsplit
 from pathlib import Path
 
@@ -205,6 +206,9 @@ def verify_contents(bundle, expected):
             raise ValueError('素材缺失或损坏：' + asset['file'])
 
 
+DOWNLOAD_ATTEMPTS = 4
+
+
 def download(bundle, lock_path=LOCK):
     """Explicit acquisition only; ordinary preview start never calls this."""
     bundle = guard(bundle)
@@ -217,12 +221,26 @@ def download(bundle, lock_path=LOCK):
         if path.is_file() and digest(path.read_bytes()) == sha:
             continue
         # Reuse the producer transports; canonicalize only volatile Apple EXIF.
-        if (urlsplit(asset['url']).hostname or '').endswith('.mzstatic.com'):
-            raw = covers.read(asset['url'], 24 * 1024 * 1024)
+        # CDNs occasionally serve a transient error or a different variant to a fresh
+        # client (KNOWN-ISSUES I-013); retry with backoff, but never accept other bytes.
+        for attempt in range(DOWNLOAD_ATTEMPTS):
+            try:
+                if (urlsplit(asset['url']).hostname or '').endswith('.mzstatic.com'):
+                    raw = covers.read(asset['url'], 24 * 1024 * 1024)
+                else:
+                    raw, _ = references.request(asset['url'])
+                raw = canonical_image(raw, asset['url'])
+                problem = None if len(raw) == asset['bytes'] and digest(raw) == sha else 'mismatch'
+            except Exception as error:  # network / HTTP errors from either transport
+                problem = error
+            if problem is None:
+                break
+            if attempt + 1 < DOWNLOAD_ATTEMPTS:
+                print('RETRY', asset['file'], problem, flush=True)
+                time.sleep(2 ** attempt)
         else:
-            raw, _ = references.request(asset['url'])
-        raw = canonical_image(raw, asset['url'])
-        if len(raw) != asset['bytes'] or digest(raw) != sha:
+            if problem != 'mismatch':
+                raise problem
             raise ValueError('远端素材已变化，未接受替代图：' + asset['file'])
         image_type(raw)
         temp = path.with_suffix('.partial')

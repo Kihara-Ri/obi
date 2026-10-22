@@ -24,7 +24,7 @@ JS
 npm --prefix web run test:browser -- --url http://127.0.0.1:<空闲端口> --expectations <check.json>
 ```
 
-CI 安装 Playwright 后直接运行；本地已有工具自带 Playwright 时可设置 `OBI_PLAYWRIGHT_MODULE` 为其模块路径，无需新增应用运行依赖。设置 `OBI_PREVIEW_SCREENSHOTS` 可保存三个模型及银色/金色收藏卡截图。工具环境也可以导入 `accept(page, {baseURL, expectations})`，或注入它的函数正文；函数不依赖 Node 模块。
+CI 安装 Playwright 后直接运行；本地已有工具自带 Playwright 时可设置 `OBI_PLAYWRIGHT_MODULE` 为其模块路径，无需新增应用运行依赖。设置 `OBI_PREVIEW_SCREENSHOTS` 可保存三个模型及银色/金色收藏卡截图。`--parts card,models,mobile` 只跑其中几部分（图库检查总会先跑）；CI 把 `card,mobile` 与 `models` 分到两个并行 runner，每项结果带 `ms` 耗时。工具环境也可以导入 `accept(page, {baseURL, expectations})`，或注入它的函数正文；函数不依赖 Node 模块。
 
 验收读取真实已发布实体与真实图片，并逐份比对素材 SHA-256。16 张图库封面必须全部解码、不能是占位符；三个实体的正背面、内页、盘面、附件及附件背面必须由查看器请求。覆盖默认/重开 2D、按需 GLB、查看器挂载与全部贴图加载、桌面/手机全屏画布、上下文丢失后回 2D 与显式重试；包装的开合、旋转、CD 2 独立取放等 3D 动作属于 Album Engine，由引擎项目验收，不在宿主 CI 里验证；控制台错误和 HTTP/传输失败使验收失败。不会创建、修改或发布账本记录。
 

@@ -127,7 +127,7 @@ tools/            deploy.sh 发布 · 打包 · 数据导入脚本
 ## 验证
 
 ```sh
-python3 -m unittest discover -s tests -v
+python3 tools/run_tests.py          # 按模块并行跑后端测试；单个模块：python3 tools/run_tests.py test_covers
 npm --prefix web run typecheck && npm --prefix web run build
 ```
 
