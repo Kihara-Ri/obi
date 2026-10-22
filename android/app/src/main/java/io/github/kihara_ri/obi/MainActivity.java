@@ -146,8 +146,6 @@ public class MainActivity extends Activity {
     protected void onStop() {
         visible = false;
         stoppedAt = System.currentTimeMillis();
-        // 离开应用（切走、锁屏）时再静默安装，不打断正在进行的操作
-        Updater.installWhenAppropriate(this);
         super.onStop();
     }
 
@@ -156,7 +154,7 @@ public class MainActivity extends Activity {
         if (isFinishing() || (updateDialog != null && updateDialog.isShowing())) return;
         boolean firstGrant = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !getPackageManager().canRequestPackageInstalls();
         String message = "新版本已下载，安装后数据保留。" + (firstGrant
-                ? "\n\n下一步请在系统页面允许 Obi「安装未知应用」，之后的更新会在你离开应用时自动完成，不再询问。"
+                ? "\n\n下一步请在系统页面允许 Obi「安装未知应用」，之后点「安装」即可直接完成。"
                 : "");
         updateDialog = new AlertDialog.Builder(this)
                 .setTitle("更新到 Obi " + tag.replaceFirst("^v", ""))

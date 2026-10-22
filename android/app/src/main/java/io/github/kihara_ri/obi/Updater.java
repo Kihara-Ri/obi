@@ -162,9 +162,19 @@ final class Updater {
             return;
         }
         if (p.getBoolean("manualHold", false)) return;
-        // 后台任务里必须在任务结束前提交安装：任务一结束进程就可能被系统冻结
-        if (canInstallSilently(c) && !MainActivity.visible()) installNow(c);
-        else main.post(() -> installWhenAppropriate(c));
+        // 不再自动安装：下载好后在前台弹一次确认（设置页同时有「安装」按钮），由用户点了才装
+        main.post(() -> installWhenAppropriate(c));
+    }
+
+    /** 已下载好的新版本：用户在用时询问一次（「稍后」后一天内不再主动问）；绝不在后台或离开应用时自动装。 */
+    static void installWhenAppropriate(Context c) {
+        SharedPreferences p = prefs(c);
+        long code = p.getLong("readyCode", -1);
+        if (code <= installedCode(c) || !apkFile(c).exists() || p.getBoolean("manualHold", false)) return;
+        MainActivity activity = MainActivity.current();
+        if (activity == null) return;
+        if (System.currentTimeMillis() - p.getLong("declinedAt", 0) < DECLINE_QUIET) return;
+        activity.askToInstall(p.getString("readyTag", ""));
     }
 
     private static void patchContent(Context c, JSONObject release, String tag, long code) throws Exception {
@@ -186,21 +196,6 @@ final class Updater {
         }
         p.edit().remove("error").apply();
         state(c, "current");
-    }
-
-    /** 已下载好的新版本：能静默装且没人在用 → 现在装；在用 → 等 onStop；需要确认 → 前台询问。 */
-    static void installWhenAppropriate(Context c) {
-        SharedPreferences p = prefs(c);
-        long code = p.getLong("readyCode", -1);
-        if (code <= installedCode(c) || !apkFile(c).exists() || p.getBoolean("manualHold", false)) return;
-        if (canInstallSilently(c)) {
-            if (!MainActivity.visible()) install(c);
-            return;
-        }
-        MainActivity activity = MainActivity.current();
-        if (activity == null) return;
-        if (System.currentTimeMillis() - p.getLong("declinedAt", 0) < DECLINE_QUIET) return;
-        activity.askToInstall(p.getString("readyTag", ""));
     }
 
     /** 设置页「安装」按钮：用户明确要装，不再等离开应用。 */

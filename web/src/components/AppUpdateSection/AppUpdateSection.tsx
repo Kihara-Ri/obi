@@ -47,11 +47,7 @@ export function AppUpdateSection() {
     <h3>应用更新</h3>
     <p role="status">当前版本 {status.version} · {describeUpdate(status)}</p>
     <p className="small-note">
-      {status.silent
-        ? '自动更新已开启：每 30 分钟检查一次，新版本在你离开应用时自动安装，数据保留。'
-        : status.silentSupported
-          ? '允许 Obi「安装未知应用」后，新版本会在你离开应用时自动安装，不再询问。未允许时，有新版本会弹窗请你确认。'
-          : '自动检查并下载新版本；这个系统版本每次安装需要在系统页面确认一次。'}
+      每 30 分钟检查一次，发现新版本自动下载；下载好后出现「安装」按钮，点了才安装，数据保留。
     </p>
     <div className="inline-actions">
       <button type="button" className="link-button" disabled={busy} aria-busy={busy}
@@ -60,7 +56,7 @@ export function AppUpdateSection() {
         ? <button type="button" className="link-button" onClick={() => bridge.installUpdate?.()}>安装 {tag(status.ready)}</button>
         : null}
       {status.silentSupported && !status.silent
-        ? <button type="button" className="link-button" onClick={() => bridge.openInstallSettings()}>允许自动安装</button>
+        ? <button type="button" className="link-button" onClick={() => bridge.openInstallSettings()}>允许安装更新</button>
         : null}
     </div>
   </section>;
