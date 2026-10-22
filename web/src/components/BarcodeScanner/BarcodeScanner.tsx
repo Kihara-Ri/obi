@@ -68,12 +68,32 @@ async function tuneFocus(track?: MediaStreamTrack, retrigger = false) {
   try { await track.applyConstraints({advanced} as unknown as MediaTrackConstraints); } catch { /* 设备不支持就用系统默认 */ }
 }
 
+/** 等视频真正稳定：已有首帧、有真实宽高，且最近 250ms 没有再 resize（相机常先出小分辨率 / 小窗再切到目标分辨率）；最多等 1.5s。 */
+function settled(el: HTMLVideoElement, live: () => boolean): Promise<void> {
+  return new Promise(done => {
+    const start = performance.now();
+    let lastChange = start, size = '';
+    const poll = () => {
+      if (!live()) return done();
+      const now = performance.now();
+      const cur = el.videoWidth + 'x' + el.videoHeight;
+      if (cur !== size) { size = cur; lastChange = now; }
+      const ready = el.readyState >= 2 && el.videoWidth > 0 && !el.paused;
+      if ((ready && now - lastChange > 250) || now - start > 1500) return done();
+      requestAnimationFrame(poll);
+    };
+    poll();
+  });
+}
+
 export function BarcodeScanner({onDetect, onClose}: {onDetect: (code: string) => void; onClose: () => void}) {
   const video = useRef<HTMLVideoElement>(null);
+  const layerRef = useRef<HTMLDivElement>(null);
   const track = useRef<MediaStreamTrack | undefined>(undefined);
   const [msg, setMsg] = useState('正在打开相机…');
   const [failed, setFailed] = useState(false);
-  const [shown, setShown] = useState(false);   // 首帧画面到达后才淡入，避免 Android 在出画前闪出被拉伸的播放图标
+  const frame = useRef<HTMLDivElement>(null);
+  const [shown, setShown] = useState(false);   // 画面稳定（有真实尺寸且不再变化）后才从取景框处展开，之前的小窗 / 播放图标 / 分辨率跳变都看不到
   const [armed, setArmed] = useState(false);    // 识别器就绪：取景框由暗淡转为高亮
   const [want, setWant] = useState<string | undefined>(readLens);
   const [cams, setCams] = useState<Cam[]>([]);
@@ -99,6 +119,9 @@ export function BarcodeScanner({onDetect, onClose}: {onDetect: (code: string) =>
       const el = video.current!;
       el.srcObject = stream;
       await el.play().catch(() => {});
+      await settled(el, () => live);
+      if (!live) return;
+      reveal();
       setMsg('正在加载识别器…');
       let detector;
       try { detector = await makeDetector(); } catch { return fail('识别器加载失败，请手动输入'); }
@@ -119,6 +142,18 @@ export function BarcodeScanner({onDetect, onClose}: {onDetect: (code: string) =>
     })();
     return () => { live = false; clearTimeout(timer); stream?.getTracks().forEach(t => t.stop()); };
   }, [want]);
+  /** 画面稳定后：量出取景框相对整层的位置，作为视频展开动画的起点（clip-path 从框长到全屏）。 */
+  const reveal = () => {
+    const layer = layerRef.current, f = frame.current;
+    if (layer && f) {
+      const L = layer.getBoundingClientRect(), r = f.getBoundingClientRect();
+      layer.style.setProperty('--c-t', Math.max(0, r.top - L.top) + 'px');
+      layer.style.setProperty('--c-b', Math.max(0, L.bottom - r.bottom) + 'px');
+      layer.style.setProperty('--c-l', Math.max(0, r.left - L.left) + 'px');
+      layer.style.setProperty('--c-r', Math.max(0, L.right - r.right) + 'px');
+    }
+    setShown(true);
+  };
   const next = () => {
     const at = cams.findIndex(c => c.id === lens);
     const pick = cams[(at + 1) % cams.length].id;
@@ -127,10 +162,10 @@ export function BarcodeScanner({onDetect, onClose}: {onDetect: (code: string) =>
   };
   const at = cams.findIndex(c => c.id === lens);
   return createPortal(
-    <div className="scan-layer" role="dialog" aria-label="扫描条码" onClick={() => void tuneFocus(track.current, true)}>
+    <div className="scan-layer" ref={layerRef} role="dialog" aria-label="扫描条码" onClick={() => void tuneFocus(track.current, true)}>
       <video ref={video} className={'scan-video' + (shown ? ' is-live' : '')} playsInline muted autoPlay
-             controls={false} disablePictureInPicture onPlaying={() => setShown(true)}/>
-      <div className={'scan-frame' + (armed ? ' is-armed' : '')} aria-hidden="true"/>
+             controls={false} disablePictureInPicture/>
+      <div ref={frame} className={'scan-frame' + (armed ? ' is-armed' : '')} aria-hidden="true"/>
       <p key={msg} className={'scan-msg' + (failed ? ' is-error' : '')} role="status">{msg}</p>
       {cams.length > 1 && !failed
         ? <button type="button" className="scan-lens" onClick={e => { e.stopPropagation(); next(); }}>
