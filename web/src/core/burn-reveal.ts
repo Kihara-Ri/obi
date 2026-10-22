@@ -50,6 +50,10 @@ function setMask(img: HTMLElement, url: string | null) {
 
 /** 在图片首次加载完成时调用（图片此时仍是 hidden）。返回后图片已被遮住，动画随后自行播放。 */
 export function burnReveal(img: HTMLImageElement) {
+  try {burn(img);} catch {setMask(img, null);}   // 动画只是装饰：任何环境出错都直接显示封面
+}
+
+function burn(img: HTMLImageElement) {
   if (img.dataset.burned) return;
   img.dataset.burned = '1';
   let reduced = false;
@@ -99,4 +103,5 @@ export function burnReveal(img: HTMLImageElement) {
     if (t < 1) requestAnimationFrame(tick); else cleanup();
   };
   requestAnimationFrame(tick);
+  window.setTimeout(() => {if (img.style.maskImage || img.style.getPropertyValue('-webkit-mask-image')) cleanup();}, DURATION + 1500);   // 兜底：后台标签页暂停 rAF 时也不能让封面一直被遮住
 }
