@@ -80,8 +80,20 @@ function burn(img: HTMLImageElement) {
   paint(0);
   let overlay: HTMLCanvasElement | null = null;
   let start = 0;
-  const cleanup = () => {setMask(img, null); overlay?.remove(); overlay = null;};
+  const cleanup = () => {setMask(img, null); overlay?.remove(); overlay = null;};   // 出错 / 元素被移除时：直接撤掉
+  // 正常结束：不撤遮罩（撤掉会让图层重绘，iOS 上表现为多闪一下），而是换成全不透明的最后一帧留着；
+  // 余烬层先淡出再移除。
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    for (let i = 0; i < fire.length; i++) maskData.data[i * 4 + 3] = 255;
+    mctx.putImageData(maskData, 0, 0); setMask(img, mask.toDataURL());
+    const ember = overlay; overlay = null;
+    if (ember) {ember.style.transition = 'opacity .18s linear'; ember.style.opacity = '0'; window.setTimeout(() => ember.remove(), 260);}
+  };
   const tick = (at: number) => {
+    if (finished) return;
     if (!img.isConnected) {cleanup(); return;}
     if (!start) {
       start = at;
@@ -100,8 +112,8 @@ function burn(img: HTMLImageElement) {
     paint(p);
     overlay?.getContext('2d')?.clearRect(0, 0, GRID, GRID);
     overlay?.getContext('2d')?.drawImage(glow, 0, 0);
-    if (t < 1) requestAnimationFrame(tick); else cleanup();
+    if (t < 1) requestAnimationFrame(tick); else finish();
   };
   requestAnimationFrame(tick);
-  window.setTimeout(() => {if (img.style.maskImage || img.style.getPropertyValue('-webkit-mask-image')) cleanup();}, DURATION + 1500);   // 兜底：后台标签页暂停 rAF 时也不能让封面一直被遮住
+  window.setTimeout(() => {if (img.style.maskImage || img.style.getPropertyValue('-webkit-mask-image')) finish();}, DURATION + 1500);   // 兜底：后台标签页暂停 rAF 时也不能让封面一直被遮住
 }
