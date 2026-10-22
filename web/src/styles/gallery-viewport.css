@@ -105,8 +105,8 @@
 @media(max-width:840px){
   #main.showcase-main{
     --gallery-main-top:20px;
-    /* 悬浮底栏 = 58px 高 + 距底 10px；再留 14px 间隔。 */
-    --gallery-main-bottom:calc(82px + env(safe-area-inset-bottom));
+    /* 悬浮底栏 = 58px 高 + 距底 var(--nav-bottom)；再留 14px 间隔。 */
+    --gallery-main-bottom:calc(72px + var(--nav-bottom));
   }
   .gallery-stage-layout .gallery-film-shell{--film-rail-padding:84px}
   #main.showcase-main:has(.gallery-page.is-immersive){

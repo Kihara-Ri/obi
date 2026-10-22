@@ -66,9 +66,10 @@
   .head-actions .head-text,.head-actions .quiet{min-height:40px;padding:0 10px;border-color:transparent;background:none;color:var(--text);font-size:14px}
   .head-actions .head-add{width:38px;height:38px;min-height:38px;padding:0;border-radius:50%;font-size:22px;line-height:1}
 
+  :root{--nav-bottom:max(8px,calc(env(safe-area-inset-bottom) - 14px))}   /* 贴近 Home 指示条上沿，不再整段让出安全区 */
   /* 底部悬浮岛：离开屏幕边缘的圆角玻璃条。激活标签展开成「图标 + 文字」的强调色胶囊，其余只留图标；
      胶囊（.nav-pill）与列宽（inline gridTemplateColumns，见 AppNav）同权重同过渡，滑动时变宽、始终对齐。 */
-  .mobile-nav{display:grid;position:fixed;bottom:calc(10px + env(safe-area-inset-bottom));left:12px;right:12px;z-index:30;
+  .mobile-nav{display:grid;position:fixed;bottom:var(--nav-bottom);left:12px;right:12px;z-index:30;
     height:58px;padding:6px;border-radius:29px;
     background:var(--chrome-nav);backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);
     border:1px solid var(--border-strong);box-shadow:0 10px 28px rgba(0,0,0,.28),0 1px 0 rgba(255,255,255,.04) inset;
