@@ -7,11 +7,18 @@ import {normalizeCatno, ownedAlbums} from '../core/lookup';
 import {statusName} from '../core/modules';
 import {openDetail} from '../forms/DetailDrawer';
 import type {AlbumRecord, ReleaseCandidate, ReleaseInfo} from '../types';
+import {burnReveal} from '../core/burn-reveal';
 import {LookupCard} from './LookupCard';
 
 export interface AlbumHit {id: string; title: string; artist: string; year: string; kind: string; source: string; cover: string}
 const KIND: Record<string, string> = {album: '专辑', ep: 'EP', single: '单曲', other: ''};
 const SHOWN = 5;
+// 本次运行里已经「烧」出来过的专辑封面：折叠 / 重新渲染后直接显示，不重播
+const revealed = new Set<string>();
+function reveal(img: HTMLImageElement) {
+  if (!revealed.has(img.src)) {revealed.add(img.src); burnReveal(img);}
+  img.style.opacity = '1';
+}
 
 function Album({hit, owned, confirming, onAdd}: {hit: AlbumHit; owned: AlbumRecord[]; confirming: boolean; onAdd: (c: ReleaseCandidate, info: ReleaseInfo) => void}) {
   const app = useApp();
@@ -35,7 +42,7 @@ function Album({hit, owned, confirming, onAdd}: {hit: AlbumHit; owned: AlbumReco
   return <li className="album-hit">
     <div className="ah-row">
       <button type="button" className="ah-main" aria-expanded={open} onClick={toggle}>
-        <span className="ah-art">{art ? <img src={hit.cover} alt="" loading="lazy" onError={() => setArt(false)}/> : null}</span>
+        <span className="ah-art">{art ? <img src={hit.cover} alt="" loading="lazy" style={{opacity: 0}} onLoad={e => reveal(e.currentTarget)} onError={() => setArt(false)}/> : null}</span>
         <span className="ll-text"><strong>{hit.title}</strong><span>{hit.artist}</span>
           <span>{[hit.year, KIND[hit.kind]].filter(Boolean).join(' · ')}</span></span>
       </button>
