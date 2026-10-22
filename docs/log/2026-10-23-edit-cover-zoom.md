@@ -1,7 +1,7 @@
 # 2026-10-23 · 编辑页封面点开放大（复用 useArtExpand）
 
 - **作者**：Claude
-- **范围**：`components/ReleaseCandidateCard/useArtExpand.ts`、`ReleaseCandidateCard.tsx/.css`（ReleaseSummary）、`forms/record/CoverPanel.tsx`、`styles/drawer.css`、`CHANGELOG.md`
+- **范围**：`components/ReleaseCandidateCard/useArtExpand.ts`、`ReleaseCandidateCard.tsx/.css`（ReleaseSummary）、`forms/record/CoverPanel.tsx`、`styles/drawer.css`、`CHANGELOG.md`、`components/REGISTRY.md`
 
 ## 改了什么
 useArtExpand 参数化（泛型 head 元素 + 随封面移动的元素选择器，默认含 `.rcc-source`）；ReleaseSummary 的头部封面接入它；CoverPanel 候选行抽成 `CoverPick`，点缩略图放大。放大样式与查询页卡片共用一组 `.is-big` 规则。
