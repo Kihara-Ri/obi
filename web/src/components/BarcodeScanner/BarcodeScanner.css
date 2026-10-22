@@ -1,16 +1,24 @@
 .scan-layer{position:fixed;inset:0;z-index:80;background:var(--shadow-ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px}
 .scan-layer{animation:scan-in .28s ease-out}
-.scan-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;background:transparent;
-  clip-path:inset(var(--c-t,40%) var(--c-r,10%) var(--c-b,40%) var(--c-l,10%) round 16px)}
-/* 画面稳定后从取景框的位置展开到全屏（起点由组件量出 --c-*），不再出现「先小窗再放大」的中间态 */
-.scan-video.is-live{opacity:1;clip-path:inset(0 round 0);transition:opacity .18s ease,clip-path .6s cubic-bezier(.2,.7,.3,1)}
+.scan-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transform:scale(1.07);background:transparent}
+/* 快门式：暗底 → 取景角标从四周收拢 → 画面稳定后对焦显现（淡入 + 微缩放回原位）；启动期的小窗 / 分辨率跳变都在暗底后面 */
+.scan-video.is-live{opacity:1;transform:none;transition:opacity .55s ease,transform .7s cubic-bezier(.2,.7,.3,1)}
 /* 浏览器自带的播放按钮 / 控件一律不显示 */
 .scan-video::-webkit-media-controls,.scan-video::-webkit-media-controls-start-playback-button,.scan-video::-webkit-media-controls-overlay-play-button{display:none!important;-webkit-appearance:none}
 @keyframes scan-in{from{opacity:0}to{opacity:1}}
 @keyframes scan-rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-@keyframes scan-pop{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
-.scan-frame{position:relative;width:min(80vw,360px);aspect-ratio:2/1;border:3px solid var(--accent);border-radius:16px;box-shadow:0 0 0 100vmax var(--shadow-ink);opacity:.55;transition:opacity .4s ease,border-color .4s ease;animation:scan-pop .4s .08s ease-out backwards}
-.scan-frame.is-armed{opacity:1}
+/* 取景框：四个角标（不画整圈边框），暗角由 box-shadow 提供；出场时从外圈收拢，识别器就绪后「锁定」一下 */
+.scan-frame{position:relative;width:min(80vw,360px);aspect-ratio:2/1;box-shadow:0 0 0 100vmax var(--shadow-ink);opacity:.55;transition:opacity .4s ease;
+  --k:var(--accent);--w:3px;--l:30px;
+  background:
+    linear-gradient(var(--k),var(--k)) 0 0/var(--l) var(--w),linear-gradient(var(--k),var(--k)) 0 0/var(--w) var(--l),
+    linear-gradient(var(--k),var(--k)) 100% 0/var(--l) var(--w),linear-gradient(var(--k),var(--k)) 100% 0/var(--w) var(--l),
+    linear-gradient(var(--k),var(--k)) 0 100%/var(--l) var(--w),linear-gradient(var(--k),var(--k)) 0 100%/var(--w) var(--l),
+    linear-gradient(var(--k),var(--k)) 100% 100%/var(--l) var(--w),linear-gradient(var(--k),var(--k)) 100% 100%/var(--w) var(--l);
+  background-repeat:no-repeat;animation:scan-converge .6s .05s cubic-bezier(.2,.7,.3,1) backwards}
+@keyframes scan-converge{from{opacity:0;transform:scale(1.55)}to{opacity:.55;transform:none}}
+@keyframes scan-lock{40%{transform:scale(.965)}to{transform:none}}
+.scan-frame.is-armed{opacity:1;animation:scan-lock .32s cubic-bezier(.2,.7,.3,1)}
 .scan-msg{position:relative;padding:8px 16px;border-radius:99px;background:var(--surface);color:var(--text);font-size:14px;text-align:center;max-width:86vw;animation:scan-rise .25s ease-out backwards}
 .scan-msg.is-error{color:var(--red)}
 .scan-lens{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 18px;border-radius:99px;background:var(--surface);color:var(--text);font-size:13px;font-weight:600;animation:scan-rise .3s .1s ease-out backwards}
@@ -27,4 +35,4 @@
 .scan-wrap .scan-clear:active{background:var(--surface-3);color:var(--text)}
 .scan-wrap .scan-inline:active{background:var(--surface-3);color:var(--text)}
 
-@media (prefers-reduced-motion:reduce){.scan-layer,.scan-frame,.scan-msg,.scan-close{animation:none}.scan-video,.scan-frame{transition:none}.scan-video{clip-path:none}}
+@media (prefers-reduced-motion:reduce){.scan-layer,.scan-frame,.scan-msg,.scan-close{animation:none}.scan-video,.scan-frame{transition:none}.scan-video{transform:none}}
