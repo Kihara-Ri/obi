@@ -21,21 +21,31 @@ export function ScanField({onScan, children}: {onScan: () => void; children: Rea
 
 const VIDEO = {width: {ideal: 1920}, height: {ideal: 1080}};
 
-/** 多摄手机的 facingMode 常落在长焦上，手持专辑近距离扫码会一直发虚：
- *  拿到权限后列出后置镜头，排除长焦 / 超广角，选主摄（标签里编号最小的），不是当前这个就换过去。 */
-async function openCamera(): Promise<MediaStream> {
-  const stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: 'environment'}, ...VIDEO}, audio: false});
+type Cam = {id: string; label: string};
+const LENS_KEY = 'scan-lens';
+const readLens = () => { try { return localStorage.getItem(LENS_KEY) || undefined; } catch { return undefined; } };
+
+/** 多摄手机的 facingMode 常落在长焦上，手持专辑近距离扫码会一直发虚。
+ *  拿到权限后列出后置镜头：用户选过的优先；否则排除标签含长焦 / 超广角的，取编号最小的；
+ *  自动选不准时，界面上有「切换镜头」，选择会记住。 */
+async function openCamera(want?: string): Promise<{stream: MediaStream; cams: Cam[]; current?: string}> {
+  let stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: 'environment'}, ...VIDEO}, audio: false});
+  let current = stream.getVideoTracks()[0]?.getSettings().deviceId;
   try {
-    const current = stream.getVideoTracks()[0]?.getSettings().deviceId;
-    const backs = (await navigator.mediaDevices.enumerateDevices()).filter(d =>
-      d.kind === 'videoinput' && /back|rear|environment|后置/i.test(d.label) && !/tele|zoom|ultra|wide|长焦|广角/i.test(d.label));
-    const index = (label: string) => Number(/(\d+)/.exec(label)?.[1] ?? 99);
-    const main = backs.sort((a, b) => index(a.label) - index(b.label))[0];
-    if (!main || main.deviceId === current) return stream;
-    const better = await navigator.mediaDevices.getUserMedia({video: {deviceId: {exact: main.deviceId}, ...VIDEO}, audio: false});
-    stream.getTracks().forEach(t => t.stop());
-    return better;
-  } catch { return stream; }   // 选镜头失败就沿用系统默认
+    const cams = (await navigator.mediaDevices.enumerateDevices())
+      .filter(d => d.kind === 'videoinput' && /back|rear|environment|后置/i.test(d.label))
+      .map(d => ({id: d.deviceId, label: d.label}));
+    const index = (label: string) => Number(/camera\d*\s+(\d+)/i.exec(label)?.[1] ?? 99);
+    cams.sort((a, b) => index(a.label) - index(b.label));
+    const auto = cams.find(c => !/tele|zoom|ultra|wide|长焦|广角/i.test(c.label));
+    const target = cams.find(c => c.id === want) ?? auto;
+    if (target && target.id !== current) {
+      stream.getTracks().forEach(t => t.stop());
+      stream = await navigator.mediaDevices.getUserMedia({video: {deviceId: {exact: target.id}, ...VIDEO}, audio: false});
+      current = target.id;
+    }
+    return {stream, cams, current};
+  } catch { return {stream, cams: [], current}; }   // 选镜头失败就沿用系统默认
 }
 
 type FocusCaps = MediaTrackCapabilities & {focusMode?: string[]; focusDistance?: {min: number; max: number}};
@@ -59,7 +69,11 @@ export function BarcodeScanner({onDetect, onClose}: {onDetect: (code: string) =>
   const [failed, setFailed] = useState(false);
   const [shown, setShown] = useState(false);   // 首帧画面到达后才淡入，避免 Android 在出画前闪出被拉伸的播放图标
   const [armed, setArmed] = useState(false);    // 识别器就绪：取景框由暗淡转为高亮
+  const [want, setWant] = useState<string | undefined>(readLens);
+  const [cams, setCams] = useState<Cam[]>([]);
+  const [lens, setLens] = useState<string | undefined>();
   useEffect(() => {
+    setShown(false); setArmed(false); setFailed(false); setMsg('正在打开相机…');
     let live = true;
     let stream: MediaStream | null = null;
     let timer = 0;
@@ -67,7 +81,9 @@ export function BarcodeScanner({onDetect, onClose}: {onDetect: (code: string) =>
     (async () => {
       if (!navigator.mediaDevices?.getUserMedia) return fail('当前浏览器或连接不支持相机（需要 HTTPS）');
       try {
-        stream = await openCamera();
+        const opened = await openCamera(want);
+        stream = opened.stream;
+        if (live) { setCams(opened.cams); setLens(opened.current); }
       } catch (e) {
         return fail((e as DOMException).name === 'NotAllowedError' ? '没有相机权限，请在浏览器设置里允许后重试' : '无法打开相机');
       }
@@ -96,13 +112,24 @@ export function BarcodeScanner({onDetect, onClose}: {onDetect: (code: string) =>
       void tick();
     })();
     return () => { live = false; clearTimeout(timer); stream?.getTracks().forEach(t => t.stop()); };
-  }, []);
+  }, [want]);
+  const next = () => {
+    const at = cams.findIndex(c => c.id === lens);
+    const pick = cams[(at + 1) % cams.length].id;
+    try { localStorage.setItem(LENS_KEY, pick); } catch { /* 记不住也能用 */ }
+    setWant(pick);
+  };
+  const at = cams.findIndex(c => c.id === lens);
   return createPortal(
     <div className="scan-layer" role="dialog" aria-label="扫描条码" onClick={() => void tuneFocus(track.current, true)}>
       <video ref={video} className={'scan-video' + (shown ? ' is-live' : '')} playsInline muted autoPlay
              controls={false} disablePictureInPicture onPlaying={() => setShown(true)}/>
       <div className={'scan-frame' + (armed ? ' is-armed' : '')} aria-hidden="true"/>
       <p key={msg} className={'scan-msg' + (failed ? ' is-error' : '')} role="status">{msg}</p>
+      {cams.length > 1 && !failed
+        ? <button type="button" className="scan-lens" onClick={e => { e.stopPropagation(); next(); }}>
+            切换镜头 {at + 1}/{cams.length}<small>{cams[at]?.label.replace(/,?\s*facing back/i, '')}</small>
+          </button> : null}
       <button type="button" className="scan-close" onClick={onClose}>{failed ? '返回' : '取消'}</button>
     </div>, document.body);
 }
