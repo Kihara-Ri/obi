@@ -492,6 +492,12 @@ public class MainActivity extends Activity {
             runOnUiThread(() -> Updater.check(MainActivity.this, true, null));
         }
 
+        // 手动检查后下载好的新版本：用户点「安装」才装
+        @JavascriptInterface
+        public void installUpdate() {
+            runOnUiThread(() -> Updater.installByUser(MainActivity.this));
+        }
+
         // 打开系统「安装未知应用」开关页；允许后更新可在后台自动安装
         @JavascriptInterface
         public void openInstallSettings() {

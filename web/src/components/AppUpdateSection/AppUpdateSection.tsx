@@ -2,9 +2,9 @@
 // 以及在 Android 12+ 引导用户一次性允许「安装未知应用」，之后更新无需确认。
 import {useEffect, useState} from 'react';
 
-type Native = {updateStatus(): string; checkUpdate(): void; openInstallSettings(): void};
+type Native = {updateStatus(): string; checkUpdate(): void; openInstallSettings(): void; installUpdate?(): void};
 type Status = {state: string; version: string; latest: string; ready: string; error: string;
-  checkedAt: number; silent: boolean; silentSupported: boolean};
+  checkedAt: number; silent: boolean; silentSupported: boolean; installable?: boolean};
 
 function native(): Native | null {
   const bridge = (window as unknown as {ObiAndroid?: Partial<Native>}).ObiAndroid;
@@ -22,7 +22,7 @@ export function describeUpdate(s: Status): string {
   switch (s.state) {
     case 'checking': return '正在检查新版本…';
     case 'downloading': return '正在下载新版本…';
-    case 'ready': return `新版本 ${tag(s.ready)} 已下载，${s.silent ? '离开应用后自动安装' : '等待确认安装'}`;
+    case 'ready': return `新版本 ${tag(s.ready)} 已下载，点「安装」更新`;
     case 'installing': return '正在安装新版本…';
     case 'confirming': return '请在系统页面确认安装';
     case 'current': return `已是最新${s.checkedAt ? `（${clock(s.checkedAt)} 检查）` : ''}`;
@@ -56,6 +56,9 @@ export function AppUpdateSection() {
     <div className="inline-actions">
       <button type="button" className="link-button" disabled={busy} aria-busy={busy}
               onClick={() => { bridge.checkUpdate(); setStatus({...status, state: 'checking'}); }}>检查更新</button>
+      {status.state === 'ready' && status.installable && bridge.installUpdate
+        ? <button type="button" className="link-button" onClick={() => bridge.installUpdate?.()}>安装 {tag(status.ready)}</button>
+        : null}
       {status.silentSupported && !status.silent
         ? <button type="button" className="link-button" onClick={() => bridge.openInstallSettings()}>允许自动安装</button>
         : null}

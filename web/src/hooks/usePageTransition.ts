@@ -11,6 +11,9 @@ const PAGE_RANK: Record<string, number> = {
   more: 4, lookup: 4.1, trades: 4.2, stats: 4.3, settings: 4.4, trash: 4.5,
 };
 
+// 以展示为主时底栏是「展示 · 收藏 · 更多」，展示在收藏左边，方向要跟着底栏走
+const rankOf = (p: string, showcaseTab: boolean) => p === 'gallery' && showcaseTab ? -1 : PAGE_RANK[p] ?? 3.5;
+
 const isShelf = (p: string) => p === 'domestic' || p === 'overseas';
 
 /** showcaseTab：以展示为主（展示是底栏标签），库存 ↔ 展示按普通换页处理 */
@@ -112,7 +115,7 @@ export function usePageTransition(page: string, showcaseTab: boolean, records: A
       return () => { window.clearTimeout(t); main.classList.remove('page-in-fade'); };
     }
     if (!snap || !mobile || !animate || fromHistory) return;
-    const dir: 1 | -1 = (PAGE_RANK[page] ?? 3.5) >= (PAGE_RANK[prev] ?? 3.5) ? 1 : -1;
+    const dir: 1 | -1 = rankOf(page, showcaseTab) >= rankOf(prev, showcaseTab) ? 1 : -1;
     // 快照可能取自上一场过渡进行中，先剥掉入场类再挂滑出类
     snap.el.classList.remove('page-in-right', 'page-in-left');
     snap.el.classList.add(dir === 1 ? 'page-out-left' : 'page-out-right');

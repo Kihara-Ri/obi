@@ -19,6 +19,25 @@ export function ScanField({onScan, children}: {onScan: () => void; children: Rea
   </div>;
 }
 
+const VIDEO = {width: {ideal: 1920}, height: {ideal: 1080}};
+
+/** 多摄手机的 facingMode 常落在长焦上，手持专辑近距离扫码会一直发虚：
+ *  拿到权限后列出后置镜头，排除长焦 / 超广角，选主摄（标签里编号最小的），不是当前这个就换过去。 */
+async function openCamera(): Promise<MediaStream> {
+  const stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: 'environment'}, ...VIDEO}, audio: false});
+  try {
+    const current = stream.getVideoTracks()[0]?.getSettings().deviceId;
+    const backs = (await navigator.mediaDevices.enumerateDevices()).filter(d =>
+      d.kind === 'videoinput' && /back|rear|environment|后置/i.test(d.label) && !/tele|zoom|ultra|wide|长焦|广角/i.test(d.label));
+    const index = (label: string) => Number(/(\d+)/.exec(label)?.[1] ?? 99);
+    const main = backs.sort((a, b) => index(a.label) - index(b.label))[0];
+    if (!main || main.deviceId === current) return stream;
+    const better = await navigator.mediaDevices.getUserMedia({video: {deviceId: {exact: main.deviceId}, ...VIDEO}, audio: false});
+    stream.getTracks().forEach(t => t.stop());
+    return better;
+  } catch { return stream; }   // 选镜头失败就沿用系统默认
+}
+
 type FocusCaps = MediaTrackCapabilities & {focusMode?: string[]; focusDistance?: {min: number; max: number}};
 
 /** Android 默认常是固定焦距或慢速自动对焦，条码近距离会一直发虚：能连续对焦就开，并避免远焦。 */
@@ -48,7 +67,7 @@ export function BarcodeScanner({onDetect, onClose}: {onDetect: (code: string) =>
     (async () => {
       if (!navigator.mediaDevices?.getUserMedia) return fail('当前浏览器或连接不支持相机（需要 HTTPS）');
       try {
-        stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: 'environment'}, width: {ideal: 1920}, height: {ideal: 1080}}, audio: false});
+        stream = await openCamera();
       } catch (e) {
         return fail((e as DOMException).name === 'NotAllowedError' ? '没有相机权限，请在浏览器设置里允许后重试' : '无法打开相机');
       }

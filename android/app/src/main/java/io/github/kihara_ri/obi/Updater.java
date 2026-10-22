@@ -156,7 +156,12 @@ final class Updater {
             p.edit().putLong("readyCode", code).putString("readyTag", tag).remove("error").apply();
         }
         state(c, "ready");
-        if (manual) p.edit().remove("declinedAt").apply();
+        if (manual) {
+            // 用户主动检查：只准备好并在设置页给出「安装」按钮，由用户点了才装，不在离开应用时自动装
+            p.edit().remove("declinedAt").putBoolean("manualHold", true).apply();
+            return;
+        }
+        if (p.getBoolean("manualHold", false)) return;
         // 后台任务里必须在任务结束前提交安装：任务一结束进程就可能被系统冻结
         if (canInstallSilently(c) && !MainActivity.visible()) installNow(c);
         else main.post(() -> installWhenAppropriate(c));
@@ -187,7 +192,7 @@ final class Updater {
     static void installWhenAppropriate(Context c) {
         SharedPreferences p = prefs(c);
         long code = p.getLong("readyCode", -1);
-        if (code <= installedCode(c) || !apkFile(c).exists()) return;
+        if (code <= installedCode(c) || !apkFile(c).exists() || p.getBoolean("manualHold", false)) return;
         if (canInstallSilently(c)) {
             if (!MainActivity.visible()) install(c);
             return;
@@ -196,6 +201,12 @@ final class Updater {
         if (activity == null) return;
         if (System.currentTimeMillis() - p.getLong("declinedAt", 0) < DECLINE_QUIET) return;
         activity.askToInstall(p.getString("readyTag", ""));
+    }
+
+    /** 设置页「安装」按钮：用户明确要装，不再等离开应用。 */
+    static void installByUser(Context c) {
+        prefs(c).edit().remove("manualHold").apply();
+        install(c);
     }
 
     static void install(Context c) {
@@ -229,7 +240,7 @@ final class Updater {
 
     static void clearDownload(Context c) {
         apkFile(c).delete();
-        prefs(c).edit().remove("readyCode").remove("readyTag").apply();
+        prefs(c).edit().remove("readyCode").remove("readyTag").remove("manualHold").apply();
     }
 
     static File apkFile(Context c) {
@@ -248,6 +259,7 @@ final class Updater {
             o.put("version", BuildConfigVersion.name(c));
             o.put("latest", p.getString("latest", ""));
             o.put("ready", p.getString("readyTag", ""));
+            o.put("installable", p.getLong("readyCode", -1) > installedCode(c) && apkFile(c).exists());
             o.put("error", p.getString("error", ""));
             o.put("checkedAt", p.getLong("checkedAt", 0));
             o.put("silent", canInstallSilently(c));
