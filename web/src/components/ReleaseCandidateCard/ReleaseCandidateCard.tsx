@@ -35,6 +35,16 @@ export function ReleaseSummary({title, artist, info, source, url, art, headless}
 export interface CardCtx {info: ReleaseInfo; load: () => Promise<ReleaseInfo>; busy: boolean}
 
 /** fold：默认只显示一行关键信息（编号、地区、日期、条码），点开才出完整资料和操作（查询页用，省纵向空间）。 */
+// 本次运行里已成功加载过的封面（地址 → 保活的 Image）：折叠 / 展开会卸载再挂载卡片，
+// 没有这份记录每次都要重新「找封面…」并重播燃烧；保活 Image 让浏览器内存缓存里的解码结果不被回收。
+const loadedArt = new Map<string, HTMLImageElement>();
+const rememberArt = (url: string) => {
+  if (loadedArt.has(url)) return;
+  const im = new Image(); im.src = url;
+  loadedArt.set(url, im);
+  if (loadedArt.size > 120) loadedArt.delete(loadedArt.keys().next().value as string);
+};
+
 export function ReleaseCandidateCard({c, fold, tag, fallbackArt, children}: {c: ReleaseCandidate; fold?: boolean; tag?: string; fallbackArt?: string; children?: (ctx: CardCtx) => ReactNode}) {
   const expand = useArtExpand();
   const [folded, setFolded] = useState(!!fold);  // 折叠卡片：头部一行始终在原位 + 可展开的主体
@@ -49,9 +59,11 @@ export function ReleaseCandidateCard({c, fold, tag, fallbackArt, children}: {c: 
   const spare = fallbackArt ? fallbackArt.replace(/front-\d+$/, '') : '';
   const [useSpare, setUseSpare] = useState(false);
   const caa = !useSpare && own ? own : spare;
-  const [artState, setArtState] = useState<'loading' | 'none' | 'ok'>(caa ? 'loading' : 'none');
+  const known = (base: string) => !!base && loadedArt.has(base + 'front-250');
+  const cachedAtMount = useRef(known(caa));   // 挂载时就已加载过：直接显示，不再等待、不再燃烧
+  const [artState, setArtState] = useState<'loading' | 'none' | 'ok'>(caa ? (known(caa) ? 'ok' : 'loading') : 'none');
   useEffect(() => { setUseSpare(false); }, [own, spare]);
-  useEffect(() => { setArtState(caa ? 'loading' : 'none'); }, [caa]);
+  useEffect(() => { cachedAtMount.current = known(caa); setArtState(caa ? (known(caa) ? 'ok' : 'loading') : 'none'); }, [caa]);
   // 封面请求偶尔挂住（CAA 两次跳转，手机网络下既不 load 也不 error）：先看图是否其实已就绪，
   // 8 秒仍无结果就换 key 并加 ?r=n 重挂 <img> 重新请求（相同网址会被浏览器并入那条挂住的请求），最多 3 次，之后按没有封面处理。
   const [tries, setTries] = useState(0);
@@ -80,7 +92,13 @@ export function ReleaseCandidateCard({c, fold, tag, fallbackArt, children}: {c: 
     timer = window.setTimeout(start, Math.max(0, 450 - (performance.now() - mountedAt.current)));
     return () => { done = true; window.clearTimeout(timer); observer?.disconnect(); };
   }, [loaded, artState, caa, tries]);
-  useLayoutEffect(() => { if (artState === 'ok' && expand.art.current) burnReveal(expand.art.current); }, [artState]);
+  useLayoutEffect(() => {
+    const el = expand.art.current;
+    if (artState !== 'ok' || !el) return;
+    if (cachedAtMount.current) el.dataset.burned = '1';
+    else rememberArt(caa + 'front-250');
+    burnReveal(el);
+  }, [artState]);
   const art = artState === 'ok' ? caa + 'front-250' : '';
   const artImg = caa ? <img key={caa + tries} className={'rcc-art rcc-art-img' + (artState !== 'ok' ? ' is-pending' : '')} ref={expand.art} src={caa + (expand.big ? 'front-500' : 'front-250') + (tries ? '?r=' + tries : '')} alt="封面"
     style={expand.big ? {backgroundImage: `url(${caa}front-250)`} : undefined}
