@@ -66,25 +66,34 @@
   .head-actions .head-text,.head-actions .quiet{min-height:40px;padding:0 10px;border-color:transparent;background:none;color:var(--text);font-size:14px}
   .head-actions .head-add{width:38px;height:38px;min-height:38px;padding:0;border-radius:50%;font-size:22px;line-height:1}
 
-  /* 底部标签栏：图标 + 文字 + 计数气泡，按模块隐藏入口。
-     选中高亮是一枚独立滑动的胶囊（.nav-pill），跟随切换平移；
-     各标签自身只负责文字/图标颜色过渡，不再自绘背景。 */
-  .mobile-nav{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:30;
-    background:var(--chrome-nav);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-    border-top:1px solid var(--border);padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
-  .nav-pill{position:absolute;top:6px;bottom:calc(6px + env(safe-area-inset-bottom));left:6px;
-    border-radius:12px;background:var(--nav-active-bg);pointer-events:none;
-    transition:transform var(--slide-ms) var(--slide-ease);will-change:transform}
-  .mobile-nav a,.mobile-nav button{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;
-    justify-content:center;gap:3px;min-height:48px;padding:5px 2px 4px;border-radius:12px;
-    text-decoration:none;color:var(--muted);font-size:10.5px;font-weight:550;transition:color .2s ease}
-  .mobile-nav a:active,.mobile-nav button:active{background:var(--accent-wash)}
-  .mobile-nav a.active,.mobile-nav button.active{color:var(--accent-text)}
-  .tab-ico{font-size:18px;line-height:1}
-  .tab-badge{position:absolute;top:2px;left:calc(50% + 5px);min-width:15px;height:15px;padding:0 4px;
+  /* 底部悬浮岛：离开屏幕边缘的圆角玻璃条。激活标签展开成「图标 + 文字」的强调色胶囊，其余只留图标；
+     胶囊（.nav-pill）与列宽（inline gridTemplateColumns，见 AppNav）同权重同过渡，滑动时变宽、始终对齐。 */
+  .mobile-nav{display:grid;position:fixed;bottom:calc(10px + env(safe-area-inset-bottom));left:12px;right:12px;z-index:30;
+    height:58px;padding:6px;border-radius:29px;
+    background:var(--chrome-nav);backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);
+    border:1px solid var(--border-strong);box-shadow:0 10px 28px rgba(0,0,0,.28),0 1px 0 rgba(255,255,255,.04) inset;
+    transition:grid-template-columns var(--slide-ms) var(--slide-ease)}
+  .nav-pill{position:absolute;top:6px;bottom:6px;border-radius:23px;background:var(--accent);
+    box-shadow:0 4px 14px var(--accent-hl);pointer-events:none;
+    transition:left var(--slide-ms) var(--slide-ease),width var(--slide-ms) var(--slide-ease)}
+  .mobile-nav a,.mobile-nav button{position:relative;display:flex;align-items:center;justify-content:center;min-width:0;
+    height:44px;padding:0;border-radius:23px;text-decoration:none;color:var(--muted);font-size:13.5px;font-weight:650;
+    transition:color .2s ease}
+  .mobile-nav a:active,.mobile-nav button:active{transform:scale(.94)}
+  .mobile-nav a.active,.mobile-nav button.active{color:var(--accent-ink)}
+  .tab-ico{position:relative;display:inline-flex;flex:none;}
+  .tab-label{max-width:0;opacity:0;overflow:hidden;white-space:nowrap;margin-left:0;
+    transition:max-width var(--slide-ms) var(--slide-ease),opacity .18s ease,margin-left var(--slide-ms) var(--slide-ease)}
+  .mobile-nav a.active .tab-label{max-width:6em;opacity:1;margin-left:6px;transition-delay:0s,.1s,0s}
+  .tab-badge{position:absolute;top:-6px;left:calc(100% - 8px);min-width:16px;height:16px;padding:0 4px;
     border-radius:99px;background:var(--accent);color:var(--accent-ink);font-size:9.5px;font-weight:700;
-    display:flex;align-items:center;justify-content:center;line-height:1}
-
+    border:1.5px solid var(--chrome-nav);box-sizing:content-box;
+    display:flex;align-items:center;justify-content:center;line-height:1;transition:background .2s,color .2s,border-color .2s}
+  /* 激活时图标右上的气泡会压住文字：改放到胶囊右端，并给内容让出位置 */
+  .mobile-nav a.active.has-badge{padding-right:24px}
+  .mobile-nav a.active .tab-ico{position:static}
+  .mobile-nav a.active .tab-badge{top:50%;left:auto;right:8px;transform:translateY(-50%)}
+  .mobile-nav a.active .tab-badge{background:var(--accent-ink);color:var(--accent);border-color:var(--accent)}
 }
 
 /* 手机顶栏：按钮改用短标签，显示返回钮 */

@@ -52,6 +52,7 @@
 | `Chevron` | 全站唯一箭头（down / right，open 旋转） | 同一 SVG、14px、同一过渡；禁止再用 › ▾ ▸ 字符或另画箭头；折叠用 `Collapse` |
 | `ui/Drawer` | 抽屉 / 手机底部 sheet：遮罩、焦点圈、Esc、下拉收起、脏表单确认 | 存量文件（见 `.ai-kit/legacy.txt`），动到时拆分 |
 | `ui/Lightbox` | 照片灯箱 | 同上 |
+| `NavIcon` | 手机底栏的统一线条图标（展示 / 库存 / 在途 / 售出中 / 更多），24 栅格、currentColor | `name` | 未知名称回退为「更多」点点 | — |
 | `EngineMount` | 挂载已安装 Album Engine 插件里的视图（3D 查看器、校准、编辑器） | `kind` `props` `onUnavailable?` | 未安装时不渲染；失败显示 role=alert 提示 | — |
 | `AlbumEngineSettings` | 设置「高级」里安装 / 卸载 Album Engine 插件 | 无（读 `useApp().albumEngine`） | 状态 role=status；错误 role=alert | 状态文字 |
 | `AppUpdateSection` | 设置「高级」里的「应用更新」（只在安卓壳里显示）：当前版本、自动更新进度、「检查更新」、Android 12+ 的「允许自动安装」 | 无（读 `window.ObiAndroid` 桥） | 状态行 role=status；检查中按钮 disabled + aria-busy | 状态文字 |

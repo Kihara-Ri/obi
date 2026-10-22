@@ -18,7 +18,7 @@
 
 @media (max-width:840px){
   /* 批量条：整宽底部浮条，两行——第一行数量与取消，第二行操作按钮两列网格，主操作独占一行 */
-  .bulkbar{left:12px;right:12px;width:auto;bottom:calc(env(safe-area-inset-bottom) + 78px);transform:none;
+  .bulkbar{left:12px;right:12px;width:auto;bottom:calc(env(safe-area-inset-bottom) + 86px);transform:none;
     max-width:none;flex-direction:column;align-items:stretch;gap:10px;padding:12px;animation-name:bulk-in-m}
   .bulkbar.is-leaving{animation-name:bulk-out-m}
   .bulkbar-head{justify-content:space-between}
