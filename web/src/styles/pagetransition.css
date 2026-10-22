@@ -1,31 +1,21 @@
-/* 手机页面切换过渡：两页视为左右并排的一条带子——旧页整幅滑出、新页从另一侧
-   整幅滑入，同距同速（同一时长与曲线），接缝始终贴着视口边缘，全程不重叠。
-   页面背景是透明的，绝不能让两页叠在一起（会互相透出来）。
-   旧页由 hooks/usePageTransition.ts 抓的 DOM 快照（.page-ghost）扮演，React 组件不重复挂载；
+/* 手机页面切换过渡：顶栏留在原地，只有下面的内容换，且都是柔和的淡入淡出。
+   旧页由 hooks/usePageTransition.ts 抓的 DOM 快照（.page-ghost，含旧顶栏）原位淡出；
+   新页的顶栏组件与内容随后淡入，内容再顺着导航方向（--soft-dx）带一点位移。两页同位置，不整幅滑动。
    桌面不执行切换动画（usePageTransition 里按宽度跳过）。 */
 @media (max-width:840px){
   /* 动画期间锁住纵向滚动，快照偏移与真实滚动不致脱节 */
   .page-anim-lock{overflow:hidden}
-  /* 动画必须挂在 #main 盒子上（宽=视口、内边距在盒内）：位移 100% 才是整整
-     一屏——挂在内容层上时层宽不含两侧 16px 内边距，旧页会留下 16px 残边、
-     新页入场前也会先露出一条。两层同距同速，接缝全程贴合。 */
-  #main.page-in-right,#main.page-in-left{position:relative;z-index:10;will-change:transform}
-  #main.page-in-right{animation:page-in-right var(--dur-slow) var(--ease-out);
-    box-shadow:-18px 0 50px var(--shadow-ink)}
-  #main.page-in-left{animation:page-in-left var(--dur-slow) var(--ease-out)}
-  /* 旧页快照：over=返回时盖在新页上方滑出，under=推入时在新页下方滑出 */
+  /* 旧页快照：固定在视口上，不接收点击 */
   .page-ghost{position:fixed;inset:0;overflow:hidden;pointer-events:none}
   .page-ghost main{min-height:100svh}
-  .page-ghost-under{z-index:5}
   .page-ghost-over{z-index:25}
-  .page-ghost-over main{box-shadow:-18px 0 50px var(--shadow-ink)}
+  .page-ghost main.page-out-soft{animation:soft-out 150ms ease-out forwards}
+  @keyframes soft-out{to{opacity:0}}
+  #main.page-in-soft .page-layer>*>:not(.page-head){animation:soft-in 320ms var(--ease-out) 90ms both}
+  #main.page-in-soft .page-layer>*>.page-head :is(h1,.head-back,.head-actions){animation:soft-fade 260ms ease-out 70ms both}
+  @keyframes soft-in{from{opacity:0;transform:translateX(var(--soft-dx,0))}}
+  @keyframes soft-fade{from{opacity:0}}
   /* 库存 ↔ 展示：顶栏不动，页面根下除顶栏外的内容淡入并轻微上浮 */
   #main.page-in-fade .page-layer>*>:not(.page-head){animation:page-fade-in var(--slide-ms) var(--slide-ease) both}
   @keyframes page-fade-in{from{opacity:0;transform:translateY(8px)}}
-  @keyframes page-in-right{from{transform:translateX(100%)}to{transform:none}}
-  @keyframes page-in-left{from{transform:translateX(-100%)}to{transform:none}}
-  @keyframes page-out-left{from{transform:none}to{transform:translateX(-100%)}}
-  @keyframes page-out-right{from{transform:none}to{transform:translateX(100%)}}
-  .page-ghost main.page-out-left{animation:page-out-left var(--dur-slow) var(--ease-out) forwards}
-  .page-ghost main.page-out-right{animation:page-out-right var(--dur-slow) var(--ease-out) forwards}
 }

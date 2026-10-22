@@ -115,16 +115,17 @@ export function usePageTransition(page: string, showcaseTab: boolean, records: A
       return () => { window.clearTimeout(t); main.classList.remove('page-in-fade'); };
     }
     if (!snap || !mobile || !animate || fromHistory) return;
+    // 两页之间：顶栏留在原地，只有下面的内容换——旧页（含旧顶栏）快照先淡出，新页顶栏与内容稍后淡入，
+    // 内容带一点顺着导航方向的位移；全程同位置叠放，没有整幅滑动，所以不会「整页切掉」。
     const dir: 1 | -1 = rankOf(page, showcaseTab) >= rankOf(prev, showcaseTab) ? 1 : -1;
-    // 快照可能取自上一场过渡进行中，先剥掉入场类再挂滑出类
-    snap.el.classList.remove('page-in-right', 'page-in-left');
-    snap.el.classList.add(dir === 1 ? 'page-out-left' : 'page-out-right');
+    snap.el.classList.remove('page-in-soft', 'page-in-fade');
+    snap.el.classList.add('page-out-soft');
     // 快照不随窗口滚动：按抓取时的滚动偏移还原，吸顶页头停在用户此刻看到的位置
     snap.el.querySelectorAll<HTMLElement>('.page-head').forEach(h => {
       h.style.transform = `translateY(${snap.y}px)`;
     });
     const ghost = document.createElement('div');
-    ghost.className = dir === 1 ? 'page-ghost page-ghost-under' : 'page-ghost page-ghost-over';
+    ghost.className = 'page-ghost page-ghost-over page-ghost-soft';
     ghost.setAttribute('aria-hidden', 'true');
     const shifter = document.createElement('div');
     shifter.className = 'page-ghost-shift';
@@ -142,31 +143,22 @@ export function usePageTransition(page: string, showcaseTab: boolean, records: A
         if ('animationName' in animation && (animation as CSSAnimation).animationName === name) animation.currentTime = time;
       });
     });
-    // 新页面同样补页头偏移：transform 会让 sticky 失效，补齐后动画首尾位置一致
-    const heads = Array.from(main.querySelectorAll<HTMLElement>('.page-head'));
-    heads.forEach(h => { h.style.transform = `translateY(${window.scrollY}px)`; });
-    main.classList.add(dir === 1 ? 'page-in-right' : 'page-in-left');
+    main.style.setProperty('--soft-dx', `${dir * 22}px`);
+    main.classList.add('page-in-soft');
     document.documentElement.classList.add('page-anim-lock');
-    let done = false;
+    let ghostGone = false;
+    const dropGhost = () => {if (!ghostGone) {ghostGone = true; ghost.remove();}};
     const finish = () => {
-      if (done) return;
-      done = true;
-      ghost.remove();
-      main.classList.remove('page-in-right', 'page-in-left');
-      heads.forEach(h => { h.style.transform = ''; });
+      dropGhost();
+      main.classList.remove('page-in-soft');
+      main.style.removeProperty('--soft-dx');
       document.documentElement.classList.remove('page-anim-lock');
     };
-    const timer = window.setTimeout(finish, 450); // 收不到 animationend（如中途关动画）时兜底
-    const onEnd = (e: AnimationEvent) => {
-      // 子元素自带的入场动画也会冒泡上来，只认两层盒子自身的动画
-      if (e.target === main || e.target === snap.el) finish();
-    };
-    main.addEventListener('animationend', onEnd);
-    ghost.addEventListener('animationend', onEnd);
+    snap.el.addEventListener('animationend', dropGhost);
+    const ghostTimer = window.setTimeout(dropGhost, 400);
+    const timer = window.setTimeout(finish, 620); // 兜底：收不到 animationend（如中途关动画）时也收尾
     return () => {
-      window.clearTimeout(timer);
-      main.removeEventListener('animationend', onEnd);
-      ghost.removeEventListener('animationend', onEnd);
+      window.clearTimeout(timer); window.clearTimeout(ghostTimer);
       finish(); // 快速连切：立刻收掉上一场过渡
     };
   }, [page]);

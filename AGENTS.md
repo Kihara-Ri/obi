@@ -69,7 +69,7 @@
 - 批量操作条是**底部悬浮浮条**（position:fixed），不得挤压页面布局。
 - **按钮没有全局按下位移**（2026-10-17 起去掉了 `button:active{transform}`，会让每个按钮按下时上下抖一下）；确需按压反馈的个别按钮自己加，且要说明理由。
 - 所有「滑块」（分段控件、标签下划线、底栏胶囊）统一时长与缓动 `--slide-ms` / `--slide-ease`，分段控件与下划线共用 `useSlidingThumb`。库存↔展示（顶栏切换）不播整页左右滑，改为顶栏不动、下方内容淡入。
-- 手机底栏选中高亮是一枚**滑动胶囊**（`.nav-pill`，`components/AppNav.tsx` 内联 transform 定位槽位、CSS 过渡平移），各标签自身不再自绘激活背景。手机页面切换有**方向性过渡**（`styles/pagetransition.css`）：按导航层级 rank 决定方向——进更深页面从右推入、返回向右滑出；「更多」的子页（交易记录/账本/设置/回收站）统一右侧拉出。旧页由 `hooks/usePageTransition.ts` 在 hashchange/popstate 到达时抢先克隆 `#main` 做 DOM 快照参与滑出（组件不重复挂载，滚动偏移在克隆时一并记下）；**浏览器历史驱动的换页（popstate 且 hash 变化：iOS 边缘右滑、后退/前进键）不再自播动画——系统自带过渡画面，自播会双重动画**；抽屉的同址 popstate 守卫不得置该标记。桌面与 `prefers-reduced-motion` 一律不做切换动画。
+- 手机底栏选中高亮是一枚**滑动胶囊**（`.nav-pill`，`components/AppNav.tsx` 内联 transform 定位槽位、CSS 过渡平移），各标签自身不再自绘激活背景。手机页面切换是**顶栏不动的柔和淡入淡出**（`styles/pagetransition.css`）：旧页由 `hooks/usePageTransition.ts` 在 hashchange/popstate 到达时抢先克隆 `#main` 做 DOM 快照（含旧顶栏，滚动偏移一并记下），在原位 150ms 淡出；新页顶栏组件与内容随后淡入，内容顺着导航层级方向（rank，进更深页为右）带 22px 位移；组件不重复挂载，也没有整幅滑动。**浏览器历史驱动的换页（popstate 且 hash 变化：iOS 边缘右滑、后退/前进键）不再自播动画——系统自带过渡画面，自播会双重动画**；抽屉的同址 popstate 守卫不得置该标记。桌面与 `prefers-reduced-motion` 一律不做切换动画。
 - 排序 / 交易筛选用自定义 dd 下拉（`components/ui/Dropdown.tsx`），不用原生 select。
 - 同专辑多副本分组：subgrid + `grid-column: span N`。**绝不能写 `1 / span N`**（强制换行、行尾留洞）。
 - 默认排序按买入月份时间轴（时间轴仅此用途）；按艺人分组不用时间轴；库存（任意排序、列表/卡片）、售出中、交易、在途与专辑详情均使用独立艺人按钮打开 Obi 内「艺人资料抽屉」（MusicBrainz 来源的身份绑定、资料与作品目录，入口 `forms/ArtistDrawer.tsx`）；未绑定艺人由服务端后台队列自动预取（账本写入/启动触发，节流+退避，单候选自动采用；多候选用本地专辑标题与 artist-credit 反向确认，证据不能区分时才人工选择），来源外链一律新标签页打开；RYM 直达已退役，历史 `rym-links`/`rym-token` 数据仍随备份保留。
