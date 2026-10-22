@@ -3,6 +3,7 @@
 import {useState} from 'react';
 import {Chevron, Collapse} from '../../components/ui';
 import {SpinIco} from '../../components/icons';
+import {useArtExpand} from '../../components/ReleaseCandidateCard/useArtExpand';
 import {dropCandidate, type CoverSearch} from './useCoverSearch';
 
 export function CoverPanel({cover, src, busy, inline}: {cover: CoverSearch; src: string; busy: boolean; inline?: boolean}) {
@@ -27,14 +28,22 @@ export function CoverPanel({cover, src, busy, inline}: {cover: CoverSearch; src:
         </button> : null}
         <Collapse open={open || !many}>
         <ul className="cover-list" aria-label="封面候选">
-          {cover.candidates.map(c => <li key={c.token}>
-            <button type="button" className="cover-pick" onClick={() => cover.chooseCover(c.token, cover.coverKey())}>
-              <img src={c.thumbnail} alt="" onError={() => cover.setCandidates(list => dropCandidate(list, c.token))}/>
-              <span><b>{c.title}</b><small>{[c.artist, c.year, c.provider].filter(Boolean).join(' · ')}</small></span>
-              <em>使用</em>
-            </button></li>)}
+          {cover.candidates.map(c => <li key={c.token}><CoverPick c={c} cover={cover}/></li>)}
         </ul></Collapse>
       </> : null}
     </section>
   );
+}
+
+// 候选行：点缩略图放大（同查询页的 useArtExpand），点行其余部分「使用」
+function CoverPick({c, cover}: {c: CoverSearch['candidates'][number]; cover: CoverSearch}) {
+  const x = useArtExpand<HTMLButtonElement>('.cover-pick-text,.cover-pick-use');
+  return <button type="button" ref={x.head} className={'cover-pick' + (x.big ? ' is-big' : '')}
+    onClick={e => { if (!(e.target as Element).closest('.rcc-art-zoom')) cover.chooseCover(c.token, cover.coverKey()); }}>
+    <img className="rcc-art-zoom" ref={x.art} src={c.thumbnail} alt="" onClick={x.toggle}
+         onError={() => cover.setCandidates(list => dropCandidate(list, c.token))}/>
+    <span className="rcc-break" aria-hidden="true"/>
+    <span className="cover-pick-text"><b>{c.title}</b><small>{[c.artist, c.year, c.provider].filter(Boolean).join(' · ')}</small></span>
+    <em className="cover-pick-use">使用</em>
+  </button>;
 }

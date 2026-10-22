@@ -16,12 +16,14 @@ const sourceName = (info: {musicBrainzReleaseId?: string; discogsReleaseId?: str
 export function ReleaseSummary({title, artist, info, source, url, art, headless}: {
   title: string; artist: string; info: ReleaseInfo; source?: string; url?: string; art?: string; headless?: boolean;
 }) {
+  const expand = useArtExpand<HTMLElement>();
   const facts: [string, string | undefined][] = [
     ['唱片编号', dedupeCatalog(info.catalogNumber)], ['条码', info.barcode], ['厂牌', info.label],
     ['发行地区', regionName(info.country)], ['发行日', info.releaseDate]];
   return <>
-    {headless ? null : <header className="rcc-head">
-      {art ? <img className="rcc-art" src={art} alt="封面"/> : null}
+    {headless ? null : <header className={'rcc-head' + (expand.big ? ' is-big' : '')} ref={expand.head}>
+      {art ? <img className="rcc-art rcc-art-zoom" ref={expand.art} src={art} alt="封面" onClick={expand.toggle}/> : null}
+      <span className="rcc-break" aria-hidden="true"/>
       <div className="rcc-main"><strong>{title}</strong><span>{artist}</span></div>
       {source ? url ? <a className="rcc-source" href={url} target="_blank" rel="noopener noreferrer"
         aria-label={`在 ${source} 查看`}>{source} ↗</a> : <span className="rcc-source">{source}</span> : null}

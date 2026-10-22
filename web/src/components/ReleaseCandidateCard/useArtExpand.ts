@@ -6,16 +6,16 @@ import {flushSync} from 'react-dom';
 const MS = 340;
 const EASE = 'cubic-bezier(.2,.7,.3,1)';
 
-export function useArtExpand() {
+export function useArtExpand<H extends HTMLElement = HTMLButtonElement>(movingSelector = '.rcc-main,.rcc-toggle,.rcc-source') {
   const [big, setBig] = useState(false);
-  const head = useRef<HTMLButtonElement>(null);
+  const head = useRef<H>(null);
   const art = useRef<HTMLImageElement>(null);
   const running = useRef<Animation[]>([]);
 
   const toggle = () => {
     const h = head.current, a = art.current;
     if (!h || !a) { setBig(b => !b); return; }
-    const moving = Array.from(h.querySelectorAll<HTMLElement>('.rcc-main,.rcc-toggle'));
+    const moving = Array.from(h.querySelectorAll<HTMLElement>(movingSelector));
     const box = (el: HTMLElement) => el.getBoundingClientRect();
     const before = {head: box(h), art: box(a), moving: moving.map(box)};
     running.current.forEach(x => x.cancel());
