@@ -9,3 +9,5 @@
 - v3.6.4：用户实机反馈封面一直「找封面…」。`onLoad` 里把 `setArtState('ok')` 放到动画之前，`burnReveal` 整体 try/catch（出错清掉 mask 直接显示），并加 rAF 暂停时的兜底清理。动画是装饰，绝不能挡住封面状态。
 
 - v3.6.5：手机网络下 CAA（两次跳转）请求会既不 load 也不 error，卡在「找封面…」。`ReleaseCandidateCard` 加了就绪检查（`img.complete`）与 8 秒超时重试（key 变化 + `?r=n`，相同网址会被浏览器并入挂住的请求），最多 3 次后按无封面。本机用「首个请求挂住」模拟验证了恢复；仍无法确定真机上是否由此引起。
+
+- v3.6.6：封面 `<img>` 加载前由 `hidden`（display:none）改为 `.is-pending`（绝对定位 + opacity:0，不占位）。推断 iOS WebKit 对 display:none 图片调度靠后，表单里同一地址的缩略图是可见的所以很快；未在真机证实。

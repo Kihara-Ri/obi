@@ -50,7 +50,7 @@ a.rcc-source:hover{color:var(--text)}
 @keyframes rcc-pulse{from{opacity:.45}to{opacity:1}}
 @media (prefers-reduced-motion:reduce){.rcc-art.is-loading{animation:none}}
 .rcc-art.is-loading{display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;line-height:1.2;color:var(--muted)}
-.rcc-art[hidden]{display:none}
+.rcc-art-img.is-pending{position:absolute;opacity:0;pointer-events:none}   /* 不用 hidden：display:none 的图 iOS 会推迟加载；这里照常加载但不占位 */
 .rcc-fold{flex-wrap:wrap}
 .rcc-fold .rcc-main{flex:1}
 .rcc-fold img.rcc-art-img{cursor:zoom-in;background-size:cover}

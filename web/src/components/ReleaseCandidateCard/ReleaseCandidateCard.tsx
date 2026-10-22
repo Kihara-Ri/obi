@@ -59,9 +59,9 @@ export function ReleaseCandidateCard({c, fold, tag, children}: {c: ReleaseCandid
     return () => window.clearTimeout(t);
   }, [artState, tries, caa]);
   const art = artState === 'ok' ? caa + 'front-250' : '';
-  const artImg = caa ? <img key={tries} className="rcc-art rcc-art-img" ref={expand.art} src={caa + (expand.big ? 'front-500' : 'front-250') + (tries ? '?r=' + tries : '')} alt="封面"
+  const artImg = caa ? <img key={tries} className={'rcc-art rcc-art-img' + (artState !== 'ok' ? ' is-pending' : '')} ref={expand.art} src={caa + (expand.big ? 'front-500' : 'front-250') + (tries ? '?r=' + tries : '')} alt="封面"
     style={expand.big ? {backgroundImage: `url(${caa}front-250)`} : undefined}
-    onClick={fold ? expand.toggle : undefined} hidden={artState !== 'ok'} onLoad={e => {setArtState('ok'); burnReveal(e.currentTarget);}} onError={() => setArtState('none')}/> : null;
+    onClick={fold ? expand.toggle : undefined} onLoad={e => {setArtState('ok'); burnReveal(e.currentTarget);}} onError={() => setArtState('none')}/> : null;
 
   /** 取详情；失败时回退到精确匹配的基本资料，并说明曲目暂不可用。 */
   const load = async (): Promise<ReleaseInfo> => {
