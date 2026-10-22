@@ -9,7 +9,7 @@ final class BuildConfigVersion {
 
     static String name(Context context) {
         try {
-            return context.getPackageManager().getPackageInfo(context.getPackageName(), 0).versionName;
+            return ContentPatch.version(context, context.getPackageManager().getPackageInfo(context.getPackageName(), 0).versionName);
         } catch (PackageManager.NameNotFoundException e) {
             return "unknown";
         }

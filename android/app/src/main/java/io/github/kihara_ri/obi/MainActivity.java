@@ -40,6 +40,8 @@ import androidx.webkit.WebViewCompat;
 import androidx.webkit.WebViewFeature;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -71,6 +73,8 @@ public class MainActivity extends Activity {
     private Uri cameraOutput;
     private Runnable afterCameraPermission;
     private AlertDialog updateDialog;
+    private boolean pageReady;
+    private long stoppedAt;
 
     private static MainActivity current;
     private static volatile boolean visible;
@@ -119,9 +123,18 @@ public class MainActivity extends Activity {
         Updater.prefs(this).edit().putString("feed", feed).remove("etag").remove("checkedAt").apply();
     }
 
+    /** 补丁已写好：清掉旧的 Service Worker 与缓存后重载，页面立刻换成新内容（数据在 IndexedDB，不受影响）。 */
+    private void activatePatch() {
+        ContentPatch.activated(this);
+        web.evaluateJavascript("(async()=>{try{for(const r of await navigator.serviceWorker.getRegistrations())await r.unregister();"
+                + "for(const k of await caches.keys())await caches.delete(k)}catch(e){}location.reload()})()", null);
+    }
+
     @Override
     protected void onStart() {
         super.onStart();
+        // 离开超过 30 秒再回来才换补丁，避免正在填写时突然重载
+        if (pageReady && ContentPatch.pending(this) && System.currentTimeMillis() - stoppedAt >= 30000) activatePatch();
         current = this;
         visible = true;
         // 打开应用时查一次（10 分钟内不重复）；已下好的、需要确认的更新在这里询问
@@ -132,6 +145,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onStop() {
         visible = false;
+        stoppedAt = System.currentTimeMillis();
         // 离开应用（切走、锁屏）时再静默安装，不打断正在进行的操作
         Updater.installWhenAppropriate(this);
         super.onStop();
@@ -183,7 +197,11 @@ public class MainActivity extends Activity {
         if (path.endsWith("/")) path += "index.html";
         if (path.contains("..")) return notFound();
         try {
-            InputStream in = getAssets().open("www" + path);
+            File patched = ContentPatch.root(this);
+            File file = patched == null ? null : new File(patched, path.substring(1));
+            // 补丁目录里有就用补丁的，没有（如 Pyodide 运行时）用安装包自带的
+            InputStream in = file != null && file.isFile() && file.getCanonicalPath().startsWith(patched.getCanonicalPath() + File.separator)
+                    ? new FileInputStream(file) : getAssets().open("www" + path);
             Map<String, String> headers = new HashMap<>();
             headers.put("Cache-Control", "no-cache");
             return new WebResourceResponse(mimeType(path), null, 200, "OK", headers, in);
@@ -244,6 +262,13 @@ public class MainActivity extends Activity {
         @Override
         public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
             return serveAsset(request.getUrl());
+        }
+
+        @Override
+        public void onPageFinished(WebView view, String url) {
+            if (view != web || !url.startsWith(ORIGIN)) return;
+            pageReady = true;
+            if (ContentPatch.pending(MainActivity.this)) activatePatch();
         }
 
         @Override

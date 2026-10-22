@@ -130,13 +130,15 @@ final class Updater {
         String tag = release.optString("tag_name");
         long code = codeOf(tag);
         long installed = installedCode(c);
-        if (release.optBoolean("draft") || release.optBoolean("prerelease") || code <= installed) {
+        if (release.optBoolean("draft") || release.optBoolean("prerelease") || code <= Math.max(installed, ContentPatch.code(c))) {
             clearDownload(c);
             p.edit().remove("error").putString("latest", tag).apply();
             state(c, "current");
             return;
         }
         p.edit().putString("latest", tag).apply();
+        // 同一个 主.次 版本内的补丁只换网页内容，不重装应用，任何安卓版本都不需要用户确认（D-023）
+        if (ContentPatch.sameLine(code, installed)) { patchContent(c, release, tag, code); return; }
         File apk = apkFile(c);
         if (p.getLong("readyCode", -1) != code || !apk.exists()) {
             clearDownload(c);
@@ -158,6 +160,27 @@ final class Updater {
         // 后台任务里必须在任务结束前提交安装：任务一结束进程就可能被系统冻结
         if (canInstallSilently(c) && !MainActivity.visible()) installNow(c);
         else main.post(() -> installWhenAppropriate(c));
+    }
+
+    private static void patchContent(Context c, JSONObject release, String tag, long code) throws Exception {
+        SharedPreferences p = prefs(c);
+        String name = "Obi-" + tag + "-web.zip";
+        String sumText = new String(fetch(assetUrl(c, release, tag, name + ".sha256"), 4096), StandardCharsets.US_ASCII).trim();
+        Matcher sum = Pattern.compile("^([0-9a-f]{64})\\s+\\*?" + Pattern.quote(name) + "$").matcher(sumText);
+        if (!sum.matches()) throw new IOException("补丁校验文件格式不正确");
+        byte[] sig = fetch(assetUrl(c, release, tag, name + ".sig"), 2048);
+        state(c, "downloading");
+        File zip = new File(apkFile(c).getParentFile(), "content.zip");
+        try {
+            if (!download(assetUrl(c, release, tag, name), zip).equals(sum.group(1))) throw new IOException("补丁 SHA-256 校验失败");
+            ContentPatch.verifySignature(c, zip, sig);
+            ContentPatch.apply(c, tag, code, zip);
+        } finally {
+            //noinspection ResultOfMethodCallIgnored
+            zip.delete();
+        }
+        p.edit().remove("error").apply();
+        state(c, "current");
     }
 
     /** 已下载好的新版本：能静默装且没人在用 → 现在装；在用 → 等 onStop；需要确认 → 前台询问。 */

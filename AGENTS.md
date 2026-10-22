@@ -139,3 +139,4 @@ OBI_DEV_HOME=/private/tmp/obi-acceptance python3 tools/preview_samples.py --port
 ### 售卖识别多服务商（2026-10-19）
 - 仅售卖辅助可保留 OpenAI ChatGPT OAuth、DeepSeek API Key、Anthropic 官方 Claude Code OAuth 与兼容 API 连接，不恢复实体生成或批量录入。模型/思考强度读取服务商目录；明确仅文字的模型不可用于照片。
 - 各身份独立保存选择，任务固定启动时配置，失败不切换计费来源。Claude 独立授权目录，安全模式/无工具调用；授权变更与推理互斥。凭据不入业务库或仓库，完整目录备份仍按私密资料管理。见 D-013 与部署说明。
+- **安卓补丁约定（D-023）**：同一 主.次 版本内的补丁只能改网页与 Python（`dist-local`），不得改 `android/` 的原生代码、权限与桥接；动了这些必须升次版本，否则已安装的应用换上新网页后与旧外壳不匹配。
