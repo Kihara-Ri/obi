@@ -1,6 +1,6 @@
 // 发行版卡片：名称 + 来源 → 关键信息网格 → 可展开的曲目与版本资料 → 调用方给的操作区。
 // 「查询」页（复制 / 入库）与专辑表单（选用此版本）共用；详情按需请求，摘要里已有的字段不在详情重复。
-import {useEffect, useState, type ReactNode} from 'react';
+import {useEffect, useLayoutEffect, useRef, useState, type ReactNode} from 'react';
 import {api} from '../../core/api';
 import {dedupeCatalog, regionName} from '../../core/release-metadata';
 import type {ReleaseCandidate, ReleaseInfo} from '../../types';
@@ -58,15 +58,33 @@ export function ReleaseCandidateCard({c, fold, tag, fallbackArt, children}: {c: 
   useEffect(() => { setTries(0); }, [caa]);
   useEffect(() => {
     if (artState !== 'loading') return;
-    const el = expand.art.current;
-    if (el?.complete) { if (el.naturalWidth) setArtState('ok'); else setArtState('none'); return; }
     const t = window.setTimeout(() => { if (tries < 3) setTries(tries + 1); else if (!useSpare && own && spare) setUseSpare(true); else setArtState('none'); }, 8000);
     return () => window.clearTimeout(t);
   }, [artState, tries, caa]);   // 超时也先试备用封面
+  // 燃烧显现要稳定：动画不跟「加载完成」的瞬间走，而是「已加载 + 至少露出占位 450ms + 头部已在可视范围内」才开始，
+  // 缓存命中的图、还没滚进视野或正在展开的卡片也都能完整看到；每个 <img>（key = 地址 + 重试次数）只显现一次。
+  const [loaded, setLoaded] = useState(false);
+  const mountedAt = useRef(0);
+  useEffect(() => { setLoaded(false); mountedAt.current = performance.now(); }, [caa, tries]);
+  useEffect(() => { const el = expand.art.current; if (el?.complete && el.naturalWidth) setLoaded(true); }, [caa, tries]);
+  useEffect(() => {
+    if (!loaded || artState !== 'loading') return;
+    let timer = 0, observer: IntersectionObserver | undefined, done = false;
+    const go = () => { if (!done) { done = true; setArtState('ok'); } };
+    const start = () => {
+      const head = expand.head.current;
+      if (!head || typeof IntersectionObserver === 'undefined') { go(); return; }
+      observer = new IntersectionObserver(entries => { if (entries.some(e => e.isIntersecting)) go(); }, {threshold: .6});
+      observer.observe(head);
+    };
+    timer = window.setTimeout(start, Math.max(0, 450 - (performance.now() - mountedAt.current)));
+    return () => { done = true; window.clearTimeout(timer); observer?.disconnect(); };
+  }, [loaded, artState, caa, tries]);
+  useLayoutEffect(() => { if (artState === 'ok' && expand.art.current) burnReveal(expand.art.current); }, [artState]);
   const art = artState === 'ok' ? caa + 'front-250' : '';
-  const artImg = caa ? <img key={tries} className={'rcc-art rcc-art-img' + (artState !== 'ok' ? ' is-pending' : '')} ref={expand.art} src={caa + (expand.big ? 'front-500' : 'front-250') + (tries ? '?r=' + tries : '')} alt="封面"
+  const artImg = caa ? <img key={caa + tries} className={'rcc-art rcc-art-img' + (artState !== 'ok' ? ' is-pending' : '')} ref={expand.art} src={caa + (expand.big ? 'front-500' : 'front-250') + (tries ? '?r=' + tries : '')} alt="封面"
     style={expand.big ? {backgroundImage: `url(${caa}front-250)`} : undefined}
-    onClick={fold ? expand.toggle : undefined} onLoad={e => {setArtState('ok'); burnReveal(e.currentTarget);}} onError={() => { if (!useSpare && own && spare) setUseSpare(true); else setArtState('none'); }}/> : null;
+    onClick={fold ? expand.toggle : undefined} onLoad={() => setLoaded(true)} onError={() => { if (!useSpare && own && spare) setUseSpare(true); else setArtState('none'); }}/> : null;
 
   /** 取详情；失败时回退到精确匹配的基本资料，并说明曲目暂不可用。 */
   const load = async (): Promise<ReleaseInfo> => {
