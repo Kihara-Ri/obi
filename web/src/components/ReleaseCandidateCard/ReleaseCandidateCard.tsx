@@ -47,8 +47,19 @@ export function ReleaseCandidateCard({c, fold, tag, children}: {c: ReleaseCandid
   const caa = c.source !== 'discogs' && /^[0-9a-f-]{36}$/.test(c.id) ? 'https://coverartarchive.org/release/' + c.id + '/' : '';
   const [artState, setArtState] = useState<'loading' | 'none' | 'ok'>(caa ? 'loading' : 'none');
   useEffect(() => { setArtState(caa ? 'loading' : 'none'); }, [caa]);
+  // 封面请求偶尔挂住（CAA 两次跳转，手机网络下既不 load 也不 error）：先看图是否其实已就绪，
+  // 8 秒仍无结果就换 key 并加 ?r=n 重挂 <img> 重新请求（相同网址会被浏览器并入那条挂住的请求），最多 3 次，之后按没有封面处理。
+  const [tries, setTries] = useState(0);
+  useEffect(() => { setTries(0); }, [caa]);
+  useEffect(() => {
+    if (artState !== 'loading') return;
+    const el = expand.art.current;
+    if (el?.complete) { if (el.naturalWidth) setArtState('ok'); else setArtState('none'); return; }
+    const t = window.setTimeout(() => { if (tries < 3) setTries(tries + 1); else setArtState('none'); }, 8000);
+    return () => window.clearTimeout(t);
+  }, [artState, tries, caa]);
   const art = artState === 'ok' ? caa + 'front-250' : '';
-  const artImg = caa ? <img className="rcc-art rcc-art-img" ref={expand.art} src={caa + (expand.big ? 'front-500' : 'front-250')} alt="封面"
+  const artImg = caa ? <img key={tries} className="rcc-art rcc-art-img" ref={expand.art} src={caa + (expand.big ? 'front-500' : 'front-250') + (tries ? '?r=' + tries : '')} alt="封面"
     style={expand.big ? {backgroundImage: `url(${caa}front-250)`} : undefined}
     onClick={fold ? expand.toggle : undefined} hidden={artState !== 'ok'} onLoad={e => {setArtState('ok'); burnReveal(e.currentTarget);}} onError={() => setArtState('none')}/> : null;
 
