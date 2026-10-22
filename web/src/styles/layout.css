@@ -56,10 +56,9 @@
   :root{--head-top:max(10px,calc(env(safe-area-inset-top) + 4px));
     --glass:var(--chrome-nav);--glass-line:var(--border-strong);--glass-shadow:0 6px 18px rgba(0,0,0,.22)}
   .page-head{position:sticky;top:var(--head-top);z-index:20;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:0 8px;
-    height:44px;margin:calc(var(--head-top) - 20px) 0 16px;padding:0;pointer-events:none}
-  .page-head>*,.page-head h1,.page-head .head-back{pointer-events:auto}
+    height:44px;margin:calc(var(--head-top) - 20px) 0 16px;padding:0}   /* 整条顶栏区域（含组件之间的空隙与渐隐底）都拦截点击，不会点到后面的专辑 */
   .page-head::before{content:"";position:absolute;z-index:-1;left:-16px;right:-16px;top:calc(-1 * var(--head-top));
-    height:calc(var(--head-top) + 6px);pointer-events:none;
+    height:calc(var(--head-top) + 6px);
     background:linear-gradient(var(--bg) calc(100% - 14px),transparent)}
   .page-head>div:first-child{display:contents}
   .page-head .eyebrow,.page-head p{display:none}
@@ -71,6 +70,13 @@
     background:var(--glass);backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);
     border:1px solid var(--glass-line);box-shadow:var(--glass-shadow);transition:transform .15s ease}
   .head-back:active{transform:scale(.92)}
+  /* 标题是「库存｜展示」分段开关时：不再套一层胶囊，分段控件本身就是玻璃胶囊，滑块也取胶囊圆角 */
+  .page-head h1:has(.title-switch){padding:0;height:auto;background:none;border:0;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;border-radius:0}
+  .page-head .title-switch{display:block;line-height:0}
+  .page-head .title-switch .seg{height:40px;padding:3px;gap:2px;border-radius:20px;
+    background:var(--glass);backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);
+    border:1px solid var(--glass-line);box-shadow:var(--glass-shadow)}
+  .page-head .title-switch .seg button,.page-head .title-switch .seg-thumb{border-radius:17px}
   .head-actions{grid-column:3;grid-row:1;justify-self:end;flex-wrap:nowrap;align-items:center;gap:8px}
   /* 顶栏里的次要操作是无边框文字钮，主要操作是一枚圆形强调钮 */
   .head-actions .head-text,.head-actions .quiet{min-height:40px;padding:0 14px;border-radius:20px;color:var(--text);font-size:14px;
