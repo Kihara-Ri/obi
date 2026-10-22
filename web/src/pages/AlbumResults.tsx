@@ -44,7 +44,7 @@ function Album({hit, owned, confirming, onAdd}: {hit: AlbumHit; owned: AlbumReco
     {open ? <div className="ah-versions">
       {error ? <p className="lookup-msg is-error" role="alert">{error}</p> : !versions ? <p className="lookup-msg" role="status">读取版本中…</p>
         : !versions.length ? <p className="lookup-msg">没有找到 CD 版本</p> : <ul>
-          {list.map(c => <LookupCard key={c.id} c={c} owned={note} tag={isMine(c) ? '库里这张' : undefined} confirming={confirming} onAdd={info => onAdd(c, info)}/>)}
+          {list.map(c => <LookupCard key={c.id} c={c} owned={note} tag={isMine(c) ? '库里这张' : undefined} fallbackArt={hit.cover} confirming={confirming} onAdd={info => onAdd(c, info)}/>)}
           {!more && versions.length > SHOWN
             ? <button type="button" className="quiet" onClick={() => setMore(true)}>还有 {versions.length - SHOWN} 个版本</button> : null}
         </ul>}

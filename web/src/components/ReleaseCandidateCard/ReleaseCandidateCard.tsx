@@ -35,7 +35,7 @@ export function ReleaseSummary({title, artist, info, source, url, art, headless}
 export interface CardCtx {info: ReleaseInfo; load: () => Promise<ReleaseInfo>; busy: boolean}
 
 /** fold：默认只显示一行关键信息（编号、地区、日期、条码），点开才出完整资料和操作（查询页用，省纵向空间）。 */
-export function ReleaseCandidateCard({c, fold, tag, children}: {c: ReleaseCandidate; fold?: boolean; tag?: string; children?: (ctx: CardCtx) => ReactNode}) {
+export function ReleaseCandidateCard({c, fold, tag, fallbackArt, children}: {c: ReleaseCandidate; fold?: boolean; tag?: string; fallbackArt?: string; children?: (ctx: CardCtx) => ReactNode}) {
   const expand = useArtExpand();
   const [folded, setFolded] = useState(!!fold);  // 折叠卡片：头部一行始终在原位 + 可展开的主体
   const [full, setFull] = useState<ReleaseInfo | null>(null);
@@ -44,8 +44,13 @@ export function ReleaseCandidateCard({c, fold, tag, children}: {c: ReleaseCandid
   const [error, setError] = useState('');
   // 此版本自己的正面图（Cover Art Archive）：浏览器直接取 front-250（一次请求、不经本机服务、浏览器自带缓存）；
   // 404 = 这个版本没有正面图。Discogs 版本不带图。放大时换 front-1200。
-  const caa = c.source !== 'discogs' && /^[0-9a-f-]{36}$/.test(c.id) ? 'https://coverartarchive.org/release/' + c.id + '/' : '';
+  const own = c.source !== 'discogs' && /^[0-9a-f-]{36}$/.test(c.id) ? 'https://coverartarchive.org/release/' + c.id + '/' : '';
+  // 这个版本自己没有正面图时，退而用同一张专辑（release group）的封面——版本对得上最重要，封面可以妥协
+  const spare = fallbackArt ? fallbackArt.replace(/front-\d+$/, '') : '';
+  const [useSpare, setUseSpare] = useState(false);
+  const caa = !useSpare && own ? own : spare;
   const [artState, setArtState] = useState<'loading' | 'none' | 'ok'>(caa ? 'loading' : 'none');
+  useEffect(() => { setUseSpare(false); }, [own, spare]);
   useEffect(() => { setArtState(caa ? 'loading' : 'none'); }, [caa]);
   // 封面请求偶尔挂住（CAA 两次跳转，手机网络下既不 load 也不 error）：先看图是否其实已就绪，
   // 8 秒仍无结果就换 key 并加 ?r=n 重挂 <img> 重新请求（相同网址会被浏览器并入那条挂住的请求），最多 3 次，之后按没有封面处理。
@@ -55,13 +60,13 @@ export function ReleaseCandidateCard({c, fold, tag, children}: {c: ReleaseCandid
     if (artState !== 'loading') return;
     const el = expand.art.current;
     if (el?.complete) { if (el.naturalWidth) setArtState('ok'); else setArtState('none'); return; }
-    const t = window.setTimeout(() => { if (tries < 3) setTries(tries + 1); else setArtState('none'); }, 8000);
+    const t = window.setTimeout(() => { if (tries < 3) setTries(tries + 1); else if (!useSpare && own && spare) setUseSpare(true); else setArtState('none'); }, 8000);
     return () => window.clearTimeout(t);
-  }, [artState, tries, caa]);
+  }, [artState, tries, caa]);   // 超时也先试备用封面
   const art = artState === 'ok' ? caa + 'front-250' : '';
   const artImg = caa ? <img key={tries} className={'rcc-art rcc-art-img' + (artState !== 'ok' ? ' is-pending' : '')} ref={expand.art} src={caa + (expand.big ? 'front-500' : 'front-250') + (tries ? '?r=' + tries : '')} alt="封面"
     style={expand.big ? {backgroundImage: `url(${caa}front-250)`} : undefined}
-    onClick={fold ? expand.toggle : undefined} onLoad={e => {setArtState('ok'); burnReveal(e.currentTarget);}} onError={() => setArtState('none')}/> : null;
+    onClick={fold ? expand.toggle : undefined} onLoad={e => {setArtState('ok'); burnReveal(e.currentTarget);}} onError={() => { if (!useSpare && own && spare) setUseSpare(true); else setArtState('none'); }}/> : null;
 
   /** 取详情；失败时回退到精确匹配的基本资料，并说明曲目暂不可用。 */
   const load = async (): Promise<ReleaseInfo> => {
@@ -98,6 +103,7 @@ export function ReleaseCandidateCard({c, fold, tag, children}: {c: ReleaseCandid
       <Tracklist releaseInfo={info}/>
     </div> : null}
     {artState === 'loading' ? <p className="rcc-msg" role="status">封面查找中…</p> : null}
+    {fold && artState === 'ok' && spare && caa === spare ? <p className="rcc-msg">这个版本自己没有封面，先用同一张专辑的封面，不一定是这个版本的包装。</p> : null}
     {fold && artState === 'none' ? <p className="rcc-msg">资料库里暂时没有这个版本的封面，不代表拿不到：入库后在表单里点「换一张封面」继续查找。</p> : null}
     {children?.({info, load, busy})}
   </>;

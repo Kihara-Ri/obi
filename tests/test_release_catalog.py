@@ -38,6 +38,22 @@ class ReleaseCatalogTests(unittest.TestCase):
         self.assertEqual(service.catalog(FIELDS), [])
         self.assertEqual(len(calls), 2)
 
+    def test_musicbrainz_rate_limit_retried_up_to_three_times_then_clear_message(self):
+        from musicbrainz import RateLimited
+        calls = []
+        class Client:
+            def get_url(self, url):
+                calls.append(url)
+                if len(calls) < 3: raise RateLimited('限流')
+                return {'releases': []}
+            def cooldown_remaining(self): return 0.01
+        self.assertEqual(ReleaseCatalog(mb=Client()).catalog(FIELDS), [])
+        self.assertEqual(len(calls), 3)
+        class Always:
+            def get_url(self, url): raise RateLimited('限流')
+            def cooldown_remaining(self): return 0.01
+        with self.assertRaisesRegex(ValidationError, '正忙'): ReleaseCatalog(mb=Always()).catalog(FIELDS)
+
     def test_long_musicbrainz_cooldown_is_not_waited_for(self):
         from musicbrainz import RateLimited
         class Client:

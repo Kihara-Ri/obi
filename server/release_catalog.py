@@ -55,14 +55,16 @@ class ReleaseCatalog:
             from musicbrainz import BadSource as MBBadSource, SourceUnavailable as MBUnavailable
             from musicbrainz import RateLimited
             try:
-                try:
-                    return self.mb.get_url(url)
-                except RateLimited:
-                    # 限流冷却通常只有几秒：短暂等待后重试一次，免得用户为一次瞬时 503 重来。
-                    wait = self.mb.cooldown_remaining()
-                    if not 0 < wait <= 3: raise
-                    time.sleep(wait + 0.1)
-                    return self.mb.get_url(url)
+                # 限流（429/503）通常几秒就过去：最多等 3 次、总计约 12 秒自动重试，免得用户手动重来
+                for attempt in range(3):
+                    try:
+                        return self.mb.get_url(url)
+                    except RateLimited:
+                        wait = self.mb.cooldown_remaining()
+                        if attempt == 2 or not 0 < wait <= 6: raise
+                        time.sleep(wait + 0.2)
+            except RateLimited as exc:
+                raise ValidationError('发行资料库（MusicBrainz）正忙，已自动重试仍未成功，请稍等一会儿再查') from exc
             except MBUnavailable as exc:
                 raise ValidationError('发行资料库暂时不可用，请稍后重试') from exc
             except MBBadSource as exc:

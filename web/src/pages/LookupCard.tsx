@@ -5,11 +5,11 @@ import {askText, releaseText} from '../core/lookup-text';
 import {ReleaseCandidateCard} from '../components/ReleaseCandidateCard/ReleaseCandidateCard';
 import type {ReleaseCandidate, ReleaseInfo} from '../types';
 
-export function LookupCard({c, owned, tag, confirming, onAdd}: {
-  c: ReleaseCandidate; owned: string; tag?: string; confirming?: boolean; onAdd: (info: ReleaseInfo) => void;
+export function LookupCard({c, owned, tag, fallbackArt, confirming, onAdd}: {
+  c: ReleaseCandidate; owned: string; tag?: string; fallbackArt?: string; confirming?: boolean; onAdd: (info: ReleaseInfo) => void;
 }) {
   const app = useApp();
-  return <ReleaseCandidateCard c={c} fold tag={tag}>{({load, busy}) => {
+  return <ReleaseCandidateCard c={c} fold tag={tag} fallbackArt={fallbackArt}>{({load, busy}) => {
     const copy = async (ask: boolean) => {
       const text = releaseText(c, await load(), owned);
       app.toast(await copyText(ask ? askText(text) : text) ? (ask ? '已复制，连同提问' : '资料已复制') : '复制失败，请手动选择文字', 'warn');
