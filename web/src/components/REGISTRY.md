@@ -20,7 +20,7 @@
 | `Disclosure` | 折叠说明：把解释性文字收起来，主界面只留控件和数字 | `summary?`（默认「说明」） `children` | 原生 details，键盘/读屏开箱可用 | 前置箭头旋转 |
 | `Splash` | 启动加载画面 + 进入主界面的转场：唱片转动 → 沿中线裂成上下两半 → 主界面从中心圆形扩散露出；极快就绪不显示，显示后至少停留 500ms | `ready` | role=status、aria-label「加载中」；`prefers-reduced-motion` 只淡出 | 唱片转动与退场形变 |
 | `SearchField` | 搜索框：放大镜 + 清除按钮，Esc 清空 | `value` `onChange` `ariaLabel` `placeholder?` | 清除后焦点回到输入框 | 有内容时出现清除按钮 |
-| `BarcodeScanner` / `ScanField` | 相机扫码层；`ScanField` 把扫码图标嵌进输入框右端：全屏后置摄像头取景，识别到校验位正确的 EAN / UPC 条码即回调并关闭（portal 到 body） | `onDetect(code)` `onClose` | 无权限 / 无 HTTPS / 无摄像头给一句原因并可返回；关闭即停相机 | 识别器见 `core/barcode-detector`（原生优先，iPhone 用 zxing-wasm） |
+| `BarcodeScanner` / `ScanField` | 相机扫码层；`ScanField` 把扫码图标嵌进输入框右端：全屏后置摄像头取景，识别到校验位正确的 EAN / UPC 条码即回调并关闭（portal 到 body） | `onDetect(code)` `onClose` | 无权限 / 无 HTTPS / 无摄像头给一句原因并可返回；关闭即停相机 | 相机请求 1080p 并开连续对焦，点按取景重新对焦；识别器见 `core/barcode-detector`（原生优先，iPhone 用 zxing-wasm） |
 | `FocusInput` | 聚焦输入层：点表单输入框后在键盘正上方升起独立输入面板（portal 到 body，背后页面不动） | `open` `title` `value` `submitLabel` `onChange` `onSubmit` `onClose` `placeholder?` | 打开即聚焦；Esc / 遮罩 / 取消关闭 | 动画进场，减少动画偏好下无动画 |
 | `Toast` | 全局消息：边框环绕一周后淡出；可带一个操作按钮（如「撤销」，停留 8 秒） | `kind('ok'｜'warn'｜'err')` `text` `action?` `onDone` | 错误 role=alert，其余 status；悬停/聚焦暂停；点击关闭；错误停留 6 秒，警告 3.5 秒，成功 2 秒 | 环绕路径的颜色按级别区分，另有文字 |
 | `AutoTextarea` | 随内容长高的多行输入 | `value` `maxRows?` + textarea 原生属性 | 宽度变化时重算高度；支持 ref | — |

@@ -19,8 +19,23 @@ export function ScanField({onScan, children}: {onScan: () => void; children: Rea
   </div>;
 }
 
+type FocusCaps = MediaTrackCapabilities & {focusMode?: string[]; focusDistance?: {min: number; max: number}};
+
+/** Android 默认常是固定焦距或慢速自动对焦，条码近距离会一直发虚：能连续对焦就开，并避免远焦。 */
+async function tuneFocus(track?: MediaStreamTrack, retrigger = false) {
+  const caps = (track?.getCapabilities?.() ?? {}) as FocusCaps;
+  if (!track || !caps.focusMode) return;
+  const advanced: Record<string, unknown>[] = [];
+  if (retrigger && caps.focusMode.includes('single-shot')) {   // 点按取景：先单次对焦，再回到连续
+    try { await track.applyConstraints({advanced: [{focusMode: 'single-shot'}]} as unknown as MediaTrackConstraints); } catch { /* 忽略 */ }
+  }
+  if (caps.focusMode.includes('continuous')) advanced.push({focusMode: 'continuous'});
+  try { await track.applyConstraints({advanced} as unknown as MediaTrackConstraints); } catch { /* 设备不支持就用系统默认 */ }
+}
+
 export function BarcodeScanner({onDetect, onClose}: {onDetect: (code: string) => void; onClose: () => void}) {
   const video = useRef<HTMLVideoElement>(null);
+  const track = useRef<MediaStreamTrack | undefined>(undefined);
   const [msg, setMsg] = useState('正在打开相机…');
   const [failed, setFailed] = useState(false);
   const [shown, setShown] = useState(false);   // 首帧画面到达后才淡入，避免 Android 在出画前闪出被拉伸的播放图标
@@ -33,11 +48,13 @@ export function BarcodeScanner({onDetect, onClose}: {onDetect: (code: string) =>
     (async () => {
       if (!navigator.mediaDevices?.getUserMedia) return fail('当前浏览器或连接不支持相机（需要 HTTPS）');
       try {
-        stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: 'environment'}}, audio: false});
+        stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: 'environment'}, width: {ideal: 1920}, height: {ideal: 1080}}, audio: false});
       } catch (e) {
         return fail((e as DOMException).name === 'NotAllowedError' ? '没有相机权限，请在浏览器设置里允许后重试' : '无法打开相机');
       }
       if (!live) { stream.getTracks().forEach(t => t.stop()); return; }
+      track.current = stream.getVideoTracks()[0];
+      await tuneFocus(track.current);
       const el = video.current!;
       el.srcObject = stream;
       await el.play().catch(() => {});
@@ -62,7 +79,7 @@ export function BarcodeScanner({onDetect, onClose}: {onDetect: (code: string) =>
     return () => { live = false; clearTimeout(timer); stream?.getTracks().forEach(t => t.stop()); };
   }, []);
   return createPortal(
-    <div className="scan-layer" role="dialog" aria-label="扫描条码">
+    <div className="scan-layer" role="dialog" aria-label="扫描条码" onClick={() => void tuneFocus(track.current, true)}>
       <video ref={video} className={'scan-video' + (shown ? ' is-live' : '')} playsInline muted autoPlay
              controls={false} disablePictureInPicture onPlaying={() => setShown(true)}/>
       <div className={'scan-frame' + (armed ? ' is-armed' : '')} aria-hidden="true"/>
