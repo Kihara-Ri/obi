@@ -44,7 +44,7 @@ export function FlowSection({r}: {r: AlbumRecord}) {
           options={[{value: 'overseas', label: '海外库存'}, {value: 'domestic', label: '国内库存'}]}/>
       : <Rows rows={[{label: '当前位置', value: statusName(r.status, modules)}]}/>}
     {HINT[r.status] ? <p className="note-text">{HINT[r.status]}</p> : null}
-    {inStock && (modules.circulation || modules.trading) ? <div className="detail-flow">
+    {inStock ? <div className="detail-flow">
       <button type="button" className="danger" onClick={() => bulkAction(app, 'delete', [r.id], '已移入回收站，可在设置中恢复')}>移除</button>
     </div> : null}
   </>;
