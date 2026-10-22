@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- DayNight：WebView 的 prefers-color-scheme 跟随系统深浅色 -->
+    <style name="Theme.Obi" parent="@android:style/Theme.DeviceDefault.DayNight">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowBackground">@color/obi_background</item>
+        <item name="android:colorAccent">#3a7afe</item>
+    </style>
+</resources>

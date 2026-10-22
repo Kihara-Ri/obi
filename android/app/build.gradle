@@ -1,0 +1,77 @@
+plugins {
+    id 'com.android.application'
+}
+
+// 版本号来自仓库的 tag（v3.1.0 → versionName 3.1.0，versionCode 30100），与服务器版同一口径。
+def gitVersion = { ->
+    try {
+        def out = ['git', 'describe', '--tags', '--abbrev=0'].execute(null, rootDir).text.trim()
+        return out.startsWith('v') ? out.substring(1) : out
+    } catch (ignored) { return '0.0.0' }
+}
+def appVersion = (System.getenv('OBI_APP_VERSION') ?: gitVersion()).replaceFirst(/^v/, '')
+def versionParts = (appVersion.split(/[.-]/) + ['0', '0', '0']).take(3).collect { it.isInteger() ? it.toInteger() : 0 }
+
+// 签名：CI 用环境变量，本机用 android/signing.properties（可为指向 data/android/ 的软链；两者都不入库）。
+// 都没有时 release 包不签名，只能出 debug 包。properties 里的 keystore 相对该文件所在目录。
+def signingProps = new Properties()
+def signingFile = rootProject.file('signing.properties')
+if (signingFile.exists()) signingFile.withReader('UTF-8') { signingProps.load(it) }
+def signingValue = { String key ->
+    def value = System.getenv('OBI_ANDROID_' + key) ?: signingProps.getProperty(key.toLowerCase())
+    if (key == 'KEYSTORE' && value && !System.getenv('OBI_ANDROID_KEYSTORE')) value = new File(signingFile.canonicalFile.parentFile, value).path
+    return value
+}
+
+android {
+    namespace 'io.github.kihara_ri.obi'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'io.github.kihara_ri.obi'
+        minSdk 29
+        targetSdk 35
+        versionName appVersion
+        versionCode versionParts[0] * 10000 + versionParts[1] * 100 + versionParts[2]
+    }
+
+    signingConfigs {
+        release {
+            def store = signingValue('KEYSTORE')
+            if (store) {
+                storeFile file(store)
+                storePassword signingValue('KEYSTORE_PASSWORD')
+                keyAlias signingValue('KEY_ALIAS')
+                keyPassword signingValue('KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (signingValue('KEYSTORE')) signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.14.0'
+}
+
+// 应用内容 = 本机模式静态站点（npm --prefix web run build:local 生成的 dist-local/），原样打进 assets/www。
+def webApp = rootProject.file('../dist-local')
+tasks.register('copyWebApp', Sync) {
+    doFirst {
+        if (!new File(webApp, 'index.html').exists())
+            throw new GradleException('缺少 dist-local/：先运行 npm --prefix web run build:local')
+    }
+    from webApp
+    into 'src/main/assets/www'
+}
+preBuild.dependsOn 'copyWebApp'

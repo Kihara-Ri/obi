@@ -2,6 +2,7 @@
 // 用法：npm --prefix web run build:local（先跑 vite build，再本脚本）。
 // 站点 = static/ 的构建产物 + Pyodide 运行环境 + Python 后端源码 + 本机版 Service Worker + 预缓存清单。
 // 服务器部署不受影响：这里的产物不进 static/，也不进 Docker 镜像。决策见 docs/DECISIONS.md D-019。
+import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync} from 'node:fs';
 import {dirname, join, relative} from 'node:path';
@@ -11,7 +12,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const out = join(root, 'dist-local');
 const pyodideDir = join(root, 'web', 'node_modules', 'pyodide');
 const lock = JSON.parse(readFileSync(join(pyodideDir, 'pyodide-lock.json'), 'utf8'));
-const version = JSON.parse(readFileSync(join(pyodideDir, 'package.json'), 'utf8')).version;
+const pyodideVersion = JSON.parse(readFileSync(join(pyodideDir, 'package.json'), 'utf8')).version;
 
 if (!existsSync(join(root, 'static', 'index.html'))) throw new Error('先执行 vite build（static/index.html 不存在）');
 rmSync(out, {recursive: true, force: true});
@@ -29,7 +30,7 @@ for (const f of ['pyodide.js', 'pyodide.asm.js', 'pyodide.asm.wasm', 'python_std
 const wheel = lock.packages.sqlite3;
 const wheelPath = join(pyodideDir, wheel.file_name);
 if (!existsSync(wheelPath)) {
-  const r = await fetch(`https://cdn.jsdelivr.net/pyodide/v${version}/full/${wheel.file_name}`);
+  const r = await fetch(`https://cdn.jsdelivr.net/pyodide/v${pyodideVersion}/full/${wheel.file_name}`);
   if (!r.ok) throw new Error('下载 sqlite3 扩展包失败：' + r.status);
   writeFileSync(wheelPath, Buffer.from(await r.arrayBuffer()));
 }
@@ -46,6 +47,11 @@ const take = (dir, deep) => {
   }
 };
 take('.', false); take('server', true); take('vendor/album_data', true);
+// 版本号：与服务器发布包的 VERSION 同一口径（git describe），server/version.py 在 /app/VERSION 读取；取不到时保持 dev
+try {
+  sources.VERSION = process.env.OBI_APP_VERSION
+    || execFileSync('git', ['describe', '--tags', '--always', '--dirty'], {cwd: root, encoding: 'utf8'}).trim();
+} catch { /* 没有 git（如解压的源码包）：显示 dev */ }
 writeFileSync(join(out, 'local', 'app.json'), JSON.stringify(sources));
 
 // 预缓存清单：站点所有文件；version 由内容决定，任何文件变化都会触发 Service Worker 更新
@@ -60,6 +66,10 @@ const walk = dir => {
 };
 walk(out);
 const listed = ['/', ...files.filter(f => f !== '/sw.js')];
-writeFileSync(join(out, 'local', 'precache.json'), JSON.stringify({version: hash.digest('hex').slice(0, 16), files: listed}));
+const version = hash.digest('hex').slice(0, 16);
+writeFileSync(join(out, 'local', 'precache.json'), JSON.stringify({version, files: listed}));
+// 浏览器只在 sw.js 字节变化时才重新安装 Service Worker（才会按新清单重新预缓存）；
+// sw-local.js 本身每版相同，所以把清单版本写进去，否则升级后一直用旧缓存里的旧应用。
+writeFileSync(join(out, 'sw.js'), readFileSync(join(out, 'sw.js'), 'utf8') + `\n// precache ${version}\n`);
 const mb = files.reduce((n, f) => n + statSync(join(out, f)).size, 0) / 1048576;
 console.log(`dist-local 已生成：${files.length} 个文件，${mb.toFixed(1)} MB，Python 源码 ${Object.keys(sources).length} 个`);

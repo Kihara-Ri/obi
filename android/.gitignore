@@ -1,0 +1,8 @@
+.gradle/
+build/
+local.properties
+# 构建时从 dist-local/ 复制进来（见 app/build.gradle 的 copyWebApp）
+app/src/main/assets/www/
+*.jks
+*.keystore
+signing.properties

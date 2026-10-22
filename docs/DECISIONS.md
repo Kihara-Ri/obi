@@ -218,3 +218,16 @@
   - 泄漏扫描里的个人身份串不再写进仓库：改从 `data/leak-patterns.txt`（未跟踪）或 CI secret `LEAK_PATTERNS` 读取。
 - **代价**：所有提交哈希改变，旧克隆需重新克隆；旧 Release 的包里 VERSION 仍是旧哈希。已按旧名部署的裸机实例需要按部署说明迁移或在本地配置里保留旧路径。
 - **何时重新评估**：引擎项目改包名时同步替换 `@diedu/album-engine`；需要商业授权或改许可证时。
+
+## D-021 · 安卓安装包：原生 WebView 外壳包住本机模式
+- **日期**：2026-10-22
+- **状态**：生效中
+- **背景**：用户要一个下载即可安装的安卓版本，不要自己托管 `dist-local/` 或从源码构建。
+- **决定**：
+  - `android/` 是一个最小的 Java 外壳（无 Kotlin、无框架，依赖只有 androidx.webkit），把 `build:local` 的产物打进 assets，经 `https://appassets.androidplatform.net/` 提供（含 Service Worker 请求）。前端与 Python 后端完全复用本机模式，不分叉。
+  - 这个源地址永不更改：数据（IndexedDB）按源地址存放，改了就等于换了一个空应用。
+  - 浏览器能力缺口由外壳补：`navigator.share` 改为经 `ObiAndroid` 桥写入 MediaStore（图片到 Pictures/Obi，其他到 Download/Obi）；文件选择支持相机；外部链接交给系统浏览器。
+  - 版本号取自 tag（versionCode = 主×10000 + 次×100 + 补丁），由 CI 在 Release 发布后构建、校验固定签名证书并上传 apk 与 sha256。签名密钥只在 `data/android/`（未跟踪）与仓库 secret 里。
+- **代价**：签名密钥丢失则已安装的用户无法覆盖升级，只能导出备份后卸载重装；不上架应用商店，用户需允许未知来源安装。安装包约 12 MB，首次启动需载入 Pyodide。
+- **何时重新评估**：要上架应用商店、需要后台同步或与服务器版双向同步时。
+

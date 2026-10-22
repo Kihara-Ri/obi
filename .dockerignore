@@ -22,3 +22,4 @@ static/models/packaging
 **/__pycache__
 **/*.pyc
 dist-local
+android

@@ -77,6 +77,8 @@ docker compose up -d --build
 
 升级 = `git pull && docker compose up -d --build`；停止 = `docker compose down`（数据保留）。
 
+**安卓手机（不需要服务器）：** 在 [Releases](https://github.com/Kihara-Ri/obi/releases) 下载 `Obi-<版本>.apk` 直接安装，数据只存在手机上，见[部署说明 · 安卓安装包](部署说明.md#安卓安装包不用托管下载即装)。
+
 也可以在 [Releases](https://github.com/Kihara-Ri/obi/releases) 直接下载 `album-ledger.tar.gz`（无需 git，裸机 Python 运行，见部署说明）。
 
 裸机部署可开启[补丁自动更新](部署说明.md#补丁自动更新可选)：每天检查一次正式 Release，只更新同主次版本的补丁，功能版本手动确认。

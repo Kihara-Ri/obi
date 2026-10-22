@@ -1,0 +1,69 @@
+name: android
+
+# 发布 Release 后构建签名的安卓安装包并附到该 Release（Obi-<tag>.apk + .sha256）。
+# 也可手动对已有 tag 补发：Actions → android → Run workflow。
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 已发布的 tag（如 v3.1.0）
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    name: 签名安装包
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - run: npm --prefix web ci
+      - name: 构建本机模式站点
+        run: npm --prefix web run build:local
+        env:
+          OBI_APP_VERSION: ${{ env.TAG }}
+      - name: 构建并签名
+        working-directory: android
+        env:
+          OBI_APP_VERSION: ${{ env.TAG }}
+          OBI_ANDROID_KEYSTORE_B64: ${{ secrets.OBI_ANDROID_KEYSTORE_B64 }}
+          OBI_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.OBI_ANDROID_KEYSTORE_PASSWORD }}
+          OBI_ANDROID_KEY_PASSWORD: ${{ secrets.OBI_ANDROID_KEYSTORE_PASSWORD }}
+          OBI_ANDROID_KEY_ALIAS: obi
+        run: |
+          if [ -z "$OBI_ANDROID_KEYSTORE_B64" ]; then echo '✗ 缺少签名 secret OBI_ANDROID_KEYSTORE_B64'; exit 1; fi
+          export OBI_ANDROID_KEYSTORE="$RUNNER_TEMP/obi-release.jks"
+          printf '%s' "$OBI_ANDROID_KEYSTORE_B64" | base64 -d > "$OBI_ANDROID_KEYSTORE"
+          ./gradlew assembleRelease --no-daemon -q
+          rm -f "$OBI_ANDROID_KEYSTORE"
+      - name: 校验签名并上传
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # 固定签名证书：换了证书，已安装的用户就无法覆盖升级
+          EXPECTED_CERT: 85f7da2056882e36dd2e07286702eab20db2607ce36325b71a90b2a749998769
+        run: |
+          apk="Obi-$TAG.apk"
+          cp android/app/build/outputs/apk/release/app-release.apk "$apk"
+          apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$apksigner" verify --print-certs "$apk" | tee /dev/stderr | grep -q "SHA-256 digest: $EXPECTED_CERT"
+          sha256sum "$apk" > "$apk.sha256"
+          gh release upload "$TAG" "$apk" "$apk.sha256" --clobber
