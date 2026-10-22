@@ -23,6 +23,8 @@ export function BarcodeScanner({onDetect, onClose}: {onDetect: (code: string) =>
   const video = useRef<HTMLVideoElement>(null);
   const [msg, setMsg] = useState('正在打开相机…');
   const [failed, setFailed] = useState(false);
+  const [shown, setShown] = useState(false);   // 首帧画面到达后才淡入，避免 Android 在出画前闪出被拉伸的播放图标
+  const [armed, setArmed] = useState(false);    // 识别器就绪：取景框由暗淡转为高亮
   useEffect(() => {
     let live = true;
     let stream: MediaStream | null = null;
@@ -44,6 +46,7 @@ export function BarcodeScanner({onDetect, onClose}: {onDetect: (code: string) =>
       try { detector = await makeDetector(); } catch { return fail('识别器加载失败，请手动输入'); }
       if (!live) return;
       setMsg('把条码放进框内');
+      setArmed(true);
       const tick = async () => {
         if (!live) return;
         try {
@@ -60,9 +63,10 @@ export function BarcodeScanner({onDetect, onClose}: {onDetect: (code: string) =>
   }, []);
   return createPortal(
     <div className="scan-layer" role="dialog" aria-label="扫描条码">
-      <video ref={video} className="scan-video" playsInline muted/>
-      <div className="scan-frame" aria-hidden="true"/>
-      <p className={'scan-msg' + (failed ? ' is-error' : '')} role="status">{msg}</p>
+      <video ref={video} className={'scan-video' + (shown ? ' is-live' : '')} playsInline muted autoPlay
+             controls={false} disablePictureInPicture onPlaying={() => setShown(true)}/>
+      <div className={'scan-frame' + (armed ? ' is-armed' : '')} aria-hidden="true"/>
+      <p key={msg} className={'scan-msg' + (failed ? ' is-error' : '')} role="status">{msg}</p>
       <button type="button" className="scan-close" onClick={onClose}>{failed ? '返回' : '取消'}</button>
     </div>, document.body);
 }

@@ -1,9 +1,11 @@
 [Unit]
-Description=Check Obi official patch releases once a day
+Description=Check Obi official patch releases every 15 minutes
 
 [Timer]
-# 每天本地时间 08:00 检查一次；开机后 2 分钟补查一次（Persistent 兜底停机错过的时点）
-OnCalendar=*-*-* 08:00:00
+# 每 15 分钟检查一次（错开整点，避免多台实例同时请求）；开机后 2 分钟补查一次。
+# 补丁发布后通常 15 分钟内装上；GitHub 未登录接口每小时 60 次，这里每小时 4 次。
+OnCalendar=*:0/15
+RandomizedDelaySec=120
 OnBootSec=120s
 Persistent=true
 AccuracySec=1min

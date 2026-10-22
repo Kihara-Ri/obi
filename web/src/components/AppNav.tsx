@@ -5,6 +5,7 @@ import {pageEnabled} from '../core/modules';
 import {Ledger} from './PageHead';
 import {InstallNavItem} from './InstallNavItem';
 import {GearIcon} from './ui/GearIcon';
+import {isLocalSite} from '../core/backend';
 
 const NAV = [
   {hash: 'gallery', ico: '▦', label: '收藏展示'},
@@ -72,7 +73,7 @@ export function Sidebar({page, home, modules, counts, installEvt, onInstalled}: 
            className={page === 'settings' ? 'active' : ''}>
           <span className="nav-ico" aria-hidden="true"><GearIcon size={14}/></span>设置与备份
         </a>
-        <div className="local-note"><i/> 数据保存在服务设备</div>
+        <div className="local-note"><i/> {isLocalSite() ? '数据只保存在这台设备上' : '数据保存在服务设备'}</div>
       </div>
     </aside>
   );

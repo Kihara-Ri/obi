@@ -52,6 +52,36 @@ jobs:
       - run: npm --prefix web run typecheck
       - run: npm --prefix web run build
 
+  docker:
+    name: Docker 镜像构建
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose build
+
+  android:
+    name: 安卓外壳编译
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - run: npm --prefix web ci
+      - run: npm --prefix web run build:local
+      - name: 编译 debug 包（正式签名只在发布时做，见 android.yml）
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon -q
+
   # 软件 GL 下 3D 挂载很慢：把浏览器验收拆成三个并行 runner，墙钟取最长的一片。
   sample-browser:
     name: 浏览器验收 · ${{ matrix.suite.name }}

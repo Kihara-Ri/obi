@@ -44,6 +44,12 @@ export async function downloadFile(path: string, fallbackName: string, options?:
   return name;
 }
 
+// 安卓应用里文件直接存进手机（不弹分享面板）：返回「到下载（Download/Obi）」之类的位置说明，接在提示后面；其他环境为空。
+export function savedPlace(): string {
+  const place = (navigator as unknown as {__obiSavedTo?: string}).__obiSavedTo;
+  return place ? `到${place}` : '';
+}
+
 // 文件名里的专辑标识：与服务端图片包一致，去掉各系统不允许的字符并限长。
 export function photoLabel(artist: string, title: string): string {
   const clean = (v: string) => v.replace(/[\\/:*?"<>|\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().replace(/^\.+|\.+$/g, '').slice(0, 50);

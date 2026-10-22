@@ -6,6 +6,7 @@ import {InstallNavItem} from '../components/InstallNavItem';
 import {ThemeToggle} from '../components/ThemeToggle';
 import {NavRow} from '../components/ui/NavRow';
 import {GearIcon} from '../components/ui/GearIcon';
+import {isLocalSite} from '../core/backend';
 
 export function MorePage({installEvt, onInstalled}: {installEvt: Event | null; onInstalled: () => void}) {
   const {modules, state} = useApp();
@@ -36,7 +37,7 @@ export function MorePage({installEvt, onInstalled}: {installEvt: Event | null; o
           {installEvt ? <InstallNavItem evt={installEvt} onInstalled={onInstalled} row/> : null}
         </nav>
       </section>
-      <div className="local-note"><i/> 数据保存在服务设备</div>
+      <div className="local-note"><i/> {isLocalSite() ? '数据只保存在这台设备上' : '数据保存在服务设备'}</div>
     </div>
   </>;
 }

@@ -3,6 +3,7 @@ package io.github.kihara_ri.obi;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.ContentValues;
 import android.content.Intent;
@@ -15,6 +16,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Message;
 import android.provider.MediaStore;
+import android.provider.Settings;
 import android.util.Base64;
 import android.view.View;
 import android.view.ViewGroup;
@@ -53,7 +55,8 @@ import java.util.Map;
  * Obi 安卓壳：把本机模式静态站点（assets/www，见 D-019）放进 WebView。
  * 站点固定在 https://appassets.androidplatform.net/ 根路径（安全上下文；数据按这个源存在 IndexedDB，
  * 以后不能换源，否则旧数据读不到）。/api/* 仍由站点自己的 Service Worker 交给页面里的 Pyodide 引擎。
- * 原生只补浏览器有、WebView 没有的部分：文件保存、选图 / 拍照、相机权限、外部链接、返回键、系统栏留白。
+ * 原生只补浏览器有、WebView 没有的部分：文件保存、选图 / 拍照、相机权限、外部链接、返回键、系统栏留白，
+ * 以及安装包自身的自动更新（Updater）。
  */
 public class MainActivity extends Activity {
     static final String HOST = "appassets.androidplatform.net";
@@ -67,6 +70,14 @@ public class MainActivity extends Activity {
     private ValueCallback<Uri[]> fileCallback;
     private Uri cameraOutput;
     private Runnable afterCameraPermission;
+    private AlertDialog updateDialog;
+
+    private static MainActivity current;
+    private static volatile boolean visible;
+
+    /** 正在显示的界面（没有则为 null），供更新器决定是否询问用户。 */
+    static MainActivity current() { return visible ? current : null; }
+    static boolean visible() { return visible; }
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -91,6 +102,54 @@ public class MainActivity extends Activity {
         root.addView(web, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         if (savedInstanceState != null) web.restoreState(savedInstanceState);
         else web.loadUrl(ORIGIN + "/");
+        takeDebugUpdateFeed(getIntent());
+        Updater.schedule(this);
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        takeDebugUpdateFeed(intent);
+    }
+
+    // 仅 debug 包：adb shell am start ... --es obi.updateFeed http://10.0.2.2:端口/latest.json 指向本机测试源
+    private void takeDebugUpdateFeed(Intent intent) {
+        String feed = intent == null ? null : intent.getStringExtra("obi.updateFeed");
+        if (feed == null || !Updater.debuggable(this)) return;
+        Updater.prefs(this).edit().putString("feed", feed).remove("etag").remove("checkedAt").apply();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        current = this;
+        visible = true;
+        // 打开应用时查一次（10 分钟内不重复）；已下好的、需要确认的更新在这里询问
+        if (Updater.dueInForeground(this)) Updater.check(this, false, null);
+        else Updater.installWhenAppropriate(this);
+    }
+
+    @Override
+    protected void onStop() {
+        visible = false;
+        // 离开应用（切走、锁屏）时再静默安装，不打断正在进行的操作
+        Updater.installWhenAppropriate(this);
+        super.onStop();
+    }
+
+    /** 不能静默安装时（Android 10/11，或还没允许本应用安装应用）在前台问一次。 */
+    void askToInstall(String tag) {
+        if (isFinishing() || (updateDialog != null && updateDialog.isShowing())) return;
+        boolean firstGrant = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !getPackageManager().canRequestPackageInstalls();
+        String message = "新版本已下载，安装后数据保留。" + (firstGrant
+                ? "\n\n下一步请在系统页面允许 Obi「安装未知应用」，之后的更新会在你离开应用时自动完成，不再询问。"
+                : "");
+        updateDialog = new AlertDialog.Builder(this)
+                .setTitle("更新到 Obi " + tag.replaceFirst("^v", ""))
+                .setMessage(message)
+                .setPositiveButton("现在更新", (d, w) -> Updater.install(this))
+                .setNegativeButton("稍后", (d, w) -> Updater.prefs(this).edit().putLong("declinedAt", System.currentTimeMillis()).apply())
+                .show();
     }
 
     @SuppressLint({"SetJavaScriptEnabled", "JavascriptInterface"})
@@ -376,17 +435,14 @@ public class MainActivity extends Activity {
             return true;
         }
 
-        // 一次分享结束后提示保存位置
+        // 一次分享结束：返回保存位置，由页面的提示一并显示（不再另弹系统 Toast）
         @JavascriptInterface
-        public void report() {
-            String message;
+        public String report() {
             synchronized (savedPlaces) {
-                if (savedPlaces.isEmpty()) return;
                 String place = String.join("、", new java.util.LinkedHashSet<>(savedPlaces));
-                message = savedPlaces.size() == 1 ? "已保存到" + place : "已保存 " + savedPlaces.size() + " 个文件到" + place;
                 savedPlaces.clear();
+                return place;
             }
-            runOnUiThread(() -> Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show());
         }
 
         @JavascriptInterface
@@ -399,6 +455,23 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public String version() {
             return BuildConfigVersion.name(MainActivity.this);
+        }
+
+        @JavascriptInterface
+        public String updateStatus() {
+            return Updater.status(MainActivity.this);
+        }
+
+        @JavascriptInterface
+        public void checkUpdate() {
+            runOnUiThread(() -> Updater.check(MainActivity.this, true, null));
+        }
+
+        // 打开系统「安装未知应用」开关页；允许后更新可在后台自动安装
+        @JavascriptInterface
+        public void openInstallSettings() {
+            Intent intent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName()));
+            runOnUiThread(() -> startActivity(intent));
         }
     }
 
@@ -451,6 +524,8 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (current == this) current = null;
+        if (updateDialog != null) updateDialog.dismiss();
         closePopup();
         if (web != null) web.destroy();
         super.onDestroy();

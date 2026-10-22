@@ -1,7 +1,7 @@
 // 实物照片下载图标：手机把原图交给系统分享面板（选“存储图像”直接进相册，无需解压），桌面下载按专辑命名的 ZIP。
 // 状态靠图标形状区分：下载箭头（可点）→ 转圈（读取 / 保存中，不可点）→ 对勾（刚完成）；完成与失败各弹一条提示。
 import {useEffect, useRef, useState} from 'react';
-import {downloadFile, fetchPhotoFiles, photoLabel} from '../../core/download';
+import {downloadFile, fetchPhotoFiles, photoLabel, savedPlace} from '../../core/download';
 import {CheckIco, DownloadIco, SpinIco} from '../icons';
 import {useApp} from '../../state/AppContext';
 import './PhotoDownload.css';
@@ -46,7 +46,7 @@ export function PhotoDownload({id, count, revision, artist, title}: Props) {
       // 必须在点击手势内同步调用；先 await 再分享会被 iOS 拒绝，所以照片在进入详情时已预取。
       setPhase('saving');
       navigator.share({files: files.current})
-        .then(() => finish(`已保存 ${count} 张照片`))
+        .then(() => finish(`已保存 ${count} 张照片${savedPlace()}`))
         .catch(err => {
           if (err instanceof DOMException && err.name === 'AbortError') setPhase('idle'); // 关闭分享面板：不算失败
           else fail('保存失败，请重试');

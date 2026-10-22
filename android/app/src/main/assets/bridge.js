@@ -5,6 +5,8 @@
   const native = window.ObiAndroid;
   if (!native || navigator.__obiAndroid) return;
   Object.defineProperty(navigator, '__obiAndroid', {value: true});
+  let savedTo = ''; // 最近一次保存的位置，页面提示里显示（见 core/download.ts savedPlace）
+  Object.defineProperty(navigator, '__obiSavedTo', {get: () => savedTo});
   const CHUNK = 3 * 256 * 1024; // 3 的倍数：每块单独 base64 编码不产生填充
   const save = async file => {
     const id = native.begin(file.name || 'Obi', file.type || 'application/octet-stream');
@@ -29,7 +31,8 @@
   const share = async data => {
     if (!canShare(data)) throw new TypeError('没有可分享的内容');
     if (data.files?.length) {
-      try { for (const file of data.files) await save(file); } finally { native.report(); }
+      savedTo = '';
+      try { for (const file of data.files) await save(file); } finally { savedTo = native.report() || ''; }
       return;
     }
     native.shareText(data.title || '', [data.text, data.url].filter(Boolean).join('\n'));
