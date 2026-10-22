@@ -40,12 +40,16 @@ export function ReleaseCandidateCard({c, fold, tag, children}: {c: ReleaseCandid
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   // 此版本自己的正面图（Cover Art Archive）：卡片一出现就取，查询结果和封面放在一起；Discogs 版本没有
+  // artState：取图中 / 数据库没有（Discogs 版本不带图）/ 已有，让用户分得清「还在找」和「没有」
   const [art, setArt] = useState('');
+  const [artState, setArtState] = useState<'loading' | 'none' | 'ok'>(c.source === 'discogs' ? 'none' : 'loading');
   useEffect(() => {
     if (c.source === 'discogs') return;
     let live = true;
+    setArtState('loading');
     api<{cover: string}>('catalog/front-cover?id=' + encodeURIComponent(c.id))
-      .then(r => { if (live && r.cover) setArt(r.cover); }).catch(() => {});
+      .then(r => { if (!live) return; if (r.cover) { setArt(r.cover); setArtState('ok'); } else setArtState('none'); })
+      .catch(() => { if (live) setArtState('none'); });
     return () => { live = false; };
   }, [c.id, c.source]);
 
@@ -83,12 +87,15 @@ export function ReleaseCandidateCard({c, fold, tag, children}: {c: ReleaseCandid
       </dl>
       <Tracklist releaseInfo={info}/>
     </div> : null}
+    {artState === 'loading' ? <p className="rcc-msg" role="status">封面查找中…</p> : null}
+    {fold && artState === 'none' ? <p className="rcc-msg">资料库里暂时没有这个版本的封面，不代表拿不到：入库后在表单里点「换一张封面」继续查找。</p> : null}
     {children?.({info, load, busy})}
   </>;
   if (!fold) return <li className="rcc">{body}</li>;
   return <li className={'rcc is-fold' + (!folded ? ' is-open' : '')}>
     <button type="button" className="rcc-fold" aria-expanded={!folded} onClick={() => setFolded(!folded)}>
-      {art ? <img className="rcc-art" src={art} alt=""/> : <span className="rcc-art" aria-hidden="true"/>}
+      {art ? <img className="rcc-art" src={art} alt=""/>
+        : <span className={'rcc-art is-' + artState} aria-hidden="true">{artState === 'none' ? '无封面' : '找封面…'}</span>}
       <span className="rcc-main">
         <strong>{dedupeCatalog(i0.catalogNumber) || c.title}{tag ? <em className="rcc-tag">{tag}</em> : null}</strong>
         <span>{[regionName(i0.country), i0.releaseDate, i0.label].filter(Boolean).join(' · ')}</span>

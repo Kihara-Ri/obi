@@ -44,3 +44,9 @@ a.rcc-source:hover{color:var(--text)}
 .rcc-collapse-in{overflow:hidden;min-height:0;display:flex;flex-direction:column;gap:14px}
 .is-open .rcc-collapse-in{padding:2px 14px 14px}
 .rcc-tag{font-style:normal;font-size:11px;font-weight:600;margin-left:8px;padding:1px 8px;border-radius:99px;border:1px solid var(--accent-deep);color:var(--accent-deep);vertical-align:middle}
+
+.rcc-art.is-loading{animation:rcc-pulse 1.1s ease-in-out infinite alternate}
+.rcc-art.is-none{display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;line-height:1.2;color:var(--muted);border:1px dashed var(--border)}
+@keyframes rcc-pulse{from{opacity:.45}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.rcc-art.is-loading{animation:none}}
+.rcc-art.is-loading{display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;line-height:1.2;color:var(--muted)}

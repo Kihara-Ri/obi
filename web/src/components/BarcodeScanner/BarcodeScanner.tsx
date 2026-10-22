@@ -7,9 +7,15 @@ import {gs1Valid} from '../../core/lookup';
 import './BarcodeScanner.css';
 
 /** 输入框右端的扫码图标按钮：children 是输入框本体，图标嵌在框内，不另占一格。 */
-export function ScanField({onScan, children}: {onScan: () => void; children: React.ReactNode}) {
-  return <div className="scan-wrap">
+export function ScanField({onScan, onClear, children}: {onScan: () => void; onClear?: () => void; children: React.ReactNode}) {
+  const wrap = useRef<HTMLDivElement>(null);
+  return <div className={'scan-wrap' + (onClear ? ' has-clear' : '')} ref={wrap}>
     {children}
+    {onClear ? <button type="button" className="scan-clear" aria-label="清空输入"
+      onClick={() => { onClear(); wrap.current?.querySelector('input')?.focus(); }}>
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.4"
+           strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button> : null}
     <button type="button" className="scan-inline" aria-label="扫描条码" onClick={onScan}>
       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"
            strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

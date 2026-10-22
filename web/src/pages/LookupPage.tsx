@@ -105,7 +105,8 @@ export function LookupPage() {
     <PageHead title="查询" label="LOOKUP" desc="按条码、唱片编号或专辑名 / 艺人名查发行版资料，不会入库"/>
     <div className="lookup-page">
       <form className="lookup-form" onSubmit={e => { e.preventDefault(); void search(); }}>
-        <ScanField onScan={() => setScanning(true)}>
+        <ScanField onScan={() => setScanning(true)}
+          onClear={text ? () => { abort.current?.abort(); setText(''); setError(''); setFound(null); setBusy(false); setTarget(null); } : undefined}>
           <input type="text" inputMode="text" autoComplete="off" enterKeyHint="search" aria-label="条码、唱片编号或专辑名"
             placeholder="条形码、唱片编号，或专辑名 艺人" value={text}
             onChange={e => { setText(e.target.value); setError(''); }}/>
