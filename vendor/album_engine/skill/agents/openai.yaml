@@ -1,4 +1,0 @@
-interface:
-  display_name: "专辑实物数字孪生"
-  short_description: "按条码确认 CD 发行版，获取同版实物原图并校准连续印刷、窄脊与盘面"
-  default_prompt: "使用 $album-digital-twin 按这张 CD 的实物条码查候选，等我确认版本后获取原图并校准连续正背印刷与书脊。"

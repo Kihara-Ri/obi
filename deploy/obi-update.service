@@ -1,0 +1,15 @@
+[Unit]
+Description=Obi official patch release updater
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/opt/obi/update.env
+ExecStart=/usr/bin/python3 /opt/obi/current/tools/update_release.py
+TimeoutStartSec=180
+UMask=0022
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/obi

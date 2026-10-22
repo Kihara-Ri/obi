@@ -14,8 +14,7 @@ from vendor.album_data import errors
 def check_engine_installation(root):
     """Validate a shipped optional catalog, not a required user installation.
 
-    Legacy artifact layouts remain inspectable by compatibility tools. App
-    startup never depends on this development/distribution check.
+    App startup never depends on this development/distribution check.
     """
     import hashlib
     import json
@@ -24,20 +23,16 @@ def check_engine_installation(root):
     root = Path(root)
     catalog = root / 'plugins/album-engine/catalog.json'
     try:
-        if catalog.is_file():
-            spec = json.loads(catalog.read_text())
-            archive = catalog.parent / spec['file']
-            if archive.parent != catalog.parent or hashlib.sha256(archive.read_bytes()).hexdigest() != spec['sha256']:
-                raise ValueError('catalog checksum')
-            with zipfile.ZipFile(archive) as package:
-                viewer = json.loads(package.read('manifest.json'))
-                runtime = json.loads(package.read('runtime/album_engine/runtime-manifest.json'))
-            codec = json.loads((root / 'vendor/album_data/data-codec-manifest.json').read_text())
-            if any(codec.get(key) != viewer.get(key) for key in ('version','modelSet','schemaVersion','rigVersion')):
-                raise ValueError('data codec mismatch')
-        else:
-            runtime = json.loads((root / 'vendor/album_engine/runtime-manifest.json').read_text())
-            viewer = json.loads((root / 'static/models/packaging/engine-manifest.json').read_text())
+        spec = json.loads(catalog.read_text())
+        archive = catalog.parent / spec['file']
+        if archive.parent != catalog.parent or hashlib.sha256(archive.read_bytes()).hexdigest() != spec['sha256']:
+            raise ValueError('catalog checksum')
+        with zipfile.ZipFile(archive) as package:
+            viewer = json.loads(package.read('manifest.json'))
+            runtime = json.loads(package.read('runtime/album_engine/runtime-manifest.json'))
+        codec = json.loads((root / 'vendor/album_data/data-codec-manifest.json').read_text())
+        if any(codec.get(key) != viewer.get(key) for key in ('version','modelSet','schemaVersion','rigVersion')):
+            raise ValueError('data codec mismatch')
         if any(runtime.get(key) != viewer.get(key) for key in ('version','modelSet','schemaVersion','rigVersion')):
             raise ValueError('version mismatch')
         if not isinstance(runtime.get('version'), str) or not runtime['version'] or runtime.get('schemaVersion') != 2 or runtime.get('rigVersion') != 1 or runtime.get('modelSet') != 'album-rig-1':
@@ -59,24 +54,10 @@ def host_call(function):
             # are intentionally not the persistence codec's class identities.
             names = {base.__name__ for base in type(exc).__mro__}
             if type(exc).__module__.endswith('.errors'):
-                if 'ArtNotFound' in names:
-                    from server.twin_errors import ArtNotFound
-                    raise ArtNotFound(str(exc)) from None
                 if 'ConflictError' in names: raise ConflictError(str(exc)) from None
                 if 'ValidationError' in names: raise ValidationError(str(exc)) from None
             raise
     return invoke
-
-
-def host_type(engine_type):
-    """Preserve historical import/class API while translating engine failures."""
-    namespace = {'__module__':engine_type.__module__, '__doc__':engine_type.__doc__}
-    for name, value in engine_type.__dict__.items():
-        if name.startswith('__') and name != '__init__': continue
-        if isinstance(value, staticmethod): namespace[name] = staticmethod(host_call(value.__func__))
-        elif isinstance(value, classmethod): namespace[name] = classmethod(host_call(value.__func__))
-        elif callable(value): namespace[name] = host_call(value)
-    return type(engine_type.__name__,(engine_type,),namespace)
 
 
 class TaskAdapter:

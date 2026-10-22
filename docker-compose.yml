@@ -1,4 +1,4 @@
-# 碟渡 · Docker 一键部署
+# Obi · Docker 一键部署
 #
 #   docker compose up -d --build                 # 启动（首次会构建镜像）
 #   docker compose logs -f app                   # 看日志
@@ -9,13 +9,13 @@
 # 对外提供 HTTPS 时：反代到 127.0.0.1:8765，并在 .env 写 PUBLIC_ORIGIN=https://your.domain
 # （启用公网访问前先设登录密码：docker compose exec app python3 app.py --set-password）
 
-name: diedu
+name: obi
 
 services:
   app:
     build: .
-    image: diedu:latest
-    container_name: diedu
+    image: obi:latest
+    container_name: obi
     ports:
       - "8765:8765"            # 宿主机端口冲突时改左边（容器内固定 8765）
     volumes:

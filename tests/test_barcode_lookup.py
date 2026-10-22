@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 from domain import ValidationError
-from server.routes import GET, POST, api_barcode_lookup, api_release_artwork, api_release_front_cover
+from server.routes import GET, POST, api_barcode_lookup, api_release_front_cover
 
 
 class BarcodeLookupTests(unittest.TestCase):
@@ -86,18 +86,9 @@ class ConfirmedReleaseArtTests(unittest.TestCase):
         ]}), image=Mock(return_value=b'\x89PNG\r\n\x1a\nvalid'))
         self.service = SimpleNamespace(twins=SimpleNamespace(art=self.art))
 
-    def test_artwork_only_uses_selected_release_id(self):
-        self.assertIn('/api/catalog/artwork', GET)
-        api_release_artwork(self.http, self.service)
-        self.art.catalog.assert_called_once_with(self.EDITION)
-        result = self.http.send.call_args.args[0]
-        self.assertEqual([a['types'] for a in result['artwork']], [['Front'], ['Booklet']])
-        self.http.path = '/api/catalog/artwork?id=malformed'
-        with self.assertRaises(ValidationError): api_release_artwork(self.http, self.service)
-        self.art.catalog.assert_called_once_with(self.EDITION)
-
     def test_front_cover_requires_same_release_and_front_image(self):
         self.assertIn('/api/catalog/front-cover', GET)
+        self.assertNotIn('/api/catalog/artwork', GET)  # 无调用方，已删除
         self.http.path = '/api/catalog/front-cover?id=' + self.EDITION
         api_release_front_cover(self.http, self.service)
         self.art.image.assert_called_once_with(self.EDITION, '123', preview=True)

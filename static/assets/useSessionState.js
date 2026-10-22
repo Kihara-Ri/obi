@@ -1,0 +1,1 @@
+import{r}from"./index.js";function i(s,u,e){const[a,n]=r.useState(()=>{try{const t=sessionStorage.getItem("album-ui-"+s);if(t!==null&&(!e||e.includes(t)))return t}catch{}return u}),o=r.useCallback(t=>{n(t);try{sessionStorage.setItem("album-ui-"+s,t)}catch{}},[s]);return[a,o]}export{i as u};

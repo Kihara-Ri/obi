@@ -13,7 +13,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 from domain import ValidationError, clean_release_info
 
 API_HOST = 'api.discogs.com'
-USER_AGENT = 'Diedu/2.4 (personal CD catalog; local instance)'
+USER_AGENT = 'Obi/2.4 (personal CD catalog; local instance)'
 IDENT = re.compile(r'discogs-([1-9][0-9]{0,9})')
 COUNTRIES = {'Japan': 'JP', 'USA': 'US', 'UK': 'GB', 'Germany': 'DE', 'France': 'FR', 'Canada': 'CA',
              'Australia': 'AU', 'Netherlands': 'NL', 'Italy': 'IT', 'Spain': 'ES', 'Korea': 'KR',

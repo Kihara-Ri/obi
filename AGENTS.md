@@ -1,4 +1,4 @@
-# 碟渡 · 项目标准（所有 agent 必读，违反红线的改动一律不接受）
+# Obi · 项目标准（所有 agent 必读，违反红线的改动一律不接受）
 
 个人 CD 收藏与交易账本：Python 标准库后端 + React/TS 前端 + SQLite，单用户，Mac 开发、服务器（Docker 或裸机）部署。
 仓库是**可分享的框架**：不含任何个人数据（历史采购/运维记录在 `data/`，未跟踪），别人克隆后 `docker compose up -d --build` 即可开自己的实例。
@@ -29,11 +29,12 @@
 - `app.py` 只做 CLI / 组装 / 启动。服务一律经 `server.context.Services` 注入，**禁止模块级单例**（import 零副作用）。
 - 根目录业务模块（`domain/storage/covers/rates/security/backups`）**不得移动或重命名**（`tools/` 依赖顶层 import 路径）；`storage.py` 保持单文件（跨表事务 + 审计内聚，不拆）。
 - 版本：发布包带 `VERSION`（git describe 生成），`/api/health` 与设置页显示。
+- **本机模式（D-019）**：静态站点上由浏览器里的 Pyodide 运行同一套后端，入口 `server/local_entry.py`，只在 `dist-local/`（`npm --prefix web run build:local`，不进 `static/`、镜像与 git）里启用，靠 `index.html` 的 `obi-local` 标记识别。**业务代码与路由表不得为本机模式分叉**——浏览器与服务器的差别（无线程、无 socket、无 fcntl）只在 `local_entry.py` 抹平；后端新增线程 / 子进程 / 文件锁依赖时，必须同时保证本机模式不会走到（或在该文件里替换），并跑 `tests/test_local_entry.py`。服务器版 `static/sw.js` 不得加入本机转发。
 
 ### 前端（`web/`，React 19 + TS strict + Vite）
 - 分层单向依赖：`core/` ← `components/` ← `pages/` 与 `forms/`；**禁止反向 import**。
 - 全局状态只经 `src/state/AppContext.ts`；禁止新增模块级可变全局。
-- 新页面 = `src/pages/` 加模块 + `App.tsx` 分发加一行；新表单 = `src/forms/` 加模块。
+- 新页面 = `src/pages/` 加模块 + `App.tsx` 加一行 `lazyPage` 声明（每页一个 chunk，见 `core/lazy-page.ts`）并在分发里加一行；新表单 = `src/forms/` 加模块。
 - 既有页面级样式放 `src/styles/<模块>.css` 并在 `main.tsx` 按序 import（**新建/重写的单元组件例外**：`components/ui/<Name>/<Name>.tsx + .css` 同目录，见 docs/DECISIONS.md D-003）（tokens → base → layout → components → 各页面模块）；`@media` 跟随所属模块；文件不超过一个职责。
 - **改完必须** `npm --prefix web run typecheck && npm --prefix web run build`——服务端只认 `static/assets/` 构建产物，改源码不构建等于没改。
 - `static/assets` 文件名保持稳定（不哈希）：服务端 `Cache-Control: no-store`，哈希无意义且测试断言固定路径。
@@ -62,16 +63,16 @@
 - **相机扫码（2026-10-21）**：`components/BarcodeScanner` + `core/barcode-detector.ts`；前端依赖新增 `barcode-detector`（zxing-wasm 垫片，wasm 作为本站静态资源，CSP 不放行外部域名）；只识别 EAN-13/8、UPC-A/E 并要求 GS1 校验位通过。相机需要 HTTPS，失败时给出原因并保留手动输入。
 - **抽屉左缘手势（2026-10-21）**：手机抽屉只能向下收回，空间结构不得被横推破坏。左缘 28px 内起手在 `touchstart` 就 `preventDefault`，拦掉 iOS 系统「边缘返回」整页滑动（只在 touchmove 拦会和跟手叠在一起）；一级页右滑 = 映射为 sheet 下拉；二级页右滑 = 只动标题线以下的页面层跟手右移、下层视差露出，松手后 pop 动画从手指位置接着播（`popFromRef`），标题栏不动。下拉时遮罩（模糊+压暗）随位移淡出（`--scrim-o`）。
 - **软键盘（手机抽屉）**：页面不为键盘滚动 / 追赶。需要打字的重点输入（如发行版查询）用 `FocusInput`：点字段（按钮外观）后在键盘正上方升起独立输入层（portal 到 body，背后页面不动）；`Drawer` 只在 `.drawer-body` 底部补键盘高度的滚动余量，其余输入框被盖住时才平滑滚到顶部，compact 确认抽屉整体抬到键盘上沿。iOS 键盘顶部的 ▲▼ ✓ 条是系统控件，网页无法去掉。
-- 设置 · 功能按「使用方式 → 界面变化预览 → 微调」排列，预览数据 `core/modules.ts` 的 `SURFACE_GROUPS` 须与导航及各表单的模块判断保持一致；设置 · 数据按备份 / 恢复 / 导入导出 / 回收站分块。
+- 设置 · 功能少字、图标化（2026-10-21）：顶部使用方式图标卡 → 功能图标开关与默认首页 → 迷你手机实时预览（底栏与详情管理，新增 / 收起有角标），完整变化清单与说明收在「全部变化与说明」；预览数据 `core/modules.ts` 的 `SURFACE_GROUPS` 须与导航及各表单的模块判断保持一致；设置 · 数据按备份 / 恢复 / 导入导出 / 回收站分块。
 - **条码 / 编号查询（2026-10-21）**：`pages/LookupPage.tsx`（hash `lookup`，手机在「更多」、桌面侧栏）只读不入库；输入识别与本地命中在 `core/lookup.ts`；外部检索复用 `/api/catalog/barcode|number`，先列本地已有副本。「以此入库」经 `openRecordForm(app, undefined, seed)` 带入已确认版本（`record/context.ts` 的 `seedFields`），不得跳过版本确认。卡片 `pages/LookupCard.tsx` 按需取详情；复制文字由 `core/lookup-text.ts` 生成，只含资料库事实与「库里是否已有」，不得带价格等个人数据。专辑表单的发行版检索（`forms/record/ReleaseLookupSection.tsx`）与它共用同一识别规则和 `components/ReleaseCandidateCard`，不得再做条码 / 编号分开的两套入口。最近查询只存浏览器 `prefs`。**待确认发行版（2026-10-21）**：`releasePending`（`core/lookup.ts`）= 非已售出 / 回收站且没有 MusicBrainz / Discogs 版本编号、也没有 `manualRelease==='1'`；库存页汇总行提示数量并跳 `#lookup`，`pages/PendingReleases.tsx` 列出，`pages/confirmRelease.ts` 经 `records` 局部更新只改 `releaseInfo`（保留 matrix / extras / observations）；「标为已处理」复用 `manualRelease`，不新增字段。**文字搜索（2026-10-21，只在查询页）**：专辑名 / 艺人名由 `core/lookup.ts` 的 `isTextQuery` 识别（专辑表单继续只用 `classify`，不做文字搜索）；后端 `server/text_search.py`（`/api/catalog/search` 按专辑 release group 去重，MusicBrainz 优先、Discogs master 兜底；`/api/catalog/versions` 展开 CD 版本，日本版 / 有条码在前）；`pages/AlbumResults.tsx` 先列专辑（库里已有排前并标出），点开才出版本卡片，超过 5 个折叠。编号无精确匹配时自动按文字再搜一次。
 - 库存页支持列表/卡片切换，桌面与手机共用同一偏好、记住本浏览器选择；手机勾选框按需开启、编辑从详情进入，桌面保持常驻勾选与卡片上的编辑按钮。
 - 批量操作条是**底部悬浮浮条**（position:fixed），不得挤压页面布局。
 - **按钮没有全局按下位移**（2026-10-17 起去掉了 `button:active{transform}`，会让每个按钮按下时上下抖一下）；确需按压反馈的个别按钮自己加，且要说明理由。
 - 所有「滑块」（分段控件、标签下划线、底栏胶囊）统一时长与缓动 `--slide-ms` / `--slide-ease`，分段控件与下划线共用 `useSlidingThumb`。库存↔展示（顶栏切换）不播整页左右滑，改为顶栏不动、下方内容淡入。
-- 手机底栏选中高亮是一枚**滑动胶囊**（`.nav-pill`，App.tsx 内联 transform 定位槽位、CSS 过渡平移），各标签自身不再自绘激活背景。手机页面切换有**方向性过渡**（`styles/pagetransition.css`）：按导航层级 rank 决定方向——进更深页面从右推入、返回向右滑出；「更多」的子页（交易记录/账本/设置/回收站）统一右侧拉出。旧页由 App.tsx 在 hashchange/popstate 到达时抢先克隆 `#main` 做 DOM 快照参与滑出（组件不重复挂载，滚动偏移在克隆时一并记下）；**浏览器历史驱动的换页（popstate 且 hash 变化：iOS 边缘右滑、后退/前进键）不再自播动画——系统自带过渡画面，自播会双重动画**；抽屉的同址 popstate 守卫不得置该标记。桌面与 `prefers-reduced-motion` 一律不做切换动画。
+- 手机底栏选中高亮是一枚**滑动胶囊**（`.nav-pill`，`components/AppNav.tsx` 内联 transform 定位槽位、CSS 过渡平移），各标签自身不再自绘激活背景。手机页面切换有**方向性过渡**（`styles/pagetransition.css`）：按导航层级 rank 决定方向——进更深页面从右推入、返回向右滑出；「更多」的子页（交易记录/账本/设置/回收站）统一右侧拉出。旧页由 `hooks/usePageTransition.ts` 在 hashchange/popstate 到达时抢先克隆 `#main` 做 DOM 快照参与滑出（组件不重复挂载，滚动偏移在克隆时一并记下）；**浏览器历史驱动的换页（popstate 且 hash 变化：iOS 边缘右滑、后退/前进键）不再自播动画——系统自带过渡画面，自播会双重动画**；抽屉的同址 popstate 守卫不得置该标记。桌面与 `prefers-reduced-motion` 一律不做切换动画。
 - 排序 / 交易筛选用自定义 dd 下拉（`components/ui/Dropdown.tsx`），不用原生 select。
 - 同专辑多副本分组：subgrid + `grid-column: span N`。**绝不能写 `1 / span N`**（强制换行、行尾留洞）。
-- 默认排序按买入月份时间轴（时间轴仅此用途）；按艺人分组不用时间轴；库存（任意排序、列表/卡片）、售出中、交易、在途与专辑详情均使用独立艺人按钮打开碟渡内「艺人资料抽屉」（MusicBrainz 来源的身份绑定、资料与作品目录，入口 `forms/ArtistDrawer.tsx`）；未绑定艺人由服务端后台队列自动预取（账本写入/启动触发，节流+退避，单候选自动采用；多候选用本地专辑标题与 artist-credit 反向确认，证据不能区分时才人工选择），来源外链一律新标签页打开；RYM 直达已退役，历史 `rym-links`/`rym-token` 数据仍随备份保留。
+- 默认排序按买入月份时间轴（时间轴仅此用途）；按艺人分组不用时间轴；库存（任意排序、列表/卡片）、售出中、交易、在途与专辑详情均使用独立艺人按钮打开 Obi 内「艺人资料抽屉」（MusicBrainz 来源的身份绑定、资料与作品目录，入口 `forms/ArtistDrawer.tsx`）；未绑定艺人由服务端后台队列自动预取（账本写入/启动触发，节流+退避，单候选自动采用；多候选用本地专辑标题与 artist-credit 反向确认，证据不能区分时才人工选择），来源外链一律新标签页打开；RYM 直达已退役，历史 `rym-links`/`rym-token` 数据仍随备份保留。
 - 日元价格只显示整数；人民币估算 1 位小数；卡片状态徽标用不透明深色底。
 - **每张副本一条独立记录**（不做「一专辑多库存」）；`version`（碟盒）/`pressing`（版次）/`obi`（侧标，仅日版）三字段语义不得改。
 - 实物照片存文件系统（`data/photos/<id>/`）不进 DB；缩略图点开灯箱；Esc 只关最顶层（灯箱优先于抽屉）。
@@ -96,12 +97,12 @@
 ```sh
 python3 -m unittest discover -s tests -v                                   # 后端全绿
 npm --prefix web run typecheck && npm --prefix web run build               # 前端
-DIEDU_DEV_HOME=/private/tmp/diedu-acceptance python3 tools/preview_samples.py prepare --download
-DIEDU_DEV_HOME=/private/tmp/diedu-acceptance python3 tools/preview_samples.py --port <空闲端口>
+OBI_DEV_HOME=/private/tmp/obi-acceptance python3 tools/preview_samples.py prepare --download
+OBI_DEV_HOME=/private/tmp/obi-acceptance python3 tools/preview_samples.py --port <空闲端口>
 ```
 
 - **8765 等本机常用端口可能被常驻服务占用**——验证一律用空闲端口（如 8791）+ 临时数据目录 + `--no-seed`；Docker 验证用独立端口与临时卷。
-- **后续测试统一复用固定样本库**（`tools/seed_samples.py`）：现有 21 副本覆盖国内/海外/在途/售出中/已售/回收站、日元/人民币、多副本分组、侧标、新式包装资料、成本缺失等场景，金额日期渠道均为虚构、不含个人数据。涉及专辑场景的自动测试、浏览器验收与手动测试均从这里的样本定义和初始化入口取得数据。真实封面与 3D 验收统一使用 `tools/preview_samples.py`：首次 `prepare --download`，后续直接启动同一固定开发目录；仅显式 `--rebuild` 归档后重建。素材锁为 `tools/sample-bundle.json`，启动检查 21 张封面、三个发布文档的印刷面绑定、19 份模型图片与引擎契约；缺失必须失败，不能临时补图绕过。日常预览允许固定仓库外目录；自动验收用独立 `DIEDU_DEV_HOME`。`backup/restore` 完整归档包含图片和离线素材包，JSON 不能替代图片。离线业务单测仍允许无封面，`--with-models` 仅作隔离几何测试，保留合成光栅、物理装配及账本边界覆盖。普通展示禁止合成图或相似版本填补；公开图集须标为版次参考。缺少副本、包装、照片、条码、数字实体任务或贴图场景时，先扩充此样本库及其可复用素材/初始化方法，同步更新 `tests/test_sample_library.py` 的覆盖点和必要断言，再执行验证；不得另起一套从零造数据，也不得在一次性验证脚本中临时补造贴图或发布任务来绕过样本库。测试仍在独立临时数据目录运行，不修改真实 `data/`。样本清单与各覆盖点见 `tools/seed_samples.py` 模块注释。
+- **后续测试统一复用固定样本库**（`tools/seed_samples.py`）：现有 21 副本覆盖国内/海外/在途/售出中/已售/回收站、日元/人民币、多副本分组、侧标、新式包装资料、成本缺失等场景，金额日期渠道均为虚构、不含个人数据。涉及专辑场景的自动测试、浏览器验收与手动测试均从这里的样本定义和初始化入口取得数据。真实封面与 3D 验收统一使用 `tools/preview_samples.py`：首次 `prepare --download`，后续直接启动同一固定开发目录；仅显式 `--rebuild` 归档后重建。素材锁为 `tools/sample-bundle.json`，启动检查 21 张封面、三个发布文档的印刷面绑定、19 份模型图片与引擎契约；缺失必须失败，不能临时补图绕过。日常预览允许固定仓库外目录；自动验收用独立 `OBI_DEV_HOME`。`backup/restore` 完整归档包含图片和离线素材包，JSON 不能替代图片。离线业务单测仍允许无封面，`--with-models` 仅作隔离几何测试，保留合成光栅、物理装配及账本边界覆盖。普通展示禁止合成图或相似版本填补；公开图集须标为版次参考。缺少副本、包装、照片、条码、数字实体任务或贴图场景时，先扩充此样本库及其可复用素材/初始化方法，同步更新 `tests/test_sample_library.py` 的覆盖点和必要断言，再执行验证；不得另起一套从零造数据，也不得在一次性验证脚本中临时补造贴图或发布任务来绕过样本库。测试仍在独立临时数据目录运行，不修改真实 `data/`。样本清单与各覆盖点见 `tools/seed_samples.py` 模块注释。
 - 涉及 UI 的改动必须浏览器实测：console 零报错 + 关键流程走通。
 - 截图视觉验收要等动画结束（灯箱 0.15s / 抽屉 0.22s）再判断。
 
@@ -115,7 +116,7 @@ DIEDU_DEV_HOME=/private/tmp/diedu-acceptance python3 tools/preview_samples.py --
 - **文档即真相**：`README.md`、`使用说明.md`、`部署说明.md` 与实际行为必须同步，不同步视为未完成；文档不写具体个人的域名/路径/账号。
 
 - 购买渠道模型图标：仅在新名称成功保存后异步调用 Pi CLI，无工具调用，不改用户文本；认证留在服务端 Pi 用户目录，失败可显式重试。参见 `docs/PI_SHOP_BRANDS.md`。
-- Album Engine 0.3.0 为设置中可安装/卸载的独立插件。所有 3D 模型、内容物、材质、折叠、装配、交互、镜头、素材处理、生成与发布决策只在引擎项目修改；宿主只有插件生命周期、通用挂载、窄能力、资产鉴权与 `storage.py` 事务。官方 ZIP 在 `plugins/album-engine/`，运行安装目录在用户数据内 `plugins/album-engine/<version>/`；新实例默认未安装。卸载不删除用户实体、模型、贴图或镜头参数，忙任务拒绝卸载。元数据/清单在 SQLite，二进制在 `digital-twins/` / `engine-models/` 并纳入完整目录备份。`vendor/album_data/` 与 `web/src/vendor/album-data/` 为引擎生成的纯数据导出，禁止手改；旧 `vendor/album_engine/` 仅历史工具/测试兼容，不进入运行发行包。v1 不明归属保持 2D，不自动补齐或重跑。必须验收真实安装/卸载/重启/恢复/重装及无插件的账本与 2D；详见[插件契约](docs/AlbumEngine插件.md)。
+- Album Engine 0.3.0 为设置中可安装/卸载的独立插件。所有 3D 模型、内容物、材质、折叠、装配、交互、镜头、素材处理、生成与发布决策只在引擎项目修改；宿主只有插件生命周期、通用挂载、窄能力、资产鉴权与 `storage.py` 事务。官方 ZIP 在 `plugins/album-engine/`，运行安装目录在用户数据内 `plugins/album-engine/<version>/`；新实例默认未安装。卸载不删除用户实体、模型、贴图或镜头参数，忙任务拒绝卸载。元数据/清单在 SQLite，二进制在 `digital-twins/` / `engine-models/` 并纳入完整目录备份。`vendor/album_data/` 与 `web/src/vendor/album-data/` 为引擎生成的纯数据导出，禁止手改；旧的宿主内生成管线（~~`vendor/album_engine/`~~ 与 `server/twin_*` 兼容层）已删除（D-017），生成只在插件内。v1 不明归属保持 2D，不自动补齐或重跑。必须验收真实安装/卸载/重启/恢复/重装及无插件的账本与 2D；详见[插件契约](docs/AlbumEngine插件.md)。
 
 当前 3D 模型集只对 Blender 模板尺寸保证完整装配；实测尺寸与模板不同则保留原资料并使用 2D，待引擎增加对应模型与整件净空验收后再开放 3D，不能整体缩放光盘来适配。
 
@@ -133,7 +134,7 @@ DIEDU_DEV_HOME=/private/tmp/diedu-acceptance python3 tools/preview_samples.py --
 - 启用 trading 后，按独立副本照片分析版本标识与可见品相；条码/编号经现有 MusicBrainz 客户端核对。观察必须带照片编号，版本候选不自动采用，待确认项不进入文案；不得凭照片承诺播放、读取、真伪、首版或无瑕疵。
 - 标题、正文、分析依据、人工确认与图片选择顺序保存为本副本 listingDraft，经 storage.py 的 revision 事务写入；草稿不标记上架，显式上架与草稿原子保存。照片改变后旧证据/确认失效，保留手写文案。
 - 文案只用人工确认的版本与品相；重新分析不覆盖手写正文，重新生成替换前确认。照片不在上架资料里重复展示：专辑详情「实物照片」标题右侧有下载图标，下载本副本全部照片（不再有售卖选图与排序，草稿 `photoOrder` 仅保留为默认全部）；手机直接交给系统分享面板，可“存储图像”存入相册、无需解压，桌面下载 ZIP，文件名为“艺人 - 专辑名 - 序号”（去除非法字符、各限长），保留实际文件格式，不美化瑕疵。复制文案、下载图片后由用户在闲鱼手动发布，不接入闲鱼账号或自动发布。
-- 模型只接收照片、名称与艺人。ChatGPT 授权独立于碟渡登录、Codex/Pi；仅使用官方开源 SIWC 动态注册、PKCE、loopback、签名身份校验、Responses 流。凭据在数据目录 credentials 内权限受限文件，不进账本或业务备份；服务端保留自己的 host ID。兼容 API 需显式选择，OAuth 失败不自动切换。见 D-012。
+- 模型只接收照片、名称与艺人。ChatGPT 授权独立于 Obi 登录、Codex/Pi；仅使用官方开源 SIWC 动态注册、PKCE、loopback、签名身份校验、Responses 流。凭据在数据目录 credentials 内权限受限文件，不进账本或业务备份；服务端保留自己的 host ID。兼容 API 需显式选择，OAuth 失败不自动切换。见 D-012。
 
 ### 售卖识别多服务商（2026-10-19）
 - 仅售卖辅助可保留 OpenAI ChatGPT OAuth、DeepSeek API Key、Anthropic 官方 Claude Code OAuth 与兼容 API 连接，不恢复实体生成或批量录入。模型/思考强度读取服务商目录；明确仅文字的模型不可用于照片。

@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {chromium} from 'playwright';
 
 const expectations=JSON.parse(readFileSync(process.argv[2] || '/tmp/album-preview-expectations-20261016.json','utf8'));
-const base=process.env.DIEDU_PREVIEW_URL || 'http://127.0.0.1:63282';
+const base=process.env.OBI_PREVIEW_URL || 'http://127.0.0.1:63282';
 const angle=process.platform==='darwin' ? 'metal' : 'swiftshader';
 const browser=await chromium.launch({headless:true,args:['--use-gl=angle','--use-angle='+angle,'--enable-webgl']});
 const results=[];
@@ -41,7 +41,7 @@ try {
   assert.ok((await tools.textContent()).includes(String(panels)+' 联折页'));
   await tools.getByRole('button',{name:'展开纸张'}).click();
   await page.waitForFunction(()=>Number((document.querySelector('.album-model-scene')?.dataset.paperFolds||'').split(';').find(s=>s.startsWith('reference-booklet='))?.split('=')[1])>.98,null,{timeout:30000});
-  await page.screenshot({path:'/tmp/diedu-'+(panels===6?'illinois':'lift')+'-foldout-open.png'});
+  await page.screenshot({path:'/tmp/obi-'+(panels===6?'illinois':'lift')+'-foldout-open.png'});
   assert.ok(await foldAmount()>.98,'Fully unfolded with all authored panels: '+name);
   // A direct single click on the physical unfolded paper must refold it;
   // returning the sheet is deliberately a separate visible control.

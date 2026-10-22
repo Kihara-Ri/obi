@@ -73,8 +73,6 @@ class RuntimeFacade:
 
     def start(self): self.manager.start()
     def stop(self): self.manager.stop()
-    def cancel(self, ident):
-        with self.manager.locked(): return self.manager.store.cancel_twin(ident)
 
     def __getattr__(self, name):
         def call(*args, **kwargs):
@@ -277,7 +275,7 @@ class PluginManager:
         if not installed: raise ValidationError('请先在设置中安装 Album Engine')
         if self._runtime is not None: return self._runtime
         root, manifest = installed
-        namespace = '_diedu_album_engine_' + uuid4().hex
+        namespace = '_obi_album_engine_' + uuid4().hex
         try:
             source = root / manifest['runtime']
             spec = importlib.util.spec_from_file_location(namespace, source / '__init__.py', submodule_search_locations=[str(source)])
@@ -290,19 +288,12 @@ class PluginManager:
             runtime = worker.DigitalTwinService(TaskAdapter(self.store, errors=errors), VisionAdapter(self.vision, errors=errors), CatalogAdapter(self.mb, errors=errors))
             runtime._host_errors = errors
             self._runtime, self._namespace = runtime, namespace
-            if (source / 'guided.py').is_file():
-                guided = importlib.import_module(namespace + '.guided')
-                def validated_mapping(*args):
-                    try: return guided.validated_mapping(*args)
-                    except errors.ValidationError as exc: raise ValidationError(str(exc)) from None
-                self.store.guided_selection_helpers = (guided.candidate_images, validated_mapping)
             self.facade.wake = runtime.wake
             if self._started: runtime.start()
             return runtime
         except Exception as exc:
             self._runtime = None
             self._namespace = None
-            self.store.guided_selection_helpers = None
             for key in list(sys.modules):
                 if key == namespace or key.startswith(namespace + '.'): sys.modules.pop(key, None)
             self._error = 'Album Engine 运行库无法载入，请重新安装'
@@ -329,7 +320,6 @@ class PluginManager:
     def _unload(self):
         if self._runtime is not None: self._runtime.stop()
         self._runtime = None
-        self.store.guided_selection_helpers = None
         if self._namespace:
             for key in list(sys.modules):
                 if key == self._namespace or key.startswith(self._namespace + '.'): sys.modules.pop(key, None)

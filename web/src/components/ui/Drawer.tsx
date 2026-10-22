@@ -2,6 +2,7 @@
 // 手机上是底部 sheet：进入自屏底滑入；按住头部（抓手/标题区）下拉，松手超过阈值
 // 或快速下滑即收回，否则回弹。未保存关闭会先弹确认（脏标记由表单经 AppCtx.setDrawerDirty 设置）。
 import {useEffect, useLayoutEffect, useRef, useState} from 'react';
+import {flushSync} from 'react-dom';
 import type {DrawerSpec} from '../../state/AppContext';
 import {ChevLeftIco} from '../icons';
 
@@ -402,16 +403,22 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
       if (other) { play(other, [resting, receded], MOTION.sheet); dim(other, 0, MOTION.recede.dim, MOTION.sheet); }
     }
     let live = true;
-    const cleanup = () => {
+    const cleanup = (settled = false) => {
       if (!live) return;
       live = false;
+      // 动画自然结束：先同步卸载离场页，再取消动画。反过来的话，取消的瞬间离场页回到原位，
+      // 要等 React 下一次渲染才被移走，中间多画一帧 = 「动画完成后闪一下」
+      if (settled) flushSync(() => setLeaving(null));
       anims.forEach(a => a.cancel());
       extras.forEach(n => n.remove());
       [top, other].forEach(n => { if (n) { n.classList.remove('edge', 'edge-top', 'is-animating'); n.style.zIndex = ''; } });
-      setLeaving(null);
+      if (!settled) setLeaving(null);
     };
-    void Promise.all(anims.map(a => a.finished)).then(cleanup, cleanup);
-    return cleanup;
+    const settle = () => cleanup(true);
+    void Promise.all(anims.map(a => a.finished)).then(settle, settle);
+    // 兜底：动画被系统挂起（切后台、省电）时 finished 迟迟不来，页面会停在半途；到点强制收尾
+    const guard = window.setTimeout(settle, Math.max(MOTION.push, MOTION.sheet, MOTION.pop, MOTION.unsheet) + 400);
+    return () => { window.clearTimeout(guard); cleanup(); };
   }, [pageKey]);
 
   // —— 页面栈 → 稳定的层 id ——

@@ -3,7 +3,6 @@ import io
 import json
 import os
 from pathlib import Path
-import ast
 import subprocess
 import tarfile
 import tempfile
@@ -45,18 +44,15 @@ class UpdateTests(unittest.TestCase):
         with self.assertRaises(ValueError):updater.choose_patch(releases, 'dev')
 
     def test_package_roots_cover_every_packaged_root_module(self):
-        # package_app.py 打包的每个根级 .py 模块都必须在 PACKAGE_ROOTS 里，
-        # 否则旧校验器会拒收新包、自动补丁更新一直失败（v2.4.2 实际发生过）。
-        source = (Path(updater.__file__).resolve().parent / 'package_app.py').read_text()
-        modules = set()
-        for node in ast.walk(ast.parse(source)):
-            if isinstance(node, ast.Assign) and any(
-                    getattr(t, 'id', None) == 'files' for t in node.targets):
-                modules |= {sub.value for sub in ast.walk(node.value)
-                            if isinstance(sub, ast.Constant) and isinstance(sub.value, str)
-                            and sub.value.endswith('.py') and '/' not in sub.value}
-        self.assertTrue({'app.py', 'musicbrainz.py'} <= modules)
-        self.assertLessEqual(modules, updater.PACKAGE_ROOTS)
+        # package_app.manifest() 打包的每个顶层条目（根级 .py 与目录）都必须在 PACKAGE_ROOTS 里，
+        # 否则旧校验器会拒收新包、自动补丁更新一直失败（v2.4.2 实际发生过；I-009）。
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('package_app', Path(updater.__file__).resolve().parent / 'package_app.py')
+        package_app = importlib.util.module_from_spec(spec); spec.loader.exec_module(package_app)
+        root = package_app.root
+        tops = {path.relative_to(root).parts[0] for path in package_app.manifest()}
+        self.assertTrue({'app.py', 'musicbrainz.py', 'vendor', 'plugins'} <= tops)
+        self.assertLessEqual(tops, updater.PACKAGE_ROOTS)
 
     def test_missing_or_foreign_assets_are_rejected(self):
         item = release('v2.1.2'); item['assets'].pop()
@@ -85,7 +81,7 @@ class UpdateTests(unittest.TestCase):
             responses=[json.dumps([release('v2.1.2')]).encode(),
                        ('0'*64+'  '+updater.PACKAGE).encode(), package('v2.1.2')]
             with patch.object(updater,'download',side_effect=responses), patch.object(updater.subprocess,'run') as run:
-                with self.assertRaises(ValueError):updater.install_patch(base,'example/ledger','diedu',8765)
+                with self.assertRaises(ValueError):updater.install_patch(base,'example/ledger','obi',8765)
                 run.assert_not_called()
             self.assertEqual((base/'current'/'VERSION').read_text(),'v2.1.1')
 
@@ -105,14 +101,14 @@ class UpdateTests(unittest.TestCase):
                 self.assertEqual(Path(env['PACKAGE_PATH']).read_bytes(),raw)
                 return subprocess.CompletedProcess(command,0)
             with patch.object(updater,'download',side_effect=responses), patch.object(updater.subprocess,'run',side_effect=deploy) as run:
-                self.assertTrue(updater.install_patch(base,'example/ledger','diedu',8765))
+                self.assertTrue(updater.install_patch(base,'example/ledger','obi',8765))
                 self.assertEqual(run.call_count,1)
 
     def test_check_does_not_download_or_deploy(self):
         with tempfile.TemporaryDirectory() as folder:
             base=Path(folder);(base/'current').mkdir();(base/'current'/'VERSION').write_text('v2.1.1')
             with patch.object(updater,'download',return_value=json.dumps([release('v2.1.2')]).encode()) as download, patch.object(updater.subprocess,'run') as run:
-                self.assertTrue(updater.install_patch(base,'example/ledger','diedu',8765,check=True))
+                self.assertTrue(updater.install_patch(base,'example/ledger','obi',8765,check=True))
                 self.assertEqual(download.call_count,1);run.assert_not_called()
 
 

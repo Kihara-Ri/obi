@@ -13,14 +13,14 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class EngineRuntimeTests(unittest.TestCase):
-    def test_vendored_runtime_imports_without_host_modules(self):
-        code = "from album_engine import compile_document, validate_document; from album_engine.worker import DigitalTwinService; from album_engine.contracts import clean_entity"
+    def test_data_codec_imports_without_host_modules(self):
+        code = "from album_data import compile_document, validate_document, prepare_publication; from album_data.contracts import clean_entity"
         with tempfile.TemporaryDirectory() as directory:
             result = subprocess.run([sys.executable, '-I', '-c',
                 "import sys; sys.path.insert(0," + repr(str(ROOT / 'vendor')) + "); " + code],
                 cwd=directory, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
-        for path in (ROOT / 'vendor/album_engine').rglob('*.py'):
+        for path in (ROOT / 'vendor/album_data').rglob('*.py'):
             tree = ast.parse(path.read_text())
             for node in ast.walk(tree):
                 if isinstance(node, ast.ImportFrom) and node.level == 0:
@@ -29,7 +29,7 @@ class EngineRuntimeTests(unittest.TestCase):
 
     def test_fixed_sample_publication_contains_valid_document_and_calibration_recompiles(self):
         from tools.seed_samples import seed_models, open_store
-        from vendor.album_engine import validate_document
+        from vendor.album_data import validate_document
         with tempfile.TemporaryDirectory() as directory:
             ids = seed_models(directory)
             store = open_store(directory)
@@ -47,7 +47,7 @@ class EngineRuntimeTests(unittest.TestCase):
 
     def test_accessory_update_rebuilds_same_document_without_changing_case(self):
         from tools.seed_samples import seed_models, open_store
-        from vendor.album_engine import validate_document
+        from vendor.album_data import validate_document
         with tempfile.TemporaryDirectory() as directory:
             ids = seed_models(directory); store = open_store(directory)
             before = store.twin_index()['jobs'][ids['lift-fists']]
@@ -107,22 +107,19 @@ class EngineRuntimeTests(unittest.TestCase):
             legacy.pop('document')
             source = legacy['components'][0]
             raw = store.twin_source(ident, source['asset']).read_bytes()
-            for operation in ('disc', 'spine', 'accessories'):
+            for operation in ('disc', 'accessories'):
                 with self.subTest(operation=operation):
                     store.restore_backup(copy.deepcopy(backup))
                     self.assertNotIn('document',store.twin_index()['jobs'][rid]['entity'])
                     if operation == 'disc':
                         result = store.set_twin_disc_calibration({'id':ident,'role':'disc','calibration':calibration})
-                    elif operation == 'spine':
-                        result = store.set_twin_spine_surface({'id':ident,'sourceRole':'front','region':[.01,.01,.03,.01,.03,.99,.01,.99]})
                     else:
                         result = store.set_twin_accessories(ident,[{'id':source['id'],'kind':source['kind'],'sourceId':'saved'}],{'saved':(source,raw)})
                     self.assertNotIn('document',result['job']['entity'])
                     self.assertNotIn('document',store.backup()['settings'][TWIN_KEY]['jobs'][ident]['entity'])
 
     def test_worker_receives_only_narrow_vision_capabilities(self):
-        from server.digital_twins import DigitalTwinService
-        from tools.seed_samples import seed, open_store
+        from server.album_engine_adapter import VisionAdapter
         class HostVision:
             def __init__(self):
                 self.store = object(); self.covers = object(); self.mb = object()
@@ -132,28 +129,27 @@ class EngineRuntimeTests(unittest.TestCase):
                 self.calls.append((system,prompt,images))
                 if on_start: on_start()
                 return {'ok':True}
-        with tempfile.TemporaryDirectory() as directory:
-            seed(directory); store=open_store(directory); host=HostVision()
-            service=DigitalTwinService(store,host,object())
-            self.assertIsNot(service.vision,host)
-            self.assertEqual(service.vision.public_config(),{'configured':True})
-            for name in ('store','config','covers','mb','__dict__'):
-                self.assertFalse(hasattr(service.vision,name),name)
-            started=[]
-            result=service.vision.agent_json('system','prompt',['image'],on_start=lambda:started.append(True))
-            self.assertEqual(result,{'ok':True}); self.assertEqual(started,[True])
-            self.assertEqual(host.calls,[('system','prompt',['image'])])
-            host.agent_json = lambda *args,**kwargs: {'updated':True}
-            self.assertEqual(service.vision.agent_json('system','next'),{'updated':True})
+        host = HostVision(); vision = VisionAdapter(host)
+        self.assertEqual(vision.public_config(),{'configured':True})
+        for name in ('store','config','covers','mb','__dict__'):
+            self.assertFalse(hasattr(vision,name),name)
+        started=[]
+        result=vision.agent_json('system','prompt',['image'],on_start=lambda:started.append(True))
+        self.assertEqual(result,{'ok':True}); self.assertEqual(started,[True])
+        self.assertEqual(host.calls,[('system','prompt',['image'])])
+        host.agent_json = lambda *args,**kwargs: {'updated':True}
+        self.assertEqual(vision.agent_json('system','next'),{'updated':True})
+        self.assertEqual(VisionAdapter().public_config(),{'configured':False})
 
     def test_shared_contract_is_packaged(self):
-        contract = json.loads((ROOT / 'vendor/album_engine/model-set.json').read_text())
+        codec = ROOT / 'vendor/album_data'
+        contract = json.loads((codec / 'model-set.json').read_text())
         self.assertEqual(contract['modelSet'], 'album-rig-1')
         self.assertTrue(contract['models'])
-        schema = json.loads((ROOT/'vendor/album_engine/album-document-v2.schema.json').read_text())
+        schema = json.loads((codec / 'album-document-v2.schema.json').read_text())
         self.assertEqual(schema['properties']['schemaVersion']['const'], 2)
-        manifest = json.loads((ROOT / 'vendor/album_engine/runtime-manifest.json').read_text())
+        manifest = json.loads((codec / 'data-codec-manifest.json').read_text())
         self.assertEqual(manifest['schemaVersion'], 2)
         self.assertEqual(manifest['modelSet'], contract['modelSet'])
         for relative, expected in manifest['sha256'].items():
-            self.assertEqual(hashlib.sha256((ROOT/'vendor/album_engine'/relative).read_bytes()).hexdigest(), expected, relative)
+            self.assertEqual(hashlib.sha256((codec / relative).read_bytes()).hexdigest(), expected, relative)

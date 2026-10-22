@@ -3,6 +3,7 @@
 Only new purchase channels are queued, after successful record persistence.
 Never modify the user's entered shop name based on an LLM guess.
 """
+from contextlib import closing
 import hashlib
 import json
 import os
@@ -102,7 +103,7 @@ class GoogleIconRedirect(HTTPRedirectHandler):
 def favicon(domain):
     """Fetch only through fixed Google Favicon service, not from model-supplied URLs."""
     url = 'https://www.google.com/s2/favicons?' + urlencode({'domain': domain, 'sz': '64'})
-    req = Request(url, headers={'User-Agent': 'Diedu/2.9 personal local library'})
+    req = Request(url, headers={'User-Agent': 'Obi/2.9 personal local library'})
     with build_opener(GoogleIconRedirect()).open(req, timeout=10) as response:
         body = response.read(65537)
     if len(body) > 65536 or not body.startswith(b'\x89PNG\r\n\x1a\n'):
@@ -117,7 +118,7 @@ class ShopBrandService:
         self.lock = threading.Lock()
         self.pending = set()
         # A restart can interrupt an asynchronous model call; make stale jobs retryable.
-        with self.store.connect() as db, db:
+        with closing(self.store.connect()) as db, db:
             cache = self.store.meta_get(db, CACHE_KEY) or {}
             changed = False
             for item in cache.values():
@@ -129,12 +130,12 @@ class ShopBrandService:
                            (CACHE_KEY, json.dumps(cache, ensure_ascii=False)))
 
     def index(self):
-        with self.store.connect() as db:
+        with closing(self.store.connect()) as db, db:
             return self.store.meta_get(db, CACHE_KEY) or {}
 
     def _update(self, name, value):
         key = normalize(name)
-        with self.store.connect() as db, db:
+        with closing(self.store.connect()) as db, db:
             db.execute('BEGIN IMMEDIATE')
             items = self.store.meta_get(db, CACHE_KEY) or {}
             items[key] = value

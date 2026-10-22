@@ -230,8 +230,6 @@ class EnginePluginTests(unittest.TestCase):
             self.assertEqual(self.store.twin_index()['jobs'][rid]['models'], models)
         verify(job)
         verify(self.store.set_twin_accessories(ident, [], {})['job'])
-        verify(self.store.set_twin_spine_surface({'id':ident,'sourceRole':'front',
-            'region':[.01,.01,.03,.01,.03,.99,.01,.99]})['job'])
         verify(self.store.set_twin_disc_calibration({'id':ident,'role':'disc',
             'calibration':{'source':'manual','outer':{'cx':.5,'cy':.5,'rx':.4,'ry':.4,'angle':0}}})['job'])
         record = next(r for r in self.store.state()['records'] if r['id'] == rid)
@@ -252,7 +250,7 @@ class EnginePluginTests(unittest.TestCase):
         self.addCleanup(shipped.stop)
         self.assertTrue(shipped.status()['available'], 'shipped official catalog must be packaged')
         shipped.install()
-        self.assertIn('_diedu_album_engine_', type(shipped.service()).__module__)
+        self.assertIn('_obi_album_engine_', type(shipped.service()).__module__)
         jobs = self.store.twin_index()['jobs']
         models = {job['id']:job['models'] for job in jobs.values()}
         self.assertTrue(all(len(model['files']) >= 10 for model in models.values()))
@@ -272,6 +270,26 @@ class EnginePluginTests(unittest.TestCase):
         self.assertEqual({job['id']:job['models'] for job in self.store.twin_index()['jobs'].values()},models)
         for (ident,name),digest in original.items():
             self.assertEqual(hashlib.sha256(self.store.published_twin_model_asset(ident,name).read_bytes()).hexdigest(),digest)
+
+    def test_shipped_runtime_edits_published_accessories_through_host_transactions(self):
+        """生产路径：/api/twins/accessories 与 /api/twin-source-preview/ 经真实插件 runtime 调用宿主事务。"""
+        shipped = PluginManager(self.store, self.vision, Mock())
+        self.addCleanup(shipped.stop)
+        shipped.install()
+        rid = self.ids['lift-fists']
+        job = self.store.twin_index()['jobs'][rid]
+        record = next(r for r in self.store.state()['records'] if r['id'] == rid)
+        updated = shipped.facade.update_accessories({'id':job['id'],'components':[{'kind':'obi','sourceId':'photo:2'}]})['job']
+        self.assertEqual(updated['status'],'succeeded')
+        self.assertEqual(updated['entity']['surfaces'],job['entity']['surfaces'])
+        self.assertEqual(updated['models'],job['models'])
+        self.assertEqual([c['kind'] for c in updated['entity']['components']],['obi'])
+        self.assertEqual(next(r for r in self.store.state()['records'] if r['id'] == rid),record)
+        with self.assertRaises(ValidationError):
+            shipped.facade.update_accessories({'id':job['id'],'components':[{'kind':'obi','sourceId':'https://not-verified.invalid'}]})
+        self.assertEqual(self.store.twin_index()['jobs'][rid]['entity']['components'],updated['entity']['components'])
+        # 合成样本没有确认过的图集：预览被插件拒绝，并翻译为宿主的 ValidationError（HTTP 400）。
+        with self.assertRaises(ValidationError): shipped.facade.guided_image(job['id'],0)
 
     def test_upgrade_keeps_previous_job_model_hashes_and_scopes_modules_by_version(self):
         self.manager.install()
@@ -343,7 +361,7 @@ class EnginePluginTests(unittest.TestCase):
 
     def test_build_without_plugin_has_core_services_and_no_engine_import(self):
         import subprocess, sys
-        script = 'import app,sys,tempfile; s=app.build(tempfile.mkdtemp()); assert not s.plugins.status()["installed"]; assert not any(n.startswith("vendor.album_engine") for n in sys.modules); assert s.catalog_art; s.releases.close()'
+        script = 'import app,sys,tempfile; s=app.build(tempfile.mkdtemp()); assert not s.plugins.status()["installed"]; assert not any(n.startswith("_obi_album_engine_") for n in sys.modules); assert s.catalog_art; s.releases.close()'
         subprocess.run([sys.executable,'-W','ignore::ResourceWarning','-c',script],check=True,capture_output=True)
 
     def test_authentication_and_csrf_cover_install_assets_and_uninstall(self):

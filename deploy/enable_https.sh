@@ -3,8 +3,8 @@
 # 使用前把 DOMAIN 换成你的域名、APPSITE 换成 nginx 站点文件名；ACME_WEBROOT 与 nginx 配置保持一致。
 set -eu
 DOMAIN=your.domain
-APPSITE=diedu
-ACME_WEBROOT=/var/www/diedu-acme
+APPSITE=obi
+ACME_WEBROOT=/var/www/obi-acme
 
 # 可选校验：域名应解析到某台你控制的同入口主机（取消注释并填入参照域名）
 # python3 - <<'PY'

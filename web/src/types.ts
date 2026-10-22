@@ -221,6 +221,7 @@ export interface Shipment {
 }
 
 export interface AuditEntry {
+  id: number;
   at: string;
   action: string;
 }
@@ -234,7 +235,6 @@ export interface BackupStatus {
 export interface AppState {
   format: 'album-ledger';
   schema: number;
-  createdAt: string;
   records: AlbumRecord[];
   sales: Sale[];
   shipments: Shipment[];
@@ -261,11 +261,6 @@ export interface BackupFile {
   sales: Sale[];
   shipments?: Shipment[];
 }
-
-export const STATUS_NAMES: Record<Status, string> = {
-  overseas: '海外库存', transit: '海外在途', domestic: '国内库存',
-  shipping: '售出中', sold: '已售出', trash: '回收站',
-};
 
 export const SALE_NAMES: Record<SaleStatus, string> = {
   shipping: '售出中', complete: '已售出', cancelled: '已撤销',

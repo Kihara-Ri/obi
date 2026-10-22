@@ -63,7 +63,7 @@ export interface ArtistProfileProps {
   gate: ArtworkGate;
 }
 
-// ── 封面：优先已确认关联的本地副本封面，否则按需加载碟渡 artwork API ──
+// ── 封面：优先已确认关联的本地副本封面，否则按需加载 Obi artwork API ──
 export interface ArtworkGate {
   acquire(run: () => void): void;
   release(): void;

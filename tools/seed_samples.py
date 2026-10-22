@@ -5,10 +5,10 @@
 场景缺口先扩本样本库、可复用素材/初始化方法及 tests/test_sample_library.py，
 再运行验证。不要另造测试专辑，也不要在一次性脚本中临时补造贴图或发布任务。
 
-    python3 tools/seed_samples.py --data-dir /tmp/diedu-samples --fetch-covers
-    python3 tools/seed_samples.py --data-dir /tmp/diedu-samples --fetch-covers --with-reference-models
+    python3 tools/seed_samples.py --data-dir /tmp/obi-samples --fetch-covers
+    python3 tools/seed_samples.py --data-dir /tmp/obi-samples --fetch-covers --with-reference-models
     python3 tools/seed_samples.py --export-engine-fixtures /tmp/album-engine-fixtures
-    python3 app.py --port 8791 --data-dir /tmp/diedu-samples --no-seed
+    python3 app.py --port 8791 --data-dir /tmp/obi-samples --no-seed
 
 脱敏边界：样本骨架取自真实收藏的结构特征（日版/侧标、多副本、日元/人民币、
 在途/售出中/已售/回收站、新式包装资料），但金额、日期、渠道、订单号、备注、
@@ -33,6 +33,7 @@
 既有事务方法（save/bulk/ship/sell/sale_action/change_showcase_groups），
 汇率用内置假汇率（离线确定值），不发网络请求。
 """
+from contextlib import closing
 import argparse
 import base64
 import json
@@ -244,7 +245,7 @@ def seed(data_dir):
                                   'recordIds': [ids['parachutes'], ids['tasogare'],
                                                 ids['loveless']]})
 
-    with store.connect() as db:
+    with closing(store.connect()) as db, db:
         db.execute("INSERT OR REPLACE INTO meta VALUES('sample-seeded','true')")
     return ids
 
@@ -258,7 +259,7 @@ def seed_listing_photos(data_dir):
     ids = seed(data_dir)
     store = open_store(data_dir)
     rid = ids['lift-fists']
-    with store.connect() as db:
+    with closing(store.connect()) as db, db:
         record = store.get(db, 'records', rid)
     if not record.get('photoCount'):
         store.save({'id': rid, 'revision': record['revision'], 'photos': [
@@ -284,7 +285,7 @@ def seed_listing_reference_photos(data_dir):
         if surface.get('origin') != 'edition-reference': raise ValueError('只允许已核验的真实版次参考图集')
         raw = store.path.parent.joinpath('digital-twins', job['id'], surface['asset']).read_bytes()
         photos.append('data:image/jpeg;base64,' + base64.b64encode(raw).decode())
-    with store.connect() as db: record = store.get(db, 'records', rid)
+    with closing(store.connect()) as db, db: record = store.get(db, 'records', rid)
     if record.get('photoCount'): return ids
     store.save({'id': rid, 'revision': record['revision'], 'photos': photos,
                 'note': '界面验收：照片为已核验发行版的公开参考图集，不是本副本实拍，不能作为售卖品相证据。'})
@@ -438,7 +439,7 @@ def engine_model_variants():
 
     These are geometry fixtures, not additional ledger copies or edition evidence.
     """
-    from vendor.album_engine.document import model_contract, compile_document
+    from vendor.album_data.document import model_contract, compile_document
     variants = []
     for name in model_contract()['models']:
         if name.startswith(('jewel', 'slimline')):
@@ -507,13 +508,6 @@ def export_engine_fixtures(directory):
     return entities
 
 
-def model_sample_catalog_artwork(key, job):
-    """Offline browser catalog response, explicitly synthetic, never source evidence."""
-    return {'id': MODEL_SAMPLE_RELEASES[key], 'source': 'synthetic-sample', 'artwork': [
-        {'id': 'synthetic-scan', 'types': ['合成测试图（非发行版证据）'],
-         'thumbnail': '/api/twin-assets/' + job['id'] + '/photo-0.png'}]}
-
-
 def seed_models(data_dir):
     """只给固定样本发布离线合成模型；默认 seed 不生成任务，重复调用幂等。"""
     ids = seed(data_dir)
@@ -558,9 +552,6 @@ def seed_models(data_dir):
         store.update_twin(job['id'], claimed['claim'], status='succeeded', phase='published',
                           message='合成模型样本：仅用于动画验收，未核对实物发行版',
                           releaseId=MODEL_SAMPLE_RELEASES[key], entity=entity)
-    jobs = store.twin_index()['jobs']
-    artwork = {MODEL_SAMPLE_RELEASES[key]: model_sample_catalog_artwork(key, jobs[ids[key]]) for key in MODEL_SAMPLES}
-    (Path(data_dir) / 'sample-catalog-artwork.json').write_text(json.dumps(artwork, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     return ids
 
 

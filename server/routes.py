@@ -3,6 +3,7 @@
 GET 处理函数签名 fn(h, svc)；POST 为 fn(h, svc, body)。
 h 提供 send()/query；svc 是注入的服务集合（见 context.Services）。
 """
+from contextlib import closing
 import datetime
 import hashlib
 import base64
@@ -15,6 +16,7 @@ from domain import ValidationError, clean_start_page
 from storage import SCHEMA
 from . import export_csv
 from .artists import SourceUnavailableError
+from .state_sync import send_state
 from .version import uptime, version
 from .listing_routes import (api_listing_status, api_listing_analyze, api_listing_job,
     api_listing_draft, api_listing_photos, api_listing_login, api_listing_disconnect,
@@ -42,7 +44,7 @@ def query(h):
 def api_health(h, svc):
     """存活与版本探测：部署脚本和外部监控用，免登录，只暴露运行状态不暴露数据。"""
     try:
-        with svc.store.connect() as db:
+        with closing(svc.store.connect()) as db, db:
             db.execute('SELECT 1').fetchone()
     except Exception:
         return h.send({'ok': False, 'version': version(), 'error': 'database unavailable'}, 503)
@@ -53,7 +55,7 @@ def api_state(h, svc):
     state = svc.store.state()
     state['service'] = {'login': bool(svc.auth), 'version': version(),
                         'backup': svc.backups.status() if svc.backups else {}}
-    h.send(state)
+    send_state(h, state)
 
 
 def api_shop_brands(h, svc):
@@ -65,7 +67,7 @@ def api_shop_retry(h, svc, body):
     if not svc.shops: raise ValidationError('商家图标服务不可用')
     name = str(body.get('name', '')).strip()
     from .shop_brands import normalize
-    with svc.store.connect() as db:
+    with closing(svc.store.connect()) as db, db:
         known = any(normalize(r.get('location', '')) == normalize(name)
                     for r in svc.store.rows(db, 'records'))
     if not known: raise ValidationError('请先保存该购买渠道')
@@ -160,7 +162,7 @@ def api_covers_download(h, svc, body):
 
 # ── 艺人资料与作品目录：外网请求不持有写锁，storage 写入由服务内部短锁串行 ──
 def artists(svc):
-    if svc.artists is None: raise ValidationError('艺人资料服务未启动，请重启碟渡')
+    if svc.artists is None: raise ValidationError('艺人资料服务未启动，请重启 Obi')
     return svc.artists
 
 
@@ -245,7 +247,7 @@ def api_records(h, svc, body):
     proposed = {str(item.get('location', '')).strip() for item in incoming if isinstance(item, dict)}
     proposed.discard('')
     from .shop_brands import normalize
-    with svc.store.connect() as db:
+    with closing(svc.store.connect()) as db, db:
         recorded = {normalize(r.get('location', '')) for r in svc.store.rows(db, 'records')}
     for item in incoming:
         if not isinstance(item, dict): continue
@@ -257,7 +259,7 @@ def api_records(h, svc, body):
         manual = info.get('manualRelease') == '1' and not new_edition
         old_barcode = old_edition = ''
         if item.get('id'):
-            with svc.store.connect() as db:
+            with closing(svc.store.connect()) as db, db:
                 previous = svc.store.get(db, 'records', item['id'])
             previous_info = previous.get('releaseInfo') or {}
             old_barcode = previous_info.get('barcode') or ''
@@ -306,7 +308,7 @@ def api_showcase_groups(h, svc, body): h.send(svc.store.change_showcase_groups(b
 
 
 def releases(svc):
-    if svc.releases is None: raise ValidationError('发行资料服务未启动，请重启碟渡')
+    if svc.releases is None: raise ValidationError('发行资料服务未启动，请重启 Obi')
     return svc.releases
 
 
@@ -417,33 +419,10 @@ def catalog_art(svc):
     return getattr(svc, 'catalog_art', None) or twins(svc).art
 
 
-def api_release_artwork(h, svc):
-    """Selected edition's CAA artwork metadata; never search other releases by title."""
-    from twins import UUID
-    from server.catalog_art import ArtNotFound
-    ident = query(h).get('id', '')
-    if not isinstance(ident, str) or not UUID.fullmatch(ident):
-        raise ValidationError('发行版本编号不正确')
-    try:
-        catalog = catalog_art(svc).catalog(ident)
-    except ArtNotFound:
-        return h.send({'id': ident, 'artwork': []})
-    artwork = []
-    for item in catalog.get('images', [])[:40]:
-        if not isinstance(item, dict) or not str(item.get('id', '')).isdigit(): continue
-        thumbs = item.get('thumbnails') or {}
-        url = thumbs.get('small') or thumbs.get('250') or item.get('image') or ''
-        if not isinstance(url, str) or not url.startswith('https://'): url = ''
-        artwork.append({'id': str(item['id']), 'types': item.get('types', []),
-                        'thumbnail': url})
-    h.send({'id': ident, 'artwork': artwork})
-
-
 def api_release_front_cover(h, svc):
     """Use ONLY the front of the confirmed MB release, not title-matched unrelated editions."""
     from twins import UUID, image_type
     from server.catalog_art import ArtNotFound
-    import base64
     ident = query(h).get('id', '')
     if not isinstance(ident, str) or not UUID.fullmatch(ident):
         raise ValidationError('发行版本编号不正确')
@@ -485,7 +464,7 @@ def api_twin_model_asset(h, svc):
 
 
 def twins(svc):
-    if svc.twins is None: raise ValidationError('数字实体服务未启动，请重启碟渡')
+    if svc.twins is None: raise ValidationError('数字实体服务未启动，请重启 Obi')
     return svc.twins
 
 
@@ -496,9 +475,6 @@ def api_twin_accessories(h, svc, body): h.send(twins(svc).update_accessories(bod
 def api_twin_disc_calibration(h, svc, body):
     if getattr(svc, 'plugins', None): svc.plugins.service()
     h.send(svc.store.set_twin_disc_calibration(body))
-def api_twin_spine(h, svc, body):
-    if getattr(svc, 'plugins', None): svc.plugins.service()
-    h.send(svc.store.set_twin_spine_surface(body))
 
 def api_twin_review_asset(h, svc):
     parts = urlsplit(h.path).path.split('/')
@@ -539,11 +515,9 @@ GET = {
     '/api/artists/catalog': api_artists_catalog,
     '/api/export': api_export,
     '/api/release-details': api_release,
-    '/api/catalog/artwork': api_release_artwork,
     '/api/catalog/front-cover': api_release_front_cover,
     '/api/plugins/album-engine': api_engine_plugin,
     '/api/twins': api_twins,
-    '/api/twin-source-preview/': api_twin_source_preview,
 }
 PUBLIC_GET = {  # 免登录（监控与部署探测）
     '/api/health',
@@ -557,6 +531,7 @@ GET_PREFIX = {  # 带路径参数的接口
     '/api/twin-model-assets/': api_twin_model_asset,
     '/api/twin-assets/': api_twin_asset,
     '/api/twin-review-assets/': api_twin_review_asset,
+    '/api/twin-source-preview/': api_twin_source_preview,
 }
 GET.update({'/api/listing/status': api_listing_status, '/api/listing/job': api_listing_job,
             '/api/listing/photos': api_listing_photos, '/api/listing/models': api_listing_models})
@@ -603,7 +578,6 @@ POST = {
     '/api/plugins/album-engine/uninstall': (api_engine_uninstall, True, True),
     '/api/twins/accessories': (api_twin_accessories, True, True),
     '/api/twins/disc-calibration': (api_twin_disc_calibration, True, True),
-    '/api/twins/spine': (api_twin_spine, True, True),
 }
 
 # 允许跨站（外部页面）调用的写接口；当前为空，保留豁免管线供未来令牌鉴权回调使用

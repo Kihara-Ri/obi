@@ -35,6 +35,17 @@ class StarterAlbumsTests(unittest.TestCase):
             self.assertEqual(r['price'], '')  # 成本未知保持 null 语义，不写 0
             self.assertEqual(r['date'], '')
 
+    def test_seeded_instance_still_shows_module_setup(self):
+        seed_starter(self.store)
+        self.assertTrue(self.store.state()['modules']['needsSetup'])
+        self.store.set_modules(dict(acquisition=False, trading=False, circulation=False, showcase=True))
+        self.assertFalse(self.store.state()['modules']['needsSetup'])
+
+    def test_existing_data_does_not_trigger_setup(self):
+        self.store.save({'items': [{'title': '已有专辑', 'artist': '某艺人', 'currency': 'CNY'}]})
+        seed_starter(self.store)
+        self.assertFalse(self.store.state()['modules']['needsSetup'])
+
     def test_runs_only_once(self):
         seed_starter(self.store)
         self.assertEqual(seed_starter(self.store), 0)

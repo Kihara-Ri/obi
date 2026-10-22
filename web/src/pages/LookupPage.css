@@ -2,7 +2,8 @@
 .lookup-form{display:flex;gap:8px}
 .lookup-form input{flex:1;min-width:0}
 .lookup-recent{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:var(--faint)}
-.lookup-recent .chip{padding:4px 10px;border:1px solid var(--border);border-radius:999px;background:var(--surface-2);font-size:12px}
+.lookup-recent{min-width:0;max-width:100%}
+.lookup-recent .chip{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:4px 10px;border:1px solid var(--border);border-radius:999px;background:var(--surface-2);font-size:12px}
 .lookup-recent .quiet{font-size:12px;color:var(--faint);text-decoration:underline}
 .lookup-msg{font-size:13px;color:var(--muted)}
 .lookup-msg.is-error{color:var(--red)}

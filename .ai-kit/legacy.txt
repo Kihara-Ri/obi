@@ -1,4 +1,3 @@
-web/src/App.tsx
 web/src/components/AlbumEngineSettings.tsx
 web/src/components/AlbumFlipCard.tsx
 web/src/components/AlbumModel.tsx
@@ -16,7 +15,6 @@ web/src/components/GalleryStage.tsx
 web/src/components/GalleryWall.tsx
 web/src/components/MetalBackCanvas.tsx
 web/src/components/ModuleChooser.tsx
-web/src/components/PackagingEditor.tsx
 web/src/components/ReleaseMetadataFields.tsx
 web/src/components/Tracklist.tsx
 web/src/components/TwinAccessoriesEditor.tsx
@@ -55,7 +53,6 @@ web/src/styles/gallery.css
 web/src/styles/layout.css
 web/src/styles/login.css
 web/src/styles/more.css
-web/src/styles/packaging-editor.css
 web/src/styles/pagetransition.css
 web/src/styles/photos.css
 web/src/styles/sales.css

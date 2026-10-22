@@ -15,7 +15,6 @@ import './styles/more.css';
 import './styles/drawer.css';
 import './styles/photos.css';
 import './styles/tracklist.css';
-import './styles/packaging-editor.css';
 import './styles/artists.css';
 import './styles/artist-entry.css';
 import './styles/gallery.css';
@@ -37,12 +36,16 @@ import './styles/login.css';
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App';
+import {ensureBackend} from './core/backend';
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App/>
-  </StrictMode>,
-);
+// 静态站点要先启动本机引擎；服务器部署 ensureBackend 立即返回，渲染时机不变
+ensureBackend().then(() => {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <App/>
+    </StrictMode>,
+  );
+}).catch(() => { /* 原因已显示在启动页 */ });
 
 // iOS Safari 无视 viewport 的 user-scalable=no，双指缩放只能靠拦 gesturestart（WebKit 私有事件）；
 // 缩放会让布局错位、fixed 抽屉抽搐。灯箱的捏合缩放走 pointer 事件，不受影响

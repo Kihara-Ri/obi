@@ -6,7 +6,7 @@ import {chromium} from 'playwright';
 
 const base = process.env.LISTING_ACCEPTANCE_URL;
 assert.match(base || '', /^http:\/\/127\.0\.0\.1:\d+$/u, '只允许隔离本机验收服务');
-const output = process.env.DIEDU_PREVIEW_SCREENSHOTS || '/tmp/diedu-listing-browser';
+const output = process.env.OBI_PREVIEW_SCREENSHOTS || '/tmp/obi-listing-browser';
 await mkdir(output, {recursive: true});
 const browser = await chromium.launch({headless: true});
 const context = await browser.newContext({viewport: {width: 1280, height: 900}, permissions: ['clipboard-read', 'clipboard-write']});
@@ -27,43 +27,58 @@ const openFrom = async tab => {
 };
 const open = () => openFrom(page);
 try {
-  await page.goto(base + '/#settings');
-  await page.getByRole('button', {name: '高级', exact: true}).click();
-  const provider = page.getByRole('combobox', {name: /^识别通道：/u});
-  const pickProvider = async name => {
-    await provider.click();
-    await page.getByRole('option', {name, exact: true}).click();
-    await page.waitForResponse(r => r.url().endsWith('/api/listing/status'));
+  // 设置 · 高级 · 视觉模型接口：服务商列表 → 点进详情抽屉完成密钥 / 模型 / 设为在用（D-013）。
+  const openSettings = async () => {
+    await page.goto(base + '/#settings');
+    await page.getByRole('button', {name: '高级', exact: true}).click();
+    await page.getByRole('heading', {name: '视觉模型接口', exact: true}).waitFor();
   };
-  await pickProvider('DeepSeek · API Key');
+  const openProvider = async name => {
+    const row = page.locator('.provider-item').filter({has: page.locator('b', {hasText: new RegExp(`^${name}$`, 'u')})});
+    if (!await row.isVisible()) await page.getByRole('button', {name: /切换或添加服务商/u}).click();
+    await row.click();
+    await page.getByRole('heading', {name, exact: true, level: 3}).waitFor();
+  };
+  const closeProvider = async () => {
+    await page.getByRole('button', {name: '关闭', exact: true}).click();
+    await page.locator('.provider-page').waitFor({state: 'hidden'});
+  };
+  await openSettings();
+  await openProvider('DeepSeek');
   await page.getByLabel('DeepSeek API Key', {exact: true}).fill('acceptance-deepseek-placeholder');
-  await page.getByRole('button', {name: '保存 DeepSeek 连接', exact: true}).click();
-  await page.getByRole('status').filter({hasText: '当前服务商已连接'}).waitFor();
+  await page.getByRole('button', {name: '保存密钥', exact: true}).click();
   await page.getByRole('button', {name: '读取可用模型', exact: true}).click();
   await page.getByRole('combobox', {name: /^照片分析模型：/u}).click();
   assert.equal(await page.getByRole('option', {name: '验收文字模型 · 仅文字', exact: true}).getAttribute('aria-disabled'), 'true');
   await page.getByRole('option', {name: '验收图片模型', exact: true}).click();
   await page.getByRole('combobox', {name: /^思考强度：/u}).click();
   await page.getByRole('option', {name: '高', exact: true}).click();
-  await page.waitForResponse(r => r.url().endsWith('/api/listing/status'));
-  await pickProvider('OpenAI · ChatGPT OAuth');
-  await page.getByRole('status').filter({hasText: '当前服务商尚未连接'}).waitFor();
-  await pickProvider('Anthropic · Claude OAuth');
+  await page.getByRole('combobox', {name: '思考强度：高', exact: true}).waitFor();
+  const use = page.getByRole('button', {name: '设为分析在用', exact: true});
+  if (await use.count()) await use.click();
+  await page.locator('.provider-head .badge-use').waitFor();
+  await closeProvider();
+  await openProvider('OpenAI · ChatGPT');
+  await page.getByRole('status').filter({hasText: '尚未授权'}).waitFor();
+  await closeProvider();
+  await openProvider('Anthropic · Claude');
   await page.getByText(/通过官方 Claude Code 使用独立授权/u).waitFor();
-  await pickProvider('DeepSeek · API Key');
+  await closeProvider();
+  await openProvider('OpenAI 兼容 API');
+  await page.getByRole('status').filter({hasText: 'acceptance-only-model'}).waitFor();
+  await closeProvider();
+  // 刷新后仍保留：DeepSeek 在用、思考强度；密钥只显示末四位，不回传原文
+  await openSettings();
+  assert.equal(await page.locator('.provider-list').first().locator('b').first().textContent(), 'DeepSeek');
+  await openProvider('DeepSeek');
   await page.getByRole('combobox', {name: '思考强度：高', exact: true}).waitFor();
-  await page.reload();
-  await page.getByRole('button', {name: '高级', exact: true}).click();
-  await page.getByRole('combobox', {name: '思考强度：高', exact: true}).waitFor();
-  assert.equal(await page.getByLabel('DeepSeek API Key', {exact: true}).inputValue(), '');
+  assert.equal(await page.getByLabel('DeepSeek API Key', {exact: true}).count(), 0);
+  assert.ok(!(await page.getByLabel('已保存的密钥').textContent()).includes('acceptance-deepseek'));
   await page.setViewportSize({width: 390, height: 844});
-  await provider.scrollIntoViewIfNeeded();
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   await page.screenshot({path: join(output, 'providers-mobile.png')});
   await page.setViewportSize({width: 1280, height: 900});
-  await pickProvider('OpenAI 兼容 API · 独立计费');
-  await page.getByRole('status').filter({hasText: 'acceptance-only-model'}).waitFor();
-  await pickProvider('DeepSeek · API Key');
+  await closeProvider();
   await page.getByRole('link', {name: /海外库存/u}).click();
   await open();
   await page.getByRole('textbox', {name: '售卖正文', exact: true}).fill('保留手写正文');

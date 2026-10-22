@@ -25,7 +25,6 @@ a.rcc-source:hover{color:var(--text)}
 .rcc-art{flex:none;width:76px;height:76px;border-radius:8px;object-fit:cover;background:var(--surface-3)}
 .rcc-head{align-items:center}
 .rcc-main{flex:1}
-.rcc-cover{display:flex;flex-direction:column;gap:8px}
 /* 折叠卡片：头部一行始终在原位，右侧 + 展开时转成 −；主体用 grid 行高 0fr→1fr 平滑展开 */
 .rcc.is-fold{padding:0;gap:0}
 .rcc-fold{display:flex;align-items:center;gap:12px;width:100%;padding:10px 14px;text-align:left}

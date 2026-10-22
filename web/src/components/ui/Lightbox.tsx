@@ -13,7 +13,7 @@ import {useLightboxZoom} from './lightboxZoom';
 import {LightboxScan} from './LightboxScan';
 import type {GalleryMotionState} from '../../core/gallery-motion';
 
-type View = {list: string[]; pos: number; scan?: boolean};
+type View = {list: string[]; pos: number; scan?: 'form' | 'detail'};
 // rail = 展示板块的滑行/对齐状态；rubber = 两端外拖的回弹（rail 入口会钳制位置，回弹须在钳制外走）
 type Motion = {kind: 'rail'; state: GalleryMotionState} | {kind: 'rubber'; target: number};
 type Zoom = null | 'in' | 'out';
@@ -182,7 +182,7 @@ export function Lightbox() {
         origin.current = {radius: Number.isFinite(radius) ? radius : 0,
           thumbs: els.map(el => el instanceof HTMLImageElement ? el : null)};
         introDone.current = false;
-        setView({list: list.length ? list : [img.currentSrc || img.src], pos: index, scan: !!ph.closest('.photo-strip')});
+        setView({list: list.length ? list : [img.currentSrc || img.src], pos: index, scan: ph.closest('.photo-thumbs') ? 'form' : ph.closest('.photo-strip') ? 'detail' : undefined});
         return;
       }
       if (!latest.current.view) return;
@@ -379,7 +379,7 @@ export function Lightbox() {
          onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}
          onPointerCancel={onPointerCancel} onLostPointerCapture={onLostCapture} onClickCapture={onClickCapture}>
       <div className="lb-track">{slides}</div>
-      {view.scan ? <LightboxScan src={view.list[idx]} onDone={close}/> : null}
+      {view.scan ? <LightboxScan src={view.list[idx]} mode={view.scan} onDone={close}/> : null}
       {n > 1 && <>
         {btnIdx > 0 && <button type="button" className="lb-nav lb-prev" aria-label="上一张照片" onClick={() => step(-1)}>{ChevLeftIco}</button>}
         {btnIdx < n - 1 && <button type="button" className="lb-nav lb-next" aria-label="下一张照片" onClick={() => step(1)}>{ChevRightIco}</button>}

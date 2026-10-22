@@ -1,9 +1,9 @@
-# 碟渡 · Nginx 反代模板（HTTPS + ACME 续期）
+# Obi · Nginx 反代模板（HTTPS + ACME 续期）
 # 使用前把 your.domain 全部替换为你的域名；证书路径随 certbot lineage 自动对应。
 server {
     listen 80;
     server_name your.domain;
-    location ^~ /.well-known/acme-challenge/ { root /var/www/diedu-acme; }
+    location ^~ /.well-known/acme-challenge/ { root /var/www/obi-acme; }
     location / { return 301 https://$host$request_uri; }
 }
 server {

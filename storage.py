@@ -18,6 +18,8 @@ from decimal import Decimal
 from twins import TWIN_KEY, SKILL_VERSION, ID as TWIN_ID, ASSET as TWIN_ASSET, UUID as TWIN_RELEASE_ID, appearance, same_appearance, clean_barcode, clean_registry, image_type, entity_assets
 
 SCHEMA = 4
+# 随 /api/state 下发的设置：前端只读展示分组（core/gallery.ts）。新增前端读取的设置要在这里登记。
+STATE_SETTINGS = ('showcase-groups-v1',)
 SHIPMENT_STATUSES = ('transit', 'arrived', 'cancelled')
 SALE_STATUSES = ('shipping', 'complete', 'cancelled', 'returned', 'refunded')
 PHOTO_RE = re.compile(r'^data:image/(jpeg|png|webp);base64,')
@@ -90,7 +92,7 @@ class Store:
         self.photos_dir = self.path.parent / 'photos'
         self.covers_dir = self.path.parent / 'covers'
         self.rates = rates
-        with self.connect() as db:
+        with closing(self.connect()) as db, db:
             db.executescript('''CREATE TABLE IF NOT EXISTS records(id TEXT PRIMARY KEY, data TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS sales(id TEXT PRIMARY KEY, data TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS shipments(id TEXT PRIMARY KEY, data TEXT NOT NULL);
@@ -112,7 +114,7 @@ class Store:
         db.execute('INSERT INTO audit(at,action,data) VALUES(?,?,?)',(now(),action,dumps(data)))
     def migrate(self):
         """One-way upgrades; idempotent. Schema 3: shipments. Schema 4: covers to files."""
-        with self.connect() as db:
+        with closing(self.connect()) as db, db:
             version = db.execute("SELECT data FROM meta WHERE key='schema'").fetchone()
             if version and json.loads(version[0]) >= SCHEMA: return
             changed = False
@@ -138,14 +140,10 @@ class Store:
     def vacuum(self):
         db = sqlite3.connect(self.path, isolation_level=None)
         db.execute('VACUUM'); db.close()
-    def backup(self, audit_limit=None):
-        """完整快照（checkpoint / 导出用）；audit_limit 给出时只取最近 N 条（state 专用）。"""
-        with self.connect() as db:
-            if audit_limit:
-                rows=[dict(r) for r in db.execute('SELECT * FROM audit ORDER BY id DESC LIMIT ?',(audit_limit,))]
-                rows.reverse()  # 保持与全量一致的时间正序
-            else:
-                rows=[dict(r) for r in db.execute('SELECT * FROM audit')]
+    def backup(self):
+        """完整快照（checkpoint / 导出用）。"""
+        with closing(self.connect()) as db, db:
+            rows=[dict(r) for r in db.execute('SELECT * FROM audit')]
             return {'format':'album-ledger','schema':SCHEMA,'createdAt':now(),
                 'records':self.rows(db,'records'),'sales':self.rows(db,'sales'),
                 'shipments':self.rows(db,'shipments'),
@@ -163,13 +161,27 @@ class Store:
             out = {d: self.rates.get(d) for d in days}
         return out
     def state(self):
-        b=self.backup(audit_limit=100)  # audit 全量只服务备份/导出；state 只带最近 100 条
-        b['settings'].pop(TWIN_KEY, None)  # 任务快照与工作令牌不进入普通账本状态
-        enabled = b['settings'].get('modules-v1')
+        """前端的账本状态：三张表、最近 100 条 audit、前端要读的设置（STATE_SETTINGS），加上派生的成本与利润。
+
+        其余 meta（实体目录、艺人身份、商家缓存、任务注册表、令牌等）不下发，各走自己的接口。
+        """
+        keys = (*STATE_SETTINGS, 'modules-v1', 'start-page-v1', 'setup-pending')
+        with closing(self.connect()) as db, db:
+            audit = [dict(r) for r in db.execute('SELECT * FROM audit ORDER BY id DESC LIMIT 100')]
+            audit.reverse()  # 保持与全量一致的时间正序
+            meta = {r['key']: json.loads(r['data']) for r in
+                    db.execute(f'SELECT key, data FROM meta WHERE key IN ({",".join("?" * len(keys))})', keys)}
+            b = {'format': 'album-ledger', 'schema': SCHEMA,
+                 'records': self.rows(db, 'records'), 'sales': self.rows(db, 'sales'),
+                 'shipments': self.rows(db, 'shipments'), 'audit': audit,
+                 'settings': {k: meta[k] for k in STATE_SETTINGS if k in meta}}
+        enabled = meta.get('modules-v1')
         b['modules'] = {'enabled': clean_modules(enabled) if enabled is not None else {k: k != 'showcase' for k in MODULE_NAMES},
                         'configured': enabled is not None,
-                        'startPage': clean_start_page(b['settings'].get('start-page-v1', 'domestic')),
-                        'needsSetup': enabled is None and not any(b[k] for k in ('records', 'sales', 'shipments'))}
+                        'startPage': clean_start_page(meta.get('start-page-v1', 'domestic')),
+                        # 新实例只有起步示例时仍需引导（setup-pending 由 server/starter_albums 写入）
+                        'needsSetup': enabled is None and (meta.get('setup-pending') is True
+                                                           or not any(b[k] for k in ('records', 'sales', 'shipments')))}
         rates=self.record_rates(b['records'])
         for r in b['records']:
             rate = rates.get(r.get('date')) if r.get('currency')=='JPY' and r.get('date') and r.get('actual','')=='' else None
@@ -337,7 +349,7 @@ class Store:
 
     def album_favorites(self):
         """Compatibility view plus durable Album entities and copy relationships."""
-        with self.connect() as db:
+        with closing(self.connect()) as db, db:
             db.execute('BEGIN IMMEDIATE')
             entities,links,records = self._album_catalog(db)
         dates = {}
@@ -358,7 +370,7 @@ class Store:
             raise ValidationError('专辑记录编号无效')
         if type(body['liked']) is not bool:
             raise ValidationError('我喜欢只能是开或关')
-        with self.connect() as db:
+        with closing(self.connect()) as db, db:
             db.execute('BEGIN IMMEDIATE')
             entities,links,records = self._album_catalog(db)
             if body['recordId'] not in links:
@@ -376,7 +388,7 @@ class Store:
     def set_modules(self, enabled, start_page=None):
         enabled = clean_modules(enabled)
         if start_page is not None: start_page = clean_start_page(start_page)
-        with self.connect() as db:
+        with closing(self.connect()) as db, db:
             before = self.meta_get(db, 'modules-v1')
             before_start_page = self.meta_get(db, 'start-page-v1')
             saved_start_page = start_page if start_page is not None else clean_start_page(
@@ -389,7 +401,7 @@ class Store:
         return {'ok': True, 'enabled': enabled, 'startPage': saved_start_page}
     def require_module(self, name, db=None):
         if db is None:
-            with self.connect() as conn:
+            with closing(self.connect()) as conn:
                 enabled = self.meta_get(conn, 'modules-v1')
         else:
             enabled = self.meta_get(db, 'modules-v1')
@@ -444,7 +456,7 @@ class Store:
         return {'ok': True, **after}
     def import_preview(self, source):
         if not isinstance(source,list) or len(source)>10000: raise ValidationError('请选择专辑 JSON 数组文件，最多 10000 条')
-        with self.connect() as db:
+        with closing(self.connect()) as db, db:
             existing={r.get('sourceId') for r in self.rows(db,'records')}
             modules = self.meta_get(db, 'modules-v1')
         seen=set();good=[];errors=[];duplicates=0
@@ -468,7 +480,7 @@ class Store:
         preview=self.import_preview(source)
         if preview['errors']: raise ValidationError('；'.join(preview['errors'][:5]))
         self.checkpoint()
-        with self.connect() as db:
+        with closing(self.connect()) as db, db:
             for r in preview['records']: self.put(db,'records',r)
             self._album_catalog(db)
             self.audit(db,'导入专辑',{'count':len(preview['records']),'skipped':preview['skipped']})
@@ -530,7 +542,7 @@ class Store:
         if 'batchFees' in data:
             shares=allocate(number(data['batchFees'],'整批额外费用'), [number(i.get('price'),'买入金额', optional=True) or 1 for i in items] if data.get('allocation')=='price' else [1]*len(items))
             items=[{**i,'fees':f} for i,f in zip(items,shares)]
-        with self.connect() as db:
+        with closing(self.connect()) as db, db:
             result=[];plans=[]
             modules = self.meta_get(db, 'modules-v1')
             for item in items:
@@ -600,7 +612,7 @@ class Store:
         listing = data.get('listing', {})
         if not isinstance(listing, dict): raise ValidationError('上架资料无效')
         listing = clean_listing({'channel': listing.get('channel', ''), 'url': listing.get('url', '')}) if 'listing' in data else {}
-        with self.connect() as db:
+        with closing(self.connect()) as db, db:
             db.execute('BEGIN IMMEDIATE')
             self.require_module('trading', db)
             r = self.get(db, 'records', data.get('id'))
@@ -639,7 +651,7 @@ class Store:
             if action != 'list' or not isinstance(listing, dict): raise ValidationError('上架资料格式不正确')
             listing = clean_listing(listing)
         self.checkpoint()
-        with self.connect() as db:
+        with closing(self.connect()) as db, db:
             for id in ids:
                 r=self.get(db,'records',id);old=dict(r)
                 if action=='to_overseas':
@@ -701,7 +713,7 @@ class Store:
             'currency':currency,'costOriginal':money(cost_v) if currency=='JPY' else '',
             'note':str(data.get('note','')),'status':'transit','arrivedDate':'','createdAt':now(),
             'items':[]}
-        with self.connect() as db:
+        with closing(self.connect()) as db, db:
             rs=[self.get(db,'records',id) for id in ids]
             if any(r['status']!='overseas' for r in rs): raise ValidationError('只有海外库存的专辑能打包运输')
             shares=allocate(cny,[1]*len(rs))
@@ -715,7 +727,7 @@ class Store:
         return {'id':s['id']}
     def shipment_action(self,data):
         self.require_module('circulation')
-        with self.connect() as db:
+        with closing(self.connect()) as db, db:
             s=self.get(db,'shipments',data.get('id'));old=json.loads(dumps(s));action=data.get('action')
             if action=='arrive':
                 if s['status']!='transit': raise ValidationError('只有在途包裹能签收')
@@ -745,7 +757,7 @@ class Store:
         return {'ok':True}
     def update_shipment(self,data):
         self.require_module('circulation')
-        with self.connect() as db:
+        with closing(self.connect()) as db, db:
             s=self.get(db,'shipments',data.get('id'));old=json.loads(dumps(s))
             if s['status']=='cancelled': raise ValidationError('已撤销的包裹不能修改')
             if 'method' in data:
@@ -787,7 +799,7 @@ class Store:
         if len(address)>500: raise ValidationError('地址过长')
         # 日元按售出日汇率折算人民币入账，原币金额与分摊留存（同运费口径）
         gross_cny=self.to_cny(gross,currency,date);fees_cny=self.to_cny(fees,currency,date);postage_cny=self.to_cny(postage,currency,date)
-        with self.connect() as db:
+        with closing(self.connect()) as db, db:
             rs=[self.get(db,'records',id) for id in ids]
             if any(r['status'] not in ('overseas','domestic') for r in rs): raise ValidationError('其中有专辑不能出售，请刷新列表')
             gs=allocate(gross_cny,[1]*len(rs));fs=allocate(fees_cny,[1]*len(rs));ps=allocate(postage_cny,[1]*len(rs))
@@ -809,7 +821,7 @@ class Store:
     def update_sale(self,data):
         """补录/修正费用，不改变成交价、币种、到账日期或生命周期。"""
         self.require_module('trading')
-        with self.connect() as db:
+        with closing(self.connect()) as db, db:
             before=self.get(db,'sales',data.get('id'))
         if before['status'] not in ('shipping','complete'):
             raise ValidationError('只有售出中或已确认收货的销售单能修改费用')
@@ -822,7 +834,7 @@ class Store:
             if previous is not None and orig==Decimal(previous): continue
             # 汇率查询在数据库事务之外；沿用售出日折算口径。
             changes[key]=(orig,self.to_cny(orig,currency,before['date'],label))
-        with self.connect() as db:
+        with closing(self.connect()) as db, db:
             s=self.get(db,'sales',data.get('id'));old=json.loads(dumps(s))
             if s!=before: raise ValidationError('销售单已变化，请刷新后重试')
             for key,(orig,cny) in changes.items():
@@ -837,7 +849,7 @@ class Store:
         return {'ok':True}
     def sale_action(self,data):
         self.require_module('trading')
-        with self.connect() as db:
+        with closing(self.connect()) as db, db:
             s=self.get(db,'sales',data.get('id'));old=json.loads(dumps(s));action=data.get('action')
             if s['status']=='complete': raise ValidationError('已确认收货，只能修改销售费用，不能重复收货、撤销或退款')
             if s['status'] not in ('shipping',): raise ValidationError('这笔交易已处理，不能重复操作')
@@ -965,7 +977,7 @@ class Store:
                 if len(matches)!=1: raise ValidationError('备份中的售出记录缺少有效销售单')
         for r in b['records']: self.stash_cover(r)  # 旧备份里的 data URL 封面一并落盘
         self.checkpoint()
-        with self.connect() as db:
+        with closing(self.connect()) as db, db:
             plugin_state = self.meta_get(db, 'album-engine-plugin-v1')
             if plugin_state:
                 settings['album-engine-plugin-v1'] = {**plugin_state, 'revision':plugin_state['revision'] + 1}
@@ -1198,39 +1210,13 @@ class Store:
             self._write_twins(db, registry, job); self.audit(db, '请求生成数字实体', {'id': rid, 'taskId': ident, 'skill': SKILL_VERSION})
             return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': self._public_twin(job, record, db=db)}
 
-    def select_twin_art(self, body):
-        """A user-approved selection moves a reviewed guided task into the existing queue."""
-        helpers = getattr(self, 'guided_selection_helpers', None)
-        if helpers is None:
-            # Compatibility for standalone fixture tools; application instances
-            # receive these validation functions from their installed runtime.
-            from server.twin_guided import candidate_images, validated_mapping
-        else:
-            candidate_images, validated_mapping = helpers
-        if not isinstance(body, dict) or not isinstance(body.get('id'), str) or not TWIN_ID.fullmatch(body['id']):
-            raise ValidationError('选图任务编号无效')
-        with closing(self.connect()) as db, db:
-            db.execute('BEGIN IMMEDIATE'); self.require_module('showcase', db)
-            registry = self._twins(db); job = registry['jobs'].get(body['id'])
-            if not job or job.get('generationMode') != 'guided':
-                raise ValidationError('不是人工选图任务')
-            record = self.get(db, 'records', job['recordId'])
-            if registry['latest'].get(job['recordId']) != job['id'] or not same_appearance(record, job['input']):
-                raise ConflictError('副本或任务已经更新')
-            if job['status'] != 'needs_input' or job.get('phase') != 'awaiting_art_selection':
-                raise ConflictError('任务尚未进入选图阶段')
-            count = sum('CD' in str(m.get('format', '')) for m in job['confirmedRelease'].get('media', []))
-            catalog = job.get('confirmedCatalog') or {}
-            allowed = {i['sourceId'] for i in candidate_images(catalog)} | set(job['sources'])
-            plan, _ = validated_mapping(body.get('selection'), allowed, count, job['confirmedRelease'])
-            job['guidedSelection'] = plan
-            job.update(status='queued', phase='queued_generation', error='', message='等待按确认的图集组装实体')
-            self._write_twins(db, registry, job)
-            self.audit(db, '确认数字实体贴图', {'id': job['recordId'], 'taskId': job['id']})
-            return {'epoch': registry['epoch'], 'revision': registry['revision'], 'job': self._public_twin(job, record, db=db)}
-
     def claim_twin(self, owner, stamp=None):
         stamp = time.time() if stamp is None else stamp
+        # 插件 worker 每 2 秒轮询一次；无排队/运行任务时只读返回，不占写锁。
+        with closing(self.connect()) as db:
+            registry = self.meta_get(db, TWIN_KEY)
+        if not registry or not any(j['status'] in ('queued', 'running') for j in registry['jobs'].values()):
+            return None
         with closing(self.connect()) as db, db:
             db.execute('BEGIN IMMEDIATE'); registry = self.meta_get(db, TWIN_KEY)
             if not registry: return None
@@ -1331,54 +1317,6 @@ class Store:
             return {'epoch':registry['epoch'],'revision':registry['revision'],
                     'job':self._public_twin(job,record,db=db)}
 
-    def set_twin_spine_surface(self, body):
-        """Bind an already-published cover's *actual* narrow printed edge.
-
-        Coordinates refer to the complete, existing task image. This changes
-        presentation metadata only; no mutable record, external URL, image
-        bytes, task identity or model generation is involved.
-        """
-        if not isinstance(body, dict) or not isinstance(body.get('id'), str) or not TWIN_ID.fullmatch(body['id']):
-            raise ValidationError('数字实体书脊任务编号无效')
-        region = body.get('region')
-        source_role = body.get('sourceRole')
-        from twins import clean_spine_binding
-        normalized = clean_spine_binding(source_role, region)
-        with closing(self.connect()) as db, db:
-            db.execute('BEGIN IMMEDIATE'); self.require_module('showcase', db)
-            registry = self._twins(db)
-            job = registry['jobs'].get(body['id'])
-            if not job or job['status'] != 'succeeded' or registry['latest'].get(job['recordId']) != job['id']:
-                raise ConflictError('书脊对应的数字实体已更新')
-            record = self.get(db, 'records', job['recordId'])
-            if not same_appearance(record, job['input']):
-                raise ConflictError('数字实体对应的实物资料已发生变化')
-            entity = job['entity']
-            if region is None:
-                entity['surfaces'].pop('spine', None)
-            else:
-                source = entity['surfaces'].get(source_role)
-                if not isinstance(source, dict) or not TWIN_ASSET.fullmatch(str(source.get('asset', ''))):
-                    raise ValidationError('没有可以引用的正面或背面原始图片')
-                if not (self._twin_folder(job['id']) / source['asset']).is_file():
-                    raise ValidationError('原始图片缺失，不允许创建无效书脊')
-                entity['surfaces']['spine'] = {
-                    'asset': source['asset'],
-                    'region': normalized,
-                    'sourceUrl': source.get('sourceUrl', ''),
-                    'origin': source.get('origin', 'record-photo'),
-                    **({'sourceReleaseId': source['sourceReleaseId']} if source.get('sourceReleaseId') else {}),
-                }
-            from server.album_engine_adapter import prepare_publication
-            entity = job['entity'] = prepare_publication(entity, job['id'], record['title'], context='update')
-            if not all((self._twin_folder(job['id']) / asset).is_file() for asset in entity_assets(entity)):
-                raise ValidationError('数字实体关联资源不完整')
-            self._write_twins(db, registry, job)
-            self.audit(db, '修正数字实体书脊', {'id': job['recordId'], 'taskId': job['id'],
-                                              'sourceRole': source_role if region is not None else ''})
-            return {'epoch': registry['epoch'], 'revision': registry['revision'],
-                    'job': self._public_twin(job, record, db=db)}
-
     def set_twin_disc_calibration(self, body):
         from twins import clean_disc_calibration
         if not isinstance(body, dict): raise ValidationError('盘面校准请求无效')
@@ -1441,7 +1379,7 @@ class Store:
     # ── 艺人身份绑定与副本-作品关联（meta 持久化；调用方先完成外部核验，
     #    这里在单事务内重读当前值并校验预期，竞争失败抛 ConflictError → 409）──
     def artist_identities(self):
-        with self.connect() as db:
+        with closing(self.connect()) as db, db:
             return self.meta_get(db, 'artist-identities-v1') or {}
 
     def bind_artist_identity(self, artist, mbid, source_name, method, expected_mbid):
@@ -1454,7 +1392,7 @@ class Store:
         source_name = source_name.strip()
         if expected_mbid is not None and (not isinstance(expected_mbid, str) or not MBID_RE.match(expected_mbid)):
             raise ValidationError('预期绑定不正确')
-        with self.connect() as db:
+        with closing(self.connect()) as db, db:
             identities = self.meta_get(db, 'artist-identities-v1') or {}
             current = identities.get(artist)
             current_mbid = current.get('artistMbid') if isinstance(current, dict) else None
@@ -1467,7 +1405,7 @@ class Store:
         return identities[artist]
 
     def record_work_links(self):
-        with self.connect() as db:
+        with closing(self.connect()) as db, db:
             return self.meta_get(db, 'record-work-links-v1') or {}
 
     def link_record_work(self, record_id, artist_mbid, rg_mbid, expected_rg, record_artist, record_title):
@@ -1480,7 +1418,7 @@ class Store:
         for value, label in ((record_artist, '副本艺人'), (record_title, '副本标题')):
             if not isinstance(value, str) or not 1 <= len(value.strip()) <= 500: raise ValidationError(label + '不正确')
         record_artist, record_title = record_artist.strip(), record_title.strip()
-        with self.connect() as db:
+        with closing(self.connect()) as db, db:
             r = self.get(db, 'records', record_id)  # 记录必须存在；同时读取快照核对
             if r['artist'] != record_artist or r['title'] != record_title:
                 raise ConflictError('这张副本刚被修改，请刷新后重新关联')
@@ -1499,7 +1437,7 @@ class Store:
         """只删除该条关联，不动副本本身；预期不符拒绝。"""
         if not isinstance(record_id, str) or not RECORD_ID_RE.match(record_id): raise ValidationError('记录编号不正确')
         if not isinstance(expected_rg, str) or not MBID_RE.match(expected_rg): raise ValidationError('预期关联不正确')
-        with self.connect() as db:
+        with closing(self.connect()) as db, db:
             links = self.meta_get(db, 'record-work-links-v1') or {}
             current = links.get(record_id)
             current_rg = current.get('releaseGroupMbid') if isinstance(current, dict) else None

@@ -32,7 +32,7 @@ export function SettingsPage() {
       <TabPanel value={tab} order={TABS.map(t => t.value)}>
       {tab === 'modules' ? (
         <section className="settings-section">
-          {state.modules ? <ModuleChooser/> : <p className="small-note">当前后端仍是旧版本。重启碟渡服务后，即可选择功能模块；原有账本可以继续使用。</p>}
+          {state.modules ? <ModuleChooser/> : <p className="small-note">当前后端仍是旧版本。重启 Obi 服务后，即可选择功能模块；原有账本可以继续使用。</p>}
         </section>
       ) : null}
 

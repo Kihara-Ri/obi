@@ -20,7 +20,8 @@ VERSION_RE = re.compile(r'^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$')
 PACKAGE_ROOTS = {'VERSION', 'app.py', 'domain.py', 'domain_listing.py', 'storage.py', 'covers.py',
                  'cjkvariants.py', 'kana.py', 'musicbrainz.py', 'rates.py', 'security.py',
                  'backups.py', 'twins.py', 'README.md', '使用说明.md', '部署说明.md',
-                 'CHANGELOG.md', 'deploy.toml', '.ai-kit', 'server', 'static', 'deploy', 'tools'}
+                 'CHANGELOG.md', 'deploy.toml', '.ai-kit', 'server', 'static', 'deploy', 'tools',
+                 'vendor', 'plugins'}
 
 
 def version_tuple(value):
@@ -50,7 +51,7 @@ def asset_url(release, repo, name):
 
 
 def download(url, limit):
-    request = Request(url, headers={'User-Agent': 'DieduPatchUpdater/1.0',
+    request = Request(url, headers={'User-Agent': 'ObiPatchUpdater/1.0',
                                    'Accept': 'application/vnd.github+json'})
     with urlopen(request, timeout=30) as response:
         result = response.read(limit + 1)
@@ -101,7 +102,7 @@ def install_patch(base, repo, service, port, check=False):
     if not match:
         raise ValueError('发布包 SHA256 文件格式不正确')
     digest = match.group(1)
-    with tempfile.TemporaryDirectory(prefix='diedu-patch-') as folder:
+    with tempfile.TemporaryDirectory(prefix='obi-patch-') as folder:
         package = Path(folder) / PACKAGE
         raw = download(package_url, 100 << 20)
         if hashlib.sha256(raw).hexdigest() != digest:
@@ -119,9 +120,9 @@ def install_patch(base, repo, service, port, check=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--base', type=Path, default=Path(os.environ.get('DEPLOY_DIR', '/opt/diedu')))
+    parser.add_argument('--base', type=Path, default=Path(os.environ.get('DEPLOY_DIR', '/opt/obi')))
     parser.add_argument('--repo', default=os.environ.get('UPDATE_REPOSITORY'))
-    parser.add_argument('--service', default=os.environ.get('SERVICE', 'diedu'))
+    parser.add_argument('--service', default=os.environ.get('SERVICE', 'obi'))
     parser.add_argument('--port', type=int, default=int(os.environ.get('APP_PORT', '8765')))
     parser.add_argument('--check', action='store_true', help='只检查，不下载或更新')
     args = parser.parse_args()

@@ -1,16 +1,29 @@
 /* 连续胶片、自然延伸的桌面与有限视口等距斜列。 */
 .gallery-continuous-cover{user-select:none;-webkit-user-select:none}
-.gallery-film-shell{--film-size:clamp(150px,21vw,230px);--film-gap:18px;--film-controls:66px;position:relative;padding-bottom:var(--film-controls);background:var(--surface-3);border:1px solid var(--border);border-radius:7px;overflow:hidden}
+.gallery-film-shell{--film-size:clamp(150px,21vw,230px);--film-gap:6px;--film-controls:66px;position:relative;padding-bottom:var(--film-controls);background:var(--surface-3);border:1px solid var(--border);border-radius:7px;overflow:hidden}
 .gallery-density--small .gallery-film-shell{--film-size:clamp(120px,17vw,180px)}
 .gallery-density--large .gallery-film-shell{--film-size:clamp(180px,25vw,280px)}
-.gallery-film-shell::before,.gallery-film-shell::after{content:"";position:absolute;left:0;right:0;z-index:1;height:9px;background:repeating-linear-gradient(90deg,var(--bg) 0 12px,transparent 12px 23px);pointer-events:none}
-.gallery-film-shell::before{top:11px}
-.gallery-film-shell::after{bottom:calc(var(--film-controls) + 10px)}
-.gallery-film-rail{position:relative;display:flex;align-items:center;gap:var(--film-gap);width:100%;padding:32px max(16px,calc(50% - var(--film-size)*.5));overflow-x:auto;overflow-y:hidden;touch-action:pan-x pan-y pinch-zoom;scroll-snap-type:none;scroll-behavior:auto;scrollbar-width:none;cursor:grab}
+.gallery-film-shell::before,.gallery-film-shell::after{content:"";position:absolute;left:0;right:0;z-index:1;height:11px;background:var(--film-hole);pointer-events:none;-webkit-mask:var(--film-hole-mask) 0 0/22px 11px repeat-x;mask:var(--film-hole-mask) 0 0/22px 11px repeat-x}
+.gallery-film-shell::before{top:10px}
+.gallery-film-shell::after{bottom:calc(var(--film-controls) + 8px)}
+.gallery-film-rail{position:relative;display:flex;align-items:center;gap:var(--film-gap);width:100%;padding:30px max(16px,calc(50% - var(--film-size)*.5)) 58px;overflow-x:auto;overflow-y:hidden;touch-action:pan-x pan-y pinch-zoom;scroll-snap-type:none;scroll-behavior:auto;scrollbar-width:none;cursor:grab;background:var(--film-base)}
 .gallery-film-rail::-webkit-scrollbar{display:none}
 .gallery-film-rail[data-dragging=true]{cursor:grabbing}
-.gallery-film-item{flex:0 0 var(--film-size);width:var(--film-size);aspect-ratio:1;min-width:0}
-.gallery-film-item .gallery-cover-button{height:100%;border:2px solid var(--border-strong);border-radius:0;box-shadow:none}
+.gallery-film-item{--d:1;flex:0 0 var(--film-size);width:var(--film-size);aspect-ratio:1;min-width:0;
+  scale:calc(1 - var(--d)*.14);opacity:calc(1 - var(--d)*.4);transform-origin:50% 50%}
+/* 底片：深色片基 + 圆角齿孔 + 紧挨的画幅；片基与齿孔是实物颜色，不随主题变 */
+.gallery-film-shell{--film-base:color-mix(in srgb,black 88%,var(--surface-3));--film-edge:color-mix(in srgb,white 14%,transparent);
+  --film-hole:color-mix(in srgb,white 80%,black);--film-ink:color-mix(in srgb,white 88%,black);--film-ink-dim:color-mix(in srgb,white 55%,black);
+  --film-hole-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='11'%3E%3Crect x='4' y='1' width='14' height='9' rx='2.5'/%3E%3C/svg%3E")}
+/* 画幅下方的标题条：当前居中的那一格，右侧是片号 */
+.gallery-film-caption{position:absolute;left:50%;bottom:calc(var(--film-controls) + 22px);z-index:2;transform:translateX(-50%);
+  width:min(calc(100% - 32px),var(--film-size));margin:0;display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:10px;
+  align-items:baseline;pointer-events:none;font-size:12px;line-height:1.3}
+.gallery-film-caption b{grid-column:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-weight:600;color:var(--film-ink)}
+.gallery-film-caption span{grid-column:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--film-ink-dim)}
+.gallery-film-caption i{grid-column:2;grid-row:1/3;align-self:center;font-style:normal;font-variant-numeric:tabular-nums;font-size:11px;letter-spacing:.08em;color:var(--film-ink-dim)}
+@media (prefers-reduced-motion:reduce){.gallery-film-item{scale:1;opacity:1}}
+.gallery-film-item .gallery-cover-button{height:100%;border:0;border-radius:0;box-shadow:0 0 0 1px var(--film-edge)}
 .gallery-isometric-shell .gallery-stage-controls{bottom:10px}
 
 .gallery-table-grid{--table-min:144px;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,var(--table-min)),1fr));align-items:start;gap:36px;padding:24px;min-width:0;background:radial-gradient(ellipse at 50% 20%,var(--surface-2),var(--bg) 78%);border:1px solid var(--border);border-radius:var(--radius);touch-action:pan-y pinch-zoom}
@@ -49,7 +62,7 @@
   .gallery-film-shell{--film-size:min(48vw,220px);--film-gap:14px}
   .gallery-density--small .gallery-film-shell{--film-size:min(36vw,160px)}
   .gallery-density--large .gallery-film-shell{--film-size:min(58vw,260px)}
-  .gallery-film-rail{padding-block:30px}
+  .gallery-film-rail{padding-block:28px 56px}
   .gallery-table-grid{--table-min:112px;gap:22px;padding:18px}
   .gallery-density--small .gallery-table-grid{--table-min:86px;gap:18px}
   .gallery-density--large .gallery-table-grid{--table-min:140px;gap:28px}
@@ -62,7 +75,7 @@
   .gallery-film-shell{--film-size:130px}
   .gallery-density--small .gallery-film-shell{--film-size:110px}
   .gallery-density--large .gallery-film-shell{--film-size:150px}
-  .gallery-film-rail{padding-block:28px}
+  .gallery-film-rail{padding-block:26px 52px}
   .gallery-isometric-shell{--iso-preferred:96px;--iso-height:280px}
   .gallery-density--small .gallery-isometric-shell{--iso-preferred:76px}
   .gallery-density--large .gallery-isometric-shell{--iso-preferred:110px}

@@ -24,7 +24,7 @@ JS
 npm --prefix web run test:browser -- --url http://127.0.0.1:<空闲端口> --expectations <check.json>
 ```
 
-CI 安装 Playwright 后直接运行；本地已有工具自带 Playwright 时可设置 `DIEDU_PLAYWRIGHT_MODULE` 为其模块路径，无需新增应用运行依赖。设置 `DIEDU_PREVIEW_SCREENSHOTS` 可保存三个模型及银色/金色收藏卡截图。工具环境也可以导入 `accept(page, {baseURL, expectations})`，或注入它的函数正文；函数不依赖 Node 模块。
+CI 安装 Playwright 后直接运行；本地已有工具自带 Playwright 时可设置 `OBI_PLAYWRIGHT_MODULE` 为其模块路径，无需新增应用运行依赖。设置 `OBI_PREVIEW_SCREENSHOTS` 可保存三个模型及银色/金色收藏卡截图。工具环境也可以导入 `accept(page, {baseURL, expectations})`，或注入它的函数正文；函数不依赖 Node 模块。
 
 验收读取真实已发布实体与真实图片，并逐份比对素材 SHA-256。16 张图库封面必须全部解码、不能是占位符；三个实体的正背面、内页、盘面、附件及附件背面必须由查看器请求。覆盖默认/重开 2D、按需 GLB、查看器挂载与全部贴图加载、桌面/手机全屏画布、上下文丢失后回 2D 与显式重试；包装的开合、旋转、CD 2 独立取放等 3D 动作属于 Album Engine，由引擎项目验收，不在宿主 CI 里验证；控制台错误和 HTTP/传输失败使验收失败。不会创建、修改或发布账本记录。
 
@@ -61,7 +61,7 @@ node web/tests/browser/engine-plugin-acceptance.mjs --url http://127.0.0.1:<空�
 
 ## 售卖草稿与图片包
 
-先用独立 `DIEDU_DEV_HOME` 运行 `python3 tools/preview_samples.py prepare --download`。再调用 `tools.seed_samples.seed_listing_reference_photos(<固定样本 instance 目录>)`：复用锁定的真实版次参考图片，备注明确标为非本副本实拍，不生成品相证明。`seed_listing_photos` 只供离线协议单测使用合成图片；普通样本保持缺图。
+先用独立 `OBI_DEV_HOME` 运行 `python3 tools/preview_samples.py prepare --download`。再调用 `tools.seed_samples.seed_listing_reference_photos(<固定样本 instance 目录>)`：复用锁定的真实版次参考图片，备注明确标为非本副本实拍，不生成品相证明。`seed_listing_photos` 只供离线协议单测使用合成图片；普通样本保持缺图。
 
 ```sh
 python3 tests/serve_listing_acceptance.py --data-dir /path/to/sample-home/instance
@@ -69,6 +69,6 @@ python3 tests/serve_listing_acceptance.py --data-dir /path/to/sample-home/instan
 LISTING_ACCEPTANCE_URL=http://127.0.0.1:<空闲端口> node web/tests/browser/listing-acceptance.mjs
 ```
 
-测试服务只接受固定样本目录，启动本机模拟 Chat Completions 上游；浏览器通过真实 API 通道依次验证：多服务商切换、DeepSeek 保存密钥/读取真实协议模型目录/仅文字模型禁选/思考强度持久化、兼容 API 静态模型就绪、DeepSeek 参数经过模拟 HTTP 上游校验、分析轮询、保留手写正文、人工确认生成、复制到剪贴板、选图排序/首图、ZIP 下载、保存不标记上架、重开持久化、手机宽度、并发草稿冲突。CI 在完整真实封面/模型验收结束后运行，不影响前一阶段样本契约。截图与图片包放入 `DIEDU_PREVIEW_SCREENSHOTS` 指定目录（默认 `/tmp/diedu-listing-browser`）。
+测试服务只接受固定样本目录，启动本机模拟 Chat Completions 上游；浏览器通过真实 API 通道依次验证：多服务商切换、DeepSeek 保存密钥/读取真实协议模型目录/仅文字模型禁选/思考强度持久化、兼容 API 静态模型就绪、DeepSeek 参数经过模拟 HTTP 上游校验、分析轮询、保留手写正文、人工确认生成、复制到剪贴板、选图排序/首图、ZIP 下载、保存不标记上架、重开持久化、手机宽度、并发草稿冲突。CI 在完整真实封面/模型验收结束后运行，不影响前一阶段样本契约。截图与图片包放入 `OBI_PREVIEW_SCREENSHOTS` 指定目录（默认 `/tmp/obi-listing-browser`）。
 
 该验收使用模拟模型，不能证明真实 OAuth 授权成功、模型可用性、照片版本或品相准确率。真实 OAuth 需用户完成授权，选择视觉模型后以实拍副本单独验收。正常流程要求 console/pageerror 为零；并发保存用例仅允许预期的 HTTP 400 诊断。

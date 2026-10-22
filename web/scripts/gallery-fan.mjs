@@ -5,7 +5,7 @@ import {join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import ts from 'typescript';
 
-const directory = await mkdtemp(join(tmpdir(), 'diedu-fan-css-'));
+const directory = await mkdtemp(join(tmpdir(), 'obi-fan-css-'));
 try {
   const source = await readFile(new URL('../src/core/gallery-motion.ts', import.meta.url), 'utf8');
   const result = ts.transpileModule(source, {compilerOptions: {target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022}});

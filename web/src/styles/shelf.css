@@ -11,7 +11,6 @@
 .badge.overseas{color:#9ec5ff;border:1px solid rgba(110,168,254,.6)}
 .badge.nocover{color:#c3cad6;border:1px solid rgba(255,255,255,.22)}
 .badge.transit{color:#bcd4fe;border:1px solid rgba(138,178,248,.6)}
-.badge.domestic-b{color:#9fe6c6;border:1px solid rgba(93,211,158,.55)}
 /* 已上架：实心绿底 + 对勾，一眼可辨（原为浅色描边，在列表里看不清） */
 .badge.listed{background:var(--green);color:var(--surface);border:1px solid transparent;font-weight:700}
 .badge.listed::before{content:'✓ '}
@@ -94,7 +93,6 @@
   .tl-cards{padding-bottom:26px}
   .tl-cards .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
-.card-storage{font-size:12px;color:var(--muted);margin-top:7px;overflow-wrap:anywhere}
 
 /* 手机库存：地区收进页面，批量选择按需开启。 */
 .shelf-location,.mobile-shelf-title,.mobile-select-toggle,.list-badges{display:none}

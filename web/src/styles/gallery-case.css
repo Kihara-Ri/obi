@@ -5,5 +5,4 @@
 .gallery-case-body{position:relative;display:block;width:100%;height:100%;overflow:hidden;border-radius:2px;transition:transform 180ms ease}
 .gallery-case-shadow{position:absolute;inset:2%;border-radius:3px;box-shadow:var(--shadow-sm);pointer-events:none}
 .gallery-case-button:is(:focus-visible,.is-gallery-contact) .gallery-case-body{transform:translateY(-4px)}
-@media(hover:hover) and (pointer:fine){.gallery-case-button:hover .gallery-case-body{transform:translateY(-4px)}}
 @media(prefers-reduced-motion:reduce){.gallery-case-body{transition:none}}

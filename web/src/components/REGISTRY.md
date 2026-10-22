@@ -35,9 +35,10 @@
 
 | 组件 | 用途 | 备注 |
 | --- | --- | --- |
-| `ModuleChooser` `ModulePresets` `ModuleImpact` | 设置 · 功能与首次设置：使用方式卡片 → 界面变化预览（与已保存配置对比，新增 / 收起用文字标记）→ 微调开关与首页 | 预览数据来自 `core/modules` 的 `SURFACE_GROUPS`，与导航及表单的模块判断同步维护 |
+| `ModuleChooser` `ModulePresets` `ModuleTiles` `ModulePhone` `ModuleImpact` `ModuleIcon` | 设置 · 功能与首次设置：使用方式图标卡 → 功能图标开关（点按开关，联动依赖）+ 默认首页 → 迷你手机实时预览底栏与详情管理（新增「+」、收起虚线「−」）；完整变化清单收在「全部变化与说明」 | 预览数据来自 `core/modules` 的 `SURFACE_GROUPS`（含 `icon` 键），与导航及表单的模块判断同步维护；选中/开启用对勾与粗边区分，不只靠颜色 |
 | `Details` | 带展开 / 收起高度动画的 `<details>`：用 Chevron 做箭头，替代所有裸 `<details>`；`Disclosure` 基于它 | `summary` `children` `className?` `open?`+`onOpenChange?` 或 `defaultOpen?` |
-| `LightboxScan` | 照片灯箱里的「识别条码并查询」：用应用内识别器读当前照片，识别到有效条码就交给查询页直接搜索（`core/lookup-handoff`）；仅详情的照片墙里显示 | `src` `onDone` |
+| `LightboxScan` | 照片灯箱里的「识别条码并查询」：用应用内识别器读当前照片，识别到有效条码后在照片上框出，再交给编辑表单就地查询（`form`）或由详情打开编辑表单带着条码查（`detail`） | `src` `mode` `onDone` |
+| `GallerySettings` | 展示页「展示设置」抽屉内容：展示顺序 / 封面大小用 `Seg`，「显示标题与艺术家」开关，漫游速度；抽屉内容是快照，用本地 state 镜像并回写页面偏好 | `mode` `inGroup` `roaming` `discrete` `initial` `onChange` `onSpeed` |
 | `PageVeil` | 库存 ↔ 展示的转场幕布：Splash 转场版合上 → 预加载封面（`core/preload-covers`，上限 48 张、5 秒兜底）→ 打开。仅手机、非历史导航、非减少动态 | `covers: string[]` `onDone` |
 | `ReleaseCandidateCard` `ReleaseSummary` | 发行版卡片：名称 + 来源 → 关键信息网格 → 可展开的曲目与版本资料（按需取详情，不重复摘要字段）→ 调用方的操作区（render prop）。「查询」页（复制 / 入库）与专辑表单（选用此版本、已确认摘要）共用 | 候选 `c` `children({info, load, busy})`；`ReleaseSummary` 另可 `title` `artist` `info` `source?` `url?` |
 | `ListingSteps` | 上架资料顶部三步进度（分析照片 / 核对 / 生成文案） | `steps[{label,done}]`；当前步 = 第一个未完成 |
@@ -59,6 +60,7 @@
 | `BulkBar` | 库存页底部悬浮的批量操作条；清空选择时先播放退出动画再卸载 | `page` `ids` `isTrash` | role=toolbar | 已选数量 |
 | `Cover` `Thumb` `PriceCell` | 封面、缩略图、价格格 | 卡片 / 详情 / 销售行共用 |
 | `PageHead` `Ledger` | 页头与侧栏账本 | |
+| `Sidebar` `MobileNav`（`AppNav`） | 桌面侧栏与手机底栏；`navCounts` 算两处共用的各页数量 | 仅供 `App` 外壳使用；入口按模块开关过滤 |
 | `forms/fields.tsx` | `Field` `MoneyField` `TextareaField` `DateChipsRow` | 表单字段构造；`MoneyField` 日元只保留整数部分 |
 | `forms/record/*` | 专辑表单的拆分模块：`useReleaseLookup` / `pickRelease`（发行版检索、校验、确认、手动录入）、`releaseCover`（选版后封面匹配：此版本 CAA 正面图优先，其次 iTunes 精确）、`useCoverSearch`、`useRecordHints`、`useCostPreview`；区块 `ReleaseLookupSection` `PhotoEntry` `ReleaseDetails` `CoverPanel` `MoneySection`；`buildPayload` | 仅供 `RecordForm` 组合，行为与拆分前一致；检索逻辑只改 `useReleaseLookup`，不在区块组件里写请求 |
 | `forms/shared.ts` | `useFormSubmit` `useRate` `bulkAction` | 提交流程统一入口 |

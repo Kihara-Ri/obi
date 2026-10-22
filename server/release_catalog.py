@@ -26,7 +26,7 @@ class NoRedirect(HTTPRedirectHandler):
 
 
 def read_json(url, timeout=35):
-    headers = {'User-Agent':'Diedu/1.0 (personal CD catalog)', 'Accept':'application/json'}
+    headers = {'User-Agent':'Obi/1.0 (personal CD catalog)', 'Accept':'application/json'}
     try:
         with build_opener(NoRedirect()).open(Request(url, None, headers), timeout=timeout) as response:
             body = response.read(2 * 1024 * 1024 + 1)

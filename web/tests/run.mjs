@@ -8,7 +8,7 @@ try {
   const files = readdirSync(new URL('./', import.meta.url)).filter(name => name.endsWith('.test.mjs'))
     .sort().map(name => fileURLToPath(new URL(name, import.meta.url)));
   const result = spawnSync(process.execPath, ['--test', ...files], {
-    stdio: 'inherit', env: {...process.env, DIEDU_TEST_COMPILED: output},
+    stdio: 'inherit', env: {...process.env, OBI_TEST_COMPILED: output},
   });
   if (result.error) throw result.error;
   process.exitCode = result.status ?? 1;

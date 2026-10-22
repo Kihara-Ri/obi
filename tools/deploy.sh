@@ -1,5 +1,5 @@
 #!/bin/bash
-# 碟渡发布入口（兼容层）。实际由 ai-kit 的 ship 执行（.ai-kit/ship/ship.py，配置见根目录 deploy.toml）。
+# Obi 发布入口（兼容层）。实际由 ai-kit 的 ship 执行（.ai-kit/ship/ship.py，配置见根目录 deploy.toml）。
 # 保留原来的用法、环境变量与补丁更新器的调用方式：
 #   tools/deploy.sh [--init | --rollback | --unlock] [--skip-tests] [--allow-dirty]
 #   环境变量：DEPLOY_HOST DEPLOY_DIR SERVICE APP_PORT KEEP_RELEASES KEEP_SNAPSHOTS PUBLIC_URL LOCK_TTL

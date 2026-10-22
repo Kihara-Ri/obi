@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""碟渡入口：命令行参数、服务组装、启动服务。
+"""Obi 入口：命令行参数、服务组装、启动服务。
 
 HTTP 细节在 server/ 包；业务逻辑在根目录模块
 （domain / storage / covers / rates / security / backups）。
@@ -8,6 +8,7 @@ HTTP 细节在 server/ 包；业务逻辑在根目录模块
 
 所有参数均可用环境变量 HOST / PORT / DATA_DIR / PUBLIC_ORIGIN 提供（Docker 用）。
 """
+from contextlib import closing
 import argparse, getpass, json, os, signal, threading
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -61,11 +62,11 @@ def seed_from_json(store, source=None):
     """
     if source is None:
         source = Path(store.path).parent / 'albums.json'
-    with store.connect() as db:
+    with closing(store.connect()) as db, db:
         if db.execute("SELECT 1 FROM meta WHERE key='seeded'").fetchone(): return
     if not source.exists(): return
     store.import_data(json.loads(source.read_text()))
-    with store.connect() as db: db.execute("INSERT OR REPLACE INTO meta VALUES('seeded','true')")
+    with closing(store.connect()) as db, db: db.execute("INSERT OR REPLACE INTO meta VALUES('seeded','true')")
 
 
 def main():
@@ -100,7 +101,7 @@ def main():
     svc.artists.start_prewarm()  # 后台预取存量未绑定艺人（账本写入后的增量由路由触发）
     svc.twins.start()
     server = ThreadingHTTPServer((args.host, args.port), make_handler(svc))
-    print(f'碟渡已启动：http://{args.host}:{args.port}（版本 {version()}）', flush=True)
+    print(f'Obi 已启动：http://{args.host}:{args.port}（版本 {version()}）', flush=True)
 
     # 优雅停机：SIGTERM/SIGINT → 收完在途请求再退出（systemd / docker stop 不硬切）
     def stop(_signum, _frame):
@@ -114,7 +115,7 @@ def main():
         svc.twins.stop()
         if svc.listings: svc.listings.close()
         svc.releases.close()
-        print('碟渡已停止', flush=True)
+        print('Obi 已停止', flush=True)
 
 
 if __name__ == '__main__':

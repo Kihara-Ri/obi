@@ -21,7 +21,7 @@ class ArtRedirect(HTTPRedirectHandler):
 class ArtClient:
     def read(self, url, limit):
         try:
-            with build_opener(ArtRedirect()).open(Request(url, headers={'User-Agent': 'Diedu/2.4 (CD artwork)'}), timeout=35) as response:
+            with build_opener(ArtRedirect()).open(Request(url, headers={'User-Agent': 'Obi/2.4 (CD artwork)'}), timeout=35) as response:
                 raw = response.read(limit + 1)
             if len(raw) > limit: raise ValidationError('实物图集资源过大')
             return raw

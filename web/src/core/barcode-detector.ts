@@ -1,6 +1,7 @@
 // 条码识别器：浏览器原生 BarcodeDetector（Chrome / Android）优先；没有（iPhone Safari）时懒加载 zxing-wasm 垫片。
 // wasm 打进本站静态资源（CSP 不允许连外部 CDN），只在第一次扫码时才下载。
-export interface Detector {detect: (source: CanvasImageSource) => Promise<{rawValue: string}[]>}
+export interface Detected {rawValue: string; boundingBox?: {x: number; y: number; width: number; height: number}}
+export interface Detector {detect: (source: CanvasImageSource) => Promise<Detected[]>}
 const FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e'];
 
 export async function makeDetector(): Promise<Detector> {

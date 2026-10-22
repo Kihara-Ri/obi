@@ -1,4 +1,4 @@
-# 碟渡 · 多阶段构建：Node 构建前端 → 纯标准库 Python 运行时
+# Obi · 多阶段构建：Node 构建前端 → 纯标准库 Python 运行时
 # 镜像内零第三方 Python 依赖；数据全部在 /data 卷，与代码解耦。
 
 # ── 阶段 1：前端构建 ──
@@ -18,7 +18,8 @@ FROM python:3.12-slim
 RUN apt-get update -qq && apt-get install -y --no-install-recommends tzdata \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY app.py domain.py domain_listing.py storage.py covers.py cjkvariants.py musicbrainz.py rates.py security.py backups.py twins.py ./
+# 根目录的 .py 全部是运行时模块（与 tools/package_app.py 同一口径，见 tests/test_runtime_manifest.py）
+COPY *.py ./
 COPY server/ server/
 COPY vendor/album_data/ vendor/album_data/
 COPY plugins/album-engine/ plugins/album-engine/

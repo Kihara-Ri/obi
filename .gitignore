@@ -64,3 +64,4 @@ listing-providers.json
 listing-providers.tmp
 listing-providers.lock
 listing-anthropic/
+dist-local/

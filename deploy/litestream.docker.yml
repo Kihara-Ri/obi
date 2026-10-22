@@ -3,14 +3,14 @@
 #
 # 灾难恢复（新机器上）：
 #   docker run --rm -v ./data:/data -e AWS_ACCESS_KEY_ID=… -e AWS_SECRET_ACCESS_KEY=… \
-#     litestream/litestream restore -o /data/albums.sqlite3 s3://<bucket>/diedu/albums
+#     litestream/litestream restore -o /data/albums.sqlite3 s3://<bucket>/obi/albums
 
 dbs:
   - path: /data/albums.sqlite3
     replicas:
       - type: s3
         bucket: YOUR-BUCKET
-        path: diedu/albums
+        path: obi/albums
         region: us-west-004
     retention:
       24h: 24          # 近 24 小时每小时一份

@@ -1,66 +1,42 @@
-// 应用外壳：状态装配、hash 路由、抽屉/toast/PWA 效果、侧栏与页面分发。
-import {useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react';
-import {api, ApiError} from './core/api';
+// 应用外壳：状态装配与刷新、hash 路由、页面分发。抽屉栈、切页动画、导航、PWA 各在自己的 hook / 组件里。
+import {useCallback, useEffect, useRef, useState} from 'react';
+import {ApiError} from './core/api';
+import {fetchState} from './core/state-sync';
+import type {StateSnapshot} from './core/state-sync';
 import {homePage, LEGACY_MODULES, normalizeModules, pageEnabled, PRESETS} from './core/modules';
 import {applyThemePref, themePref} from './core/theme';
 import type {ThemePref} from './core/theme';
 import {useHashRoute} from './hooks/useHashRoute';
+import {usePageTransition} from './hooks/usePageTransition';
+import {usePwa} from './hooks/usePwa';
 import {AppContext} from './state/AppContext';
 import {useDigitalTwins} from './state/useDigitalTwins';
 import {useAlbumEngine} from './state/useAlbumEngine';
-import type {AppCtx, DrawerSpec} from './state/AppContext';
+import {useDrawerStack} from './state/useDrawerStack';
+import {useShelfView} from './state/useShelfView';
+import type {AppCtx} from './state/AppContext';
 import type {AppState, SortMode} from './types';
-import {Ledger} from './components/PageHead';
-import {InstallNavItem} from './components/InstallNavItem';
+import {MobileNav, navCounts, Sidebar} from './components/AppNav';
 import {Drawer} from './components/ui/Drawer';
-import {GearIcon} from './components/ui/GearIcon';
 import {Lightbox} from './components/ui/Lightbox';
 import {Toast} from './components/ui/Toast';
 import type {ToastAction, ToastKind} from './state/AppContext';
-import {ShelfPage} from './pages/ShelfPage';
-import {TransitPage} from './pages/TransitPage';
-import {ShippingPage} from './pages/ShippingPage';
-import {TradesPage} from './pages/TradesPage';
-import {StatsPage} from './pages/StatsPage';
-import {LookupPage} from './pages/LookupPage';
-import {SettingsPage} from './pages/SettingsPage';
-import {SetupPage} from './pages/SetupPage';
-import {MorePage} from './pages/MorePage';
-import {GalleryPage} from './pages/GalleryPage';
 import {Splash} from './components/ui';
 import {PageVeil} from './components/PageVeil';
-import {installReplaceNav, navigate} from './core/nav';
+import {installReplaceNav} from './core/nav';
+import {lazyPage, pagesReady} from './core/lazy-page';
 
-const NAV = [
-  {hash: 'gallery', ico: '▦', label: '收藏展示'},
-  {hash: 'overseas', ico: '◧', label: '海外库存'},
-  {hash: 'transit', ico: '✈', label: '海外在途'},
-  {hash: 'domestic', ico: '▤', label: '国内库存'},
-  {hash: 'shipping', ico: '◨', label: '售出中'},
-  {hash: 'trades', ico: '↗', label: '交易记录'},
-  {hash: 'stats', ico: '◷', label: '账本'},
-  {hash: 'lookup', ico: '⌕', label: '查询'},
-];
-
-// 手机把国内 / 海外收进库存页；低频入口通过独立「更多」页访问。
-const MOBILE_TABS = [
-  {hash: 'domestic', ico: '▤', label: '库存', count: 'inventory'},
-  {hash: 'transit', ico: '✈', label: '在途', count: 'transit'},
-  {hash: 'shipping', ico: '◨', label: '售出中', count: 'shipping'},
-] as const;
-// 以展示为主的用户（默认首页是收藏展示）：「展示」是底栏第一个标签；
-// 以管理为主的用户不占标签，改用库存页 / 展示页顶栏的「库存｜展示」切换（ShowcaseSwitch）。
-const GALLERY_TAB = {hash: 'gallery', ico: '▦', label: '展示', count: ''} as const;
-
-const MORE_HASHES = new Set(['more', 'lookup', 'trades', 'stats', 'settings', 'trash']);
-
-// 手机页面切换的空间方向：rank 是页面在横向层级里的位置（底栏从左到右，
-// 「更多」的子页比「更多」更深，回收站从设置进入）。进入更深的页面从右侧推入，
-// 向左返回时当前页向右滑出；桌面与 prefers-reduced-motion 不做切换动画。
-const PAGE_RANK: Record<string, number> = {
-  domestic: 0, overseas: .5, gallery: 1, transit: 2, shipping: 3,
-  more: 4, lookup: 4.1, trades: 4.2, stats: 4.3, settings: 4.4, trash: 4.5,
-};
+// 每页一个 chunk（core/lazy-page.ts）：首屏等全部到齐再渲染，切页仍是同步的
+const ShelfPage = lazyPage(() => import('./pages/ShelfPage').then(m => m.ShelfPage));
+const TransitPage = lazyPage(() => import('./pages/TransitPage').then(m => m.TransitPage));
+const ShippingPage = lazyPage(() => import('./pages/ShippingPage').then(m => m.ShippingPage));
+const TradesPage = lazyPage(() => import('./pages/TradesPage').then(m => m.TradesPage));
+const StatsPage = lazyPage(() => import('./pages/StatsPage').then(m => m.StatsPage));
+const LookupPage = lazyPage(() => import('./pages/LookupPage').then(m => m.LookupPage));
+const SettingsPage = lazyPage(() => import('./pages/SettingsPage').then(m => m.SettingsPage));
+const SetupPage = lazyPage(() => import('./pages/SetupPage').then(m => m.SetupPage));
+const MorePage = lazyPage(() => import('./pages/MorePage').then(m => m.MorePage));
+const GalleryPage = lazyPage(() => import('./pages/GalleryPage').then(m => m.GalleryPage));
 
 export default function App() {
   const route = useHashRoute();
@@ -71,35 +47,12 @@ export default function App() {
   const [flip, setFlip] = useState(false);
   const [tradeFilter, setTradeFilter] = useState('all');
   const [shelfFilter, setShelfFilter] = useState('all');
-  const [shelfView, setShelfViewState] = useState<'list' | 'cards'>(() => {
-    // 未手动切换过时按窗口宽度给默认：手机紧凑列表，桌面维持原卡片布局。
-    const fallback = () => { try { return matchMedia('(max-width:840px)').matches ? 'list' : 'cards'; } catch { return 'list'; } };
-    try {
-      const v = localStorage.getItem('diedu-shelf-view') ?? localStorage.getItem('diedu-mobile-shelf-view');
-      return v === 'list' || v === 'cards' ? v : fallback();
-    } catch { return fallback(); }
-  });
-  const setShelfView = useCallback((v: 'list' | 'cards') => {
-    setShelfViewState(v);
-    try {
-      localStorage.setItem('diedu-shelf-view', v);
-      localStorage.removeItem('diedu-mobile-shelf-view'); // 旧键名仅限手机时留下，切换时迁移
-    } catch { /* 浏览器不允许存储时仍可切换视图 */ }
-  }, []);
+  const [shelfView, setShelfView] = useShelfView();
   const [mobileSelecting, setMobileSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [theme, setThemeState] = useState<ThemePref>(() => themePref());
   const setTheme = useCallback((v: ThemePref) => { applyThemePref(v); setThemeState(v); }, []);
-  const [drawer, setDrawer] = useState<DrawerSpec | null>(null);
-  const [drawerClosing, setDrawerClosing] = useState(false);
-  const [drawerPage, setDrawerPage] = useState({key: 0, direction: 'forward' as 'forward' | 'back'});
-  // 抽屉页面栈：每层都保持挂载（只有栈顶可见），返回时露出上一层而不是重新创建它，
-  // 所以详情页的滚动位置、已加载的图片、爱心与照片预取结果都不会因为进出二级页而重新加载。
-  const [drawerPages, setDrawerPages] = useState<DrawerSpec[]>([]);
-  const drawerDirty = useRef(false);
   const [toastMsg, setToastMsg] = useState<{key: number; kind: ToastKind; text: string; action?: ToastAction} | null>(null);
-  const [offline, setOffline] = useState(!navigator.onLine);
-  const [installEvt, setInstallEvt] = useState<Event | null>(null);
   const [inventoryPage, setInventoryPage] = useState('domestic');
   const shelfPageRef = useRef('');
   const modules = state?.modules?.needsSetup ? PRESETS[0].enabled
@@ -107,17 +60,28 @@ export default function App() {
   const home = modules ? homePage(state?.modules?.startPage, modules) : 'domestic';
   const target = route === 'ledger' ? 'stats' : route;   // 旧的「账本概览」已并入账本（stats）
   const page = !target ? home : modules && !pageEnabled(target, modules) ? 'domestic' : target;
+  // 以展示为主（展示是底栏标签）：库存 ↔ 展示按普通换页处理
+  const showcaseTab = Boolean(modules?.showcase) && home === 'gallery';
   const albumEngine = useAlbumEngine();
   const twinState = useDigitalTwins(!!modules?.showcase);
 
-  const refresh = useCallback(async () => { setState(await api<AppState>('state')); }, []);
+  // 带上次的 ETag 拉状态：没变（304）不重渲染；有变只收变化的行，在本地拼回完整状态（core/state-sync.ts）
+  const snapshot = useRef<StateSnapshot | null>(null);
+  const refresh = useCallback(async () => {
+    const next = await fetchState(snapshot.current);
+    if (!next) return;
+    snapshot.current = next;
+    setState(next.state);
+  }, []);
 
-  // 首次加载：401 → 登录页；失败 → 重试界面
+  // 首次加载：401 → 登录页；失败 → 重试界面。页面 chunk 与状态并行加载，都到齐才出首屏。
+  const [pagesLoaded, setPagesLoaded] = useState(false);
   useEffect(() => {
     refresh().catch(e => {
       if (e instanceof ApiError && e.status === 401) { location.replace('/login'); return; }
       setFatal(e instanceof Error ? e.message : String(e));
     });
+    pagesReady().then(() => setPagesLoaded(true), () => setFatal('页面文件没有加载完整，请检查网络后重新连接'));
   }, [refresh]);
 
   // 换页重置选择与筛选，并记住手机库存的地区。
@@ -164,293 +128,19 @@ export default function App() {
     return () => document.removeEventListener('visibilitychange', onVis);
   }, [refresh]);
 
-  // 关闭分两步：closeDrawer 只置 closing（Drawer 播完收回动画后回调 drawerExited 才真正卸载）
-  // 每个抽屉会话在历史里压入同址条目：iOS 边缘右滑的「返回」先消费它，popstate 里
-  // 把抽屉收回（脏表单先确认），而不是把路由退回上一个页面——所有上拉窗口统一行为。
-  const drawerStack = useRef<DrawerSpec[]>([]);
-  const syncPages = () => setDrawerPages([...drawerStack.current]);
-  const drawerEntries = useRef(0);
-  const popGuard = useRef(false);
-  const pendingGo = useRef<(() => void) | null>(null);
-  const openDrawer = useCallback((spec: DrawerSpec) => {
-    drawerDirty.current = false;
-    setDrawerClosing(false);
-    setDrawer(spec);
-    setDrawerPage(p => ({key: p.key + 1, direction: spec.direction === 'back' ? 'back' : 'forward'}));
-    drawerStack.current.push(spec);
-    syncPages();
-    history.pushState({diedu: 'drawer'}, '');
-    drawerEntries.current++;
-  }, []);
+  const {drawer, drawerClosing, drawerPage, drawerPages, drawerExited,
+    openDrawer, closeDrawer, backDrawer, closeDrawerAndGo, setDrawerDirty} = useDrawerStack();
 
-  const confirmDiscard = () => !drawerDirty.current || confirm('还没有保存，确定放弃这次修改吗？');
-
-  const closeDrawer = useCallback((force = false): boolean => {
-    if (!force && !confirmDiscard()) return false;
-    drawerStack.current = []; // 收回动画期间到达的返回手势不再命中抽屉
-    setDrawerClosing(true);
-    return true;
-  }, []);
-
-  // 抽屉里的页面跳转：收起后再设 hash。收起时的 history.go(-n) 是异步的，先改 hash 会被它撤销，
-  // 所以把跳转挂到「历史还原完成」的那次 popstate（或无历史条目时直接）之后执行。
-  const afterExit = useRef<(() => void) | null>(null);
-  const closeDrawerAndGo = useCallback((hash: string): boolean => {
-    if (!drawerStack.current.length && !drawer) { navigate(hash); return true; }
-    if (!closeDrawer()) return false;
-    afterExit.current = () => { navigate(hash); };
-    return true;
-  }, [closeDrawer, drawer]);
-
-  // 回到上一层（取消键）：与返回手势的 popstate 分支同一语义——弹出栈顶、恢复上一层抽屉、按「返回」方向播动画。
-  // 这里是程序性返回，浏览器历史条目要自己退掉；popGuard 让随之而来的 popstate 被忽略，避免再弹一层。
-  const backDrawer = useCallback((force = false): boolean => {
-    const stack = drawerStack.current;
-    if (stack.length < 2) return closeDrawer(force);
-    if (!force && !confirmDiscard()) return false;
-    stack.pop();
-    drawerEntries.current = Math.max(0, drawerEntries.current - 1);
-    drawerDirty.current = false;
-    setDrawerClosing(false);
-    setDrawer(stack[stack.length - 1]);
-    setDrawerPage(p => ({key: p.key + 1, direction: 'back'}));
-    syncPages();
-    popGuard.current = true;
-    history.back();
-    return true;
-  }, [closeDrawer]);
-
-  const drawerExited = useCallback(() => {
-    setDrawer(null); setDrawerClosing(false);
-    drawerStack.current = [];
-    setDrawerPages([]);
-    const next = afterExit.current;
-    afterExit.current = null;
-    if (drawerEntries.current > 0) {
-      popGuard.current = true;
-      pendingGo.current = next;
-      history.go(-drawerEntries.current);
-      drawerEntries.current = 0;
-    } else next?.();
-  }, []);
-
-  useEffect(() => {
-    const onPop = () => {
-      if (popGuard.current) {
-        popGuard.current = false;
-        const go = pendingGo.current;
-        pendingGo.current = null;
-        go?.();
-        return;
-      }
-      const stack = drawerStack.current;
-      if (!stack.length) {
-        if (drawerEntries.current > 0) drawerEntries.current--; // 收回动画期间的手势先消费守卫条目
-        return; // 无抽屉时的返回 = 正常路由后退，交给 hashchange
-      }
-      if (!confirmDiscard()) {
-        history.pushState({diedu: 'drawer'}, ''); // 用户取消放弃：补回刚消费的守卫条目
-        return;
-      }
-      stack.pop();
-      drawerEntries.current = Math.max(0, drawerEntries.current - 1);
-      if (stack.length) {
-        // 艺人抽屉等往返场景：返回手势回到上一层抽屉（重挂载，与「返回」按钮同语义）
-        drawerDirty.current = false;
-        setDrawerClosing(false);
-        setDrawer(stack[stack.length - 1]);
-        setDrawerPage(p => ({key: p.key + 1, direction: 'back'}));
-        setDrawerPages([...stack]);
-      } else {
-        setDrawerClosing(true);
-      }
-    };
-    window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
-  }, []);
-
-  const setDrawerDirty = useCallback((v: boolean) => { drawerDirty.current = v; }, []);
-
-  // 页面切换动画（样式见 styles/pagetransition.css）：旧页面以 DOM 快照参与滑出，
-  // 组件不重复挂载。hashchange/popstate 在 React 重渲染前同步到达，监听里抢先
-  // 抓整个 #main 的克隆（连内边距一起保住几何）；等 effect 跑起来时旧内容已被
-  // 换掉，只能用这份快照。
-  const mainRef = useRef<HTMLElement | null>(null);
-  const prevPageRef = useRef(page);
-  const ghostSnapRef = useRef<{el: HTMLElement; y: number;
-    scroll: {index: number; left: number; top: number}[];
-    poses: {index: number; name: string; time: number}[]} | null>(null);
-  const lastHashRef = useRef(location.hash);
   useEffect(() => installReplaceNav(), []);
-  const clickNavRef = useRef(0);
-  const historyNavRef = useRef(false);
-  useEffect(() => {
-    const capture = () => {
-      // 滚动偏移必须此刻记下：换页后内容变矮会被视口钳到 0，快照就对不上用户看到的位置了
-      const source = mainRef.current;
-      ghostSnapRef.current = source ? {
-        el: source.cloneNode(true) as HTMLElement, y: window.scrollY,
-        // cloneNode 不复制内部滚动偏移；快照挂载后才能还原可滚动容器的位置。
-        scroll: Array.from(source.querySelectorAll<HTMLElement>('*')).flatMap((el, index) =>
-          el.scrollLeft || el.scrollTop ? [{index, left: el.scrollLeft, top: el.scrollTop}] : []),
-        // 连续展示以暂停 CSS 动画定位；克隆同样要保留当前姿态，避免切页时封面跳回起点。
-        poses: Array.from(source.querySelectorAll<HTMLElement>('*')).flatMap((el, index) =>
-          el.getAnimations().flatMap(animation => animation.playState === 'paused'
-            && typeof animation.currentTime === 'number' && 'animationName' in animation
-            ? [{index, name: (animation as CSSAnimation).animationName, time: animation.currentTime}] : [])),
-      } : null;
-    };
-    // 真正的历史遍历（iOS 边缘右滑、后退/前进）系统自带过渡画面，自己再播一遍
-    // 就是双重动画——标记后由切页 effect 跳过。**WebKit 对锚点点击的 fragment
-    // 导航也会连发两次 popstate**（实测序列 pop、pop、hash，与历史返回无法从
-    // 事件本身区分），只能靠点击时间窗判别：点击后瞬间的 popstate 是应用内导航。
-    const onPop = () => {
-      if (location.hash !== lastHashRef.current && Date.now() - clickNavRef.current > 500) {
-        historyNavRef.current = true;
-      }
-      capture();
-    };
-    const onHash = () => {
-      lastHashRef.current = location.hash;
-      capture();
-    };
-    const onClick = () => { clickNavRef.current = Date.now(); };
-    document.addEventListener('click', onClick, true);
-    window.addEventListener('popstate', onPop);
-    window.addEventListener('hashchange', onHash);
-    return () => {
-      document.removeEventListener('click', onClick, true);
-      window.removeEventListener('popstate', onPop);
-      window.removeEventListener('hashchange', onHash);
-    };
-  }, []);
-  // 库存 ↔ 展示：幕布合上 → 预加载封面 → 打开（PageVeil）。必须在绘制前挂上，
-  // 否则新页面会先闪一帧；layout effect 在下面的切页 effect 之前运行，能读到旧页面。
-  const [veil, setVeil] = useState<string[] | null>(null);
-  const veilStartedRef = useRef(false);
-  useLayoutEffect(() => {
-    veilStartedRef.current = false;
-    const prev = prevPageRef.current;
-    const isShelf = (p: string) => p === 'domestic' || p === 'overseas';
-    if (prev === page || !((prev === 'gallery' && isShelf(page)) || (page === 'gallery' && isShelf(prev)))) return;
-    if (historyNavRef.current || (Boolean(modules?.showcase) && home === 'gallery')) return;
-    try {
-      if (!matchMedia('(max-width:840px)').matches || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    } catch { return; }
-    veilStartedRef.current = true;
-    setVeil((state?.records ?? []).map(r => r.cover).filter(Boolean));
-  }, [page]);
-  useEffect(() => {
-    const prev = prevPageRef.current;
-    prevPageRef.current = page;
-    const main = mainRef.current;
-    if (prev === page || !main) { ghostSnapRef.current = null; return; }
-    // 国内 / 海外是同一张库存页里的两个子标签（.shelf-location），切换不算换页：
-    // 不播整页过渡，只有列表内容替换与地区下划线滑动。
-    if ((prev === 'domestic' || prev === 'overseas') && (page === 'domestic' || page === 'overseas')) {
-      ghostSnapRef.current = null;
-      return;
-    }
-    const snap = ghostSnapRef.current;
-    ghostSnapRef.current = null;
-    // 历史驱动的换页（边缘右滑/后退键）交给系统过渡，自己不再播动画
-    const fromHistory = historyNavRef.current;
-    historyNavRef.current = false;
-    let mobile = false;
-    let animate = true;
-    try {
-      mobile = matchMedia('(max-width:840px)').matches;
-      animate = !matchMedia('(prefers-reduced-motion: reduce)').matches;
-    } catch { animate = false; }
-    // 库存 ↔ 展示（以管理为主的用户用顶栏切换进入）：不播整页左右滑动，顶栏留在原地，
-    // 只让下方内容柔和淡入（切换控件的滑块自己滑过去）
-    const isShelf = (p: string) => p === 'domestic' || p === 'overseas';
-    const showcaseTab = Boolean(modules?.showcase) && home === 'gallery';
-    if (veilStartedRef.current) return;   // 已由 PageVeil 接管整场转场
-    if (mobile && animate && !fromHistory && !showcaseTab
-        && ((prev === 'gallery' && isShelf(page)) || (page === 'gallery' && isShelf(prev)))) {
-      main.classList.add('page-in-fade');
-      const t = window.setTimeout(() => main.classList.remove('page-in-fade'), 400);
-      return () => { window.clearTimeout(t); main.classList.remove('page-in-fade'); };
-    }
-    if (!snap || !mobile || !animate || fromHistory) return;
-    const dir: 1 | -1 = (PAGE_RANK[page] ?? 3.5) >= (PAGE_RANK[prev] ?? 3.5) ? 1 : -1;
-    // 快照可能取自上一场过渡进行中，先剥掉入场类再挂滑出类
-    snap.el.classList.remove('page-in-right', 'page-in-left');
-    snap.el.classList.add(dir === 1 ? 'page-out-left' : 'page-out-right');
-    // 快照不随窗口滚动：按抓取时的滚动偏移还原，吸顶页头停在用户此刻看到的位置
-    snap.el.querySelectorAll<HTMLElement>('.page-head').forEach(h => {
-      h.style.transform = `translateY(${snap.y}px)`;
-    });
-    const ghost = document.createElement('div');
-    ghost.className = dir === 1 ? 'page-ghost page-ghost-under' : 'page-ghost page-ghost-over';
-    ghost.setAttribute('aria-hidden', 'true');
-    const shifter = document.createElement('div');
-    shifter.className = 'page-ghost-shift';
-    shifter.style.transform = `translateY(${-snap.y}px)`;
-    shifter.appendChild(snap.el);
-    ghost.appendChild(shifter);
-    document.body.appendChild(ghost);
-    const clonedElements = snap.el.querySelectorAll<HTMLElement>('*');
-    snap.scroll.forEach(({index, left, top}) => {
-      clonedElements[index].scrollLeft = left;
-      clonedElements[index].scrollTop = top;
-    });
-    snap.poses.forEach(({index, name, time}) => {
-      clonedElements[index].getAnimations().forEach(animation => {
-        if ('animationName' in animation && (animation as CSSAnimation).animationName === name) animation.currentTime = time;
-      });
-    });
-    // 新页面同样补页头偏移：transform 会让 sticky 失效，补齐后动画首尾位置一致
-    const heads = Array.from(main.querySelectorAll<HTMLElement>('.page-head'));
-    heads.forEach(h => { h.style.transform = `translateY(${window.scrollY}px)`; });
-    main.classList.add(dir === 1 ? 'page-in-right' : 'page-in-left');
-    document.documentElement.classList.add('page-anim-lock');
-    let done = false;
-    const finish = () => {
-      if (done) return;
-      done = true;
-      ghost.remove();
-      main.classList.remove('page-in-right', 'page-in-left');
-      heads.forEach(h => { h.style.transform = ''; });
-      document.documentElement.classList.remove('page-anim-lock');
-    };
-    const timer = window.setTimeout(finish, 450); // 收不到 animationend（如中途关动画）时兜底
-    const onEnd = (e: AnimationEvent) => {
-      // 子元素自带的入场动画也会冒泡上来，只认两层盒子自身的动画
-      if (e.target === main || e.target === snap.el) finish();
-    };
-    main.addEventListener('animationend', onEnd);
-    ghost.addEventListener('animationend', onEnd);
-    return () => {
-      window.clearTimeout(timer);
-      main.removeEventListener('animationend', onEnd);
-      ghost.removeEventListener('animationend', onEnd);
-      finish(); // 快速连切：立刻收掉上一场过渡
-    };
-  }, [page]);
+  const {mainRef, veil, setVeil} = usePageTransition(page, showcaseTab, state?.records);
 
-  // PWA：注册 Service Worker、离线横幅、侧栏安装入口
-  useEffect(() => {
-    navigator.serviceWorker?.register('/sw.js').catch(() => { /* 离线壳不可用不影响使用 */ });
-    const on = () => setOffline(false);
-    const off = () => setOffline(true);
-    const bip = (e: Event) => { e.preventDefault(); setInstallEvt(e); };
-    window.addEventListener('online', on);
-    window.addEventListener('offline', off);
-    window.addEventListener('beforeinstallprompt', bip);
-    return () => {
-      window.removeEventListener('online', on);
-      window.removeEventListener('offline', off);
-      window.removeEventListener('beforeinstallprompt', bip);
-    };
-  }, []);
+  const {offline, installEvt, setInstallEvt} = usePwa();
 
-  if (!state || !modules) {
+  if (!state || !modules || !pagesLoaded) {
     if (fatal) {
       return (
         <div className="empty">
-          <h2>暂时无法打开碟渡</h2>
+          <h2>暂时无法打开 Obi</h2>
           <p>{fatal}</p>
           <button onClick={() => location.reload()}>重新连接</button>
         </div>
@@ -475,23 +165,7 @@ export default function App() {
     openDrawer, closeDrawer, backDrawer, closeDrawerAndGo, setDrawerDirty,
   };
 
-  const counts: Record<string, number> = {
-    overseas: 0, transit: 0, domestic: 0, shipping: 0, trades: 0,
-  };
-  state.records.forEach(r => { if (r.status in counts) counts[r.status]++; });
-  counts.trades = state.sales.filter(s => s.status === 'complete').length;
-  if (!modules.circulation) counts.domestic += counts.overseas + counts.transit;
-  counts.inventory = counts.domestic + (modules.circulation ? counts.overseas : 0);
-  const nav = NAV.filter(n => pageEnabled(n.hash, modules)).map(n => ({...n,
-    label: n.hash === 'domestic' && !modules.circulation ? '我的收藏' : n.label,
-  }));
-  const showcaseTab = modules.showcase && home === 'gallery';
-  const mobileTabs = [...(showcaseTab ? [GALLERY_TAB] : []), ...MOBILE_TABS].filter(n => pageEnabled(n.hash, modules)).map(n => ({...n,
-    label: n.hash === 'domestic' && !modules.circulation ? '收藏' : n.label,
-  }));
-  // 库存标签同时代表海外库存；以管理为主时，展示页也算库存标签下的页面
-  const tabActive = (hash: string) => page === hash
-    || (hash === 'domestic' && (page === 'overseas' || (page === 'gallery' && !showcaseTab)));
+  const counts = navCounts(state, modules);
   const content = state.modules?.needsSetup ? <SetupPage/>
     : page === 'gallery' ? <GalleryPage/>
     : ['overseas', 'domestic', 'trash'].includes(page) ? <ShelfPage/>
@@ -503,63 +177,17 @@ export default function App() {
             : page === 'more' ? <MorePage installEvt={installEvt} onInstalled={() => setInstallEvt(null)}/>
               : <SettingsPage/>;
 
-  // 底栏滑动高亮：胶囊按激活槽位平移；「更多」固定在最后一位
-  const activeTab = mobileTabs.findIndex(t => tabActive(t.hash));
-  const pillIndex = activeTab >= 0 ? activeTab : mobileTabs.length;
-
   return (
     <>
     <AppContext.Provider value={ctx}>
       <a className="skip" href="#main">跳至内容</a>
       <div id="shell" className={page === 'gallery' ? 'showcase-shell' : undefined}>
-        <aside className="sidebar">
-          <a className="brand" href={`#${home}`}>
-            <img className="brand-logo" src="/icon-192.png" alt="" width="30" height="30"/>
-            <span>碟渡<small>{modules.circulation ? '藏 · 渡 · 售' : modules.trading ? '藏 · 售' : '记住每张唱片'}</small></span>
-          </a>
-          <nav aria-label="主导航">
-            {nav.map(n => (
-              <a key={n.hash} href={`#${n.hash}`} data-nav={n.hash}
-                 className={page === n.hash ? 'active' : ''}
-                 aria-current={page === n.hash ? 'page' : 'false'}>
-                <span className="nav-ico">{n.ico}</span>{n.label}
-                {counts[n.hash] !== undefined && n.hash !== 'stats' ? <b id={`${n.hash}-count`}>{counts[n.hash]}</b> : null}
-              </a>
-            ))}
-          </nav>
-          <div className="sidebar-bottom">
-            {installEvt ? <InstallNavItem evt={installEvt} onInstalled={() => setInstallEvt(null)}/> : null}
-            <Ledger/>
-            <a href="#settings" data-nav="settings"
-               className={page === 'settings' ? 'active' : ''}>
-              <span className="nav-ico" aria-hidden="true"><GearIcon size={14}/></span>设置与备份
-            </a>
-            <div className="local-note"><i/> 数据保存在服务设备</div>
-          </div>
-        </aside>
+        <Sidebar page={page} home={home} modules={modules} counts={counts}
+                 installEvt={installEvt} onInstalled={() => setInstallEvt(null)}/>
         <main id="main" className={page === 'gallery' ? 'showcase-main' : undefined} tabIndex={-1} ref={mainRef}><div className="page-layer">{content}</div></main>
       </div>
       {offline ? <div id="connection-status" role="status">网络已断开，保存前请恢复连接。</div> : null}
-      <nav className="mobile-nav" aria-label="手机导航">
-        <span className="nav-pill" aria-hidden="true" style={{
-          width: `calc((100% - 12px) / ${mobileTabs.length + 1})`,
-          transform: `translateX(${pillIndex * 100}%)`,
-        }}/>
-        {mobileTabs.map(t => (
-          <a key={t.hash} href={`#${t.hash === 'domestic' && modules.circulation ? inventoryPage : t.hash}`}
-             className={tabActive(t.hash) ? 'active' : ''}
-             aria-current={tabActive(t.hash) ? 'page' : 'false'}>
-            <span className="tab-ico" aria-hidden="true">{t.ico}</span>
-            <span className="tab-label">{t.label}</span>
-            {counts[t.count] ? <b className="tab-badge num">{counts[t.count]}</b> : null}
-          </a>
-        ))}
-        <a href="#more" className={MORE_HASHES.has(page) ? 'active' : ''}
-           aria-current={MORE_HASHES.has(page) ? 'page' : 'false'}>
-          <span className="tab-ico" aria-hidden="true">⋯</span>
-          <span className="tab-label">更多</span>
-        </a>
-      </nav>
+      <MobileNav page={page} modules={modules} counts={counts} showcaseTab={showcaseTab} inventoryPage={inventoryPage}/>
       {drawer ? <Drawer spec={drawer} closing={drawerClosing} pages={drawerPages} pageKey={drawerPage.key} direction={drawerPage.direction}
                         onClose={() => closeDrawer()} onClosed={drawerExited}/> : null}
       {toastMsg ? <Toast key={toastMsg.key} kind={toastMsg.kind} text={toastMsg.text} action={toastMsg.action} onDone={() => setToastMsg(null)}/> : null}

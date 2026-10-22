@@ -6,7 +6,7 @@ export function InstallNavItem({evt, onInstalled, row = false}: {evt: Event; onI
     await (evt as Event & {prompt?: () => Promise<void>}).prompt?.();
     onInstalled();
   };
-  if (row) return <NavRow icon="⤓" title="安装碟渡" onClick={() => void install()}/>;
+  if (row) return <NavRow icon="⤓" title="安装 Obi" onClick={() => void install()}/>;
   return <button type="button" className="install-nav" onClick={() => void install()}>
-    <span className="nav-ico" aria-hidden="true">⤓</span>安装碟渡</button>;
+    <span className="nav-ico" aria-hidden="true">⤓</span>安装 Obi</button>;
 }

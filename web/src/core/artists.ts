@@ -33,7 +33,7 @@ export interface ArtistWork {
   secondaryTypes: string[];
   category: CatalogCategory;
   artistMbids: string[];
-  artworkUrl?: string | null;  // 仅碟渡自己的图片 API（当前由前端按 mbid 构造）
+  artworkUrl?: string | null;  // 仅 Obi 自己的图片 API（当前由前端按 mbid 构造）
   sourceUrl: string;
 }
 

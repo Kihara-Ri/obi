@@ -15,6 +15,8 @@ jobs:
           fetch-depth: 0
       - name: 当前文件树扫描（文件名 + 内容）
         run: tools/check-data-leak.sh
+        env:
+          LEAK_PATTERNS: ${{ secrets.LEAK_PATTERNS }}
       - name: 全历史文件名扫描（个人数据不得进任何提交）
         run: |
           if git log --all --pretty=format: --name-only | sort -u \
@@ -57,8 +59,8 @@ jobs:
       # job 级 env 不能引用 runner 上下文（会让整个工作流文件无效），改在首个步骤里写入环境
       - name: 准备预览目录变量
         run: |
-          echo "DIEDU_DEV_HOME=$RUNNER_TEMP/diedu-preview" >> "$GITHUB_ENV"
-          echo "DIEDU_PREVIEW_SCREENSHOTS=$RUNNER_TEMP/diedu-preview-screenshots" >> "$GITHUB_ENV"
+          echo "OBI_DEV_HOME=$RUNNER_TEMP/obi-preview" >> "$GITHUB_ENV"
+          echo "OBI_PREVIEW_SCREENSHOTS=$RUNNER_TEMP/obi-preview-screenshots" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
@@ -76,15 +78,15 @@ jobs:
       - name: 缓存锁定的公开素材包
         uses: actions/cache@v4
         with:
-          path: ${{ runner.temp }}/diedu-preview/bundle
+          path: ${{ runner.temp }}/obi-preview/bundle
           key: sample-bundle-${{ runner.os }}-${{ hashFiles('tools/sample-bundle.json') }}
       - name: 准备并校验固定样本
         run: |
           python3 tools/preview_samples.py prepare --download
-          python3 tools/preview_samples.py check > "$RUNNER_TEMP/diedu-preview-check.json"
+          python3 tools/preview_samples.py check > "$RUNNER_TEMP/obi-preview-check.json"
       - name: 启动隔离预览并验证真实封面与贴图
         run: |
-          python3 tools/preview_samples.py start --port 63282 > "$RUNNER_TEMP/diedu-preview-server.log" 2>&1 &
+          python3 tools/preview_samples.py start --port 63282 > "$RUNNER_TEMP/obi-preview-server.log" 2>&1 &
           preview_pid=$!
           trap 'kill "$preview_pid" 2>/dev/null || true; wait "$preview_pid" 2>/dev/null || true' EXIT
           ready=false
@@ -94,29 +96,29 @@ jobs:
               break
             fi
             if ! kill -0 "$preview_pid" 2>/dev/null; then
-              cat "$RUNNER_TEMP/diedu-preview-server.log"
+              cat "$RUNNER_TEMP/obi-preview-server.log"
               exit 1
             fi
             sleep 1
           done
           if [ "$ready" != true ]; then
-            cat "$RUNNER_TEMP/diedu-preview-server.log"
+            cat "$RUNNER_TEMP/obi-preview-server.log"
             exit 1
           fi
-          npm --prefix web run test:browser -- --url http://127.0.0.1:63282 --expectations "$RUNNER_TEMP/diedu-preview-check.json"
+          npm --prefix web run test:browser -- --url http://127.0.0.1:63282 --expectations "$RUNNER_TEMP/obi-preview-check.json"
       - name: 售卖草稿与图片下载验收（模拟模型）
         run: |
           python3 - <<'PY'
           import os
           from pathlib import Path
           from tools.seed_samples import seed_listing_reference_photos
-          seed_listing_reference_photos(Path(os.environ['DIEDU_DEV_HOME']) / 'instance')
+          seed_listing_reference_photos(Path(os.environ['OBI_DEV_HOME']) / 'instance')
           PY
-          python3 tests/serve_listing_acceptance.py --data-dir "$DIEDU_DEV_HOME/instance" > "$RUNNER_TEMP/diedu-listing-server.log" 2>&1 &
+          python3 tests/serve_listing_acceptance.py --data-dir "$OBI_DEV_HOME/instance" > "$RUNNER_TEMP/obi-listing-server.log" 2>&1 &
           listing_pid=$!
           trap 'kill "$listing_pid" 2>/dev/null || true; wait "$listing_pid" 2>/dev/null || true' EXIT
           for attempt in $(seq 1 60); do
-            listing_url=$(sed -n 's/^ACCEPTANCE_URL=//p' "$RUNNER_TEMP/diedu-listing-server.log" | head -1)
+            listing_url=$(sed -n 's/^ACCEPTANCE_URL=//p' "$RUNNER_TEMP/obi-listing-server.log" | head -1)
             [ -n "$listing_url" ] && break
             kill -0 "$listing_pid" || exit 1
             sleep 1
@@ -129,7 +131,7 @@ jobs:
           name: sample-browser-failure
           if-no-files-found: warn
           path: |
-            ${{ runner.temp }}/diedu-preview-screenshots/
-            ${{ runner.temp }}/diedu-preview-check.json
-            ${{ runner.temp }}/diedu-preview-server.log
-            ${{ runner.temp }}/diedu-listing-server.log
+            ${{ runner.temp }}/obi-preview-screenshots/
+            ${{ runner.temp }}/obi-preview-check.json
+            ${{ runner.temp }}/obi-preview-server.log
+            ${{ runner.temp }}/obi-listing-server.log

@@ -27,17 +27,15 @@
 .drawer-pages>.drawer-page{position:absolute;inset:0}
 .drawer-page.is-covered:not(.is-animating){visibility:hidden}
 .drawer-page.is-leaving{z-index:3;pointer-events:none}
-.drawer-page.edge,.drawer-page-ghost.edge{box-shadow:-14px 0 36px var(--shadow-ink)}
-.drawer-page.edge-top,.drawer-page-ghost.edge-top{box-shadow:0 -14px 36px var(--shadow-ink)}
+.drawer-page.edge{box-shadow:-14px 0 36px var(--shadow-ink)}
+.drawer-page.edge-top{box-shadow:0 -14px 36px var(--shadow-ink)}
 .drawer-dim{position:absolute;inset:0;z-index:4;background:var(--shadow-ink);pointer-events:none}
 .drawer-head h2{flex:1;min-width:0}
-.drawer-head h2.is-forward,.drawer-head h2.is-back{animation:drawer-title-in .3s var(--ease-soft) both}
-@keyframes drawer-title-in{from{opacity:0}to{opacity:1}}
 /* 头部左侧返回箭头（二级页）：出现时淡入并从左轻移 */
 .drawer-back{flex:none;width:40px;height:40px;margin:-6px 2px -6px -10px;padding:0;display:inline-grid;place-items:center;color:var(--text);animation:drawer-back-in .28s var(--ease-out) both}
 .drawer-back svg{width:22px;height:22px}
 @keyframes drawer-back-in{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.drawer-head h2.is-forward,.drawer-head h2.is-back,.drawer-back{animation:none}}
+@media (prefers-reduced-motion:reduce){.drawer-back{animation:none}}
 .drawer-body{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:14px 18px}
 /* 抽屉内紧凑排版：字段多，压缩空白让全屏高度一屏放得下 */
 #panel input,#panel select,#panel textarea{padding:7px 10px}
@@ -88,7 +86,6 @@ details.adv:not([open]) > :not(summary){display:none}
 .amount-group:focus-within{border-color:var(--accent-deep)}
 .amount-group .seg-cur{flex:none;background:none;border:none;border-radius:0;padding:4px 0 4px 4px;gap:2px}
 .amount-group .seg-cur button{flex:none;padding:0 11px;font-size:12px;border-radius:7px}
-.amount-group .cur-static{flex:none;display:flex;align-items:center;padding:0 12px;font-size:12px;color:var(--muted)}
 #panel .amount-group input{flex:none;width:132px;text-align:right;border:none;background:none;border-radius:0;padding:7px 12px 7px 11px;border-left:1px solid var(--border);font-variant-numeric:tabular-nums;font-weight:600}
 .amount-group input:focus{outline:none;border:none;box-shadow:none;background:none}
 
@@ -125,11 +122,6 @@ details.adv:not([open]) > :not(summary){display:none}
 .sale-preview .line b{font-size:17px;font-variant-numeric:tabular-nums}
 .sale-preview .line .hint{font-size:11.5px}
 .sale-preview p{margin:0;font-size:11.5px}
-
-/* 开关（侧标有无） */
-.switch-field{justify-content:flex-end;gap:0}
-.switch-line{display:flex;align-items:center;gap:9px;height:40px}
-.switch-text{font-size:12px;color:var(--muted);font-weight:400}
 
 /* 重复提示 */
 .dup-hint{font-size:12px;color:var(--amber);margin-top:5px}
@@ -174,14 +166,6 @@ details.adv:not([open]) > :not(summary){display:none}
 .detail-grid dd{font-size:14px;margin:0;text-align:right;font-variant-numeric:tabular-nums;word-break:break-word}
 .note-text{background:var(--surface-2);border-radius:var(--radius-sm);padding:10px 13px;font-size:13px;color:var(--text);margin-bottom:12px;white-space:pre-wrap}
 
-/* 批量录入行 */
-.batch-item{margin-bottom:9px}
-.batch-row{display:grid;grid-template-columns:1.35fr .8fr 76px 96px 36px 26px;gap:8px}
-.batch-row input{padding:7px 8px;font-size:12.5px}
-.batch-photo-btn{padding:7px 6px;font-size:14px;background:var(--surface-2)}
-.batch-photo-btn .cnt{font-size:10.5px;color:var(--accent-deep);margin-left:2px}
-.batch-heading{font-size:11px;color:var(--faint);margin:18px 0 8px}
-
 @media (max-width:840px){
   /* 轨道要能收缩：裸 1fr 的最小宽取内容固有宽，iOS 日期输入的固有宽度撑破抽屉
      （右缘切断） */
@@ -189,6 +173,10 @@ details.adv:not([open]) > :not(summary){display:none}
   /* 确认类抽屉：贴底内容高度卡，消除短表单的整屏空白；超长内容仍由 body 滚动。
      桌面保持全高右抽屉。拖拽关闭、键盘视口逻辑照旧复用 */
   .drawer.compact{top:auto;max-height:calc(100% - 56px - var(--kb,0px))}
+  /* 页面默认绝对定位叠放（容器没有内容高度）；compact 要按内容撑高，改成同一网格格内叠放 */
+  .drawer.compact .drawer-pages{display:grid;flex:0 1 auto}
+  .drawer.compact .drawer-pages>.drawer-page{position:relative;inset:auto;grid-area:1/1}
+  .drawer.compact .drawer-page:not(.is-covered){overflow-y:auto}
   /* 表单抽屉 → 底部上滑 sheet：顶部圆角 + 抓手，底部避开 Home 条；
      进入 = 整块自屏底滑入，关闭 = 跟手下滑收回（sheet-down + Drawer 拖拽） */
   .drawer{top:calc(10px + env(safe-area-inset-top));right:0;bottom:0;left:0;width:auto;
@@ -220,30 +208,12 @@ details.adv:not([open]) > :not(summary){display:none}
   #panel .row-group input{font-size:16px}
   .chip{min-height:34px}
 
-  /* 批量录入行重排：专辑名整行，艺人+金额+照片+删除一行，碟盒整行 */
-  .batch-row{grid-template-columns:minmax(0,1fr) 96px 44px 34px;gap:7px}
-  .batch-row>:nth-child(1){grid-column:1/-1;grid-row:1}
-  .batch-row>:nth-child(2){grid-column:1;grid-row:2}
-  .batch-row>:nth-child(3){grid-column:2;grid-row:2}
-  .batch-row>:nth-child(4){grid-column:1/-1;grid-row:3}
-  .batch-row>:nth-child(5){grid-column:3;grid-row:2}
-  .batch-row>:nth-child(6){grid-column:4;grid-row:2}
-  .batch-row>button{padding:8px 0}
-  .batch-row input{font-size:16px}
   .record-detail{gap:12px}
   .record-detail .big{width:96px;height:96px}
-}
-.batch-collection .batch-row{grid-template-columns:1.35fr .8fr 96px 36px 26px}
-@media (max-width:840px){
-  .batch-collection .batch-row{grid-template-columns:minmax(0,1fr) 44px 34px}
-  .batch-collection .batch-row>:nth-child(5){grid-column:2}
-  .batch-collection .batch-row>:nth-child(6){grid-column:3}
 }
 
 
 /* 详情抽屉：编辑/上架与库存流转/交易两组，自适应换行，绝不越过抽屉边界。 */
-.drawer-footer:has(.detail-footer-stack){display:block}
-.detail-footer-stack{display:flex;flex-direction:column;gap:8px;min-width:0;width:100%}
 .detail-footer-row{display:flex;justify-content:flex-end;align-items:center;flex-wrap:wrap;gap:7px;min-width:0}
 .detail-footer-row+.detail-footer-row{border-top:1px solid var(--border);padding-top:8px}
 .detail-footer-row button{flex:0 1 auto;max-width:100%;min-width:0;white-space:normal}
@@ -258,16 +228,9 @@ details.adv:not([open]) > :not(summary){display:none}
 .record-copy-edition-head{display:flex;align-items:baseline;flex-wrap:wrap;gap:7px;margin-bottom:9px}
 .record-copy-edition-head strong{font-size:12.5px;font-weight:650;color:var(--text)}
 .record-copy-edition-head span{font-size:11px;color:var(--muted)}
-.record-copy-edition-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.record-copy-edition-grid .field{min-width:0}
-.record-copy-edition-grid .field-label{display:block;margin-bottom:6px;font-size:11.5px;color:var(--muted)}
-.record-copy-edition-grid .seg{width:100%;min-width:0}
-.record-copy-edition-grid .seg button{min-width:0;padding:7px 3px;font-size:11.5px}
-@media(max-width:600px){.record-copy-edition-grid{grid-template-columns:1fr;gap:10px}}
 
 /* 编辑 / 添加表单分区标题：专辑资料 · 购买信息 · 备注；数字实体收在底部 */
 .form-group-title{margin:22px 0 8px}
-#record-form .record-twin-entry{margin-top:18px}
 
 /* 行式表单补充：说明行、堆叠行（label 在上、内容在下，如购买渠道标签）、行内日期 */
 .row-group .row-note{margin:0;padding:6px 14px;font-size:12px;color:var(--muted);border-top:1px solid var(--border);font-variant-numeric:tabular-nums}
@@ -287,7 +250,6 @@ details.adv:not([open]) > :not(summary){display:none}
 #record-form textarea{min-height:56px}
 
 /* 详情页：标题右侧的复制 / 爱心操作，及带复制钮的数值行 */
-.record-detail-actions{display:flex;align-items:center;flex:none;margin:-6px -8px 0 0}
 .record-detail-title .like-heart{margin:0}
 .detail-grid dd.has-copy{display:inline-flex;align-items:center;justify-content:flex-end;gap:2px;margin:-4px -6px -4px 0}
 .record-detail .pill{margin:0 6px 4px 0}

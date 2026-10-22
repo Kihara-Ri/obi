@@ -1,7 +1,7 @@
 /**
  * Album Engine plugin lifecycle acceptance over the fixed offline samples.
  * Unlike showcase-acceptance.mjs this script drives one mutable probe record
- * through create/edit/trash, so run it against a DIEDU_DEV_HOME instance and
+ * through create/edit/trash, so run it against a OBI_DEV_HOME instance and
  * `preview_samples.py restore` afterwards to return the dev directory to the
  * canonical seed. Server restart and backup/restore are orchestrated outside;
  * each stage re-reads state and fails fast on preconditions.
@@ -39,8 +39,8 @@ export async function accept(page, {baseURL, expectations, screenshotDir, stage 
   // only mounts covers near the viewport. Original preferences are restored in finally.
   await page.addInitScript(() => {
     try {
-      if (!sessionStorage.getItem('diedu-acceptance-preferences'))
-        sessionStorage.setItem('diedu-acceptance-preferences',
+      if (!sessionStorage.getItem('obi-acceptance-preferences'))
+        sessionStorage.setItem('obi-acceptance-preferences',
           JSON.stringify({value: localStorage.getItem('album-gallery-v1')}));
       localStorage.setItem('album-gallery-v1', JSON.stringify({mode: 'tiles', density: 'medium',
         showTitles: false, sort: 'recent', currentId: null, scope: {kind: 'all'}, roamingSpeeds: {}}));
@@ -268,12 +268,12 @@ export async function accept(page, {baseURL, expectations, screenshotDir, stage 
     throw error;
   } finally {
     await page.evaluate(() => {
-      const preferences = sessionStorage.getItem('diedu-acceptance-preferences');
+      const preferences = sessionStorage.getItem('obi-acceptance-preferences');
       if (preferences) {
         const {value} = JSON.parse(preferences);
         if (value === null) localStorage.removeItem('album-gallery-v1');
         else localStorage.setItem('album-gallery-v1', value);
-        sessionStorage.removeItem('diedu-acceptance-preferences');
+        sessionStorage.removeItem('obi-acceptance-preferences');
       }
     }).catch(() => {});
     page.off('pageerror', onError); page.off('console', onConsole);
@@ -286,11 +286,11 @@ if (typeof process !== 'undefined' && process.argv[1] && import.meta.url === new
   const {pathToFileURL} = await import('node:url');
   const args = process.argv.slice(2);
   const value = flag => args[args.indexOf(flag) + 1];
-  const baseURL = args.includes('--url') ? value('--url') : process.env.DIEDU_PREVIEW_URL;
-  const file = args.includes('--expectations') ? value('--expectations') : process.env.DIEDU_PREVIEW_EXPECTATIONS;
+  const baseURL = args.includes('--url') ? value('--url') : process.env.OBI_PREVIEW_URL;
+  const file = args.includes('--expectations') ? value('--expectations') : process.env.OBI_PREVIEW_EXPECTATIONS;
   const stage = args.includes('--stage') ? value('--stage') : 'full-ui';
   if (!baseURL || !file) throw new Error('Usage: node engine-plugin-acceptance.mjs --url http://127.0.0.1:<port> --expectations <check.json> --stage <full-ui|uninstall-while-viewing|after-restart|reinstall-view>');
-  const modulePath = process.env.DIEDU_PLAYWRIGHT_MODULE;
+  const modulePath = process.env.OBI_PLAYWRIGHT_MODULE;
   const {chromium} = await import(modulePath?.startsWith('/') ? pathToFileURL(modulePath).href : modulePath || 'playwright');
   const angle = process.platform === 'darwin' ? 'metal' : 'swiftshader';
   const browser = await chromium.launch({headless: true, args: ['--use-gl=angle', '--use-angle=' + angle, '--enable-webgl']});
@@ -299,7 +299,7 @@ if (typeof process !== 'undefined' && process.argv[1] && import.meta.url === new
     // next to the first (implicit browser.newPage() contexts forbid that).
     const context = await browser.newContext();
     const page = await context.newPage();
-    const screenshotDir = process.env.DIEDU_PREVIEW_SCREENSHOTS;
+    const screenshotDir = process.env.OBI_PREVIEW_SCREENSHOTS;
     if (screenshotDir) await mkdir(screenshotDir, {recursive: true});
     console.log(JSON.stringify(await accept(page, {baseURL, stage,
       expectations: JSON.parse(await readFile(file, 'utf8')), screenshotDir}), null, 2));

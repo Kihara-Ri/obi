@@ -18,7 +18,7 @@ export function ProviderAccess({provider, busy, run, configure, login}: Props) {
   const id = provider.provider;
   const disconnect = () => {void run(async () => {
     const result = await api<{revoked: boolean}>('listing/disconnect', {provider: id});
-    if (!result.revoked) throw new Error('本机授权已清除；远端撤销未确认，请在服务商设置中断开碟渡');
+    if (!result.revoked) throw new Error('本机授权已清除；远端撤销未确认，请在服务商设置中断开 Obi');
   });};
   if (id === 'deepseek') return <div className="provider-block">
     {provider.keyTail && !replacing ? <div className="provider-keyrow">

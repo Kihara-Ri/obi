@@ -50,6 +50,9 @@ export function GalleryFilm(props: GalleryStageProps) {
   const scopeKey = useMemo(() => JSON.stringify(records.map(r => r.id)), [records]);
   const selected = galleryIndex(records, currentId);
   const [settledPosition, setSettledPosition] = useState(selected);
+  const [nearestFrame, setNearestFrame] = useState(selected);
+  const nearestRef = useRef(selected);
+  const emphasised = useRef<HTMLElement[]>([]);
   const [limits, setLimits] = useState((selected === 0 ? 1 : 0) | (selected === records.length - 1 ? 2 : 0));
   const limitsRef = useRef(limits);
   const metric = useRef(1);
@@ -75,6 +78,19 @@ export function GalleryFilm(props: GalleryStageProps) {
       rangeRef.current.value = String(position);
       rangeRef.current.setAttribute('aria-valuetext', galleryFilmProgressLabel(position, latest.current.records.length));
     }
+    // 离中心越近越大越亮：只改中心附近几格的 --d（0=居中，1=远），其余格恢复默认
+    const items = rail.children;
+    const from = Math.max(0, Math.floor(position) - 2), to = Math.min(items.length - 1, Math.ceil(position) + 2);
+    const live: HTMLElement[] = [];
+    for (let i = from; i <= to; i++) {
+      const item = items[i] as HTMLElement;
+      item.style.setProperty('--d', String(Math.min(1, Math.abs(i - position))));
+      live.push(item);
+    }
+    emphasised.current.forEach(item => {if (!live.includes(item)) item.style.removeProperty('--d');});
+    emphasised.current = live;
+    const near = Math.round(position);
+    if (near !== nearestRef.current) {nearestRef.current = near; setNearestFrame(near);}
     const edges = (position < .001 ? 1 : 0) | (position >= latest.current.records.length - 1 - .001 ? 2 : 0);
     if (edges !== limitsRef.current) {limitsRef.current = edges; setLimits(edges);}
     return position;
@@ -103,7 +119,7 @@ export function GalleryFilm(props: GalleryStageProps) {
       const items = rail.querySelectorAll<HTMLElement>('.gallery-film-item');
       const previousPosition = rail.scrollLeft / metric.current;
       const first = items[0], second = items[1];
-      metric.current = Math.max(1, second && first ? second.getBoundingClientRect().left - first.getBoundingClientRect().left
+      metric.current = Math.max(1, second && first ? second.offsetLeft - first.offsetLeft
         : (first ? parseFloat(getComputedStyle(first).width) : 1) + (parseFloat(getComputedStyle(rail).columnGap) || 0));
       rail.scrollLeft = Math.max(0, Math.min(records.length - 1, previousPosition)) * metric.current;
       readPosition();
@@ -209,6 +225,10 @@ export function GalleryFilm(props: GalleryStageProps) {
           </button>
         </div>)}
       </div>
+      {records[nearestFrame] ? <p className="gallery-film-caption" aria-hidden="true">
+        <b>{records[nearestFrame].title}</b><span>{records[nearestFrame].artist}</span>
+        <i>{String(nearestFrame + 1).padStart(2, '0')}</i>
+      </p> : null}
       <GalleryFilmNavigator rangeRef={rangeRef} count={records.length} initialPosition={settledPosition}
         start={!!(limits & 1)} end={!!(limits & 2)} onStep={step}
         onSeek={seek} onSeekStart={startSeek} onSeekEnd={endSeek}/>

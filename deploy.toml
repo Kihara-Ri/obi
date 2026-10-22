@@ -1,4 +1,4 @@
-# 碟渡发布配置（ai-kit 的 ship 读取；入库，不含个人信息）。
+# Obi 发布配置（ai-kit 的 ship 读取；入库，不含个人信息）。
 # 主机别名与域名写在 data/deploy.local.toml（data/ 未跟踪）：
 #   [server]
 #   host = "你的ssh主机"
@@ -10,9 +10,9 @@
 local = "data/deploy.local.toml"
 
 [server]
-dir = "/opt/diedu"
-service = "diedu"
-unit = "deploy/diedu.service"
+dir = "/opt/obi"
+service = "obi"
+unit = "deploy/obi.service"
 env_default = "PUBLIC_ORIGIN="
 legacy_marker = "app.py"
 keep_releases = 5

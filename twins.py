@@ -16,17 +16,11 @@ def host_call(function):
 
 TWIN_KEY = _engine.TWIN_KEY
 SKILL_VERSION = _engine.SKILL_VERSION
-JOB_STATES = _engine.JOB_STATES
 ID = _engine.ID
 ASSET = _engine.ASSET
 UUID = _engine.UUID
-ACCESSORY_KINDS = _engine.ACCESSORY_KINDS
 clean_barcode = host_call(_engine.clean_barcode)
-release_id = host_call(_engine.release_id)
 image_type = host_call(_engine.image_type)
-clean_warp_rows = host_call(_engine.clean_warp_rows)
-clean_spine_calibration = host_call(_engine.clean_spine_calibration)
-clean_spine_binding = host_call(_engine.clean_spine_binding)
 clean_disc_calibration = host_call(_engine.clean_disc_calibration)
 clean_accessories = host_call(_engine.clean_accessories)
 entity_assets = _engine.entity_assets

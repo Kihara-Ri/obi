@@ -1,12 +1,16 @@
 """新实例的起步示例：空库首次启动时写入两张示例专辑，兼作使用指引。
 
 只在库里没有任何记录、且从未写入过示例时执行一次（meta 标记 `starter-seeded`）；
-已有数据的实例、`--no-seed` 启动均不触碰。记录只含名称、艺人、年份与备注：
+已有数据的实例、`--no-seed` 启动均不触碰。写入示例的新实例同时记 `setup-pending`，
+首次打开仍进入功能选择引导（示例不算用户资料）。记录只含名称、艺人、年份与备注：
 不含买入金额、日期、渠道，成本保持 null。备注即指引文字，用户可直接改写或移入回收站。
 决策见 docs/DECISIONS.md D-006。
 """
+from contextlib import closing
+
 
 STARTER_META_KEY = 'starter-seeded'
+SETUP_PENDING_KEY = 'setup-pending'  # storage.state 读取；选择功能后由 modules-v1 取代
 
 # 名称与 MusicBrainz 发行版一致（条码 656605892627 / 796441804320）
 STARTER_ALBUMS = [
@@ -27,7 +31,7 @@ STARTER_ALBUMS = [
 
 def seed_starter(store):
     """空库写入示例专辑，返回写入条数；已写过或库中已有记录则返回 0。"""
-    with store.connect() as db:
+    with closing(store.connect()) as db, db:
         if db.execute('SELECT 1 FROM meta WHERE key=?', (STARTER_META_KEY,)).fetchone():
             return 0
         has_records = db.execute('SELECT 1 FROM records LIMIT 1').fetchone()
@@ -38,9 +42,11 @@ def seed_starter(store):
     items = [{**a, 'currency': 'CNY', 'status': 'domestic'} for a in STARTER_ALBUMS]
     store.save({'items': items})
     _mark(store)
+    with closing(store.connect()) as db, db:
+        db.execute("INSERT OR REPLACE INTO meta VALUES(?, 'true')", (SETUP_PENDING_KEY,))
     return len(items)
 
 
 def _mark(store):
-    with store.connect() as db:
+    with closing(store.connect()) as db, db:
         db.execute("INSERT OR REPLACE INTO meta VALUES(?, 'true')", (STARTER_META_KEY,))

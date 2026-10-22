@@ -49,3 +49,6 @@
 .gallery-twin-panel>header strong{font-size:15px}
 @media(min-width:841px){.gallery-twin-panel{left:50%;right:auto;width:min(520px,100%);transform:translateX(-50%)}}
 @media(max-width:600px){.gallery-twin-open{padding:0 12px;font-size:12.5px}}
+
+/* 手机 / 触屏：不放左右按钮（遮挡画面），改用左右划动切换（GalleryFocus 里的 touch 手势） */
+@media(max-width:600px),(pointer:coarse){.gallery-focus-nav{display:none}}

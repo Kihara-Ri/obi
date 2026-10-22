@@ -12,11 +12,15 @@ export default defineConfig({
     emptyOutDir: false,
     assetsDir: 'assets',
     modulePreload: {polyfill: false},
+    // 页面拆成多个 chunk（core/lazy-page.ts），样式仍合成一个 index.css：
+    // 组件自带的样式若随 chunk 拆出、按需插入，层叠顺序会和现在不同
+    cssCodeSplit: false,
     rollupOptions: {
       output: {
         entryFileNames: 'assets/[name].js',
         chunkFileNames: 'assets/[name].js',
-        assetFileNames: 'assets/[name][extname]',
+        // cssCodeSplit 关闭时合并样式默认叫 style.css；沿用原来的 index.css，index.html 与缓存口径不变
+        assetFileNames: info => info.names?.[0] === 'style.css' ? 'assets/index.css' : 'assets/[name][extname]',
       },
     },
   },

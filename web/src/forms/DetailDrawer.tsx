@@ -12,6 +12,7 @@ import {fmt, fmtJPY, jpyCost, rmb} from '../core/format';
 import {statusName} from '../core/modules';
 import {Cover} from '../components/Cover';
 import {openRecordForm} from './RecordForm';
+import {DETAIL_BARCODE, queueRecordBarcode} from '../core/lookup-handoff';
 import {openSaleForm} from './SaleForm';
 import {PhotoDownload} from '../components/PhotoDownload';
 import {LikeHeart} from '../components/LikeHeart';
@@ -50,6 +51,17 @@ function DetailBody({id, back}: {id: string; back?: DetailBack}) {
     window.addEventListener('drawer-closing', onClosing);
     return () => window.removeEventListener('drawer-closing', onClosing);
   }, [id]);
+  // 照片灯箱里识别出条码：打开这张专辑的编辑表单，带着条码在「发行版」区块就地查询（不跳去查询页）。
+  // 只有当前可见的这一页响应（叠在下面的详情页是 is-covered）
+  useEffect(() => {
+    const on = (e: Event) => {
+      if (bigRef.current?.closest('.is-covered')) return;
+      queueRecordBarcode(String((e as CustomEvent).detail));
+      openRecordForm(app, id);
+    };
+    window.addEventListener(DETAIL_BARCODE, on);
+    return () => window.removeEventListener(DETAIL_BARCODE, on);
+  }, [id, app]);
   if (!r) return null;
   const info = r.releaseInfo ?? {};
   // 复制钮与标题最后一个词绑在同一个不折行的片段里：标题折行时按钮跟着末词，不会单独掉到下一行

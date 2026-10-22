@@ -53,7 +53,8 @@ export async function bulkAction(app: AppCtx, action: string, ids: string[], suc
     return;
   }
   app.setSelected(new Set());
+  // 服务端已写成功：先关抽屉、弹提示给出反馈，再在后台刷新列表（整份状态 ~400KB，不让用户等它）
   app.closeDrawer(true);
-  await app.refresh();
   app.toast(successMsg, 'ok', undo ? {label: undo.label ?? '撤销', run: () => { void bulkAction(app, undo.action, ids, '已撤销'); }} : undefined);
+  await app.refresh();
 }

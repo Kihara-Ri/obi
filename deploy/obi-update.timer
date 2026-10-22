@@ -1,0 +1,13 @@
+[Unit]
+Description=Check Obi official patch releases once a day
+
+[Timer]
+# 每天本地时间 08:00 检查一次；开机后 2 分钟补查一次（Persistent 兜底停机错过的时点）
+OnCalendar=*-*-* 08:00:00
+OnBootSec=120s
+Persistent=true
+AccuracySec=1min
+Unit=obi-update.service
+
+[Install]
+WantedBy=timers.target

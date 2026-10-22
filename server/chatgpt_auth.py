@@ -63,10 +63,10 @@ class ChatGPTAuth:
                         self.send_error(404); return
                     try:
                         owner.finish(parse_qs(urlsplit(self.path).query))
-                        message = 'ChatGPT authorization complete. Return to Diedu.'
+                        message = 'ChatGPT authorization complete. Return to Obi.'
                     except ValidationError as exc:
                         owner.login_error = str(exc)
-                        message = 'Authorization failed. Return to Diedu and retry.'
+                        message = 'Authorization failed. Return to Obi and retry.'
                     raw = message.encode()
                     self.send_response(200); self.send_header('Content-Type', 'text/plain; charset=utf-8')
                     self.send_header('Cache-Control', 'no-store'); self.send_header('Content-Length', str(len(raw)))
@@ -85,7 +85,7 @@ class ChatGPTAuth:
                       'resource': RESOURCE, 'state': pending['state'], 'nonce': pending['nonce'],
                       'code_challenge_method': 'S256',
                       'code_challenge': __import__('base64').urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b'=').decode()}
-            if not pending['client']: params['agent_name_hint'] = 'Diedu'
+            if not pending['client']: params['agent_name_hint'] = 'Obi'
             # 不向前端返回含 id_token_hint 的 URL；已注册客户端仍保留绑定身份核验。
             def listen():
                 try:

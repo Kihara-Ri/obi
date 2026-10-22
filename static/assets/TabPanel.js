@@ -1,0 +1,1 @@
+import{r as s,j as l}from"./index.js";function S({value:t,order:e,children:o,plain:c}){const[i,f]=s.useState(t),[d,p]=s.useState(1),[x,r]=s.useState(!1);if(i!==t){const n=e.indexOf(i),a=e.indexOf(t);f(t),n>=0&&a>=0?(p(a>=n?1:-1),r(!0)):r(!1)}return l.jsx("div",{className:`tab-panel${x?" is-switching":""}`,role:c?void 0:"tabpanel",style:{"--dir":d},children:o},t)}export{S as T};

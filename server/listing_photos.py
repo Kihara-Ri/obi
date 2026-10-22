@@ -1,4 +1,5 @@
 """只读取当前副本照片；共享分析与导出的版本/归属校验。"""
+from contextlib import closing
 import io
 import re
 import zipfile
@@ -10,7 +11,7 @@ from domain_listing import photo_order
 def listing_record(store, rid):
     if not isinstance(rid, str) or not re.fullmatch(r'[0-9a-f]{32}', rid):
         raise ValidationError('副本编号无效')
-    with store.connect() as db:
+    with closing(store.connect()) as db, db:
         store.require_module('trading', db)
         record = store.get(db, 'records', rid)
     if record['status'] not in ('domestic', 'overseas'):

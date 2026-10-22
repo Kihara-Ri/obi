@@ -302,10 +302,7 @@ class SampleLibraryTests(unittest.TestCase):
             for key, release in self.seed.MODEL_SAMPLE_RELEASES.items():
                 self.assertEqual(records_by_id[sample_ids[key]]['releaseInfo']['musicBrainzReleaseId'], release)
                 self.assertEqual(model_state.twin_index()['jobs'][sample_ids[key]]['releaseId'], release)
-                offline = json.loads((Path(folder)/'sample-catalog-artwork.json').read_text())[release]
-                self.assertEqual(offline['source'],'synthetic-sample')
                 self.assertEqual(records_by_id[sample_ids[key]]['photoCount'], 5 if key == 'lift-fists' else 1)
-                self.assertIn('非发行版证据',offline['artwork'][0]['types'][0])
 
             store = self.seed.open_store(folder)
             jobs = store.twin_index()['jobs']
@@ -404,7 +401,7 @@ class EngineFixtureExportTests(unittest.TestCase):
                     else:
                         self.assertNotIn('warpRows', surface)
             self.assertEqual((target / 'sample-scan.png').read_bytes(), self.seed.model_sample_png())
-            from vendor.album_engine.document import model_contract, validate_document
+            from vendor.album_data.document import model_contract, validate_document
             variants = json.loads((target / 'model-variants.json').read_text())
             self.assertEqual({item['document']['assembly']['components'][0]['definition'] for item in variants}, set(model_contract()['models']))
             for item in variants:

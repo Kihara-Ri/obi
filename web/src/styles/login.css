@@ -25,8 +25,7 @@
 @keyframes vinyl-glint{to{transform:rotate(1turn)}}
 @media (prefers-reduced-motion:reduce){.vinyl::before{animation:none}}
 
-.login-card h1{font-size:25px;font-weight:700;letter-spacing:.42em;margin-right:-.42em}
-.login-tag{margin-top:7px;font-size:12px;color:var(--muted);letter-spacing:.34em;margin-right:-.34em}
+.login-card h1{font-size:25px;font-weight:700;letter-spacing:.02em}
 
 #login-form{margin-top:26px;text-align:left}
 .login-label{display:block;margin:0 2px 6px;font-size:12.5px;color:var(--muted)}

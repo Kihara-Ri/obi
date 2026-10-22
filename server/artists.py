@@ -4,6 +4,7 @@
 账本写入只走 storage.py 的事务方法，且在网络核验完成后于短写锁内执行；
 本模块自己的文件缓存都在数据目录 artist-cache/ 下，可随时重建，不进备份。
 """
+from contextlib import closing
 import hashlib
 import json
 import re
@@ -138,7 +139,7 @@ class ArtistService:
 
     # ── 基础工具 ──
     def _records_of(self, name):
-        with self.store.connect() as db:
+        with closing(self.store.connect()) as db, db:
             return [r for r in self.store.rows(db, 'records') if r.get('artist') == name]
 
     def _check_artist(self, artist):
@@ -660,7 +661,7 @@ class ArtistService:
 
     # ── 后台预取 ──
     def _unbound_artists(self):
-        with self.store.connect() as db:
+        with closing(self.store.connect()) as db, db:
             artists = {r['artist'] for r in self.store.rows(db, 'records') if r.get('artist')}
         return sorted(artists - set(self.store.artist_identities()))
 

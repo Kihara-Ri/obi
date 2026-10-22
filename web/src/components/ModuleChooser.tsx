@@ -1,15 +1,18 @@
-// 功能选择（设置 · 功能 与首次设置共用）：①按使用方式选一套组合 → ②实时预览界面哪些位置会变
-// → ③需要时逐项微调、选默认首页 → 保存。保存按钮旁说明相比现在新增 / 收起几处。
+// 功能选择（设置 · 功能 与首次设置共用）：顶部图标卡选一套使用方式 → 下方图标开关逐项微调、选默认首页，
+// 旁边迷你手机实时演示底栏与详情管理的变化 → 保存。完整变化清单与说明收在「全部变化与说明」里。
 import {useEffect, useState} from 'react';
 import {api} from '../core/api';
-import {homePage, MODULES, PRESETS, sameModules} from '../core/modules';
+import {homePage, PRESETS, sameModules} from '../core/modules';
 import {useApp} from '../state/AppContext';
 import type {ModuleFlags, StartPage} from '../types';
 import {ModuleImpact, countImpact} from './ModuleImpact';
 import {ModulePresets} from './ModulePresets';
 import {Disclosure} from './ui/Disclosure';
 import {Seg} from './ui/Seg';
-import {Switch} from './ui/Switch';
+import {ModuleTiles} from './ModuleTiles';
+import {ModulePhone} from './ModulePhone';
+import {ModuleIcon} from './moduleIcons';
+import './ModuleChooser.css';
 import {navigate} from '../core/nav';
 
 export function ModuleChooser({initial = false}: {initial?: boolean}) {
@@ -46,52 +49,44 @@ export function ModuleChooser({initial = false}: {initial?: boolean}) {
     finally { setSaving(false); }
   };
   if (typeof app.state.modules?.enabled.showcase !== 'boolean') return <p className="small-note">
-    当前后端尚未支持收藏展示与首页设置。重启碟渡服务后即可调整，原有收藏仍可继续使用。
+    当前后端尚未支持收藏展示与首页设置。重启 Obi 服务后即可调整，原有收藏仍可继续使用。
   </p>;
 
   const saved = initial || !app.state.modules?.configured ? undefined : app.modules;
   const impact = {next: enabled, nextHome: startPage, saved, savedHome};
   const {added, removed} = countImpact(impact);
   const unchanged = !initial && !!saved && sameModules(enabled, saved) && startPage === savedHome;
-  const child = (id: keyof ModuleFlags) => id === 'circulation';
+  const homeLabel = (icon: 'list' | 'grid', text: string) => <span className="module-home-opt"><ModuleIcon name={icon} size={15}/>{text}</span>;
 
   return (
     <div className="module-chooser">
-      <h3 className="module-step"><b>1</b>你打算怎么用碟渡？</h3>
       <ModulePresets value={enabled} disabled={saving} onPick={pick}/>
-
-      <h3 className="module-step"><b>2</b>界面会这样变化</h3>
-      <ModuleImpact {...impact}/>
-
-      <h3 className="module-step"><b>3</b>微调与首页</h3>
-      <Disclosure summary="逐项开关功能">
-        <div className="module-rows">
-          <div className="module-row is-base"><strong>基础收藏<small>照片、搜索、备份与导出，始终开启</small></strong>
-            <Switch on label="基础收藏（始终开启）" disabled onToggle={() => {}}/></div>
-          {MODULES.map(m => {
-            const locked = m.id === 'circulation' && !enabled.acquisition ? '需先开启购入记录' : undefined;
-            return <div className={`module-row${child(m.id) ? ' is-child' : ''}`} key={m.id}>
-              <strong>{m.name}<small>{locked ?? m.desc}</small></strong>
-              <Switch on={enabled[m.id]} label={m.name} disabled={saving || Boolean(locked)} onToggle={() => toggle(m.id, !enabled[m.id])}/>
-            </div>;
-          })}
+      <div className="module-chooser-main">
+        <div className="module-chooser-controls">
+          <ModuleTiles value={enabled} disabled={saving} onToggle={toggle}/>
+          <div className="module-start-page">
+            <strong>打开时进入</strong>
+            <Seg ariaLabel="默认首页" value={homePage(startPage, enabled)}
+              options={[{value: 'domestic', label: homeLabel('list', '管理')},
+                ...(enabled.showcase ? [{value: 'gallery', label: homeLabel('grid', '展示')}] : [])]}
+              onValue={v => { if (!saving) setStartPage(v as StartPage); }}/>
+          </div>
         </div>
-        <p className="small-note">关闭模块只收起相关入口，原有购买、包裹和交易记录全部保留；重新开启后可以继续处理。添加、编辑与完整管理入口一直保留。</p>
-      </Disclosure>
-      <div className="module-start-page">
-        <strong>打开应用时进入</strong>
-        <Seg ariaLabel="默认首页" value={homePage(startPage, enabled)}
-          options={[{value: 'domestic', label: '收藏管理'}, ...(enabled.showcase ? [{value: 'gallery', label: '收藏展示'}] : [])]}
-          onValue={v => { if (!saving) setStartPage(v as StartPage); }}/>
-        {!enabled.showcase && startPage === 'gallery'
-          ? <p className="small-note">展示模块已关闭，将进入收藏管理；重新开启后会恢复你的展示首页选择。</p> : null}
+        <ModulePhone {...impact}/>
       </div>
+      <Disclosure summary="全部变化与说明">
+        <ModuleImpact {...impact}/>
+        <p className="small-note">基础收藏（照片、搜索、备份与导出）始终开启。关闭模块只收起入口，原有购买、包裹和交易记录全部保留，重新开启即可继续。</p>
+        {!enabled.showcase && startPage === 'gallery'
+          ? <p className="small-note">展示已关闭，将进入收藏管理；重新开启后恢复展示首页。</p> : null}
+      </Disclosure>
 
       {error ? <p className="error" role="alert">{error}</p> : null}
       <div className="module-save">
         <button type="button" className="primary" disabled={saving || unchanged} onClick={save}>
-          {saving ? '保存中…' : initial ? '开始使用' : '保存功能选择'}</button>
-        {!initial && !unchanged ? <span className="small-note">新增 {added} 处 · 收起 {removed} 处</span> : null}
+          {saving ? '保存中…' : initial ? '开始使用' : '保存'}</button>
+        {added || removed ? <span className="module-save-diff" aria-label={`新增 ${added} 处，收起 ${removed} 处`}>
+          <b className="is-add">+{added}</b><b className="is-del">−{removed}</b></span> : null}
       </div>
     </div>
   );

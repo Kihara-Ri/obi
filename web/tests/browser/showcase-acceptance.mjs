@@ -123,12 +123,12 @@ export async function accept(page, {baseURL, expectations, screenshotDir, saveSh
     await page.setViewportSize({width: 1280, height: 900});
     await page.emulateMedia({reducedMotion: 'no-preference'});
     await page.evaluate(() => {
-      try {sessionStorage.removeItem('diedu-acceptance-finished');} catch { /* New blank page has no origin yet. */ }
+      try {sessionStorage.removeItem('obi-acceptance-finished');} catch { /* New blank page has no origin yet. */ }
     });
     await page.addInitScript(() => {
-      if (sessionStorage.getItem('diedu-acceptance-finished') === 'yes' || window.__showcaseOriginalContext) return;
-      if (!sessionStorage.getItem('diedu-acceptance-preferences'))
-        sessionStorage.setItem('diedu-acceptance-preferences', JSON.stringify({value: localStorage.getItem('album-gallery-v1')}));
+      if (sessionStorage.getItem('obi-acceptance-finished') === 'yes' || window.__showcaseOriginalContext) return;
+      if (!sessionStorage.getItem('obi-acceptance-preferences'))
+        sessionStorage.setItem('obi-acceptance-preferences', JSON.stringify({value: localStorage.getItem('album-gallery-v1')}));
       localStorage.setItem('album-gallery-v1', JSON.stringify({mode: 'tiles', density: 'medium',
         showTitles: false, sort: 'recent', currentId: null, scope: {kind: 'all'}, roamingSpeeds: {}}));
       window.__showcaseContexts = 0;
@@ -352,14 +352,14 @@ export async function accept(page, {baseURL, expectations, screenshotDir, saveSh
   } finally {
     // Leave an injected tool page usable after acceptance, including reloads.
     await page.evaluate(() => {
-      const preferences = sessionStorage.getItem('diedu-acceptance-preferences');
+      const preferences = sessionStorage.getItem('obi-acceptance-preferences');
       if (preferences) {
         const {value} = JSON.parse(preferences);
         if (value === null) localStorage.removeItem('album-gallery-v1');
         else localStorage.setItem('album-gallery-v1', value);
-        sessionStorage.removeItem('diedu-acceptance-preferences');
+        sessionStorage.removeItem('obi-acceptance-preferences');
       }
-      sessionStorage.setItem('diedu-acceptance-finished', 'yes');
+      sessionStorage.setItem('obi-acceptance-finished', 'yes');
       if (window.__showcaseOriginalContext) HTMLCanvasElement.prototype.getContext = window.__showcaseOriginalContext;
     }).catch(() => {});
     page.off('pageerror', onError); page.off('console', onConsole);
@@ -373,10 +373,10 @@ if (typeof process !== 'undefined' && process.argv[1] && import.meta.url === new
   const {pathToFileURL} = await import('node:url');
   const args = process.argv.slice(2);
   const value = flag => args[args.indexOf(flag) + 1];
-  const baseURL = args.includes('--url') ? value('--url') : process.env.DIEDU_PREVIEW_URL;
-  const file = args.includes('--expectations') ? value('--expectations') : process.env.DIEDU_PREVIEW_EXPECTATIONS;
+  const baseURL = args.includes('--url') ? value('--url') : process.env.OBI_PREVIEW_URL;
+  const file = args.includes('--expectations') ? value('--expectations') : process.env.OBI_PREVIEW_EXPECTATIONS;
   if (!baseURL || !file) throw new Error('Usage: npm run test:browser -- --url http://127.0.0.1:<port> --expectations <check.json>');
-  const modulePath = process.env.DIEDU_PLAYWRIGHT_MODULE;
+  const modulePath = process.env.OBI_PLAYWRIGHT_MODULE;
   const {chromium} = await import(modulePath?.startsWith('/') ? pathToFileURL(modulePath).href : modulePath || 'playwright');
   // Apple's Metal renderer keeps real GL animations running in macOS headless
   // acceptance. SwiftShader can saturate software GPU and stall RAF on this rig.
@@ -384,7 +384,7 @@ if (typeof process !== 'undefined' && process.argv[1] && import.meta.url === new
   const browser = await chromium.launch({headless: true, args: ['--use-gl=angle', '--use-angle=' + angle, '--enable-webgl']});
   try {
     const page = await browser.newPage();
-    const screenshotDir = process.env.DIEDU_PREVIEW_SCREENSHOTS;
+    const screenshotDir = process.env.OBI_PREVIEW_SCREENSHOTS;
     if (screenshotDir) await mkdir(screenshotDir, {recursive: true});
     const {writeFile} = await import('node:fs/promises');
     const saveShot = (path, base64) => writeFile(path, Buffer.from(base64, 'base64'));

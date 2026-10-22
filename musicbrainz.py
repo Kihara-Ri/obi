@@ -17,7 +17,7 @@ from urllib.request import Request, build_opener, HTTPRedirectHandler
 
 API_HOST = 'musicbrainz.org'
 MAX_BODY = 4 * 1024 * 1024
-USER_AGENT = 'Diedu/2.4 (personal CD catalog; local instance)'
+USER_AGENT = 'Obi/2.4 (personal CD catalog; local instance)'
 UUID_RE = re.compile(r'^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$')
 MAX_COOLDOWN = 300  # Retry-After 上限（秒）；更长按 300 处理
 

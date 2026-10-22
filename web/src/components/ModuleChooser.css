@@ -1,0 +1,84 @@
+/* 设置 · 功能：使用方式图标卡、功能图标开关、迷你手机预览、首页与保存。颜色只用 token。 */
+.module-chooser{display:grid;gap:16px}
+
+/* 使用方式：一排五张图标卡，手机上同样一行排下 */
+.module-presets{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.module-preset{position:relative;display:grid;justify-items:center;align-content:start;gap:6px;padding:12px 4px 10px;
+  border-radius:var(--radius-sm);white-space:normal;text-align:center;transition:border-color var(--dur) var(--ease-soft),background var(--dur) var(--ease-soft)}
+.module-preset strong{font-size:12px;font-weight:550;line-height:1.25;text-wrap:balance}
+.module-preset-ico{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:var(--surface-2);color:var(--muted);
+  transition:background var(--dur) var(--ease-soft),color var(--dur) var(--ease-soft),transform var(--dur) var(--ease-out)}
+.module-preset[aria-pressed=true]{border-color:var(--accent-deep);border-width:2px;padding:11px 3px 9px;background:var(--accent-wash)}
+.module-preset[aria-pressed=true] strong{font-weight:700}
+.module-preset[aria-pressed=true] .module-preset-ico{background:var(--accent);color:var(--accent-ink);transform:scale(1.06)}
+.module-preset-check{position:absolute;top:5px;right:5px;display:grid;place-items:center;width:16px;height:16px;border-radius:50%;
+  background:var(--accent);color:var(--accent-ink);animation:module-pop var(--dur-slow) var(--ease-out)}
+.module-preset-check svg{width:11px;height:11px}
+.module-presets-who{margin:8px 0 0!important;font-size:12.5px;text-align:center;color:var(--muted)}
+
+/* 主体：左边开关与首页，右边迷你手机；手机上下排 */
+.module-chooser-main{display:grid;grid-template-columns:minmax(0,1fr) 216px;gap:20px;align-items:start}
+.module-chooser-controls{display:grid;gap:16px}
+
+/* 功能图标开关 */
+.module-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.module-tile{position:relative;display:flex;align-items:center;gap:10px;min-height:60px;padding:10px 26px 10px 10px;border-radius:var(--radius-sm);
+  text-align:left;white-space:normal;transition:border-color var(--dur) var(--ease-soft),background var(--dur) var(--ease-soft)}
+.module-tile strong{font-size:13.5px;font-weight:550;flex:1;min-width:0;white-space:nowrap}
+.module-tile small{position:absolute;left:54px;bottom:5px;font-size:10.5px;color:var(--faint)}
+.module-tile-ico{display:grid;place-items:center;width:34px;height:34px;flex:none;border-radius:9px;background:var(--surface-2);color:var(--faint)}
+.module-tile-mark{position:absolute;top:7px;right:7px;display:grid;place-items:center;width:18px;height:18px;border-radius:50%;border:1.5px solid var(--border-strong)}
+.module-tile-mark svg{width:12px;height:12px}
+.module-tile[aria-checked=true]{border-color:var(--accent-deep);background:var(--accent-wash)}
+.module-tile[aria-checked=true] strong{font-weight:700}
+.module-tile[aria-checked=true] .module-tile-ico{background:var(--accent);color:var(--accent-ink)}
+.module-tile[aria-checked=true] .module-tile-mark{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+/* 状态变化（含被联动带动）时图标轻弹：key 变化重挂元素即重播 */
+.module-tile-ico{animation:module-pop var(--dur-slow) var(--ease-out)}
+
+/* 首页 */
+.module-start-page{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.module-start-page>strong{font-size:13px}
+.module-home-opt{display:inline-flex;align-items:center;gap:5px}
+
+/* 迷你手机 */
+.module-phone{margin:0;justify-self:center;width:216px;display:grid;grid-template-rows:1fr auto;min-height:300px;padding:10px 8px 8px;
+  border:2px solid var(--border-strong);border-radius:26px;background:var(--bg)}
+.module-phone-screen{display:grid;align-content:start;gap:10px;padding:6px 4px}
+.module-phone-album{display:flex;gap:8px;align-items:center}
+.module-phone-album>span{width:40px;height:40px;border-radius:6px;background:var(--surface-3)}
+.module-phone-album div{display:grid;gap:6px;flex:1}
+.module-phone-album b,.module-phone-detail .is-empty b{display:block;height:6px;border-radius:3px;background:var(--surface-3)}
+.module-phone-album b+b,.module-phone-detail .is-empty b+b{width:60%}
+.module-phone-detail,.module-phone-tabs{list-style:none;margin:0;padding:0}
+.module-phone-detail{display:grid;gap:5px}
+.module-phone-detail li{position:relative;display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:8px;background:var(--surface-2);
+  border:1px solid transparent;font-size:11px;color:var(--text)}
+.module-phone-detail li.is-empty{display:grid;gap:6px;background:none}
+.module-phone-tabs{display:flex;justify-content:space-around;gap:2px;padding:7px 2px 3px;border-top:1px solid var(--border)}
+.module-phone-tabs li{position:relative;display:grid;justify-items:center;gap:2px;min-width:0;flex:1;padding:4px 1px;border-radius:8px;
+  border:1px solid transparent;font-size:9.5px;color:var(--muted)}
+.module-phone li{transition:opacity var(--dur) var(--ease-soft),border-color var(--dur) var(--ease-soft)}
+.module-phone li.is-add{border-color:var(--green);animation:module-in var(--dur-slow) var(--ease-out)}
+.module-phone li.is-del{opacity:.45;border:1px dashed var(--border-strong)}
+.module-phone li.is-del span{text-decoration:line-through}
+.module-phone-mark{position:absolute;top:-6px;right:-4px;display:grid;place-items:center;width:15px;height:15px;border-radius:50%;
+  font-style:normal;font-size:11px;font-weight:700;line-height:1;background:var(--green);color:var(--bg)}
+.module-phone li.is-del .module-phone-mark{background:var(--orange)}
+
+/* 保存 */
+.module-save{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.module-save-diff{display:inline-flex;gap:8px;font-size:13px;font-variant-numeric:tabular-nums}
+.module-save-diff .is-add{color:var(--green)}
+.module-save-diff .is-del{color:var(--orange)}
+
+@keyframes module-pop{0%{transform:scale(.7)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
+@keyframes module-in{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}
+
+@media (max-width:840px){
+  .module-chooser-main{grid-template-columns:1fr}
+  .module-preset{padding:10px 2px 8px}
+  .module-preset[aria-pressed=true]{padding:9px 1px 7px}
+  .module-preset strong{font-size:11px}
+  .module-preset-ico{width:36px;height:36px}
+}

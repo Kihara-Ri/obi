@@ -1,7 +1,7 @@
 /* Toast：顶部中间弹出，彩线沿边框环绕一周（绿成功/黄警告/红错误）；
    走完一圈（--toast-ms，由组件按级别内联设置）后淡出上浮消失（.leaving 由组件定时器加）。
    悬停/聚焦时暂停（[data-paused]）；点击立即关闭，所以给个指针手势。 */
-#toast{--toast-c:var(--green);--toast-ms:2s;cursor:pointer;position:fixed;top:14px;left:50%;translate:-50% 0;z-index:60;background:var(--surface-3);border:1px solid var(--border-strong);color:var(--text);padding:12px 22px;border-radius:14px;box-shadow:var(--shadow);font-size:14px;font-weight:550;max-width:90vw;animation:toast-in var(--dur-slow) cubic-bezier(.2,.8,.3,1.15)}
+#toast{--toast-c:var(--green);--toast-ms:2s;cursor:pointer;position:fixed;top:14px;left:50%;translate:-50% 0;z-index:90;background:var(--surface-3);border:1px solid var(--border-strong);color:var(--text);padding:12px 22px;border-radius:14px;box-shadow:var(--shadow);font-size:14px;font-weight:550;max-width:90vw;animation:toast-in var(--dur-slow) cubic-bezier(.2,.8,.3,1.15)}
 #toast .toast-action{margin-left:14px;padding:4px 12px;border-radius:999px;border:1px solid var(--border-strong);background:var(--surface-2);color:var(--accent);font-weight:650;font-size:13px;position:relative}
 #toast.leaving{animation:toast-out .22s ease .25s forwards}
 #toast.warn{--toast-c:var(--orange)}

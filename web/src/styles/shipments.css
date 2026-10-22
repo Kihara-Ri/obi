@@ -7,7 +7,6 @@
 .shipment-head .spacer{display:none}
 .shipment-head .actions{display:flex;gap:7px;flex-wrap:wrap}
 .shipment-items{display:flex;flex-direction:column;gap:8px;margin-bottom:13px}
-.shipment-items .sale-album .sa-price small{color:var(--faint)}
 
 @media (max-width:840px){
   .shipment-card{padding:12px 14px}

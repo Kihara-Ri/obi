@@ -7,18 +7,16 @@ function validSeconds(seconds: number): number {
   return Math.max(2, Math.min(30, Math.round(Number.isFinite(seconds) ? seconds : 8)));
 }
 
+/** 漫游开关：与工具栏其它按钮同款的胶囊按钮（按下态 = 开启），不用 iOS 式拨动开关 */
 export function GalleryRoamingSwitch({enabled, disabled = false, onToggle}: {
   enabled: boolean;
   disabled?: boolean;
   onToggle: () => void;
 }) {
-  return <div className="gallery-roaming-switch" data-enabled={enabled}>
-    <span className="gallery-roaming-switch-label">漫游</span>
-    <button type="button" className="gallery-roaming-switch-button" role="switch" aria-label="自动漫游"
-      aria-checked={enabled} disabled={disabled} onClick={onToggle}>
-      <span className="gallery-roaming-switch-track" aria-hidden="true"><span /></span>
-    </button>
-  </div>;
+  return <button type="button" className="gallery-roaming-toggle" aria-pressed={enabled} aria-label="自动漫游"
+    disabled={disabled} onClick={onToggle}>
+    <i aria-hidden="true"/>漫游
+  </button>;
 }
 
 export function GalleryRoamingSpeed({disabled = false, discrete = false, isometric = false, seconds, onSpeedChange}: {

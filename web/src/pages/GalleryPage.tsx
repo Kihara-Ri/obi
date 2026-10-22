@@ -4,23 +4,18 @@ import {useApp} from '../state/AppContext';
 import {api} from '../core/api';
 import type {AlbumCatalog} from '../types';
 import {GALLERY_MODES, GALLERY_ROAMING_DEFAULTS, galleryIndex, galleryModeHasFocus, galleryRecords, isCollectedRecord, readGalleryPreferences, saveGalleryPreferences, showcaseGroups} from '../core/gallery';
-import type {GalleryDensity, GalleryPreferences, GallerySort, GalleryScope, ShowcaseGroup} from '../core/gallery';
+import type {GalleryPreferences, GalleryScope, ShowcaseGroup} from '../core/gallery';
 import {PageHead} from '../components/PageHead';
 import {GalleryStage} from '../components/GalleryStage';
 import {GalleryFocus} from '../components/GalleryFocus';
 import {GalleryModePicker} from '../components/GalleryModePicker';
 import {GalleryScopePicker} from '../components/GalleryScopePicker';
-import {GalleryRoamingSwitch, GalleryRoamingSpeed} from '../components/GalleryRoamingControls';
-import {Dropdown} from '../components/ui/Dropdown';
-import {Seg} from '../components/ui/Seg';
+import {GalleryRoamingSwitch} from '../components/GalleryRoamingControls';
+import {GallerySettings} from '../components/GallerySettings/GallerySettings';
 import {ShowcaseSwitch, useShowcaseSwitch} from '../components/ShowcaseSwitch';
 import {Chevron} from '../components/ui/Chevron';
 import {openArtistDrawer} from '../forms/ArtistDrawer';
 import {ShowcaseGroupForm} from '../forms/ShowcaseGroupForm';
-
-const SORTS = [
-  {value: 'recent', label: '最近加入'}, {value: 'artist', label: '按艺人'}, {value: 'title', label: '按专辑名'},
-];
 
 export function GalleryPage() {
   const app = useApp();
@@ -29,7 +24,7 @@ export function GalleryPage() {
   const scope = preferences.scope;
   const [query, setQuery] = useSessionState<string>('gallery-query', '');
   const [immersive, setImmersive] = useState(false);
-  const [adjusting, setAdjusting] = useState(false);
+
   const [roaming, setRoaming] = useState(false);
   const [focused, setFocused] = useState<{id: string; originElement: HTMLElement | null} | null>(null);
   const [albumLikes, setAlbumLikes] = useState<AlbumCatalog>({
@@ -61,7 +56,6 @@ export function GalleryPage() {
   const scopeLabel = scope.kind === 'favorites' ? '我喜欢' : scope.kind === 'artist' ? scope.artist
     : scope.kind === 'group' ? groups.groups.find(g => g.id === scope.groupId)?.name ?? '展示组'
       : '全部收藏';
-  const sorts = preferences.scope.kind === 'group' ? [{value: 'group', label: '组内顺序'}, ...SORTS] : SORTS;
 
   useEffect(() => {
     const media = matchMedia('(prefers-reduced-motion: reduce)');
@@ -69,6 +63,17 @@ export function GalleryPage() {
     media.addEventListener('change', change);
     return () => media.removeEventListener('change', change);
   }, []);
+
+  const openSettings = () => {
+    app.openDrawer({title: '展示设置', compact: true, initialFocus: 'close',
+      content: <GallerySettings mode={preferences.mode} inGroup={preferences.scope.kind === 'group'} roaming={roaming}
+        discrete={galleryModeHasFocus(preferences.mode)}
+        initial={{sort: preferences.sort === 'group' && preferences.scope.kind !== 'group' ? 'recent' : preferences.sort,
+          density: preferences.density, showTitles: preferences.showTitles, seconds: roamingSeconds}}
+        onChange={updatePreference}
+        onSpeed={seconds => setPreferences(p => ({...p, roamingSpeeds: {...p.roamingSpeeds, [p.mode]: seconds}}))}/>,
+    });
+  };
 
   const chooseMode = () => {
     app.openDrawer({title: '选择展示方式', wide: true,
@@ -87,7 +92,7 @@ export function GalleryPage() {
     });
   };
   const chooseScope = () => {
-    app.openDrawer({title: '选择展示范围', wide: true, initialFocus: 'close',
+    app.openDrawer({title: '选择展示范围', compact: true, initialFocus: 'close',
       content: <GalleryScopePicker records={app.state.records} groups={groups.groups} scope={preferences.scope}
         favorites={albumLikes.favorites}
         onSelect={(scope: GalleryScope) => {
@@ -154,7 +159,7 @@ export function GalleryPage() {
 
   const closeFocus = useCallback(() => {
     if (focusClosing.current) return;
-    if (focusEntry.current && history.state?.diedu === 'gallery-focus') {
+    if (focusEntry.current && history.state?.obi === 'gallery-focus') {
       // The dialog has already completed its reverse zoom. Remove it now while
       // consuming its history entry, then block reopening until popstate settles.
       focusEntry.current = false; focusClosing.current = true; history.back();
@@ -171,7 +176,7 @@ export function GalleryPage() {
     window.addEventListener('popstate', popped);
     return () => {
       window.removeEventListener('popstate', popped);
-      if (focusEntry.current && !focusClosing.current && history.state?.diedu === 'gallery-focus') history.back();
+      if (focusEntry.current && !focusClosing.current && history.state?.obi === 'gallery-focus') history.back();
       focusEntry.current = false; focusClosing.current = false;
     };
   }, []);
@@ -185,7 +190,7 @@ export function GalleryPage() {
       : source?.closest('.gallery-item')?.querySelector<HTMLElement>('.gallery-cover-button') ?? null;
     // Opening a cover pauses the track at its current pose; selecting here would
     // recenter looping layouts behind the dialog and change the return position.
-    history.pushState({diedu: 'gallery-focus'}, ''); focusEntry.current = true;
+    history.pushState({obi: 'gallery-focus'}, ''); focusEntry.current = true;
     setFocused({id, originElement});
   };
   const navigateFocus = (id: string) => {
@@ -223,34 +228,11 @@ export function GalleryPage() {
                 title={`${records.length} 张${query.trim() ? '匹配的' : ''}收藏`}>
             {records.length} 张<span className="gallery-visually-hidden">{query.trim() ? '匹配的收藏' : '收藏'}</span>
           </span>
-          <button type="button" className="gallery-adjust-trigger" aria-expanded={adjusting}
-            aria-controls="gallery-adjustments" onClick={() => setAdjusting(v => !v)}>
+          <button type="button" className="gallery-adjust-trigger" aria-haspopup="dialog" onClick={openSettings}>
             展示设置<Chevron/>
           </button>
           <GalleryRoamingSwitch enabled={roaming} disabled={!records.length && !roaming} onToggle={() => setRoaming(v => !v)}/>
-          <a className="gallery-manage-link" href="#domestic" aria-label="管理收藏" title="管理收藏">管理</a>
         </div>
-      </div>
-      <div id="gallery-adjustments" className="gallery-adjustments" hidden={!adjusting}>
-        <div className="gallery-setting"><span>展示顺序</span>
-          <Dropdown id="gallery-sort" options={sorts} value={preferences.sort === 'group' && preferences.scope.kind !== 'group' ? 'recent' : preferences.sort} label="展示顺序"
-            onPick={v => updatePreference({sort: v as GallerySort})}/>
-        </div>
-        {['tiles', 'waterfall', 'film', 'table', 'isometric'].includes(preferences.mode) ? <>
-          <div className="gallery-setting"><span>封面大小</span>
-            <Seg options={[{value: 'small', label: '小'}, {value: 'medium', label: '中'}, {value: 'large', label: '大'}]}
-              value={preferences.density} ariaLabel="封面大小"
-              onValue={v => updatePreference({density: v as GalleryDensity})}/>
-          </div>
-          {preferences.mode === 'tiles' || preferences.mode === 'table' ? <label className="gallery-check"><input type="checkbox" checked={preferences.showTitles}
-            onChange={e => updatePreference({showTitles: e.target.checked})}/>显示标题</label>
-            : preferences.mode === 'waterfall' ? <span className="gallery-waterfall-note">标题随封面错落排列</span> : null}
-        </> : null}
-        {roaming ? <div className="gallery-setting gallery-roaming-setting">
-          <span>{galleryModeHasFocus(preferences.mode) ? '切换间隔' : '漫游速度'}</span>
-          <GalleryRoamingSpeed seconds={roamingSeconds} discrete={galleryModeHasFocus(preferences.mode)} isometric={preferences.mode === 'isometric'}
-            onSpeedChange={seconds => setPreferences(p => ({...p, roamingSpeeds: {...p.roamingSpeeds, [p.mode]: seconds}}))}/>
-        </div> : null}
       </div>
       {reducedMotion && roaming ? <span className="gallery-waterfall-note" role="status">减少动态效果已开启，漫游暂时暂停</span> : null}
     </div>

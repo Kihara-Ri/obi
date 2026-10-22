@@ -24,6 +24,7 @@ class EngineBoundary extends Component<{children: ReactNode; onUnavailable(): vo
 const ZOOM_MS = 260;
 const ZOOM_EASE = 'cubic-bezier(.2,.7,.3,1)';
 const SHADE_MS = 150;
+const SLIDE_MS = 200;
 
 function findThumbnail(id: string): HTMLElement | null {
   const matches = Array.from(document.querySelectorAll<HTMLElement>('[data-gallery-record-id]'))
@@ -179,6 +180,12 @@ export function GalleryFocus({record, records, originElement, onNavigate, onClos
     element.getAnimations().forEach(item => item.cancel());
     visualAnimation.current = null;
     resetCoverProxy();
+    if (afterSwitch && slideDir.current && !reducedMotion()) {
+      element.style.transform = ''; element.style.opacity = '';
+      const by = slideDir.current; slideDir.current = null;
+      slideIn(by);
+      return;
+    }
     const source = findSource(id);
     const aspect = coverAspect(source);
     const thumbnail = visibleThumbnail(source, aspect);
@@ -248,6 +255,7 @@ export function GalleryFocus({record, records, originElement, onNavigate, onClos
     animation?.finished.then(complete).catch(() => {});
   };
 
+  const navRef = useRef<(by: -1 | 1, fromDx?: number) => void>(() => {});
   requestClose.current = () => {
     if (closing.current) return;
     closing.current = true;
@@ -257,7 +265,37 @@ export function GalleryFocus({record, records, originElement, onNavigate, onClos
     animateOut(currentRecordId.current, () => current.current.onClose(), true);
   };
 
-  const navigate = (by: -1 | 1) => {
+  // 切换专辑：不再缩回缩略图（缩略图可能不在视口里），整张封面横向滑出、下一张从另一侧滑入；
+  // 缩放过渡只留给打开 / 关闭。fromDx = 手指松开时封面已被拖出的距离，从那里接着滑
+  const slideDir = useRef<-1 | 1 | null>(null);
+  const slideOut = (by: -1 | 1, fromDx: number, after: () => void) => {
+    const element = visual.current;
+    slideDir.current = by;
+    if (!element || reducedMotion()) {after(); return;}
+    visualAnimation.current?.cancel();
+    element.style.transform = ''; element.style.opacity = '';
+    const animation = element.animate([
+      {transform: `translateX(${fromDx}px)`, opacity: Math.max(0, 1 - Math.abs(fromDx) / innerWidth * .5)},
+      {transform: `translateX(${-by * innerWidth * .6}px)`, opacity: 0}],
+    {duration: SLIDE_MS, easing: ZOOM_EASE, fill: 'forwards'});
+    visualAnimation.current = animation;
+    animation.finished.then(() => {if (visualAnimation.current === animation) after();}).catch(() => {});
+  };
+  const slideIn = (by: -1 | 1) => {
+    const element = visual.current;
+    if (!element) return;
+    element.style.pointerEvents = '';
+    const animation = element.animate([
+      {transform: `translateX(${by * innerWidth * .6}px)`, opacity: 0}, {transform: 'none', opacity: 1}],
+    {duration: SLIDE_MS + 40, easing: ZOOM_EASE, fill: 'both'});
+    visualAnimation.current = animation;
+    animation.finished.then(() => {
+      if (visualAnimation.current !== animation) return;
+      visualAnimation.current = null; animation.cancel(); showFull(true);
+    }).catch(() => {});
+  };
+
+  const navigate = (by: -1 | 1, fromDx = 0) => {
     if (closing.current || switching.current) return;
     const list = current.current.records;
     const index = list.findIndex(item => item.id === currentRecordId.current);
@@ -266,8 +304,72 @@ export function GalleryFocus({record, records, originElement, onNavigate, onClos
     switching.current = true;
     setFlipped(false);
     setTransitionStatus('正在切换到：' + next.title);
-    animateOut(currentRecordId.current, () => current.current.onNavigate(next.id));
+    slideOut(by, fromDx, () => current.current.onNavigate(next.id));
   };
+  navRef.current = navigate;
+
+  // 手机：左右拖动切换专辑（取代遮住画面的左右按钮）。封面跟手；够远或够快松手 = 切换，否则回弹；
+  // 竖向为主、3D 模式（自己占用拖动）、实体设置面板与 2D/3D 开关上的手势不算
+  useEffect(() => {
+    const element = dialog.current;
+    if (!element) return;
+    let start: {x: number; y: number; t: number} | null = null;
+    let drag = false, dx = 0, v = 0, lastX = 0, lastT = 0;
+    const move = (x: number) => {
+      const list = current.current.records;
+      const i = list.findIndex(item => item.id === currentRecordId.current);
+      const blocked = (x < 0 && i >= list.length - 1) || (x > 0 && i <= 0);
+      const shown = blocked ? x * .3 : x;   // 到头了：有阻尼，示意没有更多
+      if (visual.current) {
+        visual.current.style.transform = `translateX(${shown}px)`;
+        visual.current.style.opacity = String(Math.max(.35, 1 - Math.abs(shown) / innerWidth * .5));
+      }
+      return shown;
+    };
+    const onStart = (e: TouchEvent) => {
+      const target = e.target as Element;
+      drag = false; dx = 0; v = 0;
+      start = e.touches.length === 1 && !closing.current && !switching.current
+        && !target.closest('.gallery-twin-panel,.gallery-renderer-switch,.gallery-model-mount,.gallery-twin-open')
+        ? {x: e.touches[0].clientX, y: e.touches[0].clientY, t: e.timeStamp} : null;
+      lastX = start?.x ?? 0; lastT = e.timeStamp;
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!start) return;
+      const t = e.touches[0], ddx = t.clientX - start.x, ddy = t.clientY - start.y;
+      if (!drag) {
+        if (Math.abs(ddx) < 10 || Math.abs(ddx) < Math.abs(ddy) * 1.3) {if (Math.abs(ddy) > 14) start = null; return;}
+        drag = true;
+        visualAnimation.current?.cancel(); visualAnimation.current = null;
+      }
+      if (e.cancelable) e.preventDefault();
+      const dt = e.timeStamp - lastT;
+      if (dt > 0) {v = (t.clientX - lastX) / dt; lastX = t.clientX; lastT = e.timeStamp;}
+      dx = ddx; move(ddx);
+    };
+    const onEnd = () => {
+      if (!start || !drag) {start = null; return;}
+      start = null; drag = false;
+      const by: -1 | 1 = dx < 0 ? 1 : -1;
+      const list = current.current.records;
+      const i = list.findIndex(item => item.id === currentRecordId.current);
+      const has = !!list[i + by];
+      const far = Math.abs(dx) > Math.min(110, innerWidth * .25), fling = Math.abs(dx) > 30 && Math.abs(v) > .5 && Math.sign(v) === Math.sign(dx);
+      if (has && (far || fling)) {navRef.current(by, move(dx)); return;}
+      const el = visual.current; if (!el) return;
+      const from = el.style.transform || 'none', fromO = el.style.opacity || '1';
+      el.style.transform = ''; el.style.opacity = '';
+      el.animate([{transform: from, opacity: fromO}, {transform: 'none', opacity: 1}], {duration: 220, easing: ZOOM_EASE});
+    };
+    element.addEventListener('touchstart', onStart, {passive: true});
+    element.addEventListener('touchmove', onMove, {passive: false});
+    element.addEventListener('touchend', onEnd, {passive: true});
+    element.addEventListener('touchcancel', onEnd, {passive: true});
+    return () => {
+      element.removeEventListener('touchstart', onStart); element.removeEventListener('touchmove', onMove);
+      element.removeEventListener('touchend', onEnd); element.removeEventListener('touchcancel', onEnd);
+    };
+  }, []);
 
   useLayoutEffect(() => {
     const element = dialog.current;
@@ -300,6 +402,8 @@ export function GalleryFocus({record, records, originElement, onNavigate, onClos
     currentRecordId.current = record.id;
     setFlipped(false);
     setModelSession(null); setUnavailable(false);
+    // 切到别的专辑：把下层对应的缩略图滚到合适位置（竖向居中、横向就近），收回时才有地方落
+    if (changed) findThumbnail(record.id)?.scrollIntoView({block: 'center', inline: 'nearest', behavior: 'instant'});
     playIntro(record.id, changed && switching.current);
   }, [record.id]);
 

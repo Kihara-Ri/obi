@@ -24,12 +24,12 @@ from tools.seed_samples import check_target, open_store, seed
 
 
 def default_home():
-    configured = os.environ.get('DIEDU_DEV_HOME')
+    configured = os.environ.get('OBI_DEV_HOME')
     if configured:
         return Path(configured).expanduser()
     if sys.platform == 'darwin':
-        return Path.home() / 'Library/Application Support/Diedu/development'
-    return Path(os.environ.get('XDG_DATA_HOME', Path.home() / '.local/share')) / 'diedu/development'
+        return Path.home() / 'Library/Application Support/Obi/development'
+    return Path(os.environ.get('XDG_DATA_HOME', Path.home() / '.local/share')) / 'obi/development'
 
 
 def backup(data_dir, output, asset_bundle=None, lock_path=bundle.LOCK):

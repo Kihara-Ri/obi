@@ -12,38 +12,46 @@ from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
 out = root / 'dist'
-out.mkdir(exist_ok=True)
 
-try:
-    version = subprocess.run(['git', 'describe', '--tags', '--always', '--dirty'],
-                             capture_output=True, text=True, check=True,
-                             cwd=root).stdout.strip()
-except Exception:
-    version = 'untagged'
 
-files = [root / n for n in ['app.py', 'domain.py', 'domain_listing.py', 'storage.py', 'covers.py', 'cjkvariants.py', 'kana.py',
-                            'musicbrainz.py', 'rates.py', 'security.py', 'backups.py', 'twins.py',
-                            'README.md', '使用说明.md', '部署说明.md', 'CHANGELOG.md']]
-files += list((root / 'server').rglob('*.py'))
-files += [p for p in (root / 'vendor' / 'album_data').rglob('*') if p.is_file() and '__pycache__' not in p.parts and p.suffix not in ('.pyc', '.pyo')]
-files += [p for p in (root / 'server' / 'skills').rglob('*') if '__pycache__' not in p.parts and p.suffix != '.py']
-files += [p for p in (root / 'static').rglob('*') if 'models/packaging' not in p.as_posix()]
-files += list((root / 'plugins' / 'album-engine').glob('*'))
-files += list((root / 'deploy').glob('*'))
-files += [root / 'tools' / name for name in ('deploy.sh', 'update_release.py')]
-# 发布入口 tools/deploy.sh 由 ai-kit 的 ship 执行：补丁更新器在服务器上运行时需要它和 deploy.toml
-files += [root / 'deploy.toml', root / '.ai-kit' / 'ship' / 'ship.py']
+def manifest(root=root):
+    """包内文件清单。根目录 *.py 一律视为运行时模块，与 Dockerfile 的 `COPY *.py ./` 同一口径。"""
+    files = sorted(root.glob('*.py'))
+    files += [root / n for n in ('README.md', '使用说明.md', '部署说明.md', 'CHANGELOG.md')]
+    files += list((root / 'server').rglob('*.py'))
+    files += [p for p in (root / 'vendor' / 'album_data').rglob('*') if p.is_file() and '__pycache__' not in p.parts and p.suffix not in ('.pyc', '.pyo')]
+    files += [p for p in (root / 'static').rglob('*') if 'models/packaging' not in p.as_posix()]
+    files += list((root / 'plugins' / 'album-engine').glob('*'))
+    files += list((root / 'deploy').glob('*'))
+    files += [root / 'tools' / name for name in ('deploy.sh', 'update_release.py')]
+    # 发布入口 tools/deploy.sh 由 ai-kit 的 ship 执行：补丁更新器在服务器上运行时需要它和 deploy.toml
+    files += [root / 'deploy.toml', root / '.ai-kit' / 'ship' / 'ship.py']
+    return files
 
-with tarfile.open(out / 'album-ledger.tar.gz', 'w:gz') as tar:
-    for path in sorted(files):
-        if path.is_file():
-            tar.add(path, arcname=str(path.relative_to(root)))
-    info = tarfile.TarInfo('VERSION')
-    data = version.encode()
-    info.size = len(data)
-    tar.addfile(info, io.BytesIO(data))
 
-print(f'Application package: {out / "album-ledger.tar.gz"} (VERSION={version})')
-digest = hashlib.sha256((out / 'album-ledger.tar.gz').read_bytes()).hexdigest()
-(out / 'album-ledger.tar.gz.sha256').write_text(f'{digest}  album-ledger.tar.gz\n')
-print(f'SHA256: {digest}')
+def main():
+    out.mkdir(exist_ok=True)
+    try:
+        version = subprocess.run(['git', 'describe', '--tags', '--always', '--dirty'],
+                                 capture_output=True, text=True, check=True,
+                                 cwd=root).stdout.strip()
+    except Exception:
+        version = 'untagged'
+    files = manifest()
+    with tarfile.open(out / 'album-ledger.tar.gz', 'w:gz') as tar:
+        for path in sorted(files):
+            if path.is_file():
+                tar.add(path, arcname=str(path.relative_to(root)))
+        info = tarfile.TarInfo('VERSION')
+        data = version.encode()
+        info.size = len(data)
+        tar.addfile(info, io.BytesIO(data))
+
+    print(f'Application package: {out / "album-ledger.tar.gz"} (VERSION={version})')
+    digest = hashlib.sha256((out / 'album-ledger.tar.gz').read_bytes()).hexdigest()
+    (out / 'album-ledger.tar.gz.sha256').write_text(f'{digest}  album-ledger.tar.gz\n')
+    print(f'SHA256: {digest}')
+
+
+if __name__ == '__main__':
+    main()

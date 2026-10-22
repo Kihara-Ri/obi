@@ -1,0 +1,1 @@
+import{j as e,P as s}from"./index.js";import{M as t}from"./ModuleChooser.js";import"./Details.js";function a(){return e.jsxs(e.Fragment,{children:[e.jsx(s,{title:"你想怎样使用 Obi？",desc:"从需要的功能开始，之后随时可以在设置中调整。",label:"MAKE IT YOURS"}),e.jsx("section",{className:"settings-section",children:e.jsx(t,{initial:!0})})]})}export{a as SetupPage};
