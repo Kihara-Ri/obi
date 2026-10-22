@@ -51,15 +51,20 @@
 @media (max-width:840px){
   .sidebar{display:none}
   #main{padding:20px 16px 120px}
-  /* 手机顶栏：返回｜居中标题｜操作，一行 52px，吸顶。长说明与英文小标在手机上移除。 */
-  .page-head{position:sticky;top:0;z-index:20;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:0 6px;
-    min-height:52px;margin:-20px -16px 12px;padding:calc(4px + env(safe-area-inset-top)) 10px 4px;
-    background:var(--chrome-head);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-    box-shadow:0 1px 0 var(--hairline)}
+  /* 手机顶栏：与底栏同款悬浮岛——圆角玻璃条，返回｜居中标题｜操作，吸顶。长说明与英文小标在手机上移除。
+     ::before 是岛上方的渐隐底（盖住状态栏一带），让滚动内容从岛后面淡出而不是硬切。 */
+  :root{--head-top:max(10px,calc(env(safe-area-inset-top) + 4px))}
+  .page-head{position:sticky;top:var(--head-top);z-index:20;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:0 6px;
+    height:52px;margin:calc(var(--head-top) - 20px) -4px 14px;padding:0 8px;border-radius:26px;
+    background:var(--chrome-nav);backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);
+    border:1px solid var(--border-strong);box-shadow:0 8px 24px rgba(0,0,0,.24),0 1px 0 rgba(255,255,255,.04) inset}
+  .page-head::before{content:"";position:absolute;z-index:-1;left:-16px;right:-16px;top:calc(-1 * var(--head-top));
+    height:var(--head-top);pointer-events:none;
+    background:linear-gradient(var(--bg) calc(100% - 8px),transparent)}
   .page-head>div:first-child{display:contents}
   .page-head .eyebrow,.page-head p{display:none}
   .page-head h1{grid-column:2;grid-row:1;font-size:17px;font-weight:650;margin:0;text-align:center;white-space:nowrap;letter-spacing:0}
-  .head-back{grid-column:1;grid-row:1;justify-self:start;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;margin-left:-6px;color:var(--text);border-radius:50%}
+  .head-back{grid-column:1;grid-row:1;justify-self:start;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;margin-left:0;color:var(--text);border-radius:50%}
   .head-back:active{background:var(--surface-2)}
   .head-actions{grid-column:3;grid-row:1;justify-self:end;flex-wrap:nowrap;align-items:center;gap:4px}
   /* 顶栏里的次要操作是无边框文字钮，主要操作是一枚圆形强调钮 */
