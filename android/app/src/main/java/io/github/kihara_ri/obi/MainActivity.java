@@ -550,6 +550,7 @@ public class MainActivity extends Activity {
         // FLAG_LAYOUT_NO_LIMITS：个别 ROM 在状态栏区域另外留一条黑边，这个标志让窗口铺出屏幕边界
         int hard = WindowManager.LayoutParams.FLAG_FULLSCREEN | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
         if (on) getWindow().addFlags(hard); else getWindow().clearFlags(hard);
+        huaweiNotch(on);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             WindowInsetsController c = getWindow().getInsetsController();
             if (c != null) {
@@ -574,10 +575,24 @@ public class MainActivity extends Activity {
     }
 
     // 系统拒绝隐藏（个别 ROM 不理会应用的请求）时给个提示，方便反馈具体机型 / 系统版本
+    // EMUI：给窗口加 FLAG_NOTCH_SUPPORT（0x10000），告诉系统本应用自己处理刘海区，别再涂黑
+    private void huaweiNotch(boolean on) {
+        try {
+            Class<?> k = Class.forName("com.huawei.android.view.LayoutParamsEx");
+            Object ex = k.getConstructor(WindowManager.LayoutParams.class).newInstance(getWindow().getAttributes());
+            k.getMethod(on ? "addHwFlags" : "clearHwFlags", int.class).invoke(ex, 0x00010000);
+            getWindow().setAttributes(getWindow().getAttributes());
+        } catch (Throwable ignored) { /* 非华为机型没有这个类 */ }
+    }
+
+    @SuppressWarnings("deprecation")
     private void reportStuckBars() {
-        if (!immersive || Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return;
+        if (!immersive || stuckReported) return;
         WindowInsets wi = root.getRootWindowInsets();
-        if (wi != null && wi.isVisible(WindowInsets.Type.statusBars()) && !stuckReported) {
+        if (wi == null) return;
+        boolean visible = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                ? wi.isVisible(WindowInsets.Type.statusBars()) : wi.getSystemWindowInsetTop() > 0;
+        if (visible) {
             stuckReported = true;
             android.widget.Toast.makeText(this, "系统拒绝隐藏状态栏（" + Build.MANUFACTURER + " " + Build.MODEL
                     + " / Android " + Build.VERSION.RELEASE + "）", android.widget.Toast.LENGTH_LONG).show();

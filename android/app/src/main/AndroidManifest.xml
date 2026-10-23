@@ -19,6 +19,8 @@
         android:label="Obi"
         android:supportsRtl="true"
         android:theme="@style/Theme.Obi">
+        <!-- 华为 / 荣耀 EMUI：声明适配刘海屏，否则全屏时顶部仍被系统涂黑一条 -->
+        <meta-data android:name="android.notch_support" android:value="true" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

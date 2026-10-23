@@ -5,11 +5,16 @@ import {viewSwap} from '../core/view-swap';
 
 const IDLE_MS = 3000;
 type AndroidBridge = {setImmersive?: (on: boolean) => void};
+// 必须是对象上的直接方法调用：写成 `bridge?.setImmersive?.(on)` 会被编译成 `fn.call(bridge, on)`，
+// 老版本 WebView（如华为 nova 7 的 Android 10）上桥接方法不支持 .call，被 catch 吞掉后系统栏永远不会隐藏
 const setNativeImmersive = (on: boolean) => {
-  try { (window as unknown as {ObiAndroid?: AndroidBridge}).ObiAndroid?.setImmersive?.(on); } catch { /* 旧版壳没有这个方法 */ }
+  try {
+    const bridge = (window as unknown as {ObiAndroid?: AndroidBridge}).ObiAndroid;
+    if (bridge && typeof bridge.setImmersive === 'function') bridge.setImmersive(on);
+  } catch { /* 旧版壳没有这个方法 */ }
 };
 
-const hasNativeImmersive = () => !!(window as unknown as {ObiAndroid?: AndroidBridge}).ObiAndroid?.setImmersive;
+const hasNativeImmersive = () => typeof (window as unknown as {ObiAndroid?: AndroidBridge}).ObiAndroid?.setImmersive === 'function';
 
 export function useImmersive() {
   const [immersive, setImmersive] = useState(false);
