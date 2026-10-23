@@ -1,5 +1,5 @@
 // 应用外壳：状态装配与刷新、hash 路由、页面分发。抽屉栈、切页动画、导航、PWA 各在自己的 hook / 组件里。
-import {useCallback, useEffect, useRef, useState} from 'react';
+import {useCallback, useDeferredValue, useEffect, useRef, useState} from 'react';
 import {ApiError} from './core/api';
 import {fetchState} from './core/state-sync';
 import type {StateSnapshot} from './core/state-sync';
@@ -59,7 +59,8 @@ export default function App() {
     : state ? normalizeModules(state.modules?.enabled ?? LEGACY_MODULES) : undefined;
   const home = modules ? homePage(state?.modules?.startPage, modules) : 'domestic';
   const target = route === 'ledger' ? 'stats' : route;   // 旧的「账本概览」已并入账本（stats）
-  const page = !target ? home : modules && !pageEnabled(target, modules) ? 'domestic' : target;
+  const livePage = !target ? home : modules && !pageEnabled(target, modules) ? 'domestic' : target;
+  const page = useDeferredValue(livePage);   // 内容延后一拍：底栏（livePage）先响应，重渲染随后在后台完成
   // 以展示为主（展示是底栏标签）：库存 ↔ 展示按普通换页处理
   const showcaseTab = Boolean(modules?.showcase) && home === 'gallery';
   const albumEngine = useAlbumEngine();
@@ -97,9 +98,8 @@ export default function App() {
   }, [page, modules?.acquisition, modules?.trading, modules?.circulation, modules?.showcase]);
 
   useEffect(() => {
-    if (state && !state.modules?.needsSetup && page !== route) location.replace(`#${page}`);
-  }, [state, page, route]);
-
+    if (state && !state.modules?.needsSetup && livePage !== route) location.replace(`#${livePage}`);
+  }, [state, livePage, route]);
   // 消失时机由 Toast 组件自己的计时器决定（按级别区分时长、悬停暂停），这里只负责换新
   const toast = useCallback((msg: string, kind: ToastKind = 'ok', action?: ToastAction) => {
     setToastMsg(t => ({key: (t?.key ?? 0) + 1, kind, text: msg, action}));
@@ -182,12 +182,12 @@ export default function App() {
     <AppContext.Provider value={ctx}>
       <a className="skip" href="#main">跳至内容</a>
       <div id="shell" className={page === 'gallery' ? 'showcase-shell' : undefined}>
-        <Sidebar page={page} home={home} modules={modules} counts={counts}
+        <Sidebar page={livePage} home={home} modules={modules} counts={counts}
                  installEvt={installEvt} onInstalled={() => setInstallEvt(null)}/>
         <main id="main" className={page === 'gallery' ? 'showcase-main' : undefined} tabIndex={-1} ref={mainRef}><div className="page-layer">{content}</div></main>
       </div>
       {offline ? <div id="connection-status" role="status">网络已断开，保存前请恢复连接。</div> : null}
-      <MobileNav page={page} modules={modules} counts={counts} showcaseTab={showcaseTab} inventoryPage={inventoryPage}/>
+      <MobileNav page={livePage} modules={modules} counts={counts} showcaseTab={showcaseTab} inventoryPage={inventoryPage}/>
       {drawer ? <Drawer spec={drawer} closing={drawerClosing} pages={drawerPages} pageKey={drawerPage.key} direction={drawerPage.direction}
                         onClose={() => closeDrawer()} onClosed={drawerExited}/> : null}
       {toastMsg ? <Toast key={toastMsg.key} kind={toastMsg.kind} text={toastMsg.text} action={toastMsg.action} onDone={() => setToastMsg(null)}/> : null}

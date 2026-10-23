@@ -1,5 +1,6 @@
 // 应用导航：桌面侧栏（Sidebar）与手机底栏（MobileNav），以及两处共用的各页数量（navCounts）。
 // 入口按模块开关过滤；未开启「流转」时国内库存改叫「我的收藏 / 收藏」，海外与在途并入它的数量。
+import {useEffect, useRef, useState} from 'react';
 import type {AppState, ModuleFlags} from '../types';
 import {pageEnabled} from '../core/modules';
 import {Ledger} from './PageHead';
@@ -101,8 +102,17 @@ export function MobileNav({page, modules, counts, showcaseTab, inventoryPage}: M
   const weights = Array.from({length: slots}, (_, i) => i === pillIndex ? ACTIVE_WEIGHT : 1);
   const total = weights.reduce((a, b) => a + b, 0);
   const before = weights.slice(0, pillIndex).reduce((a, b) => a + b, 0);
+  // 胶囊滑动期间临时关掉玻璃条的背景模糊（底色本就 92% 不透明，肉眼无差别），省掉每帧重新模糊
+  const [moving, setMoving] = useState(false);
+  const firstRef = useRef(true);
+  useEffect(() => {
+    if (firstRef.current) { firstRef.current = false; return; }
+    setMoving(true);
+    const t = window.setTimeout(() => setMoving(false), 450);
+    return () => window.clearTimeout(t);
+  }, [pillIndex]);
   return (
-    <nav className="mobile-nav" aria-label="手机导航" style={{gridTemplateColumns: weights.map(w => w + 'fr').join(' ')}}>
+    <nav className={moving ? 'mobile-nav is-moving' : 'mobile-nav'} aria-label="手机导航" style={{gridTemplateColumns: weights.map(w => w + 'fr').join(' ')}}>
       {/* 胶囊宽度恒为激活权重占比，只在槽位间平移：用 transform（合成器线程），换页渲染占满主线程时也不掉帧 */}
       <span className="nav-pill" aria-hidden="true" style={{
         width: `calc((100% - 12px) * ${weights[pillIndex] / total})`,
