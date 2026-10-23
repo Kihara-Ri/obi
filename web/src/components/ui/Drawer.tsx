@@ -218,16 +218,18 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
       const t = e.touches[0];
       if (t.clientX > 28) return;
       // 贴边的按钮（头部返回箭头左缘就在 28px 内）不拦：preventDefault 会吞掉它的点击，表现为按下有反应却没效果
-      if (e.target instanceof Element && e.target.closest('button, a')) return;
-      // 手起点落在 sheet 内部横向滚动条带上（如封面候选）时让位给原生横向滚动
+      // ——但起点仍要记下，由 touchmove 接管：不然手指一动，iOS 系统边缘返回就整页滑走
+      const onControl = e.target instanceof Element && !!e.target.closest('button, a');
+      // 手起点落在 sheet 内部「已向右滚过」的横向条带（如封面候选）时让位给原生横向滚动；
+      // 停在最左的条带向右拖本来就滚不动，照常接管
       let node: Element | null = e.target instanceof Element ? e.target : null;
       while (node && node !== sheet) {
-        if (node.scrollWidth > node.clientWidth + 1) return;
+        if (node.scrollWidth > node.clientWidth + 1 && node.scrollLeft > 0) return;
         node = node.parentElement;
       }
       // 左缘起手：在 touchstart 就拦掉 iOS 的系统「边缘返回」整页滑动（只在 touchmove 里拦，系统手势
       // 已经起步，会和我们的跟手下拉叠在一起：整页向右推 + sheet 向下拖）。该窄条内不再产生点击 / 原生滚动
-      if (e.cancelable) e.preventDefault();
+      if (e.cancelable && !onControl) e.preventDefault();
       // 键盘弹出时 WebKit 会把横向手势整流收归系统（页面收不到 touchmove），
       // 先同步收起键盘：键盘落下后触摸流回到页面，本次滑动继续作为下拉接管
       const focused = document.activeElement;
