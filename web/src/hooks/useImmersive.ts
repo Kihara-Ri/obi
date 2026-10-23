@@ -9,6 +9,8 @@ const setNativeImmersive = (on: boolean) => {
   try { (window as unknown as {ObiAndroid?: AndroidBridge}).ObiAndroid?.setImmersive?.(on); } catch { /* 旧版壳没有这个方法 */ }
 };
 
+const hasNativeImmersive = () => !!(window as unknown as {ObiAndroid?: AndroidBridge}).ObiAndroid?.setImmersive;
+
 export function useImmersive() {
   const [immersive, setImmersive] = useState(false);
   const [chromeIdle, setChromeIdle] = useState(false);
@@ -27,7 +29,8 @@ export function useImmersive() {
     viewSwap(() => { setImmersive(true); setChromeIdle(false); });
     setNativeImmersive(true);
     // 整个应用进入全屏，抽屉/灯箱仍处于可见树中；不支持时仍可隐藏导航展示。
-    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+    // 安卓壳自己隐藏系统栏；WebView 的网页全屏会与它抢系统栏状态（实测状态栏被唤回），所以壳里不再申请
+    if (!hasNativeImmersive() && !document.fullscreenElement && document.documentElement.requestFullscreen) {
       requestedFullscreen.current = true;
       void document.documentElement.requestFullscreen().then(() => {
         if (!mounted.current || !requestedFullscreen.current) {

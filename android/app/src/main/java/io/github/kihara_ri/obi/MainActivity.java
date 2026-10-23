@@ -527,6 +527,13 @@ public class MainActivity extends Activity {
 
     private boolean immersive;
 
+    // 沉浸时系统栏被别的东西（WebView 全屏收尾、切回前台、部分 ROM）重新唤出，就再藏一次
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus && immersive) applyImmersive(true);
+    }
+
     @SuppressWarnings("deprecation")
     private void applyImmersive(boolean on) {
         immersive = on;
@@ -560,6 +567,10 @@ public class MainActivity extends Activity {
                     ? insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.ime() | (immersive ? 0 : WindowInsets.Type.displayCutout()))
                     : insets.getSystemWindowInsets();
             v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            if (immersive && (bars.top > 0 || bars.bottom > 0 || bars.left > 0 || bars.right > 0)
+                    && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !insets.isVisible(WindowInsets.Type.ime())) {
+                v.post(() -> { if (immersive) applyImmersive(true); });
+            }
             return WindowInsets.CONSUMED;
         });
         root.setBackgroundColor(getColor(R.color.obi_background));
