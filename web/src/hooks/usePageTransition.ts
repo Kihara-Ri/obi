@@ -16,13 +16,33 @@ const rankOf = (p: string, showcaseTab: boolean) => p === 'gallery' && showcaseT
 
 const isShelf = (p: string) => p === 'domestic' || p === 'overseas';
 
+// 快照只用来淡出 150ms：视口下方的内容整段不要，视口上方（已滚过）的只留占位高度，视口内的原样保留。
+// 只按纵向裁剪；以成对遍历 source 与克隆的直接子节点，递归进与视口相交的子树。
+const PRUNE_MARGIN = 40;
+function pruneOffscreen(src: Element, clone: Element) {
+  const vh = window.innerHeight;
+  const sk = Array.from(src.children), ck = Array.from(clone.children);
+  sk.forEach((s, i) => {
+    const c = ck[i];
+    if (!c || sk.length !== ck.length) return;
+    const r = s.getBoundingClientRect();
+    if (r.height === 0) return;
+    if (r.top >= vh + PRUNE_MARGIN) { c.remove(); return; }
+    if (r.bottom <= -PRUNE_MARGIN) {
+      if (c.children.length) { c.replaceChildren(); (c as HTMLElement).style.height = r.height + 'px'; }
+      return;
+    }
+    pruneOffscreen(s, c);
+  });
+}
+
 /** showcaseTab：以展示为主（展示是底栏标签），库存 ↔ 展示按普通换页处理 */
 export function usePageTransition(page: string, showcaseTab: boolean, records: AppState['records'] | undefined) {
   // 旧页面以 DOM 快照参与滑出，组件不重复挂载。hashchange/popstate 在 React 重渲染前同步到达，
   // 监听里抢先抓整个 #main 的克隆（连内边距一起保住几何）；等 effect 跑起来时旧内容已被换掉，只能用这份快照。
   const mainRef = useRef<HTMLElement | null>(null);
   const prevPageRef = useRef(page);
-  const ghostSnapRef = useRef<{el: HTMLElement; y: number;
+  const ghostSnapRef = useRef<{el: HTMLElement; els: HTMLElement[]; y: number;
     scroll: {index: number; left: number; top: number}[];
     poses: {index: number; name: string; time: number}[]} | null>(null);
   const lastHashRef = useRef(location.hash);
@@ -32,8 +52,12 @@ export function usePageTransition(page: string, showcaseTab: boolean, records: A
     const capture = () => {
       // 滚动偏移必须此刻记下：换页后内容变矮会被视口钳到 0，快照就对不上用户看到的位置了
       const source = mainRef.current;
-      ghostSnapRef.current = source ? {
-        el: source.cloneNode(true) as HTMLElement, y: window.scrollY,
+      const el = source?.cloneNode(true) as HTMLElement | undefined;
+      // 先记下克隆里每个节点的引用（与 source 的 querySelectorAll('*') 同序），再裁剪：下面的滚动 / 动画姿态按这个序号回填
+      const els = el ? Array.from(el.querySelectorAll<HTMLElement>('*')) : [];
+      if (source && el) pruneOffscreen(source, el);
+      ghostSnapRef.current = source && el ? {
+        el, els, y: window.scrollY,
         // cloneNode 不复制内部滚动偏移；快照挂载后才能还原可滚动容器的位置。
         scroll: Array.from(source.querySelectorAll<HTMLElement>('*')).flatMap((el, index) =>
           el.scrollLeft || el.scrollTop ? [{index, left: el.scrollLeft, top: el.scrollTop}] : []),
@@ -133,7 +157,7 @@ export function usePageTransition(page: string, showcaseTab: boolean, records: A
     shifter.appendChild(snap.el);
     ghost.appendChild(shifter);
     document.body.appendChild(ghost);
-    const clonedElements = snap.el.querySelectorAll<HTMLElement>('*');
+    const clonedElements = snap.els;
     snap.scroll.forEach(({index, left, top}) => {
       clonedElements[index].scrollLeft = left;
       clonedElements[index].scrollTop = top;
