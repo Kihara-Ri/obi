@@ -29,11 +29,6 @@
 @media(prefers-reduced-motion:reduce){
   }
 
-/* 巡游：胶囊按钮，关闭 = 描边、开启 = 强调色底 + 实心点 */
-.gallery-roaming-toggle{display:flex;flex:none;align-items:center;gap:8px;min-height:44px;padding:8px 14px;border:1px solid var(--border-strong);border-radius:999px;background:var(--surface-2);color:var(--muted);font-size:12px;font-weight:550;line-height:1;white-space:nowrap}
-.gallery-roaming-toggle i{width:8px;height:8px;border-radius:50%;border:1.5px solid currentColor;transition:background .18s ease,border-color .18s ease}
-.gallery-roaming-toggle[aria-pressed="true"]{background:var(--accent-wash);border-color:var(--accent);color:var(--text)}
-.gallery-roaming-toggle[aria-pressed="true"] i{background:var(--accent);border-color:var(--accent)}
+/* 巡游：外形沿用 .gallery-adjust-trigger；开启时图标与文字换强调色 */
+.gallery-roaming-toggle[aria-pressed="true"]{color:var(--accent-deep)}
 .gallery-roaming-toggle:disabled{opacity:.45;cursor:default}
-.gallery-roaming-toggle:focus-visible{outline:2px solid var(--accent-deep);outline-offset:2px}
-@media(prefers-reduced-motion:reduce){.gallery-roaming-toggle i{transition:none}}

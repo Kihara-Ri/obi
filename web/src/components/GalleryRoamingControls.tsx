@@ -7,15 +7,17 @@ function validSeconds(seconds: number): number {
   return Math.max(2, Math.min(30, Math.round(Number.isFinite(seconds) ? seconds : 8)));
 }
 
-/** 巡游开关：与工具栏其它按钮同款的胶囊按钮（按下态 = 开启），不用 iOS 式拨动开关 */
+/** 巡游开关：与「展示设置」同款的工具栏按钮（沿用 .gallery-adjust-trigger），图标表示状态——关闭 = 播放，开启 = 暂停并用强调色 */
 export function GalleryRoamingSwitch({enabled, disabled = false, onToggle}: {
   enabled: boolean;
   disabled?: boolean;
   onToggle: () => void;
 }) {
-  return <button type="button" className="gallery-roaming-toggle" aria-pressed={enabled} aria-label="自动巡游"
+  return <button type="button" className="gallery-adjust-trigger gallery-roaming-toggle" aria-pressed={enabled} aria-label="自动巡游"
     disabled={disabled} onClick={onToggle}>
-    <i aria-hidden="true"/>巡游
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
+      {enabled ? <path d="M3.5 2h2.2v10H3.5zM8.3 2h2.2v10H8.3z"/> : <path d="M4 2.2v9.6L11.6 7z"/>}
+    </svg>巡游
   </button>;
 }
 

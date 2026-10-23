@@ -11,11 +11,12 @@ const {GalleryRoamingSwitch} = require(join(output, 'components/GalleryRoamingCo
 const render = (enabled, disabled = false) =>
   renderToStaticMarkup(createElement(GalleryRoamingSwitch, {enabled, disabled, onToggle() {}}));
 
-test('巡游是一个整块可点的胶囊按钮，aria-pressed 表示开启', () => {
+test('巡游是与「展示设置」同款的整块可点工具栏按钮，aria-pressed 表示开启', () => {
   const markup = render(true);
-  assert.match(markup, /<button [^>]*class="gallery-roaming-toggle"[^>]*aria-pressed="true"/);
+  assert.match(markup, /<button [^>]*class="gallery-adjust-trigger gallery-roaming-toggle"[^>]*aria-pressed="true"/);
   assert.match(markup, /aria-label="自动巡游"/);
   assert.match(markup, /巡游<\/button>/);
+  assert.match(markup, /<svg /);
   assert.equal((markup.match(/<button /g) || []).length, 1);
 });
 test('关闭与禁用状态', () => {
