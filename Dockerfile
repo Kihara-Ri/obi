@@ -10,7 +10,8 @@ RUN npm ci
 COPY web/ ./
 COPY vendor/album_data/ /vendor/album_data/
 COPY plugins/album-engine/ /plugins/album-engine/
-COPY CHANGELOG.md /CHANGELOG.md   # 更新说明弹窗在构建时把它打进包（components/WhatsNew）
+# 更新说明弹窗在构建时把 CHANGELOG 打进包（components/WhatsNew）
+COPY CHANGELOG.md /CHANGELOG.md
 # vite outDir=../static → 产物输出到 /static
 RUN npm run build
 
