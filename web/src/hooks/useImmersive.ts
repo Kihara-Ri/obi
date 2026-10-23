@@ -1,6 +1,7 @@
 // 收藏展示的「沉浸」：浏览器全屏 + 安卓壳隐藏系统栏（ObiAndroid.setImmersive），Esc 退出，
 // 并在沉浸时让悬浮的「退出」按钮静止 3 秒后淡出、触摸 / 移动时重新出现（chromeIdle）。
 import {useEffect, useRef, useState} from 'react';
+import {viewSwap} from '../core/view-swap';
 
 const IDLE_MS = 3000;
 type AndroidBridge = {setImmersive?: (on: boolean) => void};
@@ -16,15 +17,14 @@ export function useImmersive() {
   const mounted = useRef(true);
 
   const exit = () => {
-    setImmersive(false);
+    viewSwap(() => setImmersive(false));
     setNativeImmersive(false);
     requestedFullscreen.current = false;
     if (ownsFullscreen.current && document.fullscreenElement) void document.exitFullscreen().catch(() => {});
     ownsFullscreen.current = false;
   };
   const enter = () => {
-    setImmersive(true);
-    setChromeIdle(false);
+    viewSwap(() => { setImmersive(true); setChromeIdle(false); });
     setNativeImmersive(true);
     // 整个应用进入全屏，抽屉/灯箱仍处于可见树中；不支持时仍可隐藏导航展示。
     if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
@@ -41,7 +41,7 @@ export function useImmersive() {
   useEffect(() => {
     mounted.current = true;
     const onFullscreen = () => {
-      if (ownsFullscreen.current && !document.fullscreenElement) {ownsFullscreen.current = false; setImmersive(false); setNativeImmersive(false);}
+      if (ownsFullscreen.current && !document.fullscreenElement) {ownsFullscreen.current = false; viewSwap(() => setImmersive(false)); setNativeImmersive(false);}
     };
     document.addEventListener('fullscreenchange', onFullscreen);
     return () => {
