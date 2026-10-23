@@ -22,7 +22,7 @@ import {Lightbox} from './components/ui/Lightbox';
 import {Toast} from './components/ui/Toast';
 import type {ToastAction, ToastKind} from './state/AppContext';
 import {Splash} from './components/ui';
-import {PageVeil} from './components/PageVeil';
+import {PageVeil} from './components/PageVeil'; import {PeekUnderlay} from './components/PeekUnderlay';
 import {installReplaceNav} from './core/nav';
 import {lazyPage, pagesReady} from './core/lazy-page';
 
@@ -191,7 +191,7 @@ export default function App() {
       {drawer ? <Drawer spec={drawer} closing={drawerClosing} pages={drawerPages} pageKey={drawerPage.key} direction={drawerPage.direction}
                         onClose={() => closeDrawer()} onClosed={drawerExited}/> : null}
       {toastMsg ? <Toast key={toastMsg.key} kind={toastMsg.kind} text={toastMsg.text} action={toastMsg.action} onDone={() => setToastMsg(null)}/> : null}
-      <Lightbox/>
+      <Lightbox/><PeekUnderlay/>
     </AppContext.Provider>
     <Splash ready/>
     {veil ? <PageVeil key={page} covers={veil} onDone={() => setVeil(null)}/> : null}

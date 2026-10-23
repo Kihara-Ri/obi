@@ -1,13 +1,13 @@
 // 手机「更多」子页的左缘右划返回：只有顶栏以下的内容跟手右移，顶栏与底栏不动（样式见 styles/pagetransition.css）。
 // 系统自带的返回手势会把整屏当快照一起滑走，所以 iOS 上子页不压历史（core/nav.ts），手势全由这里接管。
-import {useEffect} from 'react';
+import {useLayoutEffect} from 'react';
 import {BACK_TARGET} from '../core/page-back';
 import {navigate} from '../core/nav';
 
 const EDGE = 28, COMMIT = .33, FLICK = .5;   // 起点距左缘 px；拖过屏宽的比例 / 速度（px/ms）即返回
 
 export function useEdgeSwipeBack(page: string) {
-  useEffect(() => {
+  useLayoutEffect(() => {
     const back = BACK_TARGET[page];
     if (!back) return;
     const el = () => document.getElementById('main') as HTMLElement;   // 首屏加载完才有，用的时候再取
@@ -16,13 +16,14 @@ export function useEdgeSwipeBack(page: string) {
     if (!mobile) return;
     let x0 = 0, y0 = 0, t0 = 0, dx = 0, mode: '' | 'wait' | 'drag' = '';
     const set = (v: number) => el().style.setProperty('--swipe-dx', v + 'px');
+    const peek = (p: string) => window.dispatchEvent(new CustomEvent('obi-peek', {detail: p}));
+    const clear = () => { el()?.classList.remove('is-swiping', 'is-swipe-settle'); el()?.style.removeProperty('--swipe-dx'); peek(''); };
     const end = (to: number, then?: () => void) => {
       el().classList.add('is-swipe-settle');
       set(to);
       window.setTimeout(() => {
-        el().classList.remove('is-swiping', 'is-swipe-settle');
-        el().style.removeProperty('--swipe-dx');
-        then?.();
+        // 返回：内容留在屏外、垫底页保持可见，直到新页提交（下面 effect 的清理在绘制前执行），避免旧页回弹 / 新页淡入造成的闪
+        if (then) { document.documentElement.dataset.swipeBack = '1'; then(); window.setTimeout(clear, 900); } else clear();
       }, 230);
     };
     const start = (e: TouchEvent) => {
@@ -41,6 +42,7 @@ export function useEdgeSwipeBack(page: string) {
         if (dx <= 0 || Math.abs(dy) > Math.abs(dx)) { mode = ''; return; }
         mode = 'drag';
         el().classList.add('is-swiping');
+        peek(back.href.slice(1));
       }
       if (e.cancelable) e.preventDefault();
       set(Math.max(0, dx));
@@ -62,8 +64,7 @@ export function useEdgeSwipeBack(page: string) {
       document.removeEventListener('touchmove', move);
       document.removeEventListener('touchend', finish);
       document.removeEventListener('touchcancel', cancel);
-      el()?.classList.remove('is-swiping', 'is-swipe-settle');
-      el()?.style.removeProperty('--swipe-dx');
+      clear();
     };
   }, [page]);
 }

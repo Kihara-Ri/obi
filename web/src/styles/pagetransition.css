@@ -19,6 +19,15 @@
   #main.page-in-fade .page-layer>*>:not(.page-head){animation:page-fade-in var(--slide-ms) var(--slide-ease) both}
   @keyframes page-fade-in{from{opacity:0;transform:translateY(8px)}}
   /* 左缘右划返回：页面根下除顶栏外的内容跟手右移（顶栏、底栏不动），松手后滑出或弹回 */
-  #main.is-swiping .page-layer>*>:not(.page-head){transform:translateX(var(--swipe-dx,0px));will-change:transform}
-  #main.is-swiping.is-swipe-settle .page-layer>*>:not(.page-head){transition:transform 220ms var(--ease-out)}
+  /* 页面内容可能是单个根（含顶栏），也可能是并列的片段：两种都只移顶栏以外的部分 */
+  #main.is-swiping .page-layer>:has(>.page-head)>:not(.page-head),
+  #main.is-swiping .page-layer>:not(.page-head):not(:has(>.page-head)){translate:var(--swipe-dx,0px) 0;will-change:translate}
+  #main.is-swiping .page-layer{isolation:isolate}
+  /* 随内容一起右移的不透明底板：盖住垫底的上一级页面，只在内容让出的左侧露出它 */
+  #main.is-swiping .page-layer::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--bg);box-shadow:var(--shadow);translate:var(--swipe-dx,0px) 0;pointer-events:none}
+  #main.is-swiping.is-swipe-settle .page-layer>:has(>.page-head)>:not(.page-head),
+  #main.is-swiping.is-swipe-settle .page-layer>:not(.page-head):not(:has(>.page-head)),
+  #main.is-swiping.is-swipe-settle .page-layer::before{transition:translate 220ms var(--ease-out)}
+  .swipe-underlay{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;background:var(--bg)}
+  .swipe-underlay .page-head{visibility:hidden}
 }

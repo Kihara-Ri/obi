@@ -125,7 +125,9 @@ export function usePageTransition(page: string, showcaseTab: boolean, records: A
     const snap = ghostSnapRef.current;
     ghostSnapRef.current = null;
     // 历史驱动的换页（边缘右滑/后退键）交给系统过渡，自己不再播动画
-    const fromHistory = historyNavRef.current;
+    const swiped = document.documentElement.dataset.swipeBack;   // 左缘右划返回：垫底页已经露出来了，不再播淡入
+    delete document.documentElement.dataset.swipeBack;
+    const fromHistory = historyNavRef.current || !!swiped;
     historyNavRef.current = false;
     let mobile = false;
     let animate = true;

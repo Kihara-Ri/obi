@@ -27,7 +27,7 @@
 .local-note i{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
 
 /* 1280px 内容 + 左右各 34px 内边距；侧栏之外的剩余空间均分到两边。 */
-#main{flex:1;min-width:0;width:100%;max-width:1348px;margin-inline:auto;padding:30px 34px 90px}
+#main,#main-peek{flex:1;min-width:0;width:100%;max-width:1348px;margin-inline:auto;padding:30px 34px 90px}
 
 /* 页头（手机顶栏的覆盖规则在下方 @media）；返回钮、短标签与「库存｜展示」切换仅手机使用 */
 .head-back,.btn-short,.title-switch{display:none}
@@ -50,7 +50,7 @@
 .mobile-nav{display:none}
 @media (max-width:840px){
   .sidebar{display:none}
-  #main{padding:20px 16px 120px}
+  #main,#main-peek{padding:20px 16px 120px}
   /* 手机顶栏：页眉本身透明，只让各个组件各自成为悬浮的小玻璃件——返回圆钮｜标题胶囊｜操作圆钮；吸顶。
      长说明与英文小标在手机上移除。::before 是顶部到组件上沿的渐隐底（盖住状态栏一带），内容滚上来时淡出而不是硬切。 */
   :root{--head-top:max(10px,calc(env(safe-area-inset-top) + 4px));
