@@ -7,6 +7,7 @@ import react from '@vitejs/plugin-react';
 // 构建只产出 index.html 与 assets/。
 export default defineConfig({
   plugins: [react()],
+  server: {fs: {allow: ['..']}},   // 更新说明直接 import 仓库根的 CHANGELOG.md
   build: {
     outDir: '../static',
     emptyOutDir: false,
