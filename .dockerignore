@@ -14,6 +14,7 @@ deploy
 .DS_Store
 vision-config.json
 *.md
+!CHANGELOG.md
 docs
 
 static/models/packaging
