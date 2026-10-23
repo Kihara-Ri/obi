@@ -42,8 +42,8 @@
 /* 这三个按钮打开的是选择面板（抽屉），不是下拉：用「范围 / 方式」小标签 + 齿轮图标，不再用向下的小箭头 */
 .gallery-trigger-cap{flex:none;font-size:11px;font-weight:500;color:var(--faint)}
 
-/* 进出沉浸：被选中的那张封面（view-swap.ts 给它 gallery-hero）从旧位置平滑放大 / 缩回，其余交叉淡化 */
+/* 进出沉浸：屏幕内每张封面（view-swap.ts 给它们唯一的 view-transition-name 与 gallery-hero 类）从旧位置平滑移动 / 缩放，其余交叉淡化 */
 @media (prefers-reduced-motion:no-preference){
-  ::view-transition-group(gallery-hero){animation-duration:.55s;animation-timing-function:cubic-bezier(.2,.8,.2,1)}
-  ::view-transition-old(gallery-hero),::view-transition-new(gallery-hero){height:100%;object-fit:cover}
+  ::view-transition-group(*.gallery-hero){animation-duration:.6s;animation-timing-function:cubic-bezier(.2,.8,.2,1)}
+  ::view-transition-old(*.gallery-hero),::view-transition-new(*.gallery-hero){height:100%;object-fit:cover}
 }

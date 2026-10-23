@@ -1,44 +1,43 @@
-// 收藏展示 ↔ 沉浸展示的过渡：用 View Transitions 让「最靠近屏幕中心的那张封面」从旧位置平滑放大 / 缩回新位置，
-// 其余画面交叉淡化。封面按图片地址在两个状态里对应；不支持（旧浏览器）或减少动态时直接切换。
+// 收藏展示 ↔ 沉浸展示的过渡：用 View Transitions 让屏幕内每一张封面都从旧位置平滑移动 / 缩放到新位置，
+// 其余画面交叉淡化。封面按「图片地址 + 第几次出现」在两个状态里对应；某一边没有的那张就只淡入 / 淡出。
+// 不支持（旧浏览器）或开启减少动态时直接切换。
 import {flushSync} from 'react-dom';
 
-const NAME = 'gallery-hero';
 type VT = {finished: Promise<void>};
 type Doc = {startViewTransition?: (cb: () => void) => VT};
 
-function covers(src?: string) {
-  return Array.from(document.querySelectorAll<HTMLElement>('.gallery-page .gallery-artwork')).filter(el => {
-    const img = el.querySelector('img');
-    return img && (!src || img.getAttribute('src') === src) && el.getBoundingClientRect().width > 0;
-  });
-}
-function nearestCenter(list: HTMLElement[]) {
-  const cx = innerWidth / 2, cy = innerHeight / 2;
-  let best: HTMLElement | null = null, bestD = Infinity;
-  for (const el of list) {
+/** 屏幕内的封面（含上下各一屏的余量）→ 唯一的过渡名；同一地址的多张按出现顺序编号 */
+function tag(): HTMLElement[] {
+  const seen = new Map<string, number>(), out: HTMLElement[] = [];
+  const edge = innerHeight;
+  document.querySelectorAll<HTMLElement>('.gallery-page .gallery-artwork').forEach(el => {
+    const src = el.querySelector('img')?.getAttribute('src');
     const r = el.getBoundingClientRect();
-    if (r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) continue;
-    const d = Math.hypot(r.left + r.width / 2 - cx, r.top + r.height / 2 - cy);
-    if (d < bestD) { best = el; bestD = d; }
-  }
-  return best;
+    if (!src || r.width <= 0 || r.bottom < -edge * .25 || r.top > edge * 1.25 || r.right < 0 || r.left > innerWidth) return;
+    const n = seen.get(src) ?? 0;
+    seen.set(src, n + 1);
+    el.style.viewTransitionName = 'gc-' + (src + '#' + n).replace(/[^a-zA-Z0-9]/g, '').slice(-40) + '-' + (hash(src) + n);
+    el.style.setProperty('view-transition-class', 'gallery-hero');
+    out.push(el);
+  });
+  return out;
 }
+const hash = (s: string) => Array.from(s).reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+const untag = (list: HTMLElement[]) => list.forEach(el => { el.style.removeProperty('view-transition-name'); el.style.removeProperty('view-transition-class'); });
 
 export function viewSwap(apply: () => void) {
   const doc = document as unknown as Doc;
   let reduce = false;
   try { reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { /* 无 matchMedia */ }
-  const hero = doc.startViewTransition && !reduce ? nearestCenter(covers()) : null;
-  if (!doc.startViewTransition || reduce || !hero) { apply(); return; }
-  const src = hero.querySelector('img')?.getAttribute('src') ?? undefined;
-  hero.style.viewTransitionName = NAME;
-  let target: HTMLElement | null = null;
+  if (!doc.startViewTransition || reduce) { apply(); return; }
+  const before = tag();
+  if (!before.length) { apply(); return; }
+  let after: HTMLElement[] = [];
   const t = doc.startViewTransition.call(document, () => {
-    hero.style.viewTransitionName = '';
+    untag(before);
     flushSync(apply);
-    target = nearestCenter(covers(src));
-    if (target) target.style.viewTransitionName = NAME;
+    after = tag();
   });
-  const clean = () => { hero.style.viewTransitionName = ''; (target as HTMLElement | null)?.style.removeProperty('view-transition-name'); };
+  const clean = () => { untag(before); untag(after); };
   t.finished.then(clean, clean);
 }
