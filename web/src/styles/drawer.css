@@ -353,4 +353,6 @@ details.adv:not([open]) > :not(summary){display:none}
 .record-detail .big-zoom{cursor:zoom-in}
 .record-detail.is-big{flex-wrap:wrap}
 .record-detail.is-big .rcc-break{display:block}
-.detail-summary .record-detail.is-big .big{width:min(100%,420px);height:auto;aspect-ratio:1;margin-inline:auto;cursor:zoom-out}
+.detail-summary .record-detail.is-big .big{width:min(100%,420px);height:auto;aspect-ratio:1;margin-inline:auto;align-self:flex-start;cursor:zoom-out}
+/* iOS Safari 不认 flex 项上的 aspect-ratio：让内容自己撑出方形高度 */
+.detail-summary .record-detail.is-big .big img,.detail-summary .record-detail.is-big .big .cover-fallback{display:block;width:100%;height:auto;aspect-ratio:1}
