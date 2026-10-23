@@ -1,4 +1,4 @@
-.scan-layer{position:fixed;inset:0;z-index:80;background:var(--shadow-ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px}
+.scan-layer{position:fixed;inset:0;z-index:80;background:black;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px}
 .scan-layer{animation:scan-in .28s ease-out}
 .scan-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transform:scale(1.07);background:transparent}
 /* 快门式：暗底 → 取景角标从四周收拢 → 画面稳定后对焦显现（淡入 + 微缩放回原位）；启动期的小窗 / 分辨率跳变都在暗底后面 */
