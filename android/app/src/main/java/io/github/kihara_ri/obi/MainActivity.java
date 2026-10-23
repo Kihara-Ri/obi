@@ -35,6 +35,9 @@ import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import androidx.webkit.ServiceWorkerClientCompat;
 import androidx.webkit.ServiceWorkerControllerCompat;
 import androidx.webkit.WebViewCompat;
@@ -501,7 +504,14 @@ public class MainActivity extends Activity {
         /** 收藏展示的沉浸模式：隐藏状态栏 / 导航栏（边缘滑动可临时唤出），页面铺满整个屏幕（含刘海区）。 */
         @JavascriptInterface
         public void setImmersive(boolean on) {
+            if (on) immersiveCalls++;
             runOnUiThread(() -> applyImmersive(on));
+        }
+
+        // 沉浸诊断：最近一次执行到哪一步、系统栏实际是否隐藏（JSON），由页面在界面里显示，不再弹 Toast
+        @JavascriptInterface
+        public String immersiveState() {
+            return immersiveSnapshot;
         }
 
         @JavascriptInterface
@@ -537,6 +547,7 @@ public class MainActivity extends Activity {
     @SuppressWarnings("deprecation")
     private void applyImmersive(boolean on) {
         immersive = on;
+        immersiveChecked = false;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             getWindow().getAttributes().layoutInDisplayCutoutMode = on
                     ? (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
@@ -550,7 +561,7 @@ public class MainActivity extends Activity {
         // FLAG_LAYOUT_NO_LIMITS：个别 ROM 在状态栏区域另外留一条黑边，这个标志让窗口铺出屏幕边界
         int hard = WindowManager.LayoutParams.FLAG_FULLSCREEN | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
         if (on) getWindow().addFlags(hard); else getWindow().clearFlags(hard);
-        huaweiNotch(on);
+        notchResult = huaweiNotch(on);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             WindowInsetsController c = getWindow().getInsetsController();
             if (c != null) {
@@ -570,35 +581,80 @@ public class MainActivity extends Activity {
         if (on) {
             root.postDelayed(() -> { if (immersive) reassertImmersive(); }, 400);
             root.postDelayed(() -> { if (immersive) reassertImmersive(); }, 1500);
-            root.postDelayed(this::reportStuckBars, 2200);
+            // 系统处理隐藏需要时间：只在 2.2 秒后（及之后的每次 insets 变化）记录系统栏的真实状态
+            root.postDelayed(() -> { if (immersive) { immersiveChecked = true; snapshotImmersive("checked"); } }, 2200);
         }
+        snapshotImmersive(on ? "applied" : "off");
     }
 
-    // 系统拒绝隐藏（个别 ROM 不理会应用的请求）时给个提示，方便反馈具体机型 / 系统版本
-    // EMUI：给窗口加 FLAG_NOTCH_SUPPORT（0x10000），告诉系统本应用自己处理刘海区，别再涂黑
-    private void huaweiNotch(boolean on) {
+    // EMUI：给窗口加 FLAG_NOTCH_SUPPORT（0x10000），告诉系统本应用自己处理刘海区，别再涂黑；返回结果写进诊断
+    private String huaweiNotch(boolean on) {
         try {
             Class<?> k = Class.forName("com.huawei.android.view.LayoutParamsEx");
             Object ex = k.getConstructor(WindowManager.LayoutParams.class).newInstance(getWindow().getAttributes());
             k.getMethod(on ? "addHwFlags" : "clearHwFlags", int.class).invoke(ex, 0x00010000);
             getWindow().setAttributes(getWindow().getAttributes());
-        } catch (Throwable ignored) { /* 非华为机型没有这个类 */ }
-    }
-
-    @SuppressWarnings("deprecation")
-    private void reportStuckBars() {
-        if (!immersive || stuckReported) return;
-        WindowInsets wi = root.getRootWindowInsets();
-        if (wi == null) return;
-        boolean visible = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
-                ? wi.isVisible(WindowInsets.Type.statusBars()) : wi.getSystemWindowInsetTop() > 0;
-        if (visible) {
-            stuckReported = true;
-            android.widget.Toast.makeText(this, "系统拒绝隐藏状态栏（" + Build.MANUFACTURER + " " + Build.MODEL
-                    + " / Android " + Build.VERSION.RELEASE + "）", android.widget.Toast.LENGTH_LONG).show();
+            return "ok";
+        } catch (ClassNotFoundException e) {
+            return "none";
+        } catch (Throwable e) {
+            return "error: " + e.getClass().getSimpleName();
         }
     }
-    private boolean stuckReported;
+
+    private volatile int immersiveCalls;
+    private boolean immersiveChecked;
+    private volatile String immersiveSnapshot = "";
+    private String notchResult = "";
+
+    /** 记下沉浸执行到哪一步与系统栏的实际状态（UI 线程），页面经 immersiveState() 读取并显示。 */
+    @SuppressWarnings("deprecation")
+    private void snapshotImmersive(String stage) {
+        JSONObject o = new JSONObject();
+        try {
+            o.put("shell", shellVersion());
+            o.put("device", Build.MANUFACTURER + " " + Build.MODEL);
+            o.put("android", Build.VERSION.RELEASE);
+            o.put("sdk", Build.VERSION.SDK_INT);
+            o.put("rom", romVersion());
+            o.put("calls", immersiveCalls);
+            o.put("on", immersive);
+            o.put("stage", stage);
+            o.put("notch", notchResult);
+            o.put("fullscreenFlag", (getWindow().getAttributes().flags & WindowManager.LayoutParams.FLAG_FULLSCREEN) != 0);
+            o.put("sysui", getWindow().getDecorView().getSystemUiVisibility());
+            o.put("focus", hasWindowFocus());
+            WindowInsets wi = root.getRootWindowInsets();
+            if (wi != null && "checked".equals(stage)) {
+                o.put("statusVisible", Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                        ? wi.isVisible(WindowInsets.Type.statusBars()) : wi.getSystemWindowInsetTop() > 0);
+                o.put("insetTop", wi.getSystemWindowInsetTop());
+            }
+            o.put("padTop", root.getPaddingTop());
+        } catch (JSONException | RuntimeException ignored) { /* 诊断尽力而为 */ }
+        immersiveSnapshot = o.toString();
+    }
+
+    private String shellVersion() {
+        try {
+            return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (PackageManager.NameNotFoundException e) {
+            return "unknown";
+        }
+    }
+
+    /** EMUI / HarmonyOS 版本（读系统属性；别的 ROM 为空）。 */
+    static String romVersion() {
+        try {
+            Class<?> sp = Class.forName("android.os.SystemProperties");
+            java.lang.reflect.Method get = sp.getMethod("get", String.class, String.class);
+            String harmony = (String) get.invoke(null, "hw_sc.build.platform.version", "");
+            String emui = (String) get.invoke(null, "ro.build.version.emui", "");
+            return (harmony.isEmpty() ? "" : "HarmonyOS " + harmony + " ") + emui;
+        } catch (Throwable e) {
+            return "";
+        }
+    }
 
     @SuppressWarnings("deprecation")
     private void reassertImmersive() {
@@ -618,6 +674,7 @@ public class MainActivity extends Activity {
                     ? insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.ime() | (immersive ? 0 : WindowInsets.Type.displayCutout()))
                     : insets.getSystemWindowInsets();
             v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            if (immersive && immersiveChecked) v.post(() -> { if (immersive && immersiveChecked) snapshotImmersive("checked"); });
             if (immersive && (bars.top > 0 || bars.bottom > 0 || bars.left > 0 || bars.right > 0)
                     && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !insets.isVisible(WindowInsets.Type.ime())) {
                 v.post(() -> { if (immersive) reassertImmersive(); });

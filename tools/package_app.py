@@ -6,7 +6,9 @@
 """
 import io
 import hashlib
+import re
 import subprocess
+import sys
 import tarfile
 from pathlib import Path
 
@@ -37,6 +39,9 @@ def main():
                                  cwd=root).stdout.strip()
     except Exception:
         version = 'untagged'
+    # 补丁版本不得改安卓原生外壳（D-023），否则装在手机上的旧外壳永远拿不到这些改动
+    if re.fullmatch(r'v\d+\.\d+\.\d+', version):
+        subprocess.run([sys.executable, str(root / 'tools' / 'check_android_line.py'), version], check=True, cwd=root)
     files = manifest()
     with tarfile.open(out / 'album-ledger.tar.gz', 'w:gz') as tar:
         for path in sorted(files):

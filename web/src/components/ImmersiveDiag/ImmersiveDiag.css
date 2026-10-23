@@ -1,0 +1,9 @@
+.immersive-diag{position:fixed;left:calc(12px + env(safe-area-inset-left));right:calc(12px + env(safe-area-inset-right));bottom:calc(16px + env(safe-area-inset-bottom));z-index:45;
+  max-width:520px;margin:0 auto;padding:12px 14px;background:var(--surface);color:var(--text);border:1px solid var(--border-strong);border-radius:var(--radius);box-shadow:var(--shadow);font-size:13px}
+.immersive-diag h3{margin:0 0 6px;font-size:14px}
+.immersive-diag ol{margin:0;padding:0;list-style:none;display:grid;gap:4px}
+.immersive-diag li small{display:block;margin-left:1.4em;color:var(--muted);word-break:break-word}
+.immersive-diag li.is-ok>span{color:var(--green)}
+.immersive-diag li.is-fail{font-weight:600}
+.immersive-diag li.is-fail>span{color:var(--red)}
+.immersive-diag-info{margin:8px 0 4px;color:var(--muted);font-size:12px;word-break:break-word}

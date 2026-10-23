@@ -15,6 +15,7 @@ import {GalleryRoamingSwitch} from '../components/GalleryRoamingControls';
 import {GallerySettings} from '../components/GallerySettings/GallerySettings';
 import {ShowcaseSwitch, useShowcaseSwitch} from '../components/ShowcaseSwitch';
 import {GearIcon} from '../components/ui/GearIcon';
+import {ImmersiveDiag} from '../components/ImmersiveDiag';
 import {openArtistDrawer} from '../forms/ArtistDrawer';
 import {ShowcaseGroupForm} from '../forms/ShowcaseGroupForm';
 
@@ -24,7 +25,7 @@ export function GalleryPage() {
   const [preferences, setPreferences] = useState(readGalleryPreferences);
   const scope = preferences.scope;
   const [query, setQuery] = useSessionState<string>('gallery-query', '');
-  const {immersive, chromeIdle, enter: enterImmersive, exit: exitImmersive} = useImmersive();
+  const {immersive, chromeIdle, enter: enterImmersive, exit: exitImmersive, probe} = useImmersive();
 
   const [roaming, setRoaming] = useState(false);
   const [focused, setFocused] = useState<{id: string; originElement: HTMLElement | null} | null>(null);
@@ -143,6 +144,7 @@ export function GalleryPage() {
       onNavigate={navigateFocus} onClose={closeFocus}
       liked={Boolean(albumLikes.favorites[focusedRecord.id])}
       collectedAt={albumLikes.collectedAt[focusedRecord.id]}/> : null}
+    {probe ? <ImmersiveDiag probe={probe}/> : null}
     <PageHead title={switchOn ? <><span className="head-title-text">收藏展示</span><span className="title-switch"><ShowcaseSwitch current="gallery"/></span></> : '收藏展示'} desc="把收藏铺开，慢慢看。"
               actions={<button type="button" className="quiet head-text" onClick={immersive ? exitImmersive : enterImmersive}>
                 {immersive ? '退出沉浸' : '沉浸展示'}

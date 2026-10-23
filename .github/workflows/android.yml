@@ -37,6 +37,8 @@ jobs:
           distribution: temurin
           java-version: 21
           cache: gradle
+      - name: 补丁版本不得改原生外壳（D-023）
+        run: python3 tools/check_android_line.py "$TAG"
       - run: npm --prefix web ci
       - name: 构建本机模式站点
         run: npm --prefix web run build:local

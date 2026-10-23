@@ -4,7 +4,7 @@ import {useEffect, useState} from 'react';
 
 type Native = {updateStatus(): string; checkUpdate(): void; openInstallSettings(): void; installUpdate?(): void};
 type Status = {state: string; version: string; latest: string; ready: string; error: string;
-  checkedAt: number; silent: boolean; silentSupported: boolean; installable?: boolean};
+  checkedAt: number; silent: boolean; silentSupported: boolean; installable?: boolean; shell?: string};
 
 function native(): Native | null {
   const bridge = (window as unknown as {ObiAndroid?: Partial<Native>}).ObiAndroid;
@@ -45,7 +45,7 @@ export function AppUpdateSection() {
   const busy = BUSY.has(status.state);
   return <section className="settings-section">
     <h3>应用更新</h3>
-    <p role="status">当前版本 {status.version} · {describeUpdate(status)}</p>
+    <p role="status">当前版本 {status.version}{status.shell && status.shell !== tag(status.version) ? `（安装包 ${status.shell}）` : ''} · {describeUpdate(status)}</p>
     <p className="small-note">
       每 30 分钟检查一次，发现新版本自动下载；下载好后出现「安装」按钮，点了才安装，数据保留。
     </p>

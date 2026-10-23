@@ -252,6 +252,8 @@ final class Updater {
         try {
             o.put("state", p.getString("state", "idle"));
             o.put("version", BuildConfigVersion.name(c));
+            // 安装包（原生外壳）自己的版本：补丁只换网页，原生改动要装新安装包才有（D-023）
+            o.put("shell", c.getPackageManager().getPackageInfo(c.getPackageName(), 0).versionName);
             o.put("latest", p.getString("latest", ""));
             o.put("ready", p.getString("readyTag", ""));
             o.put("installable", p.getLong("readyCode", -1) > installedCode(c) && apkFile(c).exists());
@@ -259,7 +261,7 @@ final class Updater {
             o.put("checkedAt", p.getLong("checkedAt", 0));
             o.put("silent", canInstallSilently(c));
             o.put("silentSupported", Build.VERSION.SDK_INT >= Build.VERSION_CODES.S);
-        } catch (JSONException ignored) { /* 固定键，不会失败 */ }
+        } catch (JSONException | PackageManager.NameNotFoundException ignored) { /* 固定键，不会失败 */ }
         return o.toString();
     }
 
