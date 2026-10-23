@@ -157,7 +157,12 @@ def api_covers_search(h, svc, body):
 
 
 def api_covers_download(h, svc, body):
-    h.send(svc.covers.download(body.get('token')))
+    result = svc.covers.download(body.get('token'))
+    # stash（服务器模式的专辑表单带）：下载后立刻按内容哈希落盘，只回 /api/cover/ 短引用，
+    # 保存时不必把整张图再从手机上传一遍。本机模式不带：下载在 net 引擎、账本在 main 引擎，文件系统不共享。
+    if body.get('stash') is True:
+        result = {**result, 'cover': svc.store.stash_cover({'cover': result['cover']})['cover']}
+    h.send(result)
 
 
 # ── 艺人资料与作品目录：外网请求不持有写锁，storage 写入由服务内部短锁串行 ──
@@ -432,8 +437,14 @@ def api_release_front_cover(h, svc):
     ident = query(h).get('id', '')
     if not isinstance(ident, str) or not UUID.fullmatch(ident):
         raise ValidationError('发行版本编号不正确')
+    def reply(out):
+        # stash=1（服务器模式的专辑表单）：落盘后只回短引用，保存时不再上传整张图；
+        # 其余调用方与本机模式（net / main 引擎文件系统不共享）仍拿 data URL
+        if query(h).get('stash') and out.get('cover'):
+            out = {**out, 'cover': svc.store.stash_cover({'cover': out['cover']})['cover']}
+        h.send(out)
     hit = _FRONT_MEMO.get(ident)
-    if hit: return h.send(hit)
+    if hit: return reply(hit)
     art = catalog_art(svc)
     try:
         if isinstance(art, ArtClient): raw = art.front(ident)
@@ -452,7 +463,7 @@ def api_release_front_cover(h, svc):
     if isinstance(art, ArtClient):
         if len(_FRONT_MEMO) > 16: _FRONT_MEMO.pop(next(iter(_FRONT_MEMO)))
         _FRONT_MEMO[ident] = out
-    h.send(out)
+    reply(out)
 
 
 def api_engine_plugin(h, svc): h.send(svc.plugins.status())

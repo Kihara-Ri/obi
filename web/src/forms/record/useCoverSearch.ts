@@ -3,6 +3,7 @@
 import {useState} from 'react';
 import {api} from '../../core/api';
 import type {FormCtx} from './context';
+import {stashCovers} from './releaseCover';
 
 export interface CoverCandidate {
   token: string; title: string; artist: string; year?: string;
@@ -24,7 +25,7 @@ export function useCoverSearch(ctx: FormCtx, hadCover: boolean) {
     setCoverStatus('下载中…');
     try {
       const result = await api<{cover: string; coverSource: {title: string; artist: string}}>(
-        'covers/download', {token});
+        'covers/download', {token, ...(stashCovers() ? {stash: true} : {})});
       if (!stillCurrent(key)) return;
       base.current = {...base.current, cover: result.cover, coverSource: result.coverSource};
       setHasCover(true);

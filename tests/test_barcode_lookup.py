@@ -99,6 +99,35 @@ class ConfirmedReleaseArtTests(unittest.TestCase):
         self.assertEqual(self.http.send.call_args.args[0]['cover'], '')
         self.art.image.assert_called_once()
 
+    def test_front_cover_stash_returns_short_reference(self):
+        import tempfile
+        from pathlib import Path
+        from server import routes
+        routes._FRONT_MEMO.clear()
+        store = SimpleNamespace(covers_dir=Path(tempfile.mkdtemp()))
+        from storage import Store
+        store.stash_cover = lambda r: Store.stash_cover(store, r)
+        service = SimpleNamespace(twins=self.service.twins, store=store)
+        self.http.path = '/api/catalog/front-cover?stash=1&id=' + self.EDITION
+        api_release_front_cover(self.http, service)
+        cover = self.http.send.call_args.args[0]['cover']
+        self.assertRegex(cover, r'^/api/cover/[0-9a-f]{16}\.png$')
+        self.assertTrue((store.covers_dir / cover.rsplit('/', 1)[1]).is_file())
+
+    def test_covers_download_stashes_only_when_asked(self):
+        import tempfile
+        from pathlib import Path
+        from server.routes import api_covers_download
+        from storage import Store
+        store = SimpleNamespace(covers_dir=Path(tempfile.mkdtemp()))
+        store.stash_cover = lambda r: Store.stash_cover(store, r)
+        data = {'cover': 'data:image/png;base64,iVBORw0KGgo=', 'coverSource': {'title': 't'}}
+        svc = SimpleNamespace(store=store, covers=SimpleNamespace(download=lambda token: dict(data)))
+        api_covers_download(self.http, svc, {'token': 'x'})
+        self.assertTrue(self.http.send.call_args.args[0]['cover'].startswith('data:image/png'))
+        api_covers_download(self.http, svc, {'token': 'x', 'stash': True})
+        self.assertRegex(self.http.send.call_args.args[0]['cover'], r'^/api/cover/[0-9a-f]{16}\.png$')
+
     def test_front_cover_single_request_and_memo(self):
         from server.catalog_art import ArtClient, ArtNotFound
         from server import routes

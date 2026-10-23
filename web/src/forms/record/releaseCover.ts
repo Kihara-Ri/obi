@@ -1,9 +1,13 @@
 // 选定发行版后的封面匹配：此版本自己的 Cover Art Archive 正面图优先，其次 iTunes 数字封面（标题+艺人精确）。
 // 两路并行发出；封面只是展示图，不证明实物版次。
 import {api} from '../../core/api';
+import {isLocalSite} from '../../core/backend';
 import {displayReleaseTitle, exactDigitalCover} from '../../core/release-metadata';
 import type {AlbumRecord, ReleaseCandidate} from '../../types';
 import type {CoverCandidate} from './useCoverSearch';
+
+/** 服务器模式：让服务端把封面落盘，只回短引用（保存时不再从手机上传整张图）；本机模式图本就在设备内，不带。 */
+export const stashCovers = () => !isLocalSite();
 
 export interface MatchedCover {
   cover?: string; coverSource?: AlbumRecord['coverSource']; status: string;
@@ -15,7 +19,7 @@ export async function matchReleaseCover(candidate: ReleaseCandidate, discogs: bo
   // 两路同时发出，CAA 有图就立刻返回，不等 iTunes。
   const itunes = findItunes(candidate, discogs, isCurrent);
   if (!discogs) {
-    const front = await api<{cover: string}>('catalog/front-cover?id=' + encodeURIComponent(candidate.id)).catch(() => null);
+    const front = await api<{cover: string}>('catalog/front-cover?' + (stashCovers() ? 'stash=1&' : '') + 'id=' + encodeURIComponent(candidate.id)).catch(() => null);
     if (!isCurrent()) return null;
     if (front?.cover) {
       return {cover: front.cover, coverSource: {title: candidate.title, artist: candidate.artist},
@@ -35,7 +39,7 @@ async function findItunes(candidate: ReleaseCandidate, discogs: boolean, isCurre
     const exact = isCurrent() ? exactDigitalCover(found.candidates) : null;
     if (!exact) return null;
     const image = await api<{cover: string; coverSource: AlbumRecord['coverSource']}>(
-      'covers/download', {token: exact.token});
+      'covers/download', {token: exact.token, ...(stashCovers() ? {stash: true} : {})});
     return image.cover ? {cover: image.cover, coverSource: image.coverSource, status: '已匹配 · iTunes'} : null;
   } catch {
     return null; // 网络或封面错误不影响已确认的发行版。

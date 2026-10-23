@@ -4,6 +4,7 @@
 import {useEffect, useRef, useState} from 'react';
 import {api} from '../core/api';
 import {today} from '../core/format';
+import {releaseRegion} from '../core/release-metadata';
 import {prefs} from '../core/prefs';
 import {useApp} from '../state/AppContext';
 import type {AppCtx} from '../state/AppContext';
@@ -72,6 +73,8 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
 
   const {manualRelease, identified} = lookup;
   const mbId = v.releaseInfo.musicBrainzReleaseId;
+  // 侧标只属于日版：确认是日版才出现且必填；其它版本不出现，保存时沿用打开时的原值（新增为空），不改历史数据
+  const japan = (identified || !!id) && releaseRegion(v.releaseInfo.country, v.pressing) === '日版';
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const miss = ([['title', '专辑名'], ['artist', '艺人']] as const).filter(([k]) => !v[k].trim());
@@ -84,10 +87,12 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
       setError('发行版本已改变，请重新查询并选择 MusicBrainz 发行版');return;
     }
     if (lookup.busy) {setError('正在检索发行资料，请稍候');return;}
+    if (japan && v.obi !== '带侧标' && v.obi !== '无侧标') { setError('日版请选择这张副本是带侧标还是无侧标'); return; }
     if (cover.busy) {setError('封面还在匹配中（通常约 10 秒），稍候再保存；也可以之后在编辑里补封面');return;}
     if (photos.hasPending) { setError('还有照片在处理中，等缩略图就绪后再保存'); return; }
     run(app, async () => {
-      await api('records', buildPayload(base.current, v, where, photos.slots, modules.acquisition && !id));
+      const values = japan ? v : {...v, obi: base.current.obi || ''};
+      await api('records', buildPayload(base.current, values, where, photos.slots, modules.acquisition && !id));
     }, '已保存', {backOnSave: !!id});
   };
 
@@ -119,7 +124,7 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
         {id && !mbId && dupHint ? <p className="dup-hint">{dupHint}</p> : null}
         <h3 className="section-title form-group-title">这一张</h3>
         <PackageReview ctx={ctx} record={r}/>
-        <CopyEditionFields obi={v.obi} onChange={change => { set(change); dirty(); }}/>
+        {japan ? <CopyEditionFields obi={v.obi} onChange={change => { set(change); dirty(); }}/> : null}
         {/* 编辑已有专辑时不含买入信息：钱的部分在「管理」里编辑（PurchaseForm） */}
         {!id && (modules.acquisition || modules.circulation) ? <>
           <h3 className="section-title form-group-title">购买信息</h3>
