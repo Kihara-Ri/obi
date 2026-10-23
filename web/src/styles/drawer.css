@@ -356,3 +356,5 @@ details.adv:not([open]) > :not(summary){display:none}
 .detail-summary .record-detail.is-big .big{width:min(100%,420px);height:auto;aspect-ratio:1;margin-inline:auto;align-self:flex-start;cursor:zoom-out}
 /* iOS Safari 不认 flex 项上的 aspect-ratio：让内容自己撑出方形高度 */
 .detail-summary .record-detail.is-big .big img,.detail-summary .record-detail.is-big .big .cover-fallback{display:block;width:100%;height:auto;aspect-ratio:1}
+
+.cover-pick .cover-src{display:inline-block;margin-left:6px;padding:0 6px;border-radius:999px;background:var(--surface-3);color:var(--muted);font-style:normal;font-size:11px;line-height:16px}

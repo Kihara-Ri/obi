@@ -60,3 +60,39 @@ class TextSearchTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class GroupCoverTests(unittest.TestCase):
+    def setUp(self):
+        from server import group_covers
+        self.gc = group_covers
+        group_covers._cache.clear()
+
+    def groups(self):
+        return [{'id': GID, 'title': 'Illinois', 'artist': 'Sufjan Stevens', 'source': 'musicbrainz',
+                 'cover': f'https://coverartarchive.org/release-group/{GID}/front-250'}]
+
+    def fake(self, results):
+        import json
+
+        class Covers:
+            def read(self, url, limit): return json.dumps({'results': results}).encode()
+        return Covers()
+
+    def test_itunes_preferred_when_title_and_artist_match(self):
+        item = {'collectionName': 'Illinois', 'artistName': 'Sufjan Stevens',
+                'artworkUrl100': 'https://is1-ssl.mzstatic.com/image/x/100x100bb.jpg'}
+        g = self.gc.attach_covers(self.fake([item]), self.groups())[0]
+        self.assertEqual(g['coverSource'], 'itunes')
+        self.assertIn('300x300bb', g['cover'])
+
+    def test_falls_back_to_caa_when_no_strict_match(self):
+        item = {'collectionName': 'Other', 'artistName': 'Sufjan Stevens',
+                'artworkUrl100': 'https://is1-ssl.mzstatic.com/image/x/100x100bb.jpg'}
+        g = self.gc.attach_covers(self.fake([item]), self.groups())[0]
+        self.assertEqual(g['coverSource'], 'caa')
+        self.assertIn('coverartarchive', g['cover'])
+
+    def test_discogs_group_without_cover_has_empty_source(self):
+        g = self.gc.attach_covers(self.fake([]), [{'id': 'discogs-m7', 'source': 'discogs', 'cover': ''}])[0]
+        self.assertEqual(g['coverSource'], '')

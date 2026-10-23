@@ -406,6 +406,8 @@ def api_album_search(h, svc, body):
     text = body.get('text', '')
     if not isinstance(text, str) or len(text) > 120: raise ValidationError('搜索内容不正确')
     groups, sources = search_albums(releases(svc), text)
+    from server.group_covers import attach_covers
+    attach_covers(svc.covers, groups)
     h.send({'text': text.strip(), 'albums': groups, 'sources': sources})
 
 

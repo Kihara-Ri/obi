@@ -107,7 +107,9 @@ export function usePageTransition(page: string, showcaseTab: boolean, records: A
     veilStartedRef.current = true;
     setVeil((records ?? []).map(r => r.cover).filter(Boolean));
   }, [page]);
-  useEffect(() => {
+  // 必须是 layout effect：页面内容经 useDeferredValue 延后提交，passive effect 会落在新页面首帧绘制之后，
+  // 快照 / 淡入类名来晚一帧，就是切页时那一下闪。
+  useLayoutEffect(() => {
     const prev = prevPageRef.current;
     prevPageRef.current = page;
     const main = mainRef.current;

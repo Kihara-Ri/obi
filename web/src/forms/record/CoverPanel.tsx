@@ -43,7 +43,7 @@ function CoverPick({c, cover}: {c: CoverSearch['candidates'][number]; cover: Cov
     <img className="rcc-art-zoom" ref={x.art} src={c.thumbnail} alt="" onClick={x.toggle}
          onError={() => cover.setCandidates(list => dropCandidate(list, c.token))}/>
     <span className="rcc-break" aria-hidden="true"/>
-    <span className="cover-pick-text"><b>{c.title}</b><small>{[c.artist, c.year, c.provider].filter(Boolean).join(' · ')}</small></span>
+    <span className="cover-pick-text"><b>{c.title}</b><small>{[c.artist, c.year].filter(Boolean).join(' · ')}{c.provider ? <em className="cover-src">{c.provider}</em> : null}</small></span>
     <em className="cover-pick-use">使用</em>
   </button>;
 }
