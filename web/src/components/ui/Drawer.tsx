@@ -32,6 +32,7 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
   const exitedRef = useRef(false);
   const dragRef = useRef<{startY: number; dy: number; v: number; lastY: number; lastT: number} | null>(null);
   const edgeActiveRef = useRef(false);
+  const edgeSettleRef = useRef(false);   // 左缘返回的回弹 / pop 动画结算中：期间不接管新的左缘手势
   // 二级页左缘跟手返回：松手确认后，pop 动画从手指当前位置接着播（而不是从头）。nodes 是拖动中被改写样式的两层
   const popFromRef = useRef<{dx: number; width: number; under: HTMLElement | null; dim: HTMLElement | null} | null>(null);
   const firstPage = useRef(pageKey);
@@ -210,10 +211,11 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
       if (layerTop) { layerTop.style.transition = t; layerTop.style.transform = ''; }
       if (layerUnder) { layerUnder.style.transition = t; layerUnder.style.transform = `translateX(-${MOTION.parallax}%)`; }
       layerDim?.animate([{opacity: layerDim.style.opacity || '0'}, {opacity: MOTION.dim}], {duration: 260, fill: 'forwards'});
-      window.setTimeout(layerReset, 300);
+      edgeSettleRef.current = true;   // 回弹结算期间不接新手势（与子页 useEdgeSwipeBack 的 is-swipe-settle 同口径）
+      window.setTimeout(() => { layerReset(); edgeSettleRef.current = false; }, 300);
     };
     const onStart = (e: TouchEvent) => {
-      if (closing || dragRef.current || edgeActiveRef.current) return;
+      if (closing || dragRef.current || edgeActiveRef.current || edgeSettleRef.current) return;
       if (!window.matchMedia(SHEET_QUERY).matches) return;
       const t = e.touches[0];
       if (t.clientX > 28) return;
@@ -273,6 +275,7 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
           popFromRef.current = {dx, width: pagesRef.current?.clientWidth || window.innerWidth, under: layerUnder, dim: layerDim};
           layerTop = layerUnder = layerDim = null;
           specRef.current.back?.run();
+          edgeSettleRef.current = true;   // 返回提交到 pop 动画收尾前不接新手势
           window.setTimeout(() => {   // 返回被拒（如脏表单放弃确认被取消）：pop 动画不会来，复位
             const f = popFromRef.current;
             if (!f) return;
@@ -415,6 +418,7 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
       anims.forEach(a => a.cancel());
       extras.forEach(n => n.remove());
       [top, other].forEach(n => { if (n) { n.classList.remove('edge', 'edge-top', 'is-animating'); n.style.zIndex = ''; } });
+      edgeSettleRef.current = false;
       if (!settled) setLeaving(null);
     };
     const settle = () => cleanup(true);
