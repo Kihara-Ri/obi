@@ -21,6 +21,7 @@ import android.util.Base64;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowInsets;
+import android.view.WindowManager;
 import android.view.WindowInsetsController;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
@@ -497,6 +498,12 @@ public class MainActivity extends Activity {
         }
 
         // 打开系统「安装未知应用」开关页；允许后更新可在后台自动安装
+        /** 收藏展示的沉浸模式：隐藏状态栏 / 导航栏（边缘滑动可临时唤出），页面铺满整个屏幕（含刘海区）。 */
+        @JavascriptInterface
+        public void setImmersive(boolean on) {
+            runOnUiThread(() -> applyImmersive(on));
+        }
+
         @JavascriptInterface
         public void openInstallSettings() {
             Intent intent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName()));
@@ -518,11 +525,39 @@ public class MainActivity extends Activity {
         }
     }
 
+    private boolean immersive;
+
+    @SuppressWarnings("deprecation")
+    private void applyImmersive(boolean on) {
+        immersive = on;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            getWindow().getAttributes().layoutInDisplayCutoutMode = on
+                    ? WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                    : WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT;
+            getWindow().setAttributes(getWindow().getAttributes());
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            WindowInsetsController c = getWindow().getInsetsController();
+            if (c != null) {
+                c.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                if (on) c.hide(WindowInsets.Type.systemBars()); else c.show(WindowInsets.Type.systemBars());
+            }
+        } else {
+            int base = View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
+            int night = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES ? 0
+                    : View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            getWindow().getDecorView().setSystemUiVisibility(on
+                    ? base | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    : base | night);
+        }
+        root.requestApplyInsets();
+    }
+
     // targetSdk 35 起内容默认铺到状态栏 / 导航栏下面：按系统栏与键盘的高度给 WebView 留白，页面里的布局不用改
     private void applySystemBars() {
         root.setOnApplyWindowInsetsListener((v, insets) -> {
             Insets bars = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
-                    ? insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.ime() | WindowInsets.Type.displayCutout())
+                    ? insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.ime() | (immersive ? 0 : WindowInsets.Type.displayCutout()))
                     : insets.getSystemWindowInsets();
             v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
             return WindowInsets.CONSUMED;

@@ -64,17 +64,17 @@
 .gallery-orbit-rail .gallery-orbit-card.is-orbit-outgoing{z-index:14}
 .gallery-orbit-rail .gallery-orbit-card.is-orbit-hidden{pointer-events:none;visibility:hidden}
 .gallery-orbit .gallery-stage-arrow{display:flex;align-items:center;justify-content:center}
-.gallery-page.is-immersive .gallery-orbit-space{height:min(68svh,680px)}
+.gallery-page.is-immersive .gallery-orbit-space{height:100svh}
 @media(max-width:840px){
   .gallery-orbit-space{--gallery-size:min(49vw,245px);height:340px;min-height:calc(var(--gallery-size) + 159px)}
   .gallery-orbit.gallery-stage--fan .gallery-orbit-space{--gallery-size:min(44vw,220px)}
   .gallery-orbit.gallery-stage--ring .gallery-orbit-space{--gallery-size:min(45vw,230px)}
-  .gallery-page.is-immersive .gallery-orbit-space{height:calc(100svh - 100px);min-height:calc(var(--gallery-size) + 159px)}
+  .gallery-page.is-immersive .gallery-orbit-space{height:100svh;min-height:calc(var(--gallery-size) + 159px)}
 }
 @media(max-height:560px) and (orientation:landscape){
   .gallery-orbit-space{height:284px;min-height:0;--gallery-size:150px}
   .gallery-orbit.gallery-stage--fan .gallery-orbit-space,.gallery-orbit.gallery-stage--ring .gallery-orbit-space{--gallery-size:135px}
-  .gallery-page.is-immersive .gallery-orbit-space{height:calc(100svh - 100px);min-height:250px}
+  .gallery-page.is-immersive .gallery-orbit-space{height:100svh;min-height:250px}
 }
 .gallery-orbit.gallery-stage--flow .gallery-orbit-card{animation-name:gallery-orbit-flow}
 @keyframes gallery-orbit-flow{

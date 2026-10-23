@@ -95,24 +95,25 @@
   .nav-pill{position:absolute;top:6px;bottom:6px;left:6px;border-radius:23px;will-change:transform;background:var(--accent);
     box-shadow:0 4px 14px var(--accent-hl);pointer-events:none;
     transition:transform var(--slide-ms) var(--slide-ease),width var(--slide-ms) var(--slide-ease)}
-  .mobile-nav a,.mobile-nav button{position:relative;display:flex;align-items:center;justify-content:center;min-width:0;
+  /* 底栏项就是一个 <a>：图标（svg）+ 徽标（.tab-badge）+ 文字（.tab-label），没有多余的包裹层。
+     长按不弹链接预览 / 不选中文字（iOS 的 callout 与选择高亮）。 */
+  .mobile-nav a{position:relative;display:flex;align-items:center;justify-content:center;min-width:0;
     height:44px;padding:0;border-radius:23px;text-decoration:none;color:var(--muted);font-size:13.5px;font-weight:650;
-    transition:color .2s ease}
-  .mobile-nav a:active,.mobile-nav button:active{transform:scale(.94)}
-  .mobile-nav a.active,.mobile-nav button.active{color:var(--accent-ink)}
-  .tab-ico{position:relative;display:inline-flex;flex:none;}
+    transition:color .2s ease;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+  .mobile-nav a:active{transform:scale(.94)}
+  .mobile-nav a.active{color:var(--accent-ink)}
+  .mobile-nav svg{flex:none}
   .tab-label{max-width:0;opacity:0;overflow:hidden;white-space:nowrap;margin-left:0;
     transition:max-width var(--slide-ms) var(--slide-ease),opacity .18s ease,margin-left var(--slide-ms) var(--slide-ease)}
   .mobile-nav a.active .tab-label{max-width:6em;opacity:1;margin-left:6px;transition-delay:0s,.1s,0s}
-  .tab-badge{position:absolute;top:-6px;left:calc(100% - 8px);min-width:16px;height:16px;padding:0 4px;
+  /* 徽标：未激活时挂在图标右上；激活（图标 + 文字的胶囊）时放到胶囊右端并给内容让位 */
+  .tab-badge{position:absolute;top:5px;left:calc(50% + 3px);min-width:16px;height:16px;padding:0 4px;
     border-radius:99px;background:var(--accent);color:var(--accent-ink);font-size:9.5px;font-weight:700;
     border:1.5px solid var(--chrome-nav);box-sizing:content-box;
     display:flex;align-items:center;justify-content:center;line-height:1;transition:background .2s,color .2s,border-color .2s}
-  /* 激活时图标右上的气泡会压住文字：改放到胶囊右端，并给内容让出位置 */
   .mobile-nav a.active.has-badge{padding-right:24px}
-  .mobile-nav a.active .tab-ico{position:static}
-  .mobile-nav a.active .tab-badge{top:50%;left:auto;right:8px;transform:translateY(-50%)}
-  .mobile-nav a.active .tab-badge{background:var(--accent-ink);color:var(--accent);border-color:var(--accent)}
+  .mobile-nav a.active .tab-badge{top:50%;left:auto;right:8px;transform:translateY(-50%);
+    background:var(--accent-ink);color:var(--accent);border-color:var(--accent)}
 }
 
 /* 手机顶栏：按钮改用短标签，显示返回钮 */

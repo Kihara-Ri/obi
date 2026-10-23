@@ -122,14 +122,14 @@ export function MobileNav({page, modules, counts, showcaseTab, inventoryPage}: M
         <a key={t.hash} href={`#${t.hash === 'domestic' && modules.circulation ? inventoryPage : t.hash}`}
            className={(tabActive(t.hash) ? 'active' : '') + (counts[t.count] ? ' has-badge' : '')}
            aria-current={tabActive(t.hash) ? 'page' : 'false'}>
-          <span className="tab-ico"><NavIcon name={t.hash}/>
-            {counts[t.count] ? <b className="tab-badge num">{counts[t.count]}</b> : null}</span>
+          <NavIcon name={t.hash}/>
+          {counts[t.count] ? <b className="tab-badge num">{counts[t.count]}</b> : null}
           <span className="tab-label">{t.label}</span>
         </a>
       ))}
       <a href="#more" className={MORE_HASHES.has(page) ? 'active' : ''}
          aria-current={MORE_HASHES.has(page) ? 'page' : 'false'}>
-        <span className="tab-ico" aria-hidden="true"><NavIcon name="more"/></span>
+        <NavIcon name="more"/>
         <span className="tab-label">更多</span>
       </a>
     </nav>

@@ -1,8 +1,9 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {useAlbumLikes} from '../hooks/useAlbumLikes';
+import {useReducedMotion} from '../hooks/useReducedMotion';
+import {useImmersive} from '../hooks/useImmersive';
 import {useSessionState} from '../core/useSessionState';
 import {useApp} from '../state/AppContext';
-import {api} from '../core/api';
-import type {AlbumCatalog} from '../types';
 import {GALLERY_MODES, GALLERY_ROAMING_DEFAULTS, galleryIndex, galleryModeHasFocus, galleryRecords, isCollectedRecord, readGalleryPreferences, saveGalleryPreferences, showcaseGroups} from '../core/gallery';
 import type {GalleryPreferences, GalleryScope, ShowcaseGroup} from '../core/gallery';
 import {PageHead} from '../components/PageHead';
@@ -23,27 +24,15 @@ export function GalleryPage() {
   const [preferences, setPreferences] = useState(readGalleryPreferences);
   const scope = preferences.scope;
   const [query, setQuery] = useSessionState<string>('gallery-query', '');
-  const [immersive, setImmersive] = useState(false);
+  const {immersive, chromeIdle, enter: enterImmersive, exit: exitImmersive} = useImmersive();
 
   const [roaming, setRoaming] = useState(false);
   const [focused, setFocused] = useState<{id: string; originElement: HTMLElement | null} | null>(null);
-  const [albumLikes, setAlbumLikes] = useState<AlbumCatalog>({
-    albums: {}, recordAlbumIds: {}, favorites: {}, collectedAt: {},
-  });
-  useEffect(() => {
-    let active = true;
-    void api<AlbumCatalog>('album-favorites').then(data => {
-      if (active) setAlbumLikes(data);
-    }).catch(() => app.toast('专辑喜好暂时无法载入', 'warn'));
-    return () => {active = false;};
-  }, []);
+  const albumLikes = useAlbumLikes(app);
   const focusEntry = useRef(false);
   const focusClosing = useRef(false);
   const focusedRecord = focused ? app.rec(focused.id) : undefined;
-  const [reducedMotion, setReducedMotion] = useState(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
-  const ownsFullscreen = useRef(false);
-  const mounted = useRef(true);
-  const requestedFullscreen = useRef(false);
+  const reducedMotion = useReducedMotion();
   const groups = useMemo(() => showcaseGroups(app.state.settings), [app.state.settings]);
   const records = useMemo(() => galleryRecords(app.state.records, query, preferences.sort,
     preferences.scope, groups.groups, albumLikes.favorites),
@@ -56,13 +45,6 @@ export function GalleryPage() {
   const scopeLabel = scope.kind === 'favorites' ? '我喜欢' : scope.kind === 'artist' ? scope.artist
     : scope.kind === 'group' ? groups.groups.find(g => g.id === scope.groupId)?.name ?? '展示组'
       : '全部收藏';
-
-  useEffect(() => {
-    const media = matchMedia('(prefers-reduced-motion: reduce)');
-    const change = () => setReducedMotion(media.matches);
-    media.addEventListener('change', change);
-    return () => media.removeEventListener('change', change);
-  }, []);
 
   const openSettings = () => {
     app.openDrawer({title: '展示设置', compact: true, initialFocus: 'close',
@@ -114,49 +96,6 @@ export function GalleryPage() {
     if (currentId && currentId !== preferences.currentId) setPreferences(p => ({...p, currentId}));
   }, [currentId, preferences.currentId]);
 
-  const exitImmersive = () => {
-    setImmersive(false);
-    requestedFullscreen.current = false;
-    if (ownsFullscreen.current && document.fullscreenElement) void document.exitFullscreen().catch(() => {});
-    ownsFullscreen.current = false;
-  };
-  const enterImmersive = () => {
-    setImmersive(true);
-    // 整个应用进入全屏，抽屉/灯箱仍处于可见树中；不支持时仍可隐藏导航展示。
-    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-      requestedFullscreen.current = true;
-      void document.documentElement.requestFullscreen().then(() => {
-        if (!mounted.current || !requestedFullscreen.current) {
-          if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
-          return;
-        }
-        ownsFullscreen.current = true;
-      }).catch(() => {});
-    }
-  };
-  useEffect(() => {
-    mounted.current = true;
-    const onFullscreen = () => {
-      if (ownsFullscreen.current && !document.fullscreenElement) {ownsFullscreen.current = false; setImmersive(false);}
-    };
-    document.addEventListener('fullscreenchange', onFullscreen);
-    return () => {
-      mounted.current = false;
-      requestedFullscreen.current = false;
-      document.removeEventListener('fullscreenchange', onFullscreen);
-      if (ownsFullscreen.current && document.fullscreenElement) void document.exitFullscreen().catch(() => {});
-    };
-  }, []);
-  useEffect(() => {
-    if (!immersive) return;
-    const onEscape = (event: globalThis.KeyboardEvent) => {
-      if (event.defaultPrevented || event.key !== 'Escape' || document.getElementById('panel') || document.getElementById('lightbox') || document.querySelector('dialog[open]')) return;
-      event.preventDefault(); exitImmersive();
-    };
-    document.addEventListener('keydown', onEscape);
-    return () => document.removeEventListener('keydown', onEscape);
-  }, [immersive]);
-
   const closeFocus = useCallback(() => {
     if (focusClosing.current) return;
     if (focusEntry.current && history.state?.obi === 'gallery-focus') {
@@ -199,7 +138,7 @@ export function GalleryPage() {
     pick(id); setFocused({id, originElement: null});
   };
 
-  return <div className={`gallery-page${immersive ? ' is-immersive' : ''}`}>
+  return <div className={`gallery-page${immersive ? ' is-immersive' : ''}${immersive && chromeIdle ? ' is-chrome-idle' : ''}`}>
     {focused && focusedRecord ? <GalleryFocus record={focusedRecord} records={records} originElement={focused.originElement}
       onNavigate={navigateFocus} onClose={closeFocus}
       liked={Boolean(albumLikes.favorites[focusedRecord.id])}

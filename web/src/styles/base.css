@@ -63,3 +63,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 /* 数字输入：不显示步进箭头（金额没人用它一格格点，还挤占宽度；滚轮误改见 App.tsx） */
 input[type=number]{-moz-appearance:textfield;appearance:textfield}
 input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+
+/* 应用内的 # 路由链接：长按不弹系统的链接预览菜单（打开 / 阅读列表 / 拷贝 / 共享） */
+a[href^="#"]{-webkit-touch-callout:none}

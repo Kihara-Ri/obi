@@ -97,9 +97,9 @@
 .gallery-page .gallery-stage-layout .has-roam-viewport .gallery-waterfall-column{height:100cqh}
 
 #main.showcase-main:has(.gallery-page.is-immersive){
-  --gallery-main-top:22px;
-  --gallery-main-bottom:24px;
-  padding-block:var(--gallery-main-top) var(--gallery-main-bottom);
+  --gallery-main-top:0px;
+  --gallery-main-bottom:0px;
+  padding-block:0;
 }
 
 @media(max-width:840px){
@@ -109,11 +109,6 @@
     --gallery-main-bottom:calc(72px + var(--nav-bottom));
   }
   .gallery-stage-layout .gallery-film-shell{--film-rail-padding:84px}
-  #main.showcase-main:has(.gallery-page.is-immersive){
-    --gallery-main-top:calc(12px + env(safe-area-inset-top));
-    --gallery-main-bottom:calc(18px + env(safe-area-inset-bottom));
-    padding-block:var(--gallery-main-top) var(--gallery-main-bottom);
-  }
 }
 
 @media(max-height:560px) and (orientation:landscape){

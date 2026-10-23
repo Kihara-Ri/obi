@@ -57,7 +57,7 @@
   from{transform:translate(-50%,-50%) translate(calc(var(--iso-step)*-16 + var(--iso-lane-x) + var(--iso-lane-shift)),calc(var(--iso-step)*-16 + var(--iso-lane-y) + var(--iso-lane-shift))) rotateX(30deg) rotateZ(-35deg)}
   to{transform:translate(-50%,-50%) translate(calc(var(--iso-step)*16 + var(--iso-lane-x) + var(--iso-lane-shift)),calc(var(--iso-step)*16 + var(--iso-lane-y) + var(--iso-lane-shift))) rotateX(30deg) rotateZ(-35deg)}
 }
-.gallery-page.is-immersive .gallery-isometric-shell{--iso-height:min(72svh,700px)}
+.gallery-page.is-immersive .gallery-isometric-shell{--iso-height:100svh}
 @media(max-width:840px){
   .gallery-film-shell{--film-size:min(48vw,220px);--film-gap:14px}
   .gallery-density--small .gallery-film-shell{--film-size:min(36vw,160px)}
@@ -69,7 +69,7 @@
   .gallery-isometric-shell{--iso-preferred:min(25vw,128px);--iso-height:390px}
   .gallery-density--small .gallery-isometric-shell{--iso-preferred:min(19vw,100px)}
   .gallery-density--large .gallery-isometric-shell{--iso-preferred:min(30vw,144px)}
-  .gallery-page.is-immersive .gallery-isometric-shell{--iso-height:calc(100svh - 110px)}
+  .gallery-page.is-immersive .gallery-isometric-shell{--iso-height:100svh}
 }
 @media(max-height:560px) and (orientation:landscape){
   .gallery-film-shell{--film-size:130px}
@@ -79,7 +79,7 @@
   .gallery-isometric-shell{--iso-preferred:96px;--iso-height:280px}
   .gallery-density--small .gallery-isometric-shell{--iso-preferred:76px}
   .gallery-density--large .gallery-isometric-shell{--iso-preferred:110px}
-  .gallery-page.is-immersive .gallery-isometric-shell{--iso-height:max(230px,calc(100svh - 100px))}
+  .gallery-page.is-immersive .gallery-isometric-shell{--iso-height:max(230px,100svh)}
 }
 @media(prefers-reduced-motion:reduce){
   /* 暂停动画只是 CSP 下的位置表；没有自播，惯性由共用 hook 禁用。 */
