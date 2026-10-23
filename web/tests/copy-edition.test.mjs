@@ -18,7 +18,7 @@ test('发行资料统一归入元数据，实物组件只编辑侧标', () => {
   assert.match(html, /侧标（OBI）/);
   assert.doesNotMatch(html, /aria-label="实物版次"/);
   assert.match(html, /aria-label="侧标状态"/);
-  assert.match(html, /未记录/);
+  assert.doesNotMatch(html, /未记录/);   // 日版必填，只有「带侧标 / 无侧标」两项
   assert.match(html, /带侧标/);
   assert.match(html, /无侧标/);
 });
@@ -35,6 +35,10 @@ test('编辑表单的发行资料允许更正，侧标独立保存', () => {
   const form = ['forms/RecordForm.tsx', ...readdirSync(join(source, 'forms/record')).map(f => 'forms/record/' + f)]
     .map(f => readFileSync(join(source, f), 'utf8')).join('\n');
   assert.match(form, /<CopyEditionFields obi=\{v\.obi\}/);
+  // 侧标只在日版出现，且日版必选（带侧标 / 无侧标）才能保存
+  assert.match(form, /japan \? <CopyEditionFields/);
+  assert.match(form, /releaseRegion\(v\.releaseInfo\.country, v\.pressing\) === '日版'/);
+  assert.match(form, /japan && v\.obi !== '带侧标' && v\.obi !== '无侧标'/);
   assert.match(form, /<ReleaseMetadataFields info=\{v\.releaseInfo\}/);
   assert.match(form, /set\(change\); dirty\(\)/);
   assert.match(form, /\.\.\.base, \.\.\.v, status:/);
