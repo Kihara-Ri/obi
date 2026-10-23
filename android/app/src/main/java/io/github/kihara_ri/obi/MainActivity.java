@@ -547,8 +547,9 @@ public class MainActivity extends Activity {
         }
         // 与游戏 / 视频应用同一套：新式 InsetsController 与旧式 systemUiVisibility 标志同时设。
         // 部分厂商 ROM 只认其中一种；两种并存互不冲突。
-        if (on) getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        // FLAG_LAYOUT_NO_LIMITS：个别 ROM 在状态栏区域另外留一条黑边，这个标志让窗口铺出屏幕边界
+        int hard = WindowManager.LayoutParams.FLAG_FULLSCREEN | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
+        if (on) getWindow().addFlags(hard); else getWindow().clearFlags(hard);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             WindowInsetsController c = getWindow().getInsetsController();
             if (c != null) {
@@ -568,8 +569,21 @@ public class MainActivity extends Activity {
         if (on) {
             root.postDelayed(() -> { if (immersive) reassertImmersive(); }, 400);
             root.postDelayed(() -> { if (immersive) reassertImmersive(); }, 1500);
+            root.postDelayed(this::reportStuckBars, 2200);
         }
     }
+
+    // 系统拒绝隐藏（个别 ROM 不理会应用的请求）时给个提示，方便反馈具体机型 / 系统版本
+    private void reportStuckBars() {
+        if (!immersive || Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return;
+        WindowInsets wi = root.getRootWindowInsets();
+        if (wi != null && wi.isVisible(WindowInsets.Type.statusBars()) && !stuckReported) {
+            stuckReported = true;
+            android.widget.Toast.makeText(this, "系统拒绝隐藏状态栏（" + Build.MANUFACTURER + " " + Build.MODEL
+                    + " / Android " + Build.VERSION.RELEASE + "）", android.widget.Toast.LENGTH_LONG).show();
+        }
+    }
+    private boolean stuckReported;
 
     @SuppressWarnings("deprecation")
     private void reassertImmersive() {
