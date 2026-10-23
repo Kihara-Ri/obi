@@ -86,8 +86,33 @@ function settled(el: HTMLVideoElement, live: () => boolean): Promise<void> {
   });
 }
 
+/** 把视频帧按 cover 方式画到 canvas（逐帧：有 requestVideoFrameCallback 用它，否则 rAF）。返回停止函数。 */
+function drawFrames(video: HTMLVideoElement, cv: HTMLCanvasElement | null): () => void {
+  const ctx = cv?.getContext('2d', {alpha: false});
+  if (!cv || !ctx) return () => {};
+  let stop = false;
+  const paint = () => {
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if (!vw || !vh) return;
+    const ratio = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.round(cv.clientWidth * ratio), h = Math.round(cv.clientHeight * ratio);
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    const k = Math.max(w / vw, h / vh), dw = vw * k, dh = vh * k;
+    ctx.drawImage(video, (w - dw) / 2, (h - dh) / 2, dw, dh);
+  };
+  const v = video as HTMLVideoElement & {requestVideoFrameCallback?: (cb: () => void) => number};
+  const loop = () => {
+    if (stop) return;
+    paint();
+    if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(loop); else requestAnimationFrame(loop);
+  };
+  loop();
+  return () => { stop = true; };
+}
+
 export function BarcodeScanner({onDetect, onClose}: {onDetect: (code: string) => void; onClose: () => void}) {
   const video = useRef<HTMLVideoElement>(null);
+  const canvas = useRef<HTMLCanvasElement>(null);
   const track = useRef<MediaStreamTrack | undefined>(undefined);
   const [msg, setMsg] = useState('正在打开相机…');
   const [failed, setFailed] = useState(false);
@@ -101,6 +126,7 @@ export function BarcodeScanner({onDetect, onClose}: {onDetect: (code: string) =>
     let live = true;
     let stream: MediaStream | null = null;
     let timer = 0;
+    let stopDraw = () => {};
     const fail = (text: string) => { if (live) { setMsg(text); setFailed(true); } };
     (async () => {
       if (!navigator.mediaDevices?.getUserMedia) return fail('当前浏览器或连接不支持相机（需要 HTTPS）');
@@ -119,6 +145,7 @@ export function BarcodeScanner({onDetect, onClose}: {onDetect: (code: string) =>
       await el.play().catch(() => {});
       await settled(el, () => live);
       if (!live) return;
+      stopDraw = drawFrames(el, canvas.current);
       setShown(true);
       setMsg('正在加载识别器…');
       let detector;
@@ -138,7 +165,7 @@ export function BarcodeScanner({onDetect, onClose}: {onDetect: (code: string) =>
       };
       void tick();
     })();
-    return () => { live = false; clearTimeout(timer); stream?.getTracks().forEach(t => t.stop()); };
+    return () => { live = false; clearTimeout(timer); stopDraw(); stream?.getTracks().forEach(t => t.stop()); };
   }, [want]);
   const next = () => {
     const at = cams.findIndex(c => c.id === lens);
@@ -149,8 +176,10 @@ export function BarcodeScanner({onDetect, onClose}: {onDetect: (code: string) =>
   const at = cams.findIndex(c => c.id === lens);
   return createPortal(
     <div className="scan-layer" role="dialog" aria-label="扫描条码" onClick={() => void tuneFocus(track.current, true)}>
-      <video ref={video} className={'scan-video' + (shown ? ' is-live' : '')} playsInline muted autoPlay
-             controls={false} disablePictureInPicture/>
+      {/* 原生 <video> 只负责解码（藏在角落、不可见），画面由 canvas 显示：浏览器的原生视频层在出画前 / 尺寸切换时
+          可能以自己的默认尺寸闪一下小窗，canvas 是普通图层，尺寸和显隐完全由 CSS 决定。 */}
+      <video ref={video} className="scan-decoder" playsInline muted autoPlay controls={false} disablePictureInPicture aria-hidden="true"/>
+      <canvas ref={canvas} className={'scan-video' + (shown ? ' is-live' : '')} aria-hidden="true"/>
       <div className={'scan-frame' + (armed ? ' is-armed' : '')} aria-hidden="true"/>
       <p key={msg} className={'scan-msg' + (failed ? ' is-error' : '')} role="status">{msg}</p>
       {cams.length > 1 && !failed
