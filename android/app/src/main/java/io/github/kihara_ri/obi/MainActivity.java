@@ -539,25 +539,47 @@ public class MainActivity extends Activity {
         immersive = on;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             getWindow().getAttributes().layoutInDisplayCutoutMode = on
-                    ? WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                    ? (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                            ? WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                            : WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES)
                     : WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT;
             getWindow().setAttributes(getWindow().getAttributes());
         }
+        // 与游戏 / 视频应用同一套：新式 InsetsController 与旧式 systemUiVisibility 标志同时设。
+        // 部分厂商 ROM 只认其中一种；两种并存互不冲突。
+        if (on) getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             WindowInsetsController c = getWindow().getInsetsController();
             if (c != null) {
                 c.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
-                if (on) c.hide(WindowInsets.Type.systemBars()); else c.show(WindowInsets.Type.systemBars());
+                if (on) c.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars() | WindowInsets.Type.systemBars());
+                else c.show(WindowInsets.Type.systemBars());
             }
-        } else {
-            int base = View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
-            int night = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES ? 0
-                    : View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
-            getWindow().getDecorView().setSystemUiVisibility(on
-                    ? base | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                    : base | night);
         }
+        int base = View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
+        int night = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES ? 0
+                : View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+        getWindow().getDecorView().setSystemUiVisibility(on
+                ? base | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                : base | night);
         root.requestApplyInsets();
+        // 有的 ROM 在切页 / 横竖屏 / 输入法收起后一两百毫秒才回写系统栏状态：隔一会儿再确认一次
+        if (on) {
+            root.postDelayed(() -> { if (immersive) reassertImmersive(); }, 400);
+            root.postDelayed(() -> { if (immersive) reassertImmersive(); }, 1500);
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    private void reassertImmersive() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            WindowInsetsController c = getWindow().getInsetsController();
+            if (c != null) c.hide(WindowInsets.Type.systemBars());
+        }
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
     }
 
     // targetSdk 35 起内容默认铺到状态栏 / 导航栏下面：按系统栏与键盘的高度给 WebView 留白，页面里的布局不用改
@@ -569,7 +591,7 @@ public class MainActivity extends Activity {
             v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
             if (immersive && (bars.top > 0 || bars.bottom > 0 || bars.left > 0 || bars.right > 0)
                     && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !insets.isVisible(WindowInsets.Type.ime())) {
-                v.post(() -> { if (immersive) applyImmersive(true); });
+                v.post(() -> { if (immersive) reassertImmersive(); });
             }
             return WindowInsets.CONSUMED;
         });
