@@ -8,6 +8,9 @@ const mobile = () => { try { return matchMedia('(max-width:840px)').matches; } c
 // 「更多」里的子页是一层层往下的：进入子页压一条历史（iOS 左缘右划 / 安卓返回键 = 回到上一级），
 // 顶栏返回键则直接 history.back()，保持栈与界面一致。只记「由哪个页面压进来的」，刷新后丢失则退回 replace。
 let pushedFrom = '';
+// iOS 的系统返回手势会把整屏快照一起滑走，与「只动内容」的设计冲突：iOS 不压历史，由 hooks/useEdgeSwipeBack.ts 自己处理手势。
+// 安卓壳的返回键需要历史条目（否则直接退到桌面），照常压。
+const ios = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const pageOf = (h: string) => h.replace(/^#/, '');
 
 export function navigate(hash: string) {
@@ -15,7 +18,7 @@ export function navigate(hash: string) {
   if (target === location.hash) return;
   if (!mobile()) { location.hash = target; return; }
   const cur = pageOf(location.hash);
-  if (BACK_TARGET[pageOf(target)]?.href === '#' + cur) { pushedFrom = target; location.hash = target; return; }
+  if (!ios() && BACK_TARGET[pageOf(target)]?.href === '#' + cur) { pushedFrom = target; location.hash = target; return; }
   if (pushedFrom === location.hash && BACK_TARGET[cur]?.href === target) { pushedFrom = ''; history.back(); return; }
   location.replace(target);
 }

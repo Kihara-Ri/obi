@@ -2,6 +2,7 @@
 // 返回挂到 #main 的 ref 与幕布要预加载的封面；桌面与 prefers-reduced-motion 不做切换动画。
 import {useEffect, useLayoutEffect, useRef, useState} from 'react';
 import type {AppState} from '../types';
+import {useEdgeSwipeBack} from './useEdgeSwipeBack';
 
 // 空间方向：rank 是页面在横向层级里的位置（底栏从左到右，
 // 「更多」的子页比「更多」更深，回收站从设置进入）。进入更深的页面从右侧推入，
@@ -40,6 +41,7 @@ function pruneOffscreen(src: Element, clone: Element) {
 export function usePageTransition(page: string, showcaseTab: boolean, records: AppState['records'] | undefined) {
   // 旧页面以 DOM 快照参与滑出，组件不重复挂载。hashchange/popstate 在 React 重渲染前同步到达，
   // 监听里抢先抓整个 #main 的克隆（连内边距一起保住几何）；等 effect 跑起来时旧内容已被换掉，只能用这份快照。
+  useEdgeSwipeBack(page);   // 子页左缘右划返回：同属页面切换，随这个 hook 一起挂
   const mainRef = useRef<HTMLElement | null>(null);
   const prevPageRef = useRef(page);
   const ghostSnapRef = useRef<{el: HTMLElement; els: HTMLElement[]; y: number;

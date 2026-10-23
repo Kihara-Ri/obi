@@ -18,4 +18,7 @@
   /* 库存 ↔ 展示：顶栏不动，页面根下除顶栏外的内容淡入并轻微上浮 */
   #main.page-in-fade .page-layer>*>:not(.page-head){animation:page-fade-in var(--slide-ms) var(--slide-ease) both}
   @keyframes page-fade-in{from{opacity:0;transform:translateY(8px)}}
+  /* 左缘右划返回：页面根下除顶栏外的内容跟手右移（顶栏、底栏不动），松手后滑出或弹回 */
+  #main.is-swiping .page-layer>*>:not(.page-head){transform:translateX(var(--swipe-dx,0px));will-change:transform}
+  #main.is-swiping.is-swipe-settle .page-layer>*>:not(.page-head){transition:transform 220ms var(--ease-out)}
 }
