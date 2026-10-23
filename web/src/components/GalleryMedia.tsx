@@ -20,7 +20,7 @@ export function GalleryArtwork({record, focused = false}: {record: AlbumRecord; 
   // 性能：只给「明显不是正方形」的封面铺底（多数封面是正方形，零额外开销）；比例在封面载入时记录。
   const backdrop = source && !failed && isOffSquare(knownCoverAspect(source))
     ? {'--art-url': `url(${JSON.stringify(source)})`} as CSSProperties : undefined;
-  return <span className={focused ? 'gallery-focus-cover gallery-artwork' : 'gallery-artwork'}
+  return <span className={focused ? 'gallery-focus-cover gallery-artwork' : 'gallery-artwork'} data-art-id={record.id}
     style={backdrop} onErrorCapture={fail}
     onLoadCapture={e => {
       const img = e.target as HTMLImageElement;
