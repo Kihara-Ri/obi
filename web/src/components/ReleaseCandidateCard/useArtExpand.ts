@@ -6,10 +6,10 @@ import {flushSync} from 'react-dom';
 const MS = 340;
 const EASE = 'cubic-bezier(.2,.7,.3,1)';
 
-export function useArtExpand<H extends HTMLElement = HTMLButtonElement>(movingSelector = '.rcc-main,.rcc-toggle,.rcc-source') {
+export function useArtExpand<H extends HTMLElement = HTMLButtonElement, A extends HTMLElement = HTMLImageElement>(movingSelector = '.rcc-main,.rcc-toggle,.rcc-source') {
   const [big, setBig] = useState(false);
   const head = useRef<H>(null);
-  const art = useRef<HTMLImageElement>(null);
+  const art = useRef<A>(null);
   const running = useRef<Animation[]>([]);
 
   const toggle = () => {

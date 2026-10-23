@@ -11,6 +11,7 @@ import type {AppCtx} from '../state/AppContext';
 import {fmt, fmtJPY, jpyCost, rmb} from '../core/format';
 import {statusName} from '../core/modules';
 import {Cover} from '../components/Cover';
+import {useArtExpand} from '../components/ReleaseCandidateCard/useArtExpand';
 import {openRecordForm} from './RecordForm';
 import {DETAIL_BARCODE, queueRecordBarcode} from '../core/lookup-handoff';
 import {openSaleForm} from './SaleForm';
@@ -43,6 +44,7 @@ function DetailBody({id, back}: {id: string; back?: DetailBack}) {
   const {modules} = app;
   const r = app.rec(id);
   const bigRef = useRef<HTMLDivElement>(null);
+  const expand = useArtExpand<HTMLDivElement, HTMLDivElement>('.record-detail-main,.like-heart');
   // 封面从库存卡片飞进来，关闭时飞回去（core/cover-fly）。只在首次挂载时飞入；
   // 抽屉发出 drawer-closing 时，若这一页是当前顶层（可见）才飞回
   useLayoutEffect(() => { if (bigRef.current) flyIn(id, bigRef.current); }, [id]);
@@ -84,8 +86,13 @@ function DetailBody({id, back}: {id: string; back?: DetailBack}) {
     {r.date ? <span className="rmb"> · {r.date}</span> : null}</>;
   return (
     <div className="detail-summary">
-      <div className="record-detail">
-        <div className="big" ref={bigRef}><Cover r={r}/></div>
+      <div className={expand.big ? 'record-detail is-big' : 'record-detail'} ref={expand.head}>
+        <div className={r.cover ? 'big big-zoom' : 'big'} ref={el => { bigRef.current = el; expand.art.current = el; }}
+             {...(r.cover ? {role: 'button', tabIndex: 0, 'aria-label': expand.big ? '收起封面' : '放大封面', 'aria-expanded': expand.big,
+               onClick: expand.toggle,
+               onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); expand.toggle(); } }} : {})}>
+          <Cover r={r}/></div>
+        <span className="rcc-break"/>
         <div className="record-detail-main">
           <h2 className="record-detail-title">
             {titleHead}<span className="record-detail-tail">{titleTail}<CopyButton text={shownTitle} label="复制专辑名"/></span>

@@ -348,3 +348,9 @@ details.adv:not([open]) > :not(summary){display:none}
 /* 封面行嵌在已确认版本卡里：去掉自己的边框背景，缩略图已在卡片头部 */
 .cover-search.is-inline{margin-top:0}
 .cover-search.is-inline .cover-row{padding:0;border:0;background:none}
+
+/* 详情封面点开就地放大（与查询页 / 编辑页共用 useArtExpand；.rcc-break 为换行占位） */
+.record-detail .big-zoom{cursor:zoom-in}
+.record-detail.is-big{flex-wrap:wrap}
+.record-detail.is-big .rcc-break{display:block}
+.detail-summary .record-detail.is-big .big{width:min(100%,420px);height:auto;aspect-ratio:1;margin-inline:auto;cursor:zoom-out}
