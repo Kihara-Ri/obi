@@ -103,9 +103,10 @@ export function MobileNav({page, modules, counts, showcaseTab, inventoryPage}: M
   const before = weights.slice(0, pillIndex).reduce((a, b) => a + b, 0);
   return (
     <nav className="mobile-nav" aria-label="手机导航" style={{gridTemplateColumns: weights.map(w => w + 'fr').join(' ')}}>
+      {/* 胶囊宽度恒为激活权重占比，只在槽位间平移：用 transform（合成器线程），换页渲染占满主线程时也不掉帧 */}
       <span className="nav-pill" aria-hidden="true" style={{
-        left: `calc(6px + (100% - 12px) * ${before / total})`,
         width: `calc((100% - 12px) * ${weights[pillIndex] / total})`,
+        transform: `translateX(${before / weights[pillIndex] * 100}%)`,
       }}/>
       {mobileTabs.map(t => (
         <a key={t.hash} href={`#${t.hash === 'domestic' && modules.circulation ? inventoryPage : t.hash}`}
