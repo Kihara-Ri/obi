@@ -16,3 +16,5 @@
 - 弹窗内容就是 CHANGELOG 原文，写得偏技术的条目用户会原样看到，后续写 CHANGELOG 要面向用户。
 - 弹窗 chunk 约 63KB（整份 CHANGELOG），只在版本变化时才加载。
 - 本机模式（安卓）若 `state.service.version` 不存在则不弹；未在安卓真机验证。
+
+Docker 构建上下文里 web 阶段只拷了 web/，补一行 COPY CHANGELOG.md，否则 CI 的镜像构建解析不到。
