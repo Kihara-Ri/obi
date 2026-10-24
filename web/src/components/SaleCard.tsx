@@ -34,9 +34,9 @@ export function SaleCard({s, onArtist, onEditCosts}: {s: Sale; onArtist: (artist
     <article className="sale-card">
       <div className="sale-top">
         {pill}
-        <span className="when">{info}</span>
+        <span className="when info">{info}</span>
         <span className="spacer"/>
-        <span className="when">{s.items.length} 张{s.note ? ` · ${s.note}` : ''}</span>
+        <span className="when count">{s.items.length} 张{s.note ? ` · ${s.note}` : ''}</span>
       </div>
       <div className="sale-items">
         {s.items.map(i => {
@@ -62,9 +62,9 @@ export function SaleCard({s, onArtist, onEditCosts}: {s: Sale; onArtist: (artist
         <div className="cell"><span>成交价</span><b>{shipFeeText(s.currency, s.grossOriginal, s.gross)}</b></div>
         <div className="cell"><span>平台扣费</span><b>−{shipFeeText(s.currency, s.feesOriginal, s.fees)}</b></div>
         <div className="cell"><span>寄出运费</span><b>−{shipFeeText(s.currency, s.postageOriginal, s.postage || '0')}</b></div>
-        {s.items.length > 1 ? <div className="cell"><span>{shipping ? '预计到手合计' : '到手合计'}</span><b>{yuan(net)}</b></div> : null}
-        {s.items.length > 1 && app.modules.acquisition ? <div className="cell">
-          <span>{unknown ? (shipping ? '预估利润（待补）' : '利润（待补）') : shipping ? '预估利润' : '利润'}</span>
+        {s.items.length > 1 ? <div className="cell total"><span>{shipping ? '预计到手合计' : '到手合计'}</span><b>{yuan(net)}</b></div> : null}
+        {s.items.length > 1 && app.modules.acquisition ? <div className="cell total">
+          <span>{shipping ? '预估利润' : '利润'}</span>
           <b className={unknown ? '' : Number(profit) < 0 ? 'negative' : 'positive'}>
             {unknown ? '待补' : yuan(profit)}
           </b>

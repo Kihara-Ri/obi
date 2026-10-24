@@ -18,6 +18,25 @@ export const PRESETS: ReadonlyArray<{id: string; icon: ModuleIconKey; name: stri
   {id: 'overseas', icon: 'plane', who: '从日本等地代购，要追踪海外库存和国际运费', name: '海外周转', desc: '保留海外买入、运回、销售与完整账目。', enabled: {acquisition: true, trading: true, circulation: true, showcase: false}},
 ];
 
+// 不属于预设的组合各有一句轻松的说法（键为 购入/交易/海外/展示 的开关位；海外依赖购入，共 7 种）
+const CUSTOM_WHO: Record<string, string> = {
+  '0100': '只管卖，不问进价',
+  '0101': '边晒边卖，摆出来就是货架',
+  '1001': '买了就要摆出来，花多少心里有数',
+  '1101': '买、晒、卖一条龙',
+  '1010': '万里迢迢运回来，只进不出',
+  '1011': '万里迢迢运回来，就为了摆着看',
+  '1111': '我全都要',
+};
+
+/** 设置里「使用方式」下方那句话：预设说适合谁，其余组合给一句调侃 */
+export function comboWho(flags: ModuleFlags): string {
+  const hit = PRESETS.find(p => sameModules(flags, p.enabled));
+  if (hit) return hit.who;
+  const key = [flags.acquisition, flags.trading, flags.circulation, flags.showcase].map(on => on ? '1' : '0').join('');
+  return CUSTOM_WHO[key] ?? '自定义组合';
+}
+
 // 未配置的旧实例维持原有能力；新增的展示模块由用户主动开启。
 export const LEGACY_MODULES: ModuleFlags = {acquisition: true, trading: true, circulation: true, showcase: false};
 

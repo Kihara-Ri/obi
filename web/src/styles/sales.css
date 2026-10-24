@@ -21,14 +21,24 @@
 
 @media (max-width:840px){
   .sale-card{padding:13px 14px}
-  .sale-top{gap:8px;margin-bottom:10px}
+  /* 首行：状态 + 张数；日期、平台、单号整行放在下面，不再和张数挤着折行 */
+  .sale-top{gap:4px 8px;margin-bottom:10px}
   .sale-top .when{font-size:12px}
+  .sale-top .info{order:3;flex-basis:100%;line-height:1.5}
   .sale-items{margin-bottom:10px}
-  /* 金额脚注一行排开（放不下才折行），操作按钮整行铺满 */
-  .sale-foot{flex-wrap:wrap;align-items:baseline;gap:4px 12px;padding-top:10px}
-  .sale-foot .cell{flex-direction:row;align-items:baseline;gap:4px}
-  .sale-foot .cell b{font-size:13.5px}
-  .sale-foot .actions{flex-basis:100%;margin-top:4px;margin-left:0;justify-content:flex-end}
+  /* 每张专辑的金额收成三行且保持窄列：到手金额在最上（不再单列「到手」二字，页顶与合计已说明），其下成本、利润 */
+  .sale-card .album-money-main{display:contents}
+  .sale-card .album-money-main>small:first-child{display:none}
+  .sale-card .album-money b{order:-1}
+  /* 金额脚注改成「名称 … 金额」的明细清单，合计行加粗，操作按钮在最下方 */
+  .sale-foot{display:grid;grid-template-columns:1fr auto;gap:5px 0;padding-top:10px}
+  .sale-foot .cell{display:contents}
+  .sale-foot .cell span{font-size:12px;color:var(--muted)}
+  .sale-foot .cell b{font-size:13.5px;font-weight:550;text-align:right;padding-left:12px}
+  .sale-foot .cell.total span{color:var(--text);font-weight:600}
+  .sale-foot .cell.total b{font-weight:700}
+  .sale-foot .cell:not(.total)+.cell.total span,.sale-foot .cell:not(.total)+.cell.total b{border-top:1px dashed var(--border);padding-top:7px;margin-top:2px}
+  .sale-foot .actions{grid-column:1/-1;margin-top:6px;margin-left:0;justify-content:flex-end}
   .sale-foot .actions button{flex:0 1 auto;min-height:42px}
 
 }

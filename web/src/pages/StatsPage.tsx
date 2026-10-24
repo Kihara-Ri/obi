@@ -4,6 +4,12 @@ import {useApp} from '../state/AppContext';
 import {PageHead} from '../components/PageHead';
 import {DownloadButton} from '../components/DownloadButton';
 
+/** 指标块下方的说明：各段以「 · 」连接，每段整体换行 */
+function Note({parts}: {parts: (string | number | false)[]}) {
+  const shown = parts.filter((p): p is string => typeof p === 'string' && !!p);
+  return <small>{shown.map((p, i) => <span key={i}>{i ? ' · ' : ''}{p}</span>)}</small>;
+}
+
 export function StatsPage() {
   const {state, modules} = useApp();
   const ov = state.records.filter(r => r.status === 'overseas');
@@ -39,25 +45,24 @@ export function StatsPage() {
         {modules.circulation ? <div className="stat-block">
           <span className="stat-label">海外库存</span>
           <strong>{ov.length} 张</strong>
-          <small>成本 {yuan(sum(ovKnown, 'cost'))}
-            {ov.length - ovKnown.length ? ` · ${ov.length - ovKnown.length} 张待补` : ''}
-            {ovListed ? ` · 已上架 ${ovListed} 张` : ''}</small>
+          <Note parts={[`成本 ${yuan(sum(ovKnown, 'cost'))}`, ov.length - ovKnown.length && `${ov.length - ovKnown.length} 张待补`,
+                        ovListed && `已上架 ${ovListed} 张`]}/>
         </div> : null}
         {modules.circulation ? <div className="stat-block">
           <span className="stat-label">海外在途</span>
           <strong>{tr.length} 张</strong>
-          <small>{state.shipments.filter(s => s.status === 'transit').length} 个包裹 · 运费已计入成本 · 约 11 天</small>
+          <Note parts={[`${state.shipments.filter(s => s.status === 'transit').length} 个包裹`, '运费已计入成本', '约 11 天']}/>
         </div> : null}
         <div className="stat-block">
           <span className="stat-label">{modules.circulation ? '国内库存价值' : modules.acquisition ? '收藏成本' : '我的收藏'}</span>
           <strong>{modules.acquisition ? domKnown.length ? yuan(sum(domKnown, 'cost')) : '—' : `${dom.length} 张`}</strong>
-          <small>{dom.length} 张{modules.acquisition && dom.length - domKnown.length ? ` · ${dom.length - domKnown.length} 张待补` : ''}
-            {modules.trading && domListed ? ` · 已上架 ${domListed} 张` : ''}</small>
+          <Note parts={[`${dom.length} 张`, modules.acquisition && dom.length - domKnown.length && `${dom.length - domKnown.length} 张待补`,
+                        modules.trading && domListed && `已上架 ${domListed} 张`]}/>
         </div>
         {modules.trading ? <div className="stat-block">
           <span className="stat-label">售出中应收</span>
           <strong>{yuan(sum(shipping.flatMap(s => s.items), 'net'))}</strong>
-          <small>{shipping.length} 笔 · 确认收货后计入{modules.acquisition ? '利润' : '到账金额'}</small>
+          <Note parts={[`${shipping.length} 笔`, `确认收货后计入${modules.acquisition ? '利润' : '到账金额'}`]}/>
         </div> : null}
         {modules.trading ? <div className="stat-block">
           <span className="stat-label">售出金额</span>
