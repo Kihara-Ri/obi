@@ -4,7 +4,7 @@ import {useEffect, useRef, useState} from 'react';
 import type {RefObject} from 'react';
 import {flushSync} from 'react-dom';
 import {growStage, prefersReducedMotion, shrinkStage} from '../core/stage-expand';
-import type {StageAnchor} from '../core/stage-expand';
+import type {Motion, StageAnchor} from '../core/stage-expand';
 import {callNativeImmersive, inAndroidShell, readNativeImmersive} from '../core/android-immersive';
 import type {NativeCall, NativeReport} from '../core/android-immersive';
 
@@ -21,20 +21,22 @@ export function useImmersive(page: RefObject<HTMLElement | null>, anchor: StageA
   const [immersive, setImmersive] = useState(false);
   const [chromeIdle, setChromeIdle] = useState(false);
   const [returning, setReturning] = useState(false);
+  const [leavingUi, setLeavingUi] = useState(false);
   const [probe, setProbe] = useState<ImmersiveProbe | null>(null);
   const lastCall = useRef<NativeCall>('none');
   const ownsFullscreen = useRef(false);
   const requestedFullscreen = useRef(false);
   const mounted = useRef(true);
-  const motion = useRef<Animation | null>(null);
+  const motion = useRef<Motion | null>(null);
   const leaving = useRef(false);
 
   const stage = () => page.current?.querySelector<HTMLElement>('.gallery-stage-layout') ?? null;
   const settle = () => { motion.current?.cancel(); motion.current = null; };
-  const leave = () => {
+  // faded：退出动画期间控件已经淡回，不用再淡一次
+  const leave = (faded = false) => {
     leaving.current = false;
-    flushSync(() => { setImmersive(false); setReturning(true); });
-    window.setTimeout(() => { if (mounted.current) setReturning(false); }, 400);
+    flushSync(() => { setImmersive(false); setLeavingUi(false); setReturning(!faded); });
+    if (!faded) window.setTimeout(() => { if (mounted.current) setReturning(false); }, 400);
   };
   const exit = () => {
     if (leaving.current) return;
@@ -51,9 +53,11 @@ export function useImmersive(page: RefObject<HTMLElement | null>, anchor: StageA
     root.className = 'gallery-page';
     const target = el.getBoundingClientRect();
     root.className = cls;
-    const anim = shrinkStage(el, target, anchor);
+    setLeavingUi(true);
+    const controls = root.querySelector<HTMLElement>('.gallery-controls');
+    const anim = shrinkStage(el, target, anchor, controls ? [controls] : []);
     motion.current = anim;
-    anim.finished.then(() => { if (motion.current !== anim) return; leave(); requestAnimationFrame(settle); }, () => {});
+    anim.finished.then(() => { if (motion.current !== anim) return; leave(true); requestAnimationFrame(settle); }, () => {});
   };
   const enter = () => {
     leaving.current = false;
@@ -129,5 +133,5 @@ export function useImmersive(page: RefObject<HTMLElement | null>, anchor: StageA
     return () => { window.clearTimeout(timer); events.forEach(e => window.removeEventListener(e, wake)); };
   }, [immersive]);
 
-  return {immersive, chromeIdle, returning, enter, exit, probe: immersive ? probe : null};
+  return {immersive, chromeIdle, returning, leavingUi, enter, exit, probe: immersive ? probe : null};
 }
