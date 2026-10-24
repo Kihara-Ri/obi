@@ -42,6 +42,12 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
   const prevTop = useRef<DrawerSpec>(spec);
   const specRef = useRef(spec);
   specRef.current = spec;
+  // 边缘手势的监听只挂一次，经 ref 读最新的 closing / onClose：App 每次渲染都会传新的 onClose，
+  // 若作为依赖，滑到一半遇上任意一次渲染就会拆掉监听、丢掉跟手中的层，页面停在半途且之后的手势全被挡（edgeActiveRef 一直为 true）
+  const closingRef = useRef(closing);
+  closingRef.current = closing;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   // 下拉时遮罩（背后页面的模糊 + 压暗）随位移淡出；松手回弹则带过渡复位
   const setScrim = (dy: number, animate = false) => {
@@ -214,8 +220,16 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
       edgeSettleRef.current = true;   // 回弹结算期间不接新手势（与子页 useEdgeSwipeBack 的 is-swipe-settle 同口径）
       window.setTimeout(() => { layerReset(); edgeSettleRef.current = false; }, 300);
     };
+    // 上一次手势的 touchend 丢了（触点所在节点被重渲染移出文档时，事件冒不到 document）：新手指落下时先把它回弹收尾
+    const abandon = () => {
+      start = null;
+      if (!active) return;
+      active = false; edgeActiveRef.current = false;
+      if (secondary) layerSpringBack(); else springBack();
+    };
     const onStart = (e: TouchEvent) => {
-      if (closing || dragRef.current || edgeActiveRef.current || edgeSettleRef.current) return;
+      if (start && e.touches.length === 1) abandon();
+      if (closingRef.current || dragRef.current || edgeActiveRef.current || edgeSettleRef.current) return;
       if (!window.matchMedia(SHEET_QUERY).matches) return;
       const t = e.touches[0];
       if (t.clientX > 28) return;
@@ -242,11 +256,7 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
     };
     const onMove = (e: TouchEvent) => {
       if (!start) return;
-      if (e.touches.length > 1) {  // 捏合等多指手势不接管
-        start = null;
-        if (active) { active = false; edgeActiveRef.current = false; if (secondary) layerSpringBack(); else springBack(); }
-        return;
-      }
+      if (e.touches.length > 1) { abandon(); return; }  // 捏合等多指手势不接管
       const t = e.touches[0];
       const ddx = t.clientX - start.x;
       const ddy = t.clientY - start.y;
@@ -288,7 +298,7 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
       }
       const fling = dx > 40 && v > 0.55;
       const far = dx > Math.max(110, sheet.offsetHeight * 0.22);
-      if ((fling || far) && onClose()) {
+      if ((fling || far) && onCloseRef.current()) {
         // closing 类接管：隐式动画起点 = 当前内联位移，继续滑向屏底
       } else {
         springBack();
@@ -305,8 +315,9 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
       document.removeEventListener('touchmove', onMove);
       document.removeEventListener('touchend', onEnd);
       document.removeEventListener('touchcancel', onEnd);
+      edgeActiveRef.current = false;
     };
-  }, [closing, onClose, spec]);
+  }, []);
 
   // —— 手机 sheet：竖向手势不许「漏」给文档 ——
   // 内容不够长（如记录售出，键盘弹出时更是）时 drawer-body 无可滚动，iOS 会把竖向滑动改成滚动
@@ -417,7 +428,8 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
       if (settled) flushSync(() => setLeaving(null));
       anims.forEach(a => a.cancel());
       extras.forEach(n => n.remove());
-      [top, other].forEach(n => { if (n) { n.classList.remove('edge', 'edge-top', 'is-animating'); n.style.zIndex = ''; } });
+      // 连同手势跟手留下的内联位移一起清掉：否则动画取消后页面回到那个半途位置
+      [top, other].forEach(n => { if (n) { n.classList.remove('edge', 'edge-top', 'is-animating'); n.style.zIndex = ''; n.style.transform = ''; } });
       edgeSettleRef.current = false;
       if (!settled) setLeaving(null);
     };
