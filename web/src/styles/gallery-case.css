@@ -4,5 +4,6 @@
 .gallery-case{position:relative;display:block;width:100%;height:100%;transform-style:flat}
 .gallery-case-body{position:relative;display:block;width:100%;height:100%;overflow:hidden;border-radius:2px;transition:transform 180ms ease}
 .gallery-case-shadow{position:absolute;inset:2%;border-radius:3px;box-shadow:var(--shadow-sm);pointer-events:none}
-.gallery-case-button:is(:focus-visible,.is-gallery-contact) .gallery-case-body{transform:translateY(-4px)}
+/* 抬起只给鼠标 / 键盘：手指按住时封面不动，否则看起来发飘（触屏与粗指针不抬） */
+@media (hover:hover) and (pointer:fine){.gallery-case-button:is(:focus-visible,.is-gallery-contact) .gallery-case-body{transform:translateY(-4px)}}
 @media(prefers-reduced-motion:reduce){.gallery-case-body{transition:none}}
