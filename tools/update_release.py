@@ -14,6 +14,8 @@ from urllib.request import Request, urlopen
 PACKAGE = 'album-ledger.tar.gz'
 CHECKSUM = PACKAGE + '.sha256'
 VERSION_RE = re.compile(r'^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$')
+# 日常部署不打 tag，已装版本是 git describe 构建号（v3.8.5-3-gabc1234[-dirty]），按它所基于的正式版比较
+BUILD_RE = re.compile(VERSION_RE.pattern[:-1] + r'(?:-[0-9]+-g[0-9a-f]+)?(?:-dirty)?$')
 # 必须覆盖 package_app.py 打包的每一个根级文件/目录，否则新包会被旧校验拒收
 # （v2.4.0 加了 musicbrainz.py 却漏在这里，导致之后的补丁更新一直被拒）。
 # tests/test_updates.py 有对账测试防止再次漏加。
@@ -29,10 +31,15 @@ def version_tuple(value):
     return tuple(map(int, match.groups())) if match else None
 
 
+def installed_tuple(value):
+    match = BUILD_RE.fullmatch(str(value))
+    return tuple(map(int, match.groups())) if match else None
+
+
 def choose_patch(releases, installed):
-    current = version_tuple(installed)
+    current = installed_tuple(installed)
     if current is None:
-        raise ValueError('当前版本不是正式语义化版本，需先手动部署')
+        raise ValueError('当前版本不是正式版本或其构建号，需先手动部署')
     candidates = []
     for release in releases:
         target = version_tuple(release.get('tag_name'))

@@ -43,6 +43,15 @@ class UpdateTests(unittest.TestCase):
         self.assertIsNone(updater.choose_patch([release('v2.1.0')], 'v2.1.1'))
         with self.assertRaises(ValueError):updater.choose_patch(releases, 'dev')
 
+    def test_build_numbers_compare_by_their_base_release(self):
+        releases = [release('v2.1.3'), release('v2.1.1'), release('v2.2.0')]
+        self.assertEqual(updater.choose_patch(releases, 'v2.1.1-4-gabc1234')['tag_name'], 'v2.1.3')
+        self.assertEqual(updater.choose_patch(releases, 'v2.1.1-4-gabc1234-dirty')['tag_name'], 'v2.1.3')
+        # 已在 v2.1.3 之后的构建不会被「降级」回 v2.1.3
+        self.assertIsNone(updater.choose_patch(releases, 'v2.1.3-2-gdef5678'))
+        for bad in ('abc1234', 'v2.1.1-rc1', 'v2.1.1-4-gXYZ'):
+            with self.assertRaises(ValueError):updater.choose_patch(releases, bad)
+
     def test_package_roots_cover_every_packaged_root_module(self):
         # package_app.manifest() 打包的每个顶层条目（根级 .py 与目录）都必须在 PACKAGE_ROOTS 里，
         # 否则旧校验器会拒收新包、自动补丁更新一直失败（v2.4.2 实际发生过；I-009）。

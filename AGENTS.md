@@ -28,7 +28,7 @@
   手工维护的静态文件：`login.html`、`login.js`、`offline.html`、`sw.js`、`manifest.webmanifest`、图标、`vendor/`。
 - `app.py` 只做 CLI / 组装 / 启动。服务一律经 `server.context.Services` 注入，**禁止模块级单例**（import 零副作用）。
 - 根目录业务模块（`domain/storage/covers/rates/security/backups`）**不得移动或重命名**（`tools/` 依赖顶层 import 路径）；`storage.py` 保持单文件（跨表事务 + 审计内聚，不拆）。
-- 版本：发布包带 `VERSION`（git describe 生成），`/api/health` 与设置页显示。
+- 版本：发布包带 `VERSION`（git describe 生成：正式版是 tag，日常部署是构建号），`/api/health` 与设置页显示。
 - **本机模式（D-019）**：静态站点上由浏览器里的 Pyodide 运行同一套后端，入口 `server/local_entry.py`，只在 `dist-local/`（`npm --prefix web run build:local`，不进 `static/`、镜像与 git）里启用，靠 `index.html` 的 `obi-local` 标记识别。**业务代码与路由表不得为本机模式分叉**——浏览器与服务器的差别（无线程、无 socket、无 fcntl）只在 `local_entry.py` 抹平；后端新增线程 / 子进程 / 文件锁依赖时，必须同时保证本机模式不会走到（或在该文件里替换），并跑 `tests/test_local_entry.py`。服务器版 `static/sw.js` 不得加入本机转发。
 
 ### 前端（`web/`，React 19 + TS strict + Vite）
@@ -110,7 +110,11 @@ OBI_DEV_HOME=/private/tmp/obi-acceptance python3 tools/preview_samples.py --port
 
 - **Docker 一键部署是主路径**：`docker compose up -d --build`。改了 `Dockerfile` / `docker-compose.yml` / `web/` / `static/` 中任何构建输入，必须实测 `docker compose build` 通过再提交；`.dockerignore` 与 Dockerfile 的 COPY 清单保持同步（新目录默认不进镜像）。
 - **数据与框架解耦**：容器数据只写 `/data` 卷；compose 挂载 `./data`；任何代码不得把用户数据写到其他位置。
-- **git**：语义化版本 tag（`v主.次.补丁`）。CI 绿灯才允许打 tag。**发布 Release =** 打 tag → `python3 tools/package_app.py`（VERSION 注入）→ `gh release create <tag> dist/album-ledger.tar.gz --generate-notes --notes "…"`，附 sha256。裸机发布 = `tools/deploy.sh`（release 布局 + 健康检查 + 自动回滚；首次 `--init`）。
+- **版本号：构建号随部署走，正式版攒批再打（D-024）**。
+  - **日常部署**：提交后直接 `tools/deploy.sh`，**不打 tag、不改版本号**；VERSION 自动是 `git describe` 构建号（如 `v3.8.5-3-gabc1234`，带 `-dirty` 表示含未提交改动）。改动写进 `CHANGELOG.md` 的「## 未发布」；提交说明不再附版本号。
+  - **正式版**：一个主题做完、真机确认后才打 tag（`v主.次.补丁`，CI 绿灯才允许）→ 把「未发布」改成 `## v… （日期）` → `python3 tools/package_app.py` → `gh release create <tag> dist/album-ledger.tar.gz --generate-notes --notes "…"`，附 sha256。只有正式版会弹「更新说明」，也只有正式版会推到安卓手机（安卓只认 GitHub 正式 Release）。
+  - **哪一段升**：主 = 数据 / 备份格式不兼容；次 = 改了 `android/` 原生（D-023 强制）或明显的新功能；补丁 = 一批修复，不是改一处发一次。
+  - 裸机发布 = `tools/deploy.sh`（release 布局 + 健康检查 + 自动回滚；首次 `--init`）。
 - **服务器布局（裸机）**：`BASE/releases/<时间戳>/` + `current` 软链 + `data/` 与 `service.env` 在 releases 之外——**不得把数据放进 release 目录**。
 - **数据安全三层**：每日快照（Backups）+ 发布前快照（deploy.sh）+ Litestream 异地复制（`deploy/litestream*.yml`）。动 schema 前必须确认快照存在。
 - **文档即真相**：`README.md`、`使用说明.md`、`部署说明.md` 与实际行为必须同步，不同步视为未完成；文档不写具体个人的域名/路径/账号。
