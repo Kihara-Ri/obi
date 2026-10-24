@@ -6,4 +6,4 @@
 .whats-new h3{margin:0 0 6px;font-size:14px;color:var(--accent-deep)}
 .whats-new h3 time{font-weight:400;color:var(--text);opacity:.6}
 .whats-new ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:14px;line-height:1.5}
-.whats-new-ok{align-self:stretch;min-height:44px;border:0;border-radius:14px;background:var(--accent);color:var(--accent-text);font:inherit;font-weight:600}
+.whats-new-ok{align-self:stretch;min-height:44px;border:0;border-radius:14px;background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:600}

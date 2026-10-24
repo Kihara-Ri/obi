@@ -18,6 +18,8 @@ a,button{-webkit-tap-highlight-color:transparent}
 html{touch-action:pan-x pan-y;overscroll-behavior:none}
 body{overscroll-behavior:none}
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent-deep);outline-offset:2px}
+/* 手机（触屏、无悬停）不显示聚焦描边：弹窗自动聚焦按钮、点按后保留焦点都会出现一圈黄框 */
+@media (hover:none) and (pointer:coarse){*:focus-visible{outline:none!important}}
 .num{font-variant-numeric:tabular-nums}
 
 .skip{position:absolute;left:-9999px}
