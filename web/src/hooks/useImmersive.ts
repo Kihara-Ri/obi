@@ -48,12 +48,12 @@ export function useImmersive(page: RefObject<HTMLElement | null>, anchor: StageA
     ownsFullscreen.current = false;
     if (!el || !root || prefersReducedMotion()) { leave(); return; }
     leaving.current = true;
+    flushSync(() => setLeavingUi(true));
     // 临时摘掉沉浸类量出舞台回到普通版式后的位置（同步量取，不会绘制），再在沉浸版式里缩过去
     const cls = root.className;
     root.className = 'gallery-page';
     const target = el.getBoundingClientRect();
     root.className = cls;
-    setLeavingUi(true);
     const controls = root.querySelector<HTMLElement>('.gallery-controls');
     const anim = shrinkStage(el, target, anchor, controls ? [controls] : []);
     motion.current = anim;
