@@ -27,9 +27,10 @@ export function measureExits(page: HTMLElement): Exit[] {
   return exits;
 }
 
-/** 舞台在 k=0（普通）/ k=1（整屏）之间的外边距：负外边距让弹性布局把舞台撑到屏幕边缘 */
+/** 舞台在 k=0（普通）/ k=1（整屏）之间的外边距：负外边距让弹性布局把舞台撑到屏幕边缘。
+ *  普通版式里舞台常按内容自然撑得比屏幕还高（整页滚动），这时下沿不动，只把顶部移到屏幕顶端 */
 const margins = ({normal, full}: Geometry, k: number) => ({
-  marginTop: `${(full.top - normal.top) * k}px`, marginBottom: `${(normal.bottom - full.bottom) * k}px`,
+  marginTop: `${(full.top - normal.top) * k}px`, marginBottom: `${(normal.height > full.height ? 0 : normal.bottom - full.bottom) * k}px`,
   marginLeft: `${(full.left - normal.left) * k}px`, marginRight: `${(normal.right - full.right) * k}px`,
 });
 
