@@ -5,6 +5,7 @@ import {useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {flushSync} from 'react-dom';
 import type {DrawerSpec} from '../../state/AppContext';
 import {ChevLeftIco} from '../icons';
+import {commitsBack, installEdgeSwipe} from '../../core/edge-swipe';
 
 const SHEET_QUERY = '(max-width:840px)';
 const TOUCH_QUERY = '(pointer:coarse), (max-width:840px)';
@@ -170,16 +171,12 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
 
   // —— 手机 sheet：屏幕左缘横向右滑 = 跟手下拉收起 ——
   // iOS 系统对边缘右滑的默认响应是整页侧向过渡（浏览器自己的返回动画），对上拉
-  // sheet 毫无意义且收尾会闪。页面在 touchmove 上 preventDefault 可令该系统手势
-  // 中止（触摸流仍完整送达页面），于是把这段手势接管成「按住 sheet 往下拖」：
-  // 横向位移 1:1 映射为下拉位移，松手超过阈值或快速下滑即收回，否则回弹；纵向
-  // 滑动不拦截，放行给 drawer-body 原生滚动。桌面断点不接管。
+  // sheet 毫无意义且收尾会闪。起手判定与拦系统手势由 core/edge-swipe.ts 负责（与「更多」子页共用），
+  // 这里只决定画面：根页 = 横向位移 1:1 映射为下拉位移，超过阈值或快速下滑即收回，否则回弹；
+  // 二级页 = 跟手返回上一页。纵向滑动不拦截，放行给 drawer-body 原生滚动。桌面断点不接管。
   useEffect(() => {
     const sheet = sheetRef.current;
     if (!sheet) return;
-    let start: {x: number; y: number} | null = null;
-    let active = false;
-    let dx = 0, v = 0, lastX = 0, lastT = 0;
     // 二级页（有返回目标）上，左缘右滑 = 返回上一页（带动画），而不是把整个抽屉下拉关闭
     let secondary = false;
     const springBack = () => {
@@ -220,103 +217,50 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
       edgeSettleRef.current = true;   // 回弹结算期间不接新手势（与子页 useEdgeSwipeBack 的 is-swipe-settle 同口径）
       window.setTimeout(() => { layerReset(); edgeSettleRef.current = false; }, 300);
     };
-    // 上一次手势的 touchend 丢了（触点所在节点被重渲染移出文档时，事件冒不到 document）：新手指落下时先把它回弹收尾
-    const abandon = () => {
-      start = null;
-      if (!active) return;
-      active = false; edgeActiveRef.current = false;
-      if (secondary) layerSpringBack(); else springBack();
-    };
-    const onStart = (e: TouchEvent) => {
-      if (start && e.touches.length === 1) abandon();
-      if (closingRef.current || dragRef.current || edgeActiveRef.current || edgeSettleRef.current) return;
-      if (!window.matchMedia(SHEET_QUERY).matches) return;
-      const t = e.touches[0];
-      if (t.clientX > 28) return;
-      // 贴边的按钮（头部返回箭头左缘就在 28px 内）不拦：preventDefault 会吞掉它的点击，表现为按下有反应却没效果
-      // ——但起点仍要记下，由 touchmove 接管：不然手指一动，iOS 系统边缘返回就整页滑走
-      const onControl = e.target instanceof Element && !!e.target.closest('button, a');
-      // 手起点落在 sheet 内部「已向右滚过」的横向条带（如封面候选）时让位给原生横向滚动；
-      // 停在最左的条带向右拖本来就滚不动，照常接管
-      let node: Element | null = e.target instanceof Element ? e.target : null;
-      while (node && node !== sheet) {
-        if (node.scrollWidth > node.clientWidth + 1 && node.scrollLeft > 0) return;
-        node = node.parentElement;
-      }
-      // 左缘起手：在 touchstart 就拦掉 iOS 的系统「边缘返回」整页滑动（只在 touchmove 里拦，系统手势
-      // 已经起步，会和我们的跟手下拉叠在一起：整页向右推 + sheet 向下拖）。该窄条内不再产生点击 / 原生滚动
-      if (e.cancelable && !onControl) e.preventDefault();
-      // 键盘弹出时 WebKit 会把横向手势整流收归系统（页面收不到 touchmove），
-      // 先同步收起键盘：键盘落下后触摸流回到页面，本次滑动继续作为下拉接管
-      const focused = document.activeElement;
-      if (focused instanceof HTMLElement && (focused.tagName === 'INPUT' || focused.tagName === 'TEXTAREA')) focused.blur();
-      start = {x: t.clientX, y: t.clientY};
-      secondary = !!specRef.current.back;
-      active = false; dx = 0; v = 0; lastX = t.clientX; lastT = e.timeStamp;
-    };
-    const onMove = (e: TouchEvent) => {
-      if (!start) return;
-      if (e.touches.length > 1) { abandon(); return; }  // 捏合等多指手势不接管
-      const t = e.touches[0];
-      const ddx = t.clientX - start.x;
-      const ddy = t.clientY - start.y;
-      if (!active) {
-        if (Math.abs(ddx) < 8 && Math.abs(ddy) < 8) return;
-        if (ddx <= 0 || Math.abs(ddx) <= Math.abs(ddy)) { start = null; return; }
-        active = true;
+    const uninstall = installEdgeSwipe({
+      canStart: () => {
+        if (closingRef.current || dragRef.current || edgeActiveRef.current || edgeSettleRef.current
+          || !window.matchMedia(SHEET_QUERY).matches) return false;
+        // 键盘弹出时 WebKit 会把横向手势整流收归系统（页面收不到 touchmove），
+        // 先同步收起键盘：键盘落下后触摸流回到页面，本次滑动继续作为下拉接管
+        const focused = document.activeElement;
+        if (focused instanceof HTMLElement && (focused.tagName === 'INPUT' || focused.tagName === 'TEXTAREA')) focused.blur();
+        secondary = !!specRef.current.back;
+        return true;
+      },
+      begin: () => {
         edgeActiveRef.current = true;
         if (secondary) layerBegin(); else sheet.style.transition = 'none';
-      }
-      e.preventDefault();  // 中止系统边缘侧滑与页面滚动，本次触摸交给 sheet 拖拽
-      dx = Math.max(0, ddx);
-      const dt = e.timeStamp - lastT;
-      if (dt > 0) { v = (t.clientX - lastX) / dt; lastX = t.clientX; lastT = e.timeStamp; }
-      if (secondary) layerMove(dx); else { sheet.style.transform = `translateY(${dx}px)`; setScrim(dx); }
-    };
-    const onEnd = () => {
-      if (!start) return;
-      start = null;
-      if (!active) return;
-      active = false;
-      edgeActiveRef.current = false;
-      if (secondary) {
-        // 位移够长或快速甩动才算返回：保留拖动中的样式直到 pop 动画接手（从当前位置继续），否则回弹
-        if (dx > 70 || (dx > 30 && v > 0.45)) {
-          popFromRef.current = {dx, width: pagesRef.current?.clientWidth || window.innerWidth, under: layerUnder, dim: layerDim};
-          layerTop = layerUnder = layerDim = null;
-          specRef.current.back?.run();
-          edgeSettleRef.current = true;   // 返回提交到 pop 动画收尾前不接新手势
-          window.setTimeout(() => {   // 返回被拒（如脏表单放弃确认被取消）：pop 动画不会来，复位
-            const f = popFromRef.current;
-            if (!f) return;
-            popFromRef.current = null;
-            layerTop = null; layerUnder = f.under; layerDim = f.dim;
-            layerSpringBack();
-          }, 700);
-        } else layerSpringBack();
-        return;
-      }
-      const fling = dx > 40 && v > 0.55;
-      const far = dx > Math.max(110, sheet.offsetHeight * 0.22);
-      if ((fling || far) && onCloseRef.current()) {
-        // closing 类接管：隐式动画起点 = 当前内联位移，继续滑向屏底
-      } else {
-        springBack();
-      }
-    };
-    // touchstart 必须 capture：iOS 键盘弹出时 WebKit 只把 touchstart 派发到捕获阶段
-    // （冒泡阶段收不到，实测），而收键盘、记录手势起点都依赖它。
-    document.addEventListener('touchstart', onStart, {passive: false, capture: true});
-    document.addEventListener('touchmove', onMove, {passive: false});
-    document.addEventListener('touchend', onEnd, {passive: true});
-    document.addEventListener('touchcancel', onEnd, {passive: true});
-    return () => {
-      document.removeEventListener('touchstart', onStart, true);
-      document.removeEventListener('touchmove', onMove);
-      document.removeEventListener('touchend', onEnd);
-      document.removeEventListener('touchcancel', onEnd);
-      edgeActiveRef.current = false;
-    };
+      },
+      move: dx => { if (secondary) layerMove(dx); else { sheet.style.transform = `translateY(${dx}px)`; setScrim(dx); } },
+      end: (dx, v) => {
+        edgeActiveRef.current = false;
+        if (secondary) {
+          // 够长或甩动才算返回：保留拖动中的样式直到 pop 动画接手（从当前位置继续），否则回弹
+          if (commitsBack(dx, v, pagesRef.current?.clientWidth || window.innerWidth)) {
+            popFromRef.current = {dx, width: pagesRef.current?.clientWidth || window.innerWidth, under: layerUnder, dim: layerDim};
+            layerTop = layerUnder = layerDim = null;
+            specRef.current.back?.run();
+            edgeSettleRef.current = true;   // 返回提交到 pop 动画收尾前不接新手势
+            window.setTimeout(() => {   // 返回被拒（如脏表单放弃确认被取消）：pop 动画不会来，复位
+              const f = popFromRef.current;
+              if (!f) return;
+              popFromRef.current = null;
+              layerTop = null; layerUnder = f.under; layerDim = f.dim;
+              layerSpringBack();
+            }, 700);
+          } else layerSpringBack();
+          return;
+        }
+        // 根页：左缘右滑 = 跟手下拉关闭，沿用下拉的阈值
+        const fling = dx > 40 && v > 0.55;
+        const far = dx > Math.max(110, sheet.offsetHeight * 0.22);
+        if (!((fling || far) && onCloseRef.current())) springBack();
+        // 关闭成立时由 closing 类接管：隐式动画起点 = 当前内联位移，继续滑向屏底
+      },
+      cancel: () => { edgeActiveRef.current = false; if (secondary) layerSpringBack(); else springBack(); },
+    });
+    return () => { uninstall(); edgeActiveRef.current = false; };
   }, []);
 
   // —— 手机 sheet：竖向手势不许「漏」给文档 ——
