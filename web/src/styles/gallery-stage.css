@@ -29,7 +29,10 @@
 .gallery-waterfall-column:nth-child(2n){padding-top:26px}
 .gallery-waterfall-column:nth-child(3n){padding-top:11px}
 .gallery-waterfall .gallery-title{display:block;-webkit-line-clamp:unset;overflow:visible}
-.gallery-waterfall .gallery-tile-caption{padding-top:8px}
+.gallery-waterfall .gallery-tile-caption{padding-top:6px}
+/* 瀑布流标题不截行，44px 触控最小高会把单行标题与艺人撑开；这里按文字行高紧排 */
+.gallery-waterfall .gallery-title,.gallery-waterfall .artist-button{min-height:0}
+.gallery-waterfall .artist-entry{margin-top:1px}
 .gallery-waterfall .artist-button>span:first-child{white-space:normal;overflow:visible;text-overflow:clip}
 .has-roam-viewport .gallery-waterfall-column{height:clamp(260px,62svh,680px);overflow-y:auto;overscroll-behavior-y:contain;scrollbar-width:none;scroll-behavior:auto}
 .has-roam-viewport .gallery-waterfall-column::-webkit-scrollbar{display:none}
