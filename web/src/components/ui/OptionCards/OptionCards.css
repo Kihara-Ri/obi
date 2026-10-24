@@ -1,0 +1,9 @@
+/* OptionCards：图标选项卡。选中 = 强调色描边 + 淡强调底；只用 token。 */
+.option-cards{display:grid;gap:8px}
+.option-cards button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:76px;padding:10px 4px;
+  border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);color:var(--muted);font:inherit;font-size:13px;
+  transition:border-color var(--dur) var(--ease-soft),background var(--dur) var(--ease-soft),color var(--dur) var(--ease-soft)}
+.option-cards button[aria-checked=true]{border-color:var(--accent-deep);background:var(--accent-wash);color:var(--text);font-weight:600}
+.option-cards-icon{display:flex;height:28px;align-items:center}
+.option-cards-icon svg{display:block;height:28px;width:auto}
+.option-cards-label{line-height:1.2}

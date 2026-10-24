@@ -2,10 +2,7 @@
 .gallery-settings{display:flex;flex-direction:column;gap:20px;padding-bottom:8px}
 .gallery-settings section{display:flex;flex-direction:column;gap:10px}
 .gallery-settings h3{margin:0;font-size:13px;font-weight:600;color:var(--muted)}
-.gallery-settings .seg{width:100%}
-.gallery-settings .seg button{flex:1;min-height:40px}
 .gallery-settings-row{flex-direction:row!important;align-items:center;justify-content:space-between;gap:14px}
 .gallery-settings-row h3{color:var(--text);font-size:15px;font-weight:550}
 .gallery-settings-row p{margin:3px 0 0;font-size:12px;color:var(--faint)}
-.gallery-settings-row input[type=checkbox]{flex:none;width:22px;height:22px}
 .gallery-settings-note{margin:0;font-size:12px;color:var(--faint)}

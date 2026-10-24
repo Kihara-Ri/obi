@@ -17,6 +17,8 @@ export {FocusInput} from './FocusInput';
 export type {FocusInputProps} from './FocusInput';
 export {NavRow} from './NavRow';
 export type {NavRowProps} from './NavRow';
+export {OptionCards} from './OptionCards';
+export type {OptionCard, OptionCardsProps} from './OptionCards';
 export {SearchField} from './SearchField';
 export type {SearchFieldProps} from './SearchField';
 export {Seg} from './Seg';
