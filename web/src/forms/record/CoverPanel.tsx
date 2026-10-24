@@ -1,6 +1,6 @@
 // 封面区块：当前封面缩略图 + 一句清晰的状态 + 「重新匹配」，候选缩略图点选抓取。
 // 状态文字用正文字号（匹配通常要几秒，用户需要一眼看到进度）；匹配中显示转圈。
-import {useState} from 'react';
+import {useRef, useState} from 'react';
 import {Chevron, Collapse} from '../../components/ui';
 import {SpinIco} from '../../components/icons';
 import {useArtExpand} from '../../components/ReleaseCandidateCard/useArtExpand';
@@ -8,6 +8,7 @@ import {dropCandidate, type CoverSearch} from './useCoverSearch';
 
 export function CoverPanel({cover, src, busy, inline}: {cover: CoverSearch; src: string; busy: boolean; inline?: boolean}) {
   const [open, setOpen] = useState(false);
+  const file = useRef<HTMLInputElement>(null);
   const many = cover.candidates.length > 1;
   return (
     <section className={'cover-search' + (inline ? ' is-inline' : '')}>
@@ -17,7 +18,12 @@ export function CoverPanel({cover, src, busy, inline}: {cover: CoverSearch; src:
           {inline ? null : <strong>封面</strong>}
           <span className={`cover-status${busy ? ' is-busy' : ''}`} role="status">{busy ? SpinIco : null}{cover.coverStatus}</span>
         </div>
-        <button type="button" disabled={busy} onClick={() => cover.findCover()}>换一张封面</button>
+        <span className="cover-actions">
+          <button type="button" disabled={busy} onClick={() => cover.findCover()}>换一张封面</button>
+          <button type="button" disabled={busy} onClick={() => file.current?.click()}>上传封面</button>
+        </span>
+        <input ref={file} type="file" accept="image/*,.heic,.heif" hidden
+          onChange={e => {const f = e.target.files?.[0]; e.target.value = ''; if (f) void cover.uploadCover(f);}}/>
       </div>
       {cover.candidates.length ? <>
         {many ? <button type="button" className="cover-deck" aria-expanded={open} onClick={() => setOpen(!open)}>

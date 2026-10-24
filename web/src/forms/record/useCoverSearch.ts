@@ -2,6 +2,7 @@
 // 这里只管状态（status / busy / hasCover）和用户主动换封面时的候选点选；不再在标题 / 艺人失焦时自动搜。
 import {useState} from 'react';
 import {api} from '../../core/api';
+import {compressPhoto} from '../../core/photos';
 import type {FormCtx} from './context';
 import {stashCovers} from './releaseCover';
 
@@ -37,6 +38,26 @@ export function useCoverSearch(ctx: FormCtx, hadCover: boolean) {
     }
   }
 
+  /** 自己准备的封面：从相册 / 文件选图，压缩成 JPEG 后直接作为封面（保存时服务端落盘），不再带第三方来源。 */
+  async function uploadCover(file: File) {
+    setBusy(true);
+    setCoverStatus('处理图片中…');
+    try {
+      const data = await compressPhoto(file);
+      if (data.length > 2_900_000) throw new Error('图片太大，请换一张较小的');
+      const {coverSource: _drop, ...rest} = base.current;
+      base.current = {...rest, cover: data};
+      setHasCover(true);
+      setCandidates([]);
+      setCoverStatus('已使用自己上传的封面');
+      dirty();
+    } catch (err) {
+      setCoverStatus(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   /** 换一张封面：按当前标题 / 艺人（已确认发行版则连同其规范名）列出候选（iTunes + MusicBrainz / CAA），由用户点选，不自动采用。 */
   async function findCover() {
     const key = coverKey();
@@ -68,6 +89,6 @@ export function useCoverSearch(ctx: FormCtx, hadCover: boolean) {
   }
 
   return {coverStatus, setCoverStatus, candidates, setCandidates, hasCover, setHasCover,
-    busy, setBusy, coverKey, chooseCover, findCover};
+    busy, setBusy, coverKey, chooseCover, findCover, uploadCover};
 }
 export type CoverSearch = ReturnType<typeof useCoverSearch>;
