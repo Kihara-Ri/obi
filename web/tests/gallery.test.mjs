@@ -81,10 +81,19 @@ test('九种展示模式的偏好均可保存恢复', () => {
   for (const mode of gallery.GALLERY_MODES) {
     assert.ok(mode.label.trim());
     assert.ok(mode.description.trim());
-    const preferences = {mode: mode.value, density: 'large', axis: 'horizontal', showTitles: true, sort: 'artist', currentId: 'copy-b', scope: {kind: 'all'}, roamingSpeeds: {}};
+    const preferences = {mode: mode.value, density: 'large', spacing: 'wide', axis: 'horizontal', showTitles: true, sort: 'artist', currentId: 'copy-b', scope: {kind: 'all'}, roamingSpeeds: {}};
     gallery.saveGalleryPreferences(preferences);
     assert.deepEqual(gallery.readGalleryPreferences(), preferences, mode.value);
   }
+});
+
+test('封面间距偏好：旧偏好与非法值回退到标准，贴紧为 0 倍', () => {
+  storage.set('album-gallery-v1', JSON.stringify({mode: 'tiles'}));
+  assert.equal(gallery.readGalleryPreferences().spacing, 'normal');
+  storage.set('album-gallery-v1', JSON.stringify({mode: 'tiles', spacing: 'huge'}));
+  assert.equal(gallery.readGalleryPreferences().spacing, 'normal');
+  assert.equal(gallery.GALLERY_SPACING_SCALE.none, 0);
+  assert.equal(gallery.GALLERY_SPACING_SCALE.normal, 1);
 });
 
 test('当前副本移除后回退到有效起点', () => {

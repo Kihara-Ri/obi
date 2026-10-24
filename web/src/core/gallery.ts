@@ -10,6 +10,9 @@ export type GalleryAxis = 'vertical' | 'horizontal';
 /** 滑动方向只对这两种自然铺开的布局有意义；其余布局的轨道方向由各自的造型决定。 */
 export const galleryHasAxis = (mode: GalleryMode): boolean => mode === 'tiles' || mode === 'waterfall';
 export type GalleryDensity = 'small' | 'medium' | 'large';
+/** 封面墙 / 瀑布流里专辑之间的间距：在默认间距上缩放（none = 贴紧） */
+export type GallerySpacing = 'none' | 'tight' | 'normal' | 'wide';
+export const GALLERY_SPACING_SCALE: Record<GallerySpacing, number> = {none: 0, tight: .5, normal: 1, wide: 1.8};
 export type GallerySort = 'recent' | 'artist' | 'title' | 'group';
 export type GalleryScope = {kind: 'all'} | {kind: 'favorites'} | {kind: 'artist'; artist: string} | {kind: 'group'; groupId: string};
 export interface ShowcaseGroup {id: string; name: string; recordIds: string[]}
@@ -44,6 +47,7 @@ export function galleryModeHasFocus(mode: GalleryMode): boolean {
 export interface GalleryPreferences {
   mode: GalleryMode;
   density: GalleryDensity;
+  spacing: GallerySpacing;
   axis: GalleryAxis;
   showTitles: boolean;
   sort: GallerySort;
@@ -56,7 +60,7 @@ const PREF_KEY = 'album-gallery-v1';
 
 export function readGalleryPreferences(): GalleryPreferences {
   const fallback: GalleryPreferences = {
-    mode: 'tiles', density: 'medium', axis: 'vertical', showTitles: false,
+    mode: 'tiles', density: 'medium', spacing: 'normal', axis: 'vertical', showTitles: false,
     sort: 'recent', currentId: null, scope: {kind: 'all'}, roamingSpeeds: {},
   };
   try {
@@ -71,6 +75,7 @@ export function readGalleryPreferences(): GalleryPreferences {
       roamingSpeeds,
       mode: GALLERY_MODES.some(m => m.value === p.mode) ? p.mode! : fallback.mode,
       density: ['small', 'medium', 'large'].includes(p.density || '') ? p.density! : fallback.density,
+      spacing: p.spacing && p.spacing in GALLERY_SPACING_SCALE ? p.spacing : fallback.spacing,
       axis: p.axis === 'horizontal' ? 'horizontal' : 'vertical',
       showTitles: typeof p.showTitles === 'boolean' ? p.showTitles : fallback.showTitles,
       sort: ['recent', 'artist', 'title', 'group'].includes(p.sort || '') ? p.sort! : fallback.sort,

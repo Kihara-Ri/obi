@@ -35,8 +35,6 @@ import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
-import org.json.JSONException;
-import org.json.JSONObject;
 
 import androidx.webkit.ServiceWorkerClientCompat;
 import androidx.webkit.ServiceWorkerControllerCompat;
@@ -500,20 +498,19 @@ public class MainActivity extends Activity {
             runOnUiThread(() -> Updater.installByUser(MainActivity.this));
         }
 
-        // 打开系统「安装未知应用」开关页；允许后更新可在后台自动安装
-        /** 收藏展示的沉浸模式：隐藏状态栏 / 导航栏（边缘滑动可临时唤出），页面铺满整个屏幕（含刘海区）。 */
+        /** 收藏展示的沉浸模式（实现见 {@link ImmersiveMode}）。 */
         @JavascriptInterface
         public void setImmersive(boolean on) {
-            if (on) immersiveCalls++;
-            runOnUiThread(() -> applyImmersive(on));
+            runOnUiThread(() -> immersive.request(on));
         }
 
         // 沉浸诊断：最近一次执行到哪一步、系统栏实际是否隐藏（JSON），由页面在界面里显示，不再弹 Toast
         @JavascriptInterface
         public String immersiveState() {
-            return immersiveSnapshot;
+            return immersive.state();
         }
 
+        // 打开系统「安装未知应用」开关页；允许后更新可在后台自动安装
         @JavascriptInterface
         public void openInstallSettings() {
             Intent intent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName()));
@@ -535,150 +532,25 @@ public class MainActivity extends Activity {
         }
     }
 
-    private boolean immersive;
+    private ImmersiveMode immersive;
 
-    // 沉浸时系统栏被别的东西（WebView 全屏收尾、切回前台、部分 ROM）重新唤出，就再藏一次
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        if (hasFocus && immersive) applyImmersive(true);
-    }
-
-    @SuppressWarnings("deprecation")
-    private void applyImmersive(boolean on) {
-        immersive = on;
-        immersiveChecked = false;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            getWindow().getAttributes().layoutInDisplayCutoutMode = on
-                    ? (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
-                            ? WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
-                            : WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES)
-                    : WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT;
-            getWindow().setAttributes(getWindow().getAttributes());
-        }
-        // 与游戏 / 视频应用同一套：新式 InsetsController 与旧式 systemUiVisibility 标志同时设。
-        // 部分厂商 ROM 只认其中一种；两种并存互不冲突。
-        // FLAG_LAYOUT_NO_LIMITS：个别 ROM 在状态栏区域另外留一条黑边，这个标志让窗口铺出屏幕边界
-        int hard = WindowManager.LayoutParams.FLAG_FULLSCREEN | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
-        if (on) getWindow().addFlags(hard); else getWindow().clearFlags(hard);
-        notchResult = huaweiNotch(on);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            WindowInsetsController c = getWindow().getInsetsController();
-            if (c != null) {
-                c.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
-                if (on) c.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars() | WindowInsets.Type.systemBars());
-                else c.show(WindowInsets.Type.systemBars());
-            }
-        }
-        int base = View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
-        int night = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES ? 0
-                : View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
-        getWindow().getDecorView().setSystemUiVisibility(on
-                ? base | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                : base | night);
-        root.requestApplyInsets();
-        // 有的 ROM 在切页 / 横竖屏 / 输入法收起后一两百毫秒才回写系统栏状态：隔一会儿再确认一次
-        if (on) {
-            root.postDelayed(() -> { if (immersive) reassertImmersive(); }, 400);
-            root.postDelayed(() -> { if (immersive) reassertImmersive(); }, 1500);
-            // 系统处理隐藏需要时间：只在 2.2 秒后（及之后的每次 insets 变化）记录系统栏的真实状态
-            root.postDelayed(() -> { if (immersive) { immersiveChecked = true; snapshotImmersive("checked"); } }, 2200);
-        }
-        snapshotImmersive(on ? "applied" : "off");
-    }
-
-    // EMUI：给窗口加 FLAG_NOTCH_SUPPORT（0x10000），告诉系统本应用自己处理刘海区，别再涂黑；返回结果写进诊断
-    private String huaweiNotch(boolean on) {
-        try {
-            Class<?> k = Class.forName("com.huawei.android.view.LayoutParamsEx");
-            Object ex = k.getConstructor(WindowManager.LayoutParams.class).newInstance(getWindow().getAttributes());
-            k.getMethod(on ? "addHwFlags" : "clearHwFlags", int.class).invoke(ex, 0x00010000);
-            getWindow().setAttributes(getWindow().getAttributes());
-            return "ok";
-        } catch (ClassNotFoundException e) {
-            return "none";
-        } catch (Throwable e) {
-            return "error: " + e.getClass().getSimpleName();
-        }
-    }
-
-    private volatile int immersiveCalls;
-    private boolean immersiveChecked;
-    private volatile String immersiveSnapshot = "";
-    private String notchResult = "";
-
-    /** 记下沉浸执行到哪一步与系统栏的实际状态（UI 线程），页面经 immersiveState() 读取并显示。 */
-    @SuppressWarnings("deprecation")
-    private void snapshotImmersive(String stage) {
-        JSONObject o = new JSONObject();
-        try {
-            o.put("shell", shellVersion());
-            o.put("device", Build.MANUFACTURER + " " + Build.MODEL);
-            o.put("android", Build.VERSION.RELEASE);
-            o.put("sdk", Build.VERSION.SDK_INT);
-            o.put("rom", romVersion());
-            o.put("calls", immersiveCalls);
-            o.put("on", immersive);
-            o.put("stage", stage);
-            o.put("notch", notchResult);
-            o.put("fullscreenFlag", (getWindow().getAttributes().flags & WindowManager.LayoutParams.FLAG_FULLSCREEN) != 0);
-            o.put("sysui", getWindow().getDecorView().getSystemUiVisibility());
-            o.put("focus", hasWindowFocus());
-            WindowInsets wi = root.getRootWindowInsets();
-            if (wi != null && "checked".equals(stage)) {
-                o.put("statusVisible", Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
-                        ? wi.isVisible(WindowInsets.Type.statusBars()) : wi.getSystemWindowInsetTop() > 0);
-                o.put("insetTop", wi.getSystemWindowInsetTop());
-            }
-            o.put("padTop", root.getPaddingTop());
-        } catch (JSONException | RuntimeException ignored) { /* 诊断尽力而为 */ }
-        immersiveSnapshot = o.toString();
-    }
-
-    private String shellVersion() {
-        try {
-            return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
-        } catch (PackageManager.NameNotFoundException e) {
-            return "unknown";
-        }
-    }
-
-    /** EMUI / HarmonyOS 版本（读系统属性；别的 ROM 为空）。 */
-    static String romVersion() {
-        try {
-            Class<?> sp = Class.forName("android.os.SystemProperties");
-            java.lang.reflect.Method get = sp.getMethod("get", String.class, String.class);
-            String harmony = (String) get.invoke(null, "hw_sc.build.platform.version", "");
-            String emui = (String) get.invoke(null, "ro.build.version.emui", "");
-            return (harmony.isEmpty() ? "" : "HarmonyOS " + harmony + " ") + emui;
-        } catch (Throwable e) {
-            return "";
-        }
-    }
-
-    @SuppressWarnings("deprecation")
-    private void reassertImmersive() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            WindowInsetsController c = getWindow().getInsetsController();
-            if (c != null) c.hide(WindowInsets.Type.systemBars());
-        }
-        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+        if (hasFocus && immersive != null) immersive.onWindowFocus();
     }
 
     // targetSdk 35 起内容默认铺到状态栏 / 导航栏下面：按系统栏与键盘的高度给 WebView 留白，页面里的布局不用改
     private void applySystemBars() {
+        immersive = new ImmersiveMode(this, root);
         root.setOnApplyWindowInsetsListener((v, insets) -> {
+            boolean on = immersive.isOn();
             Insets bars = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
-                    ? insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.ime() | (immersive ? 0 : WindowInsets.Type.displayCutout()))
+                    ? insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.ime() | (on ? 0 : WindowInsets.Type.displayCutout()))
                     : insets.getSystemWindowInsets();
             v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
-            if (immersive && immersiveChecked) v.post(() -> { if (immersive && immersiveChecked) snapshotImmersive("checked"); });
-            if (immersive && (bars.top > 0 || bars.bottom > 0 || bars.left > 0 || bars.right > 0)
-                    && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !insets.isVisible(WindowInsets.Type.ime())) {
-                v.post(() -> { if (immersive) reassertImmersive(); });
-            }
+            immersive.onInsets(bars.top > 0 || bars.bottom > 0 || bars.left > 0 || bars.right > 0,
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && insets.isVisible(WindowInsets.Type.ime()));
             return WindowInsets.CONSUMED;
         });
         root.setBackgroundColor(getColor(R.color.obi_background));
@@ -693,9 +565,7 @@ public class MainActivity extends Activity {
                 c.setSystemBarsAppearance(night ? 0 : light, light);
             }
         } else {
-            int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
-            if (!night) flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
-            getWindow().getDecorView().setSystemUiVisibility(flags);
+            getWindow().getDecorView().setSystemUiVisibility(SystemBars.visibleFlags(this));
         }
     }
 

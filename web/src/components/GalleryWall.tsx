@@ -1,6 +1,6 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
-import type {KeyboardEvent} from 'react';
-import {galleryIndex, GALLERY_ROAMING_DEFAULTS} from '../core/gallery';
+import type {CSSProperties, KeyboardEvent} from 'react';
+import {galleryIndex, GALLERY_ROAMING_DEFAULTS, GALLERY_SPACING_SCALE} from '../core/gallery';
 import {labelTags} from '../types';
 import type {AlbumRecord} from '../types';
 import type {GalleryStageProps} from './GalleryStage';
@@ -10,7 +10,7 @@ import {useGalleryRoaming, roamGalleryScroller} from './useGalleryRoaming';
 import type {GalleryScrollPosition} from './useGalleryRoaming';
 
 /** 封面墙垂直时保持页面原生滚动；瀑布流垂直巡游时各列单独滚动。水平方向下舞台自己是横向滚动容器，巡游推它的 scrollLeft。 */
-export function GalleryWall({records, mode, currentId, density, showTitles, axis = 'vertical', roaming = false, roamingSpeed = GALLERY_ROAMING_DEFAULTS[mode],
+export function GalleryWall({records, mode, currentId, density, spacing = 'normal', showTitles, axis = 'vertical', roaming = false, roamingSpeed = GALLERY_ROAMING_DEFAULTS[mode],
                              onPick, onFocus, onArtist}: GalleryStageProps) {
   const root = useRef<HTMLDivElement>(null);
   const scrollStates = useRef(new WeakMap<HTMLElement, GalleryScrollPosition>());
@@ -28,7 +28,7 @@ export function GalleryWall({records, mode, currentId, density, showTitles, axis
     const narrow = () => el.clientWidth < 420;
     const resize = () => {
       const small = narrow();
-      const gap = small ? 10 : 12;
+      const gap = Math.round((small ? 10 : 12) * GALLERY_SPACING_SCALE[spacing]);
       if (horizontal) {
         // 水平：行数由舞台高度决定，格子边长取密度对应的下限再把剩余高度均分
         const minimum = density === 'small' ? small ? 65 : 76 : density === 'large' ? small ? 144 : 176 : small ? 96 : 112;
@@ -49,7 +49,7 @@ export function GalleryWall({records, mode, currentId, density, showTitles, axis
     };
     resize(); const observer = new ResizeObserver(resize); observer.observe(el);
     return () => observer.disconnect();
-  }, [mode, density, horizontal, showTitles]);
+  }, [mode, density, spacing, horizontal, showTitles]);
   useEffect(() => {if (roaming) setRoamViewport(true);}, [roaming]);
   useGalleryRoaming(root, roaming && viewport, seconds => {
     const area = root.current; if (!area) return;
@@ -93,6 +93,7 @@ export function GalleryWall({records, mode, currentId, density, showTitles, axis
     </div> : null}
   </div>;
   return <div ref={root} className={`gallery-stage gallery-stage--${mode} gallery-density--${density}${viewport ? ' has-roam-viewport' : ''}${horizontal ? ' is-axis-x' : ''}`}
+              style={{'--wall-gap-k': GALLERY_SPACING_SCALE[spacing]} as CSSProperties}
               tabIndex={0} role="region" aria-label="收藏展示，方向键选择封面" onKeyDown={key}
               onDragStart={event => event.preventDefault()}>
     {mode === 'tiles' ? <div className="gallery-wall">{records.map(tile)}</div>

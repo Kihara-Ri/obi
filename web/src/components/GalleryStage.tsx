@@ -1,5 +1,5 @@
 import type {AlbumRecord} from '../types';
-import type {GalleryAxis, GalleryDensity, GalleryMode} from '../core/gallery';
+import type {GalleryAxis, GalleryDensity, GalleryMode, GallerySpacing} from '../core/gallery';
 import {GalleryWall} from './GalleryWall';
 import {GalleryOrbit} from './GalleryOrbit';
 import {GalleryFilm, GalleryTable, GalleryIsometric} from './GalleryContinuous';
@@ -9,6 +9,7 @@ export interface GalleryStageProps {
   mode: GalleryMode;
   currentId: string | null;
   density: GalleryDensity;
+  spacing?: GallerySpacing;
   axis?: GalleryAxis;
   showTitles: boolean;
   roaming?: boolean;

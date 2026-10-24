@@ -25,7 +25,8 @@ export function GalleryPage() {
   const [preferences, setPreferences] = useState(readGalleryPreferences);
   const scope = preferences.scope;
   const [query, setQuery] = useSessionState<string>('gallery-query', '');
-  const {immersive, chromeIdle, enter: enterImmersive, exit: exitImmersive, probe} = useImmersive();
+  const pageRef = useRef<HTMLDivElement>(null);
+  const {immersive, chromeIdle, returning, enter: enterImmersive, exit: exitImmersive, probe} = useImmersive(pageRef, galleryModeHasFocus(preferences.mode) ? 'center' : 'top');
 
   const [roaming, setRoaming] = useState(false);
   const [focused, setFocused] = useState<{id: string; originElement: HTMLElement | null} | null>(null);
@@ -52,7 +53,7 @@ export function GalleryPage() {
       content: <GallerySettings mode={preferences.mode} inGroup={preferences.scope.kind === 'group'} roaming={roaming}
         discrete={galleryModeHasFocus(preferences.mode)}
         initial={{sort: preferences.sort === 'group' && preferences.scope.kind !== 'group' ? 'recent' : preferences.sort,
-          density: preferences.density, axis: preferences.axis, showTitles: preferences.showTitles, seconds: roamingSeconds}}
+          density: preferences.density, spacing: preferences.spacing, axis: preferences.axis, showTitles: preferences.showTitles, seconds: roamingSeconds}}
         onChange={updatePreference}
         onSpeed={seconds => setPreferences(p => ({...p, roamingSpeeds: {...p.roamingSpeeds, [p.mode]: seconds}}))}/>,
     });
@@ -139,7 +140,7 @@ export function GalleryPage() {
     pick(id); setFocused({id, originElement: null});
   };
 
-  return <div className={`gallery-page${immersive ? ' is-immersive' : ''}${immersive && chromeIdle ? ' is-chrome-idle' : ''}`}>
+  return <div ref={pageRef} className={`gallery-page${immersive ? ' is-immersive' : ''}${immersive && chromeIdle ? ' is-chrome-idle' : ''}${returning ? ' is-returning' : ''}`}>
     {focused && focusedRecord ? <GalleryFocus record={focusedRecord} records={records} originElement={focused.originElement}
       onNavigate={navigateFocus} onClose={closeFocus}
       liked={Boolean(albumLikes.favorites[focusedRecord.id])}
@@ -178,7 +179,7 @@ export function GalleryPage() {
       {reducedMotion && roaming ? <span className="gallery-waterfall-note" role="status">减少动态效果已开启，巡游暂时暂停</span> : null}
     </div>
     {records.length ? <GalleryStage records={records} mode={preferences.mode} currentId={currentId}
-      density={preferences.density} axis={preferences.axis} showTitles={preferences.showTitles} onPick={pick} onFocus={focus}
+      density={preferences.density} spacing={preferences.spacing} axis={preferences.axis} showTitles={preferences.showTitles} onPick={pick} onFocus={focus}
       roaming={roaming} roamingSpeed={roamingSeconds}
       onArtist={(artist, recordId) => {
         pick(recordId); openArtistDrawer(app, artist);

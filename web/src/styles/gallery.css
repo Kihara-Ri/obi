@@ -25,7 +25,14 @@
   width:auto;margin:0;padding:0;border:0;background:none;backdrop-filter:none;justify-content:flex-end;transition:opacity .3s}
 .gallery-page.is-immersive.is-chrome-idle .page-head{opacity:0;pointer-events:none}
 .gallery-page.is-immersive .head-actions button{background:var(--chrome-nav);border:1px solid var(--border-strong);border-radius:999px;box-shadow:var(--shadow-sm);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
-.gallery-page.is-immersive .gallery-controls,.gallery-page.is-immersive .page-head>div:first-child{display:none}
+.gallery-page.is-immersive .page-head>div:first-child,.gallery-page.is-immersive .page-head::before{display:none}
+/* 控件区：进入沉浸时原地淡出（不占高度，舞台从它下面长上来），退出时淡回 */
+.gallery-page.is-immersive{position:relative}
+.gallery-page.is-immersive .gallery-controls{position:absolute;left:0;right:0;top:0;pointer-events:none;animation:gallery-controls-out .25s forwards}
+.gallery-page.is-returning .gallery-controls{animation:gallery-controls-in .35s}
+@keyframes gallery-controls-out{from{opacity:1;visibility:visible}to{opacity:0;visibility:hidden}}
+@keyframes gallery-controls-in{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.gallery-page.is-immersive .gallery-controls{animation:none;visibility:hidden}.gallery-page.is-returning .gallery-controls{animation:none}}
 .gallery-page.is-immersive .head-actions .theme-seg{display:none}
 
 @media(max-width:840px){
@@ -42,8 +49,4 @@
 /* 这三个按钮打开的是选择面板（抽屉），不是下拉：用「范围 / 方式」小标签 + 齿轮图标，不再用向下的小箭头 */
 .gallery-trigger-cap{flex:none;font-size:11px;font-weight:500;color:var(--faint)}
 
-/* 进出沉浸：屏幕内每张封面（view-swap.ts 给它们唯一的 view-transition-name 与 gallery-hero 类）从旧位置平滑移动 / 缩放，其余交叉淡化 */
-@media (prefers-reduced-motion:no-preference){
-  ::view-transition-group(*.gallery-hero){animation-duration:.6s;animation-timing-function:cubic-bezier(.2,.8,.2,1)}
-  ::view-transition-old(*.gallery-hero),::view-transition-new(*.gallery-hero){height:100%;object-fit:cover}
 }

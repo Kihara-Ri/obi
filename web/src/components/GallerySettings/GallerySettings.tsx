@@ -4,11 +4,11 @@ import {useState} from 'react';
 import {Seg} from '../ui/Seg';
 import {GalleryRoamingSpeed} from '../GalleryRoamingControls';
 import {galleryHasAxis} from '../../core/gallery';
-import type {GalleryAxis, GalleryDensity, GalleryMode, GallerySort} from '../../core/gallery';
+import type {GalleryAxis, GalleryDensity, GalleryMode, GallerySort, GallerySpacing} from '../../core/gallery';
 import './GallerySettings.css';
 
 export interface GallerySettingsValues {
-  sort: GallerySort; density: GalleryDensity; axis: GalleryAxis; showTitles: boolean; seconds: number;
+  sort: GallerySort; density: GalleryDensity; spacing: GallerySpacing; axis: GalleryAxis; showTitles: boolean; seconds: number;
 }
 
 const SORTS = [{value: 'recent', label: '最近加入'}, {value: 'artist', label: '按艺人'}, {value: 'title', label: '按专辑名'}];
@@ -30,6 +30,9 @@ export function GallerySettings({mode, inGroup, roaming, discrete, initial, onCh
     {SIZED.includes(mode) ? <section><h3>封面大小</h3>
       <Seg options={[{value: 'small', label: '小'}, {value: 'medium', label: '中'}, {value: 'large', label: '大'}]}
         value={v.density} ariaLabel="封面大小" onValue={density => set({density: density as GalleryDensity})}/></section> : null}
+    {mode === 'tiles' || mode === 'waterfall' ? <section><h3>封面间距</h3>
+      <Seg options={[{value: 'none', label: '贴紧'}, {value: 'tight', label: '小'}, {value: 'normal', label: '标准'}, {value: 'wide', label: '大'}]}
+        value={v.spacing} ariaLabel="封面间距" onValue={spacing => set({spacing: spacing as GallerySpacing})}/></section> : null}
     {galleryHasAxis(mode) ? <section><h3>滑动方向</h3>
       <Seg options={[{value: 'vertical', label: '垂直'}, {value: 'horizontal', label: '水平'}]}
         value={v.axis} ariaLabel="滑动方向" onValue={axis => set({axis: axis as GalleryAxis})}/></section> : null}

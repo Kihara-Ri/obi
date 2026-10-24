@@ -1,7 +1,10 @@
 // 收藏展示的「沉浸」：浏览器全屏 + 安卓壳隐藏系统栏（ObiAndroid.setImmersive），Esc 退出，
-// 安卓壳里进入后读原生快照（probe）供界面诊断；并在沉浸时让悬浮的「退出」按钮静止 3 秒后淡出、触摸 / 移动时重新出现（chromeIdle）。
+// 进出由舞台容器自己伸缩（core/stage-expand.ts），不拆层；安卓壳里进入后读原生快照（probe）供界面诊断；并在沉浸时让悬浮的「退出」按钮静止 3 秒后淡出、触摸 / 移动时重新出现（chromeIdle）。
 import {useEffect, useRef, useState} from 'react';
-import {viewSwap} from '../core/view-swap';
+import type {RefObject} from 'react';
+import {flushSync} from 'react-dom';
+import {growStage, prefersReducedMotion, shrinkStage} from '../core/stage-expand';
+import type {StageAnchor} from '../core/stage-expand';
 import {callNativeImmersive, inAndroidShell, readNativeImmersive} from '../core/android-immersive';
 import type {NativeCall, NativeReport} from '../core/android-immersive';
 
@@ -14,24 +17,51 @@ const setNativeImmersive = (on: boolean) => callNativeImmersive(on);
 
 const hasNativeImmersive = () => typeof (window as unknown as {ObiAndroid?: {setImmersive?: unknown}}).ObiAndroid?.setImmersive === 'function';
 
-export function useImmersive() {
+export function useImmersive(page: RefObject<HTMLElement | null>, anchor: StageAnchor) {
   const [immersive, setImmersive] = useState(false);
   const [chromeIdle, setChromeIdle] = useState(false);
+  const [returning, setReturning] = useState(false);
   const [probe, setProbe] = useState<ImmersiveProbe | null>(null);
   const lastCall = useRef<NativeCall>('none');
   const ownsFullscreen = useRef(false);
   const requestedFullscreen = useRef(false);
   const mounted = useRef(true);
+  const motion = useRef<Animation | null>(null);
+  const leaving = useRef(false);
 
+  const stage = () => page.current?.querySelector<HTMLElement>('.gallery-stage-layout') ?? null;
+  const settle = () => { motion.current?.cancel(); motion.current = null; };
+  const leave = () => {
+    leaving.current = false;
+    flushSync(() => { setImmersive(false); setReturning(true); });
+    window.setTimeout(() => { if (mounted.current) setReturning(false); }, 400);
+  };
   const exit = () => {
-    viewSwap(() => setImmersive(false));
+    if (leaving.current) return;
+    const el = stage(), root = page.current;
+    settle();
     setNativeImmersive(false);
     requestedFullscreen.current = false;
     if (ownsFullscreen.current && document.fullscreenElement) void document.exitFullscreen().catch(() => {});
     ownsFullscreen.current = false;
+    if (!el || !root || prefersReducedMotion()) { leave(); return; }
+    leaving.current = true;
+    // 临时摘掉沉浸类量出舞台回到普通版式后的位置（同步量取，不会绘制），再在沉浸版式里缩过去
+    const cls = root.className;
+    root.className = 'gallery-page';
+    const target = el.getBoundingClientRect();
+    root.className = cls;
+    const anim = shrinkStage(el, target, anchor);
+    motion.current = anim;
+    anim.finished.then(() => { if (motion.current !== anim) return; leave(); requestAnimationFrame(settle); }, () => {});
   };
   const enter = () => {
-    viewSwap(() => { setImmersive(true); setChromeIdle(false); });
+    leaving.current = false;
+    const el = stage();
+    const from = el?.getBoundingClientRect();
+    settle();
+    flushSync(() => { setImmersive(true); setChromeIdle(false); });
+    if (el && from && !prefersReducedMotion()) motion.current = growStage(el, from, anchor);
     setProbe(null);
     lastCall.current = setNativeImmersive(true);
     // 整个应用进入全屏，抽屉/灯箱仍处于可见树中；不支持时仍可隐藏导航展示。
@@ -50,11 +80,12 @@ export function useImmersive() {
   useEffect(() => {
     mounted.current = true;
     const onFullscreen = () => {
-      if (ownsFullscreen.current && !document.fullscreenElement) {ownsFullscreen.current = false; viewSwap(() => setImmersive(false)); setNativeImmersive(false);}
+      if (ownsFullscreen.current && !document.fullscreenElement) {ownsFullscreen.current = false; settle(); leave(); setNativeImmersive(false);}
     };
     document.addEventListener('fullscreenchange', onFullscreen);
     return () => {
       mounted.current = false;
+      motion.current?.cancel();
       requestedFullscreen.current = false;
       document.removeEventListener('fullscreenchange', onFullscreen);
       setNativeImmersive(false);
@@ -98,5 +129,5 @@ export function useImmersive() {
     return () => { window.clearTimeout(timer); events.forEach(e => window.removeEventListener(e, wake)); };
   }, [immersive]);
 
-  return {immersive, chromeIdle, enter, exit, probe: immersive ? probe : null};
+  return {immersive, chromeIdle, returning, enter, exit, probe: immersive ? probe : null};
 }
