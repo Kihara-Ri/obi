@@ -3,8 +3,8 @@
 // 其余界面靠 transform 滑出屏幕；动画结束再切换成沉浸版式，两边几何一致，所以切换那一帧画面不变。
 export type Motion = {finished: Promise<unknown>; cancel(): void};
 /** 要滑出屏幕的界面元素与滑出后的 transform */
-export type Exit = {el: HTMLElement; to: string};
-export type Geometry = {normal: DOMRect; full: DOMRect; exits: Exit[]};
+type Exit = {el: HTMLElement; to: string};
+type Geometry = {normal: DOMRect; full: DOMRect; exits: Exit[]};
 
 const DURATION = 420;
 const EASING = 'cubic-bezier(.2,.8,.2,1)';

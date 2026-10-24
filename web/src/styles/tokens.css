@@ -1,5 +1,5 @@
 /* 设计变量：颜色 / 圆角 / 阴影 / 字体 —— 全站唯一写 :root 的文件。
-   双主题：下面第一段是深色基线；随主题变化的 token 在其后用普通声明分三段给出
+   双主题：第一段放不随主题变化的 token；随主题变化的 token 随后用普通声明分三段给出
    （浅色默认 / 系统深色 media / 显式 data-theme）。
    主题三态：<html> 不带 data-theme = 跟随系统；设置页经 static/theme.js
    （CSP 禁内联，阻塞式外链脚本）写 data-theme="light|dark" 覆盖，
@@ -7,27 +7,15 @@
 :root{
   /* 售卖素材：缩略图最小宽、组间距、控制触控尺寸。 */
   --listing-photo-size:6rem; --listing-gap:1rem; --listing-gap-sm:.5rem; --listing-touch-size:2.75rem;
-  color-scheme:dark;
-  --bg:#0e1014; --bg-glow:rgba(236,216,74,.05); --bg-glow-2:rgba(251,231,79,.045);
-  --surface:#161920; --surface-2:#1c2029; --surface-3:#232834;
-  --border:#262c38; --border-strong:#333b4b;
-  --text:#e8ebf1; --muted:#98a2b3; --faint:#5f6b7e;
   /* 主色家族（闲鱼黄）：accent=填充（按钮/chip/开关/徽标）；strong=填充悬停；
      ink=黄底上的文字；deep=浅底上的强调文字与细线（正黄在白卡上不可读）；
      wash=聚焦/按压的暖色底；text=强调色文字（浅色=墨色、深色=黄）；
      hl=荧光笔高亮（艺人链接悬停下划线）；nav-active=导航激活胶囊底/其内徽标底。 */
-  --accent:#ecd84a; --accent-strong:#f7e765; --accent-ink:#1e2430;
-  --accent-deep:#d8c227; --accent-wash:#2b2a1a; --accent-text:#ecd84a; --accent-hl:rgba(236,216,74,.32);
-  --nav-active-bg:rgba(236,216,74,.14); --nav-active-badge-bg:rgba(236,216,74,.16);
-  --green:#5dd39e; --blue:#6ea8fe; --red:#ff7a7a; --amber:#8ab2f8; --orange:#ffa94d; --purple:#c9adff;
-  --chrome:rgba(18,21,27,.72); --chrome-head:rgba(14,16,20,.88); --chrome-nav:rgba(18,21,27,.92);
-  --chrome-line:rgba(38,44,56,.6); --hairline:rgba(255,255,255,.09);
-  --scrim:rgba(6,8,12,.6); --grabber:rgba(255,255,255,.16); --inset:rgba(255,255,255,.015);
-  --seg-thumb:#3d4658; --vinyl-hole:#0e1014; --shadow-ink:rgba(0,0,0,.5);
-  --dur-fast:.12s; --dur:.18s; --dur-slow:.28s;   /* 通用动效时长：悬停/按下 · 控件状态 · 面板进出 */
-  --ease-out:cubic-bezier(.2,.8,.3,1); --ease-soft:cubic-bezier(.4,0,.2,1);   /* 进场减速 · 状态过渡 */
-  --slide-ms:.32s; --slide-ease:cubic-bezier(.3,.8,.2,1);   /* 所有「滑块」的统一时长与缓动：Seg / 标签下划线 / 底栏胶囊 */
-  --switch-knob:#fff;   /* 开关旋钮：两套主题都是白 */
+  --accent-ink:#1e2430;
+  --dur-fast:.12s; --dur:.18s; --dur-slow:.28s; /* 通用动效时长：悬停/按下 · 控件状态 · 面板进出 */
+  --ease-out:cubic-bezier(.2,.8,.3,1); --ease-soft:cubic-bezier(.4,0,.2,1); /* 进场减速 · 状态过渡 */
+  --slide-ms:.32s; --slide-ease:cubic-bezier(.3,.8,.2,1); /* 所有「滑块」的统一时长与缓动：Seg / 标签下划线 / 底栏胶囊 */
+  --switch-knob:#fff; /* 开关旋钮：两套主题都是白 */
   /* 黑胶盘体本色：中性真黑（真实唱片是纯黑，不带界面主题的蓝灰调），不随主题变化 */
   --vinyl-rim:#1f1f1f; --vinyl-ring:#111; --vinyl-body:#030303;
   /* 碟盒材质本色不随界面主题改变；光泽使用固定环境光。 */
@@ -38,9 +26,7 @@
   --album-tray-black:#151719; --album-tray-white:#f1f0e9; --album-tray-clear:rgba(203,211,218,.16);
   --album-disc-base:#b8bec2; --album-disc-light:#f2f5f4; --album-disc-shade:#858c92; --album-disc-edge:#91989e;
   --radius:14px; --radius-sm:10px;
-  --brand-deepseek:#4d6bfe; --brand-claude:#d97757;   /* 第三方品牌色（服务商图标） */
-  --shadow:0 8px 28px rgba(0,0,0,.42);
-  --shadow-sm:0 4px 14px rgba(0,0,0,.35);
+  --brand-deepseek:#4d6bfe; --brand-claude:#d97757; /* 第三方品牌色（服务商图标） */
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
 }
 /* 主题 token：浅色值 = 默认；跟随系统时由 prefers-color-scheme 切深色，设置页显式选择经 data-theme 覆盖。
