@@ -1,6 +1,7 @@
 // Details：带平滑展开 / 收起的 <details>（键盘与读屏仍用原生语义）。
 // 原生 details 开合是瞬间的；这里点击 summary 时接管：展开 = 先置 open 再把内容高度从 0 动画到实际高度，
 // 收起 = 保持 open 把高度动画到 0 再摘掉 open。箭头始终是全站唯一的 Chevron，随逻辑状态旋转。
+// 逻辑开合状态落在 .is-open 上（样式里与开合同步的间距用它，别用 [open]：[open] 在收起动画结束时才摘掉，间距会在最后一刻跳变）。
 // 受控用法：传 open / onOpenChange；非受控用 defaultOpen。减少动态效果下直接切换。
 import {useEffect, useLayoutEffect, useRef, useState} from 'react';
 import type {MouseEvent, ReactNode} from 'react';
@@ -53,7 +54,7 @@ export function Details({summary, children, className = '', open, defaultOpen = 
   };
 
   return (
-    <details className={`details${className ? ` ${className}` : ''}`} open={isOpen || closing}>
+    <details className={`details${isOpen ? ' is-open' : ''}${className ? ` ${className}` : ''}`} open={isOpen || closing}>
       <summary onClick={toggle}><Chevron dir="right" open={isOpen}/>{summary}</summary>
       <div className="details-body" ref={body}>{children}</div>
     </details>

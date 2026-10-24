@@ -8,4 +8,5 @@
 .listing-analyze button{justify-self:start}
 .listing-publish{padding:var(--listing-gap);border:1px dashed var(--border-strong);border-radius:var(--radius)}
 .listing-publish summary{cursor:pointer;font-size:13px;font-weight:600}
-.listing-publish[open] summary{margin-bottom:10px}
+.listing-publish summary{transition:margin-bottom .28s cubic-bezier(.2,.8,.3,1)}
+.listing-publish.is-open summary{margin-bottom:10px}

@@ -110,6 +110,6 @@ test('Details：默认收起，defaultOpen 展开，箭头随逻辑状态', () =
   assert.doesNotMatch(closed, /open=""/);
   assert.match(closed, /<summary><span class="chev chev-right"/);
   const opened = render(ui.Details, {summary: '更多', defaultOpen: true, children: 'x'});
-  assert.match(opened, /<details class="details" open=""/);
+  assert.match(opened, /<details class="details is-open" open=""/);
   assert.match(opened, /chev chev-right is-open/);
 });
