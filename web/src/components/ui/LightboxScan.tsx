@@ -1,12 +1,10 @@
-// 灯箱里的「识别条码并查询」：用应用内的扫码识别器读当前这张照片，识别到有效条码后先在照片上
-// 框出条码位置（取景框收拢 + 确认），再交出去：
-//   · 编辑表单里（mode=form）：发 `record-barcode` 事件，由表单里的发行版检索区块就地查询，核对当前这张的发行版；
-//   · 详情照片墙里（mode=detail）：详情页收到 `detail-barcode` 后打开这张专辑的编辑表单并带着条码去查。
+// 编辑表单照片灯箱里的「识别条码并核对发行版」：用应用内的扫码识别器读当前这张照片，识别到有效条码后先在照片上
+// 框出条码位置（取景框收拢 + 确认），再发 `record-barcode` 事件，由表单里的发行版检索区块就地查询，核对当前这张的发行版。
+// 详情照片墙里不提供（2026-10-24 移除）。
 // 识别失败弹 toast，灯箱保持打开，可以翻到拍了条码的那张再试。
 import {useEffect, useState} from 'react';
 import {locateBarcode} from '../../core/photo-barcode';
 import type {BarcodeHit} from '../../core/photo-barcode';
-import {DETAIL_BARCODE} from '../../core/lookup-handoff';
 import {useApp} from '../../state/AppContext';
 
 export const RECORD_BARCODE = 'record-barcode';
@@ -27,7 +25,7 @@ function screenBox(src: string, hit: BarcodeHit): Box | null {
   return {left: cx - w / 2, top: cy - h / 2, width: w, height: h};
 }
 
-export function LightboxScan({src, mode, onDone}: {src: string; mode: 'form' | 'detail'; onDone: () => void}) {
+export function LightboxScan({src, onDone}: {src: string; onDone: () => void}) {
   const app = useApp();
   const [state, setState] = useState<'idle' | 'busy' | 'found'>('idle');
   const [box, setBox] = useState<Box | null>(null);
@@ -40,7 +38,7 @@ export function LightboxScan({src, mode, onDone}: {src: string; mode: 'form' | '
       setBox(screenBox(src, hit)); setState('found');
       await new Promise(r => window.setTimeout(r, hit.box ? HOLD_MS : 300));
       onDone();
-      window.dispatchEvent(new CustomEvent(mode === 'form' ? RECORD_BARCODE : DETAIL_BARCODE, {detail: hit.code}));
+      window.dispatchEvent(new CustomEvent(RECORD_BARCODE, {detail: hit.code}));
     } catch { setState('idle'); app.toast('识别器加载失败，请稍后重试', 'err'); }
   };
   return (
@@ -48,7 +46,7 @@ export function LightboxScan({src, mode, onDone}: {src: string; mode: 'form' | '
       {box ? <div className="lb-scan-box" style={box} aria-hidden="true"><i/><i/><i/><i/></div> : null}
       <div className="lb-scan">
         <button type="button" className="lb-scan-btn" disabled={state !== 'idle'} onClick={() => void run()}>
-          {state === 'busy' ? '识别中…' : state === 'found' ? '已识别 ✓' : mode === 'form' ? '识别条码并核对发行版' : '识别条码并查询'}
+          {state === 'busy' ? '识别中…' : state === 'found' ? '已识别 ✓' : '识别条码并核对发行版'}
         </button>
       </div>
     </>

@@ -3,7 +3,6 @@
 import {useEffect, useRef, useState} from 'react';
 import {barcodeFromPhotos} from '../../core/photo-barcode';
 import {RECORD_BARCODE} from '../../components/ui/LightboxScan';
-import {takeRecordBarcode} from '../../core/lookup-handoff';
 import {FocusInput} from '../../components/ui/FocusInput';
 import {BarcodeScanner, ScanField} from '../../components/BarcodeScanner';
 import {ReleaseCandidateCard, ReleaseSummary, sourceName} from '../../components/ReleaseCandidateCard/ReleaseCandidateCard';
@@ -64,9 +63,7 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, photoSource
     else setReadMsg(all ? '照片里没有识别到条码，可以手动输入或用相机扫' : '');
   };
   // 从详情里识别出的条码：表单一打开就带着它查询（先于照片自动识别）
-  const handedOver = useRef(takeRecordBarcode());
-  useEffect(() => { if (handedOver.current) { const c = handedOver.current; handedOver.current = ''; setReadMsg(`已从照片识别条码 ${c}`); scanned(c); } }, []);
-  const barcodeEmpty = !text && !working0(L) && !handedOver.current;
+  const barcodeEmpty = !text && !working0(L);
   const sourceKeys = photoSources.map(p => p.key).join(',');
   useEffect(() => { if (barcodeEmpty && !reading) void readPhotos(false); }, [sourceKeys, barcodeEmpty]);
   // 灯箱里识别到条码：直接就地查询当前这张的发行版

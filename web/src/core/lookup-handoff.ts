@@ -13,13 +13,3 @@ export function takeLookup(): string {
   pending = '';
   return code;
 }
-
-// 详情里识别出条码：交给随后打开的编辑表单，在它的「发行版」区块就地查询、核对当前这张的发行版
-let pendingRecord = '';
-export const DETAIL_BARCODE = 'detail-barcode';
-export function takeRecordBarcode(): string {
-  const code = pendingRecord;
-  pendingRecord = '';
-  return code;
-}
-export function queueRecordBarcode(code: string) { pendingRecord = code; }
