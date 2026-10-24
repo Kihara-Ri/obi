@@ -5,7 +5,7 @@ import type {AlbumRecord} from '../types';
 import type {AlbumOrientationPermission} from './useAlbumOrientation';
 import {useApp} from '../state/AppContext';
 import {publishedAlbum} from '../core/published-album';
-import {commitAnimationOpacity, containedImageRect, coverRectFrames} from '../core/gallery-zoom';
+import {commitAnimationOpacity, containedImageRect, coverRectFrames, FOCUS_RADIUS, THUMB_RADIUS} from '../core/gallery-zoom';
 import type {ZoomRect} from '../core/gallery-zoom';
 import {ChevLeftIco, ChevRightIco} from './icons';
 import {Seg} from './ui/Seg';
@@ -195,7 +195,7 @@ export function GalleryFocus({record, records, originElement, onNavigate, onClos
       // Animate image pixels only, with both endpoints fitted to the *same*
       // intrinsic aspect ratio. Text and the (possibly 3D) model do not stretch.
       element.style.opacity = '0'; element.style.pointerEvents = 'none';
-      const [from, to] = coverRectFrames(thumbnail, large);
+      const [from, to] = coverRectFrames(thumbnail, large, [THUMB_RADIUS, FOCUS_RADIUS]);
       Object.assign(proxy.style, {...from, opacity: '1'});
       const animation = proxy.animate([{...from, opacity: 1}, {...to, opacity: 1}],
         {duration: ZOOM_MS, easing: ZOOM_EASE, fill: 'both'});
@@ -228,13 +228,14 @@ export function GalleryFocus({record, records, originElement, onNavigate, onClos
     // If dismissed during an opening zoom, reverse from its actual on-screen
     // position instead of teleporting to the finished large cover first.
     const currentRect = ongoing && proxy ? proxy.getBoundingClientRect() : large;
+    const currentRadius = ongoing && proxy ? parseFloat(getComputedStyle(proxy).borderTopLeftRadius) || THUMB_RADIUS : FOCUS_RADIUS;
     element.getAnimations().forEach(item => item.cancel());
     visualAnimation.current = null;
     resetCoverProxy();
     let animation: Animation | null = null;
     if (current.current.record.cover && proxy && thumbnail && currentRect) {
       element.style.opacity = '0'; element.style.pointerEvents = 'none';
-      const [from, to] = coverRectFrames(currentRect, thumbnail);
+      const [from, to] = coverRectFrames(currentRect, thumbnail, [currentRadius, THUMB_RADIUS]);
       Object.assign(proxy.style, {...from, opacity: '1'});
       animation = proxy.animate([{...from, opacity: 1}, {...to, opacity: 1}],
         {duration: ZOOM_MS, easing: ZOOM_EASE, fill: 'both'});

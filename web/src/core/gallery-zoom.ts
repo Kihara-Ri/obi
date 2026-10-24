@@ -32,9 +32,12 @@ export function containedImageRect(box: ZoomRect, aspect: number): ZoomRect {
     top: box.top + (box.height - height) / 2, width, height};
 }
 
+/** 缩略图封面的圆角与聚焦后封面卡片的圆角（album-flip-card.css 的 .album-flip-face）；放大过渡里圆角随尺寸一起过渡，避免结束时骤变。 */
+export const THUMB_RADIUS = 2, FOCUS_RADIUS = 13;
+
 /** Animate a cover image by its painted bounds, never by stretching a title+scene wrapper. */
-export function coverRectFrames(from: ZoomRect, to: ZoomRect): [Record<string, string>, Record<string, string>] {
-  const frame = (rect: ZoomRect) => ({left: `${rect.left}px`, top: `${rect.top}px`,
-    width: `${rect.width}px`, height: `${rect.height}px`});
-  return [frame(from), frame(to)];
+export function coverRectFrames(from: ZoomRect, to: ZoomRect, radii?: [number, number]): [Record<string, string>, Record<string, string>] {
+  const frame = (rect: ZoomRect, radius?: number) => ({left: `${rect.left}px`, top: `${rect.top}px`,
+    width: `${rect.width}px`, height: `${rect.height}px`, ...(radius === undefined ? {} : {borderRadius: `${radius}px`})});
+  return [frame(from, radii?.[0]), frame(to, radii?.[1])];
 }
