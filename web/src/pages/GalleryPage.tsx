@@ -26,7 +26,7 @@ export function GalleryPage() {
   const scope = preferences.scope;
   const [query, setQuery] = useSessionState<string>('gallery-query', '');
   const pageRef = useRef<HTMLDivElement>(null);
-  const {immersive, chromeIdle, returning, leavingUi, enter: enterImmersive, exit: exitImmersive, probe} = useImmersive(pageRef, galleryModeHasFocus(preferences.mode) ? 'center' : 'top');
+  const {immersive, chromeIdle, enter: enterImmersive, exit: exitImmersive, probe} = useImmersive(pageRef);
 
   const [roaming, setRoaming] = useState(false);
   const [focused, setFocused] = useState<{id: string; originElement: HTMLElement | null} | null>(null);
@@ -140,7 +140,7 @@ export function GalleryPage() {
     pick(id); setFocused({id, originElement: null});
   };
 
-  return <div ref={pageRef} className={`gallery-page${immersive ? ' is-immersive' : ''}${immersive && chromeIdle ? ' is-chrome-idle' : ''}${returning ? ' is-returning' : ''}${leavingUi ? ' is-leaving' : ''}`}>
+  return <div ref={pageRef} className={`gallery-page${immersive ? ' is-immersive' : ''}${immersive && chromeIdle ? ' is-chrome-idle' : ''}`}>
     {focused && focusedRecord ? <GalleryFocus record={focusedRecord} records={records} originElement={focused.originElement}
       onNavigate={navigateFocus} onClose={closeFocus}
       liked={Boolean(albumLikes.favorites[focusedRecord.id])}

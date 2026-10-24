@@ -26,13 +26,11 @@
 .gallery-page.is-immersive.is-chrome-idle .page-head{opacity:0;pointer-events:none}
 .gallery-page.is-immersive .head-actions button{background:var(--chrome-nav);border:1px solid var(--border-strong);border-radius:999px;box-shadow:var(--shadow-sm);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 .gallery-page.is-immersive .page-head>div:first-child,.gallery-page.is-immersive .page-head::before{display:none}
-/* 控件区：进入沉浸时原地淡出（不占高度，舞台从它下面长上来），退出时淡回 */
-.gallery-page.is-immersive{position:relative}
-.gallery-page.is-immersive .gallery-controls{position:absolute;left:0;right:0;top:0;pointer-events:none;animation:gallery-controls-out .25s forwards}
-.gallery-page.is-returning .gallery-controls,.gallery-page.is-immersive.is-leaving .gallery-controls{animation:gallery-controls-in .35s}
-@keyframes gallery-controls-out{from{opacity:1;visibility:visible}to{opacity:0;visibility:hidden}}
-@keyframes gallery-controls-in{from{opacity:0}to{opacity:1}}
-@media (prefers-reduced-motion:reduce){.gallery-page.is-immersive .gallery-controls{animation:none;visibility:hidden}.gallery-page.is-returning .gallery-controls{animation:none}}
+/* 控件区在沉浸里不显示；进出时由 stage-expand 把它连同标题、底栏一起滑出 / 滑回 */
+.gallery-page.is-immersive .gallery-controls{display:none}
+@keyframes gallery-exit-in{from{opacity:0}to{opacity:1}}
+.gallery-page.is-immersive .page-head{animation:gallery-exit-in .3s}
+@media (prefers-reduced-motion:reduce){.gallery-page.is-immersive .page-head{animation:none}}
 .gallery-page.is-immersive .head-actions .theme-seg{display:none}
 
 @media(max-width:840px){

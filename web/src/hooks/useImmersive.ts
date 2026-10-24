@@ -3,8 +3,8 @@
 import {useEffect, useRef, useState} from 'react';
 import type {RefObject} from 'react';
 import {flushSync} from 'react-dom';
-import {growStage, prefersReducedMotion, shrinkStage} from '../core/stage-expand';
-import type {Motion, StageAnchor} from '../core/stage-expand';
+import {measureExits, prefersReducedMotion, runStage} from '../core/stage-expand';
+import type {Motion} from '../core/stage-expand';
 import {callNativeImmersive, inAndroidShell, readNativeImmersive} from '../core/android-immersive';
 import type {NativeCall, NativeReport} from '../core/android-immersive';
 
@@ -17,11 +17,9 @@ const setNativeImmersive = (on: boolean) => callNativeImmersive(on);
 
 const hasNativeImmersive = () => typeof (window as unknown as {ObiAndroid?: {setImmersive?: unknown}}).ObiAndroid?.setImmersive === 'function';
 
-export function useImmersive(page: RefObject<HTMLElement | null>, anchor: StageAnchor) {
+export function useImmersive(page: RefObject<HTMLElement | null>) {
   const [immersive, setImmersive] = useState(false);
   const [chromeIdle, setChromeIdle] = useState(false);
-  const [returning, setReturning] = useState(false);
-  const [leavingUi, setLeavingUi] = useState(false);
   const [probe, setProbe] = useState<ImmersiveProbe | null>(null);
   const lastCall = useRef<NativeCall>('none');
   const ownsFullscreen = useRef(false);
@@ -32,12 +30,15 @@ export function useImmersive(page: RefObject<HTMLElement | null>, anchor: StageA
 
   const stage = () => page.current?.querySelector<HTMLElement>('.gallery-stage-layout') ?? null;
   const settle = () => { motion.current?.cancel(); motion.current = null; };
-  // faded：退出动画期间控件已经淡回，不用再淡一次
-  const leave = (faded = false) => {
-    leaving.current = false;
-    flushSync(() => { setImmersive(false); setLeavingUi(false); setReturning(!faded); });
-    if (!faded) window.setTimeout(() => { if (mounted.current) setReturning(false); }, 400);
+  // 临时换上另一种版式量几何（同步量取，不会绘制），再还原
+  const withClass = <T,>(root: HTMLElement, cls: string, read: () => T): T => {
+    const keep = root.className;
+    root.className = cls;
+    const out = read();
+    root.className = keep;
+    return out;
   };
+  const leave = () => { leaving.current = false; flushSync(() => setImmersive(false)); };
   const exit = () => {
     if (leaving.current) return;
     const el = stage(), root = page.current;
@@ -48,24 +49,28 @@ export function useImmersive(page: RefObject<HTMLElement | null>, anchor: StageA
     ownsFullscreen.current = false;
     if (!el || !root || prefersReducedMotion()) { leave(); return; }
     leaving.current = true;
-    flushSync(() => setLeavingUi(true));
-    // 临时摘掉沉浸类量出舞台回到普通版式后的位置（同步量取，不会绘制），再在沉浸版式里缩过去
-    const cls = root.className;
-    root.className = 'gallery-page';
-    const target = el.getBoundingClientRect();
-    root.className = cls;
-    const controls = root.querySelector<HTMLElement>('.gallery-controls');
-    const anim = shrinkStage(el, target, anchor, controls ? [controls] : []);
+    const full = el.getBoundingClientRect();
+    const normal = withClass(root, 'gallery-page', () => el.getBoundingClientRect());
+    const exits = withClass(root, 'gallery-page', () => measureExits(root));
+    leave();
+    leaving.current = true;
+    const anim = runStage(el, {normal, full, exits}, true);
     motion.current = anim;
-    anim.finished.then(() => { if (motion.current !== anim) return; leave(true); requestAnimationFrame(settle); }, () => {});
+    anim.finished.then(() => { if (motion.current !== anim) return; settle(); leaving.current = false; }, () => {});
   };
   const enter = () => {
     leaving.current = false;
-    const el = stage();
-    const from = el?.getBoundingClientRect();
+    const el = stage(), root = page.current;
     settle();
-    flushSync(() => { setImmersive(true); setChromeIdle(false); });
-    if (el && from && !prefersReducedMotion()) motion.current = growStage(el, from, anchor);
+    const start = () => flushSync(() => { setImmersive(true); setChromeIdle(false); });
+    if (!el || !root || prefersReducedMotion()) start();
+    else {
+      const normal = el.getBoundingClientRect(), exits = measureExits(root);
+      const full = withClass(root, `${root.className} is-immersive`, () => el.getBoundingClientRect());
+      const anim = runStage(el, {normal, full, exits}, false);
+      motion.current = anim;
+      anim.finished.then(() => { if (motion.current !== anim) return; start(); settle(); }, () => {});
+    }
     setProbe(null);
     lastCall.current = setNativeImmersive(true);
     // 整个应用进入全屏，抽屉/灯箱仍处于可见树中；不支持时仍可隐藏导航展示。
@@ -133,5 +138,5 @@ export function useImmersive(page: RefObject<HTMLElement | null>, anchor: StageA
     return () => { window.clearTimeout(timer); events.forEach(e => window.removeEventListener(e, wake)); };
   }, [immersive]);
 
-  return {immersive, chromeIdle, returning, leavingUi, enter, exit, probe: immersive ? probe : null};
+  return {immersive, chromeIdle, enter, exit, probe: immersive ? probe : null};
 }
