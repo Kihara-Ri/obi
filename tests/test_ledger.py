@@ -408,10 +408,6 @@ class LedgerTests(unittest.TestCase):
     def test_rate_fields_never_persist(self):
         id=self.buy();r=dict(self.record(id));r['rate']='9.9'
         self.store.save(r);self.assertEqual(self.record(id)['cost'],'106.00')
-    def test_import_idempotent_raw_preserved(self):
-        source=[{'id':'old','title':'日文','artist':'歌手','note':'原始感想','rawRemark':'記録','purchase':{'date':'2026-01-01','currency':'RMB','priceValue':30}}]
-        self.store.import_data(source);self.store.import_data(source);b=self.store.backup()
-        self.assertEqual(len(b['records']),1);self.assertEqual(b['records'][0]['original'],source[0]);self.assertEqual(b['records'][0]['status'],'domestic')
     def test_backup_restore_roundtrip_with_shipments(self):
         a=self.buy();b=self.buy(price='1000');self.ship([a])
         sid=self.sell([b]);self.store.sale_action({'id':sid,'action':'receive','date':'2026-09-20'})
@@ -427,14 +423,6 @@ class LedgerTests(unittest.TestCase):
         self.store.restore_backup(legacy)
         rec=self.record('a1');sale=self.sale('s1')
         self.assertEqual(rec['status'],'domestic');self.assertNotIn('rate',rec);self.assertEqual(sale['status'],'complete')
-    def test_real_import(self):
-        # 框架仓库不含个人数据；把自己的 albums.json 放进 data/ 才跑此测试
-        src=Path(__file__).parents[1]/'data'/'albums.json'
-        if not src.exists(): return self.skipTest('data/albums.json 不存在')
-        self.store.rates=FakeRates({})
-        r=self.store.import_data(json.loads(src.read_text()))
-        self.assertGreater(r['count'],0)
-        self.assertEqual(len(self.store.state()['records']),r['count'])
     # ── 退役的 RYM 直达：历史数据保留，不再生成新绑定 ──
     def test_rym_settings_preserved_and_roundtrip(self):
         # meta 里的历史 rym 数据原样保留（只读通用路径），不删除、不覆盖、不迁移

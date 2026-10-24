@@ -4,6 +4,7 @@
 """
 import gzip
 import json
+import tempfile
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlsplit
 
@@ -151,6 +152,33 @@ def make_handler(svc):
                 return self.redirect_login()
             return static_files.serve(self, path)
 
+        def upload(self, fn, limit, length):
+            """整文件上传（routes.UPLOAD）：先验来源与登录，再把请求体分块写进数据目录里的临时文件，交给处理函数。"""
+            self.close_connection = True   # 出错时可能没读完请求体，不复用连接
+            if not self.trusted() or not self.authorized(): return
+            # 只收非「简单请求」类型：跨站表单发不出来，和 JSON 接口同一道防线
+            if self.headers.get('Content-Type', '').split(';')[0] not in ('application/zip', 'application/octet-stream'):
+                return self.send({'error': '请上传 zip 备份包'}, 415)
+            if not 0 < length <= limit:
+                return self.send({'error': f'文件为空或超过 {limit // 1024 ** 3} GB'}, 413)
+            folder = svc.store.path.parent
+            with tempfile.NamedTemporaryFile(prefix='.upload-', suffix='.zip', dir=folder) as f:
+                left = length
+                while left:
+                    block = self.rfile.read(min(left, 1024 * 1024))
+                    if not block: return self.send({'error': '上传中断，请重试'}, 400)
+                    f.write(block); left -= len(block)
+                f.flush()
+                try:
+                    with routes.WRITE_LOCK: fn(self, svc, f.name)
+                except ConflictError as e:
+                    self.send({'error': str(e)}, 409)
+                except (ValidationError, ValueError, TypeError, KeyError) as e:
+                    self.send({'error': str(e)}, 400)
+                except Exception:
+                    import traceback; traceback.print_exc()
+                    self.send({'error': '恢复失败，当前账本未改动，请重试'}, 500)
+
         def do_POST(self):
             # 先读完整请求体再分发：keep-alive 连接上未读的 body 字节会被误解析为下一个请求。
             # 无长度/超限的请求无法确定边界，读完响应即断开连接。
@@ -158,6 +186,8 @@ def make_handler(svc):
                 length = int(self.headers.get('Content-Length', 0))
             except ValueError:
                 length = -1
+            if urlsplit(self.path).path in routes.UPLOAD:
+                return self.upload(*routes.UPLOAD[urlsplit(self.path).path], length)
             raw = self.rfile.read(length) if 0 < length <= MAX_BODY else None
             if raw is None: self.close_connection = True
             if not self.trusted(allow_cross_site=urlsplit(self.path).path in routes.CROSS_SITE_POST): return

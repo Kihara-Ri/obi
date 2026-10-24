@@ -13,6 +13,7 @@ Worker 调用本模块的 handle()，数据写进浏览器（见 static/local/en
 import io
 import json
 import sys
+import tempfile
 import types
 from concurrent.futures import Future
 from email.parser import BytesHeaderParser
@@ -97,6 +98,13 @@ class Engine:
                 fn = routes.resolve_get(path)
                 if not fn: h.send({'error': '接口不存在'}, 404)
                 else: fn(h, self.svc)
+            elif path in routes.UPLOAD:
+                # 整文件上传：请求体已在内存里，落到数据目录内的临时文件再交给同一个处理函数
+                fn, limit = routes.UPLOAD[path]
+                if not body or len(body) > limit: raise ValidationError('文件为空或过大')
+                with tempfile.NamedTemporaryFile(prefix='.upload-', suffix='.zip', dir=self.svc.store.path.parent) as f:
+                    f.write(body); f.flush()
+                    with routes.WRITE_LOCK: fn(h, self.svc, f.name)
             else:
                 payload = json.loads(body or b'{}')
                 if not isinstance(payload, dict): raise ValidationError('请求格式不正确')

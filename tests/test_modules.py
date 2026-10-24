@@ -108,8 +108,6 @@ class ModuleTests(unittest.TestCase):
         self.assertEqual(self.store.state()['records'][0]['status'], 'domestic')
         with self.assertRaises(ValidationError):
             self.store.save({'title': '旧客户端', 'artist': '艺人', 'status': 'overseas'})
-        preview = self.store.import_preview([{'id': 'source-1', 'title': '导入', 'artist': '艺人', 'purchase': {'currency': 'JPY', 'priceValue': '200'}}])
-        self.assertEqual(preview['records'][0]['status'], 'domestic')
 
     def test_strict_configuration_and_dependency(self):
         for enabled in (None, {}, {'acquisition': 1, 'trading': False, 'circulation': False},

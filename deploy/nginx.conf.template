@@ -19,6 +19,26 @@ server {
     gzip_proxied any;
     gzip_vary on;
     gzip_types application/json application/javascript text/css image/svg+xml;
+    # 完整备份包（zip，含照片，可达数 GB）：恢复上传放宽体积、不在 nginx 落盘缓冲；下载生成可能较慢
+    location = /api/restore-archive {
+        client_max_body_size 4g;
+        proxy_request_buffering off;
+        proxy_pass http://127.0.0.1:8765;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_read_timeout 900s;
+        proxy_send_timeout 900s;
+    }
+    location = /api/backup {
+        proxy_pass http://127.0.0.1:8765;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_read_timeout 900s;
+    }
     location / {
         proxy_pass http://127.0.0.1:8765;
         proxy_http_version 1.1;

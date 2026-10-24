@@ -1,19 +1,12 @@
-/* 设置 · 数据：状态条、备份范围、危险块、导入步骤 */
+/* 设置 · 数据：状态条、备份范围、危险块 */
 .data-status{display:grid;gap:2px;padding:10px 12px;border-radius:var(--radius-sm);margin-bottom:8px!important;border:1px solid var(--border)}
 .data-status b{font-size:13.5px}
 .data-status.is-ok b{color:var(--green)}
 .data-status.is-warn b{color:var(--orange)}
 .data-scope{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
 .data-scope>div{background:var(--surface-2);border-radius:var(--radius-sm);padding:10px 12px}
-.data-scope h4,.data-sub{font-size:12.5px;margin:0 0 6px}
+.data-scope h4{font-size:12.5px;margin:0 0 6px}
 .data-scope ul{margin:0;padding-left:16px;font-size:12.5px;color:var(--muted);line-height:1.7}
-.data-sub{margin-top:18px}
 .data-block.is-danger{border-color:var(--red)}
 .data-block.is-danger h3{color:var(--red)}
-.data-steps{display:flex;gap:8px;list-style:none;margin:0 0 10px;padding:0;counter-reset:s}
-.data-steps li{counter-increment:s;font-size:12px;color:var(--muted)}
-.data-steps li::before{content:counter(s) ' ';font-weight:700}
-.data-steps li+li::before{content:'→ ' counter(s) ' '}
-.data-steps li.on{color:var(--text);font-weight:650}
-.data-steps li.done{color:var(--green)}
 @media (max-width:840px){.data-scope{grid-template-columns:1fr}}

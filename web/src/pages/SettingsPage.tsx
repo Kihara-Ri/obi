@@ -47,10 +47,7 @@ export function SettingsPage() {
             <div><dt>版本</dt><dd>{state.service?.version || 'dev'}</dd></div>
             {app.modules.acquisition ? <div><dt>汇率缓存</dt><dd>{state.rateService
               ? `${state.rateService.days} 天（最新 ${state.rateService.latest || '—'}）` : '不可用'}</dd></div> : null}
-            <div><dt>最近备份</dt><dd>{state.service?.backup?.last || '尚未生成'}</dd></div>
           </dl>
-          {state.service?.backup?.error
-            ? <p className="small-note" style={{color: 'var(--red)'}}>{state.service.backup.error}</p> : null}
           <Disclosure summary="匹配如何工作">
             <p>添加专辑时输入实物条形码，系统会从 MusicBrainz 搜索 CD 发行版本。确认对应版本后，自动填写专辑名、艺人、发行日期、厂牌及曲目，并记住该版本，无需重复选择。</p>
             <p>展示封面优先使用 iTunes 的干净数字封面；没有准确匹配时使用已确认 MusicBrainz 发行版的 Cover Art Archive 正面图。数字实体的背面、内页与盘面仍只从已核对的发行版本获取。<strong>这一流程无需配置 AI 模型或 API 密钥</strong>，但需要连接公开资料库。</p>

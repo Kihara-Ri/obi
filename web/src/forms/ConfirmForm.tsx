@@ -2,7 +2,7 @@
 // 提交时路由到对应 API。日期一律用「今天/昨天/选日期」快捷行；确认收货先给
 // 金额摘要（到手 / 利润 / 成交价口径），不可逆后果独立成警示行。
 import {useState} from 'react';
-import {api} from '../core/api';
+import {api, apiUpload} from '../core/api';
 import {shipFeeText, sum, today, yuan} from '../core/format';
 import {useApp} from '../state/AppContext';
 import type {BackupFile, Sale} from '../types';
@@ -45,12 +45,14 @@ function ReceiveSummary({sale: s}: {sale: Sale}) {
   );
 }
 
-export function ConfirmForm({kind, id, arriveCount, sale, restoreData}: {
+export function ConfirmForm({kind, id, arriveCount, sale, restoreData, restoreFile}: {
   kind: ConfirmKind;
   id?: string;
   arriveCount?: number;
   sale?: Sale;
   restoreData?: BackupFile;
+  /** 完整备份包（zip）：整包上传恢复；没有时按旧版 .json 备份（restoreData）恢复 */
+  restoreFile?: File;
 }) {
   const app = useApp();
   const {error, saving, run} = useFormSubmit();
@@ -62,7 +64,7 @@ export function ConfirmForm({kind, id, arriveCount, sale, restoreData}: {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     run(app, async () => {
-      if (kind === 'restore') return api('restore', restoreData);
+      if (kind === 'restore') return restoreFile ? apiUpload('restore-archive', restoreFile) : api('restore', restoreData);
       if (kind === 'arrive') return api('shipment-action', {id, action: 'arrive', date});
       if (kind === 'undo_arrive') return api('shipment-action', {id, action: 'undo_arrive'});
       if (kind === 'cancel_shipment') return api('shipment-action', {id, action: 'cancel'});
@@ -122,7 +124,9 @@ export function ConfirmForm({kind, id, arriveCount, sale, restoreData}: {
             <p>将替换当前数据：备份中有 <strong>{restoreData?.records.length}</strong> 张专辑、
               <strong>{restoreData?.shipments?.length ?? 0}</strong> 个包裹和
               <strong>{restoreData?.sales.length}</strong> 笔交易。</p>
-            <p className="small-note">备份日期：{restoreData?.createdAt}。恢复前会自动备份当前数据。</p>
+            <p className="small-note">备份日期：{restoreData?.createdAt?.replace('T', ' ')}。{restoreFile
+              ? `照片、封面等文件一并替换（${(restoreFile.size / 1048576).toFixed(1)} MB）。`
+              : '这是旧版备份，只有账本、不含照片：现有照片保留不动。'}恢复前会自动保存当前数据。</p>
             <label className="check-line">
               <input type="checkbox" required checked={ack} onChange={e => setAck(e.target.checked)}/>
               我确认用此备份替换当前数据

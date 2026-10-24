@@ -8,8 +8,7 @@ HTTP 细节在 server/ 包；业务逻辑在根目录模块
 
 所有参数均可用环境变量 HOST / PORT / DATA_DIR / PUBLIC_ORIGIN 提供（Docker 用）。
 """
-from contextlib import closing
-import argparse, getpass, json, os, signal, threading
+import argparse, getpass, os, signal, threading
 from pathlib import Path
 from urllib.parse import urlsplit
 from http.server import ThreadingHTTPServer
@@ -55,20 +54,6 @@ def build(data_dir, public_origin=None):
                     public_origin=public_origin)
 
 
-def seed_from_json(store, source=None):
-    """一次性导入 albums.json 采购记录（按 meta 标记幂等；文件放在数据目录）。
-
-    框架仓库不含任何数据；把自己的 albums.json 放进数据目录即可在首次启动导入。
-    """
-    if source is None:
-        source = Path(store.path).parent / 'albums.json'
-    with closing(store.connect()) as db, db:
-        if db.execute("SELECT 1 FROM meta WHERE key='seeded'").fetchone(): return
-    if not source.exists(): return
-    store.import_data(json.loads(source.read_text()))
-    with closing(store.connect()) as db, db: db.execute("INSERT OR REPLACE INTO meta VALUES('seeded','true')")
-
-
 def main():
     env = os.environ
     p = argparse.ArgumentParser()
@@ -95,8 +80,7 @@ def main():
         raise SystemExit('请先使用 --set-password 设置密码')
     if not svc.auth.configured(): svc.auth = None  # 本机模式不启用登录
     if not args.no_seed:
-        seed_from_json(svc.store)
-        seed_starter(svc.store)  # 空库才写示例专辑；须在 albums.json 导入之后
+        seed_starter(svc.store)  # 空库才写示例专辑
     svc.backups = Backups(svc.store.path); svc.backups.start()
     svc.artists.start_prewarm()  # 后台预取存量未绑定艺人（账本写入后的增量由路由触发）
     svc.twins.start()

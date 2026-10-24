@@ -454,37 +454,6 @@ class Store:
                        {'groupId': ident, 'before': old, 'after': incoming,
                         'beforeRevision': before['revision'], 'afterRevision': after['revision']})
         return {'ok': True, **after}
-    def import_preview(self, source):
-        if not isinstance(source,list) or len(source)>10000: raise ValidationError('请选择专辑 JSON 数组文件，最多 10000 条')
-        with closing(self.connect()) as db, db:
-            existing={r.get('sourceId') for r in self.rows(db,'records')}
-            modules = self.meta_get(db, 'modules-v1')
-        seen=set();good=[];errors=[];duplicates=0
-        for i,a in enumerate(source):
-            try:
-                if not isinstance(a,dict) or not a.get('id'): raise ValidationError('缺少原始 ID')
-                sid=str(a['id'])
-                if sid in seen: raise ValidationError('文件内 ID 重复')
-                seen.add(sid)
-                if sid in existing: duplicates+=1;continue
-                p=a.get('purchase',{})
-                r=clean_record({'title':a.get('title'),'artist':a.get('artist'),'date':p.get('date'),
-                    'price':p.get('priceValue'),'currency':p.get('currency'),'location':p.get('location'),
-                    'note':a.get('note',''),'rawRemark':a.get('rawRemark',''),'releaseYear':a.get('releaseYear','')})
-                status = default_status(r['currency']) if modules is None or modules['circulation'] else 'domestic'
-                r.update(id=uid(),sourceId=sid,original=a,status=status,revision=1,createdAt=now())
-                good.append(r)
-            except (ValidationError,TypeError,AttributeError) as e: errors.append(f'第 {i+1} 条：{e}')
-        return {'records':good,'skipped':duplicates,'errors':errors}
-    def import_data(self, source):
-        preview=self.import_preview(source)
-        if preview['errors']: raise ValidationError('；'.join(preview['errors'][:5]))
-        self.checkpoint()
-        with closing(self.connect()) as db, db:
-            for r in preview['records']: self.put(db,'records',r)
-            self._album_catalog(db)
-            self.audit(db,'导入专辑',{'count':len(preview['records']),'skipped':preview['skipped']})
-        return {'count':len(preview['records']),'skipped':preview['skipped']}
     def prepare_photos(self, rid, entries):
         """Validate photo entries against the current set; returns [(ext, bytes)].
 

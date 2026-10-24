@@ -1,6 +1,8 @@
 """浏览器本机模式（server/local_entry.py）：路由分发与出站请求替换，不需要浏览器即可验证。"""
 import concurrent.futures
+import io
 import json
+import zipfile
 import tempfile
 import unittest
 from urllib import error, request
@@ -57,7 +59,9 @@ class EngineTests(unittest.TestCase):
 
     def test_backup_roundtrip_keeps_amounts_as_strings(self):
         self.call('POST', '/api/records', {'title': 'T', 'artist': 'A', 'price': '1000', 'currency': 'JPY'})
-        backup = json.loads(self.call('GET', '/api/backup')[2])
+        status, headers, raw = self.call('GET', '/api/backup')
+        self.assertEqual(headers['Content-Type'], 'application/zip')
+        with zipfile.ZipFile(io.BytesIO(raw)) as z: backup = json.loads(z.read('ledger.json'))
         self.assertTrue(any(r['price'] == '1000.00' for r in backup['records']))
         with tempfile.TemporaryDirectory() as other:
             fresh = local_entry.Engine(other)

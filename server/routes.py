@@ -14,7 +14,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from domain import ValidationError, clean_start_page
 from storage import SCHEMA
-from . import export_csv
+from . import archive, export_csv
 from .artists import SourceUnavailableError
 from .state_sync import send_state
 from .version import uptime, version
@@ -116,7 +116,8 @@ def api_album_favorite(h, svc, body):
 
 
 def api_backup(h, svc):
-    h.send(svc.store.backup(), filename='album-ledger-backup.json')
+    """完整备份包（zip：账本 + 照片 / 封面 / 实体文件），见 server/archive.py。"""
+    h.send(archive.build(svc.store), mime='application/zip', filename=archive.file_name())
 
 
 def api_export(h, svc):
@@ -300,9 +301,6 @@ def api_sale_update(h, svc, body): h.send(svc.store.update_sale(body))
 def api_shipments(h, svc, body): h.send(svc.store.ship(body))
 def api_shipment_action(h, svc, body): h.send(svc.store.shipment_action(body))
 def api_shipment_update(h, svc, body): h.send(svc.store.update_shipment(body))
-def api_import(h, svc, body):
-    h.send(svc.store.import_data(body.get('albums')))
-    prewarm(svc)
 def api_restore(h, svc, body):
     h.send(svc.store.restore_backup(body))
     prewarm(svc)
@@ -523,12 +521,6 @@ def api_twin_asset(h, svc):
     h.send(path.read_bytes(), mime=mimetypes.guess_type(path.name)[0] or 'image/jpeg', cache='private, max-age=31536000, immutable')
 
 
-def api_import_preview(h, svc, body):
-    p = svc.store.import_preview(body.get('albums'))
-    h.send({'count': len(p['records']), 'skipped': p['skipped'], 'errors': p['errors'],
-            'titles': [r['title'] for r in p['records'][:8]]})
-
-
 # ── 路由表 ───────────────────────────────────────────────────────────
 GET = {
     '/api/health': api_health,
@@ -595,8 +587,6 @@ POST = {
     '/api/shipments': (api_shipments, True, True),
     '/api/shipment-action': (api_shipment_action, True, True),
     '/api/shipment-update': (api_shipment_update, True, True),
-    '/api/import-preview': (api_import_preview, True, True),
-    '/api/import': (api_import, True, True),
     '/api/restore': (api_restore, True, True),
     '/api/modules': (api_modules, True, True),
     '/api/showcase/groups': (api_showcase_groups, True, True),
@@ -608,6 +598,17 @@ POST = {
 
 # 允许跨站（外部页面）调用的写接口；当前为空，保留豁免管线供未来令牌鉴权回调使用
 CROSS_SITE_POST: set = set()
+
+# 上传整个文件的写接口（请求体不是 JSON）：路径 → (处理函数, 请求体上限字节)。处理函数拿到的是落盘后的临时文件路径。
+# 服务器与本机模式都按这里分发（server/http.py、server/local_entry.py），都需登录并持写锁。
+def api_restore_archive(h, svc, path):
+    h.send(archive.restore(svc.store, path))
+    prewarm(svc)
+
+
+UPLOAD = {
+    '/api/restore-archive': (api_restore_archive, archive.MAX_UPLOAD),
+}
 
 
 def resolve_get(path):

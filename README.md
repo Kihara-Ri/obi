@@ -92,7 +92,7 @@ python3 app.py            # Python 3.10+，无需安装任何依赖
 
 Mac 上也可以直接双击 `启动 Obi.command`。
 
-有历史采购记录（albums.json 格式）？把它放进数据目录（`data/`），首次启动自动导入。公网部署（HTTPS 反代 + 登录密码 + 异地备份）见[部署说明](部署说明.md)。
+公网部署（HTTPS 反代 + 登录密码 + 异地备份）见[部署说明](部署说明.md)。
 
 ## 结构
 
@@ -113,7 +113,7 @@ static/           构建产物与 PWA 资源（npm --prefix web run build）
 Dockerfile        多阶段构建：Node 打前端 → 纯标准库 Python 运行
 docker-compose.yml  一键部署 + 可选 Litestream 异地备份
 deploy/           systemd / nginx / Litestream 配置（裸机方案）
-tools/            deploy.sh 发布 · 打包 · 数据导入脚本
+tools/            deploy.sh 发布 · 打包 · 样本与校验脚本
 ```
 
 ## 文档
