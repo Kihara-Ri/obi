@@ -8,7 +8,7 @@ importScripts('/local/pyodide/pyodide.js');
 
 const channel = new BroadcastChannel('obi-api');
 const say = (m) => postMessage(m);
-const NET_ROUTES = /^\/api\/(rate|release-details|catalog\/|covers\/(search|download))/;
+const NET_ROUTES = /^\/api\/(rate|release-details|catalog\/|covers\/(search|download|fallback))/;
 let role = 'main';
 let engine = null;
 let pyodide = null;

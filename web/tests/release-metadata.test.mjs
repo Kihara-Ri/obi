@@ -4,7 +4,7 @@ import {join} from 'node:path';
 import {compiledSources} from './helpers/compiled-sources.mjs';
 
 const {output, require} = compiledSources();
-const {displayReleaseTitle, releaseRegion, exactDigitalCover, regionName, displayRegion} = require(join(output, 'core/release-metadata.js'));
+const {displayReleaseTitle, releaseRegion, regionName, displayRegion} = require(join(output, 'core/release-metadata.js'));
 
 test('MusicBrainz editorial square brackets do not pollute display titles', () => {
   assert.equal(displayReleaseTitle('[Led Zeppelin IV]'), 'Led Zeppelin IV');
@@ -19,16 +19,6 @@ test('Release country maps to the historical Japan/overseas labels, never invent
   assert.equal(releaseRegion(''), '');
 });
 
-test('iTunes digital artwork wins only on exact artist and album matches', () => {
-  const choices = [
-    {exact: false, provider: 'iTunes', token: 'similar-title'},
-    {exact: true, provider: 'MusicBrainz / Cover Art Archive', token: 'physical-scan'},
-    {exact: true, provider: 'iTunes', token: 'digital-master'},
-  ];
-  assert.equal(exactDigitalCover(choices)?.token, 'digital-master');
-  assert.equal(exactDigitalCover(choices.slice(0, 2)), undefined);
-  assert.equal(exactDigitalCover([]), undefined);
-});
 test('列表与详情显示地区名；国家未知才退回日版 / 外版；表外代码原样显示', () => {
   assert.equal(regionName('US'), '美国');
   assert.equal(regionName('jp'), '日本');

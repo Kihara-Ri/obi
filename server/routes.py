@@ -157,6 +157,11 @@ def api_covers_search(h, svc, body):
     h.send(svc.covers.search(body.get('title', ''), body.get('artist', ''), body.get('country', 'AUTO'), body.get('releaseId')))
 
 
+def api_covers_fallback(h, svc, body):
+    """版本自己没有封面时的退路：同一张专辑的封面 → 同名 iTunes 数字封面（covers.fallback）。"""
+    h.send({'candidate': svc.covers.fallback(body.get('title', ''), body.get('artist', ''), body.get('releaseId'))})
+
+
 def api_covers_download(h, svc, body):
     result = svc.covers.download(body.get('token'))
     # stash（服务器模式的专辑表单带）：下载后立刻按内容哈希落盘，只回 /api/cover/ 短引用，
@@ -574,6 +579,7 @@ POST = {
     '/api/shops/retry': (api_shop_retry, True, False),
     '/api/covers/search': (api_covers_search, True, False),
     '/api/covers/download': (api_covers_download, True, False),
+    '/api/covers/fallback': (api_covers_fallback, True, False),
     '/api/artists/resolve': (api_artists_resolve, True, False),
     '/api/artists/bind': (api_artists_bind, True, False),
     '/api/artists/work-link': (api_artists_work_link, True, False),

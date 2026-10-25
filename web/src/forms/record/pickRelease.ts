@@ -39,7 +39,7 @@ export interface PickDeps {
 
 export async function pickRelease(candidate: ReleaseCandidate, d: PickDeps) {
   const {ctx, cover, sequence, verified} = d;
-  const {v, set, base, dirty, formRef} = ctx;
+  const {v, set, dirty, formRef} = ctx;
   const seq = ++sequence.current;
   const current = () => seq === sequence.current && !!formRef.current?.isConnected;
   const discogs = candidate.source === 'discogs';
@@ -50,7 +50,7 @@ export async function pickRelease(candidate: ReleaseCandidate, d: PickDeps) {
   // 封面只依赖候选的标题与艺人，与曲目详情并行查找，不必等详情返回。
   // 已有封面（含旧记录里本来就正确的封面）一律保留：只在没有封面时自动匹配，想换封面由用户点「重新匹配」。
   const coverTask = !cover.hasCover
-    ? matchReleaseCover(candidate, discogs, () => seq === sequence.current) : null;
+    ? matchReleaseCover(candidate, () => seq === sequence.current) : null;
   d.setBusy(true); d.setMessage('读取曲目与资料…');
   let releaseInfo: ReleaseInfo = {...candidate.releaseInfo, ...identity};
   let detailUnavailable = false;
@@ -72,21 +72,26 @@ export async function pickRelease(candidate: ReleaseCandidate, d: PickDeps) {
   d.setMessage(detailUnavailable ? '曲目详情暂不可用' : '');
   d.setBusy(false);
   if (!coverTask) cover.setCoverStatus('保留现有封面');
-  if (coverTask) {
-    // 只有找到新封面才写入；没找到时保持无封面状态，不会动任何已有封面
-    cover.setCandidates([]);
-    cover.setCoverStatus('查找中…');
-    cover.setBusy(true);
-    const found = await coverTask;
-    if (!current()) return;
-    cover.setBusy(false);
-    if (found) {
-      if (found.cover) {
-        base.current = {...base.current, cover: found.cover, coverSource: found.coverSource};
-        cover.setHasCover(true);
-      }
-      cover.setCoverStatus(found.status);
-    }
-  }
+  else if (!await applyCover(coverTask, ctx, cover, current)) return;
   dirty();
+}
+
+/** 把自动匹配到的封面写进表单：只有找到新封面才写入，没找到时保持无封面，不会动任何已有封面。
+ * 「选用此版本」与从查询页「以此入库」带入的新表单共用。返回 false 表示表单已换了别的版本或已关闭。 */
+export async function applyCover(task: ReturnType<typeof matchReleaseCover>, ctx: FormCtx, cover: CoverSearch,
+                                 current: () => boolean): Promise<boolean> {
+  cover.setCandidates([]);
+  cover.setCoverStatus('查找中…');
+  cover.setBusy(true);
+  const found = await task;
+  if (!current()) return false;
+  cover.setBusy(false);
+  if (found) {
+    if (found.cover) {
+      ctx.base.current = {...ctx.base.current, cover: found.cover, coverSource: found.coverSource};
+      cover.setHasCover(true);
+    }
+    cover.setCoverStatus(found.status);
+  }
+  return true;
 }

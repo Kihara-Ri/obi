@@ -92,6 +92,7 @@ class CoverService:
         self.cache = {}
         self.choices = {}
         self.images = {}
+        self.fallbacks = {}   # (标题, 艺人, 版本) → 退路封面候选或 None
         # RLock：search 持锁期间会调用 candidate，candidate 内也要登记 choices
         self.lock = threading.RLock()
         self.last_search = 0
@@ -162,11 +163,8 @@ class CoverService:
             more=self.layered_search(ident['title'], ident['artist'])['candidates']
         if ident['group']:
             try:
-                art=self.metadata('https://coverartarchive.org/release-group/'+ident['group'])
-                front=next((i for i in art.get('images',[]) if i.get('front') and i.get('approved')),None)
-                if front:
-                    u=front.get('thumbnails',{}).get('500') or front.get('thumbnails',{}).get('large') or front.get('image','')
-                    if u.startswith('http://'):u='https://'+u[7:]
+                u=self.group_front(ident['group'])
+                if u:
                     c=self.candidate(ident['title'],ident['artist'],ident['groupTitle'],ident['artist'],'CAA-'+ident['group'],u,
                                      provider='MusicBrainz / Cover Art Archive',page='https://musicbrainz.org/release-group/'+ident['group'])
                     c['exact']=False   # 同专辑不同版次的图，只作候选
@@ -296,6 +294,43 @@ class CoverService:
                 continue
         return None
 
+    def group_front(self, gid):
+        """同一张专辑（release-group）的正面图：先找其中 CD 版本的，再退到专辑组自己的图；没有返回 None。"""
+        url=self.group_cd_front(gid)
+        if url:return url
+        art=self.metadata('https://coverartarchive.org/release-group/'+gid)
+        front=next((i for i in art.get('images',[]) if i.get('front') and i.get('approved')),None)
+        if not front:return None
+        url=front.get('thumbnails',{}).get('500') or front.get('thumbnails',{}).get('large') or front.get('image','')
+        return 'https://'+url[7:] if url.startswith('http://') else url
+
+    def fallback(self, title, artist, release_id=None):
+        """版本自己没有正面图时的退路（版本卡片与选用后的自动匹配共用）：
+        同一张专辑的封面（已确认 MusicBrainz 版本的 release-group；否则同名同艺人的专辑组）→ 同名同艺人的 iTunes 数字封面。
+        只取名字精确对上的，宁可没有也不拿别的专辑；kind 说明借的是哪一种，界面据此提示「不一定是这个版本的包装」。"""
+        title, artist = str(title).strip(), str(artist).strip()
+        key=(title, artist, str(release_id or ''))
+        with self.lock:
+            if key in self.fallbacks: return self.fallbacks[key]
+        found=None
+        ident=self.release_identity(release_id) if release_id else None
+        if ident and ident['group']:
+            try:
+                url=self.group_front(ident['group'])
+                if url:
+                    found={**self.candidate(ident['title'] or title, ident['artist'] or artist, ident['groupTitle'] or title,
+                                            ident['artist'] or artist, 'CAA-'+ident['group'], url,
+                                            provider='MusicBrainz / Cover Art Archive',
+                                            page='https://musicbrainz.org/release-group/'+ident['group']), 'kind':'album'}
+            except ValidationError: pass
+        if not found and title and artist:
+            choices=self.search(title, artist, 'AUTO', release_id)['candidates']
+            album=next((c for c in choices if c['exact'] and 'Cover Art Archive' in c.get('provider','')), None)
+            digital=next((c for c in choices if c['exact'] and c.get('provider')=='iTunes'), None)
+            found={**album,'kind':'album'} if album else {**digital,'kind':'digital'} if digital else None
+        with self.lock: self.fallbacks[key]=found
+        return found
+
     def archive_candidates(self,title,artist):
         # Quoted Lucene values keep punctuation in album/artist names literal.
         lucene_quote=lambda v:'"'+v.replace('\\','\\\\').replace('"','\\"')+'"'
@@ -312,18 +347,10 @@ class CoverService:
             if similarity(title,name)<.65 or not artist_matches(artist,who,loose=True):continue
             if not re.fullmatch(r'[0-9a-f-]{36}',g.get('id','')):continue
             wanted.append((g,name,who))
-        def front_url(gid):
-            url=self.group_cd_front(gid)
-            if url:return url
-            art=self.metadata('https://coverartarchive.org/release-group/'+gid)
-            front=next((i for i in art.get('images',[]) if i.get('front') and i.get('approved')),None)
-            if not front:return None
-            url=front.get('thumbnails',{}).get('500') or front.get('thumbnails',{}).get('large') or front.get('image','')
-            return 'https://'+url[7:] if url.startswith('http://') else url
         # 各专辑组互不依赖：并行取图（MusicBrainz 仍由共用节流排队，CAA 是另一主机，可同时进行）
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(max_workers=max(1,len(wanted))) as pool:
-            futures=[pool.submit(front_url,g['id']) for g,_,_ in wanted]
+            futures=[pool.submit(self.group_front,g['id']) for g,_,_ in wanted]
         candidates=[]
         for (g,name,who),future in zip(wanted,futures):
             gid=g['id']

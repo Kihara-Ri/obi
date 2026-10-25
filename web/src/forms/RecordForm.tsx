@@ -17,6 +17,8 @@ import {usePhotoSlots} from './PhotoSlots';
 import {useFormSubmit} from './shared';
 import {buildPayload} from './record/buildPayload';
 import {initialValues, seedFields, type FormCtx, type RecordValues} from './record/context';
+import {applyCover} from './record/pickRelease';
+import {matchReleaseCover} from './record/releaseCover';
 import {MoneySection} from './record/MoneySection';
 import {PhotoEntry} from './record/PhotoEntry';
 import {PackageReview, ReleaseDetails} from './record/ReleaseDetails';
@@ -53,6 +55,13 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
 
   const cover = useCoverSearch(ctx, !!r?.cover);
   const lookup = useReleaseLookup(ctx, cover, r);
+  // 从查询页带入的版本：和「选用此版本」一样自动配封面（此版本自己的 → 同一张专辑的 → iTunes 数字封面）
+  useEffect(() => {
+    if (!seed || cover.hasCover) return;
+    const before = base.current.cover;   // 期间用户自己换 / 上传了封面，或改选了别的版本：不再覆盖
+    const alive = () => !!formRef.current?.isConnected && base.current.cover === before;
+    void applyCover(matchReleaseCover(seed, alive), ctx, cover, alive).then(ok => { if (ok) dirty(); });
+  }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   const {hints, dupHint, onTitleInput, onArtistInput, applyHint} = useRecordHints(ctx, cover);
   const preview = useCostPreview(v, modules.acquisition && !id);
   const photos = usePhotoSlots(
