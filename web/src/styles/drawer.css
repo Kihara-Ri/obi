@@ -347,9 +347,13 @@ details.adv:not([open]) > :not(summary){display:none}
   border-radius:var(--radius-sm);border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text);font-size:14px;font-weight:600}
 .detail-page .entry-btn i{font-style:normal;font-size:22px;color:var(--faint)}
 .detail-page .entry-btn:hover{border-color:var(--accent-deep)}
-/* 封面行嵌在已确认版本卡里：去掉自己的边框背景，缩略图已在卡片头部 */
-.cover-search.is-inline{margin-top:0}
-.cover-search.is-inline .cover-row{padding:0;border:0;background:none}
+/* 封面行嵌在已确认版本卡里：缩略图（带来源角标）已在卡片头部；这里细线隔开，
+   状态一句话占整行，两个按钮并排等宽，不再把文字挤成两行 */
+.cover-search.is-inline{margin-top:0;padding-top:12px;border-top:1px solid var(--border)}
+.cover-search.is-inline .cover-row{padding:0;border:0;background:none;flex-wrap:wrap;gap:10px}
+.cover-search.is-inline .cover-info{flex-basis:100%}
+.cover-search.is-inline .cover-actions{flex:1;flex-direction:row;gap:8px}
+.cover-search.is-inline .cover-actions>button{flex:1;min-height:40px}
 
 /* 详情封面点开就地放大（与查询页 / 编辑页共用 useArtExpand；.rcc-break 为换行占位） */
 .record-detail .big-zoom{cursor:zoom-in}

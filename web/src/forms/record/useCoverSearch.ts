@@ -14,7 +14,7 @@ export const dropCandidate = (list: CoverCandidate[], token: string) => list.fil
 
 export function useCoverSearch(ctx: FormCtx, hadCover: boolean) {
   const {v, base, dirty, formRef} = ctx;
-  const [coverStatus, setCoverStatus] = useState(hadCover ? '使用现有封面' : '尚无封面');
+  const [coverStatus, setCoverStatus] = useState(hadCover ? '使用现有封面' : '还没有封面');
   const [candidates, setCandidates] = useState<CoverCandidate[]>([]);
   const [hasCover, setHasCover] = useState(hadCover);
   const [busy, setBusy] = useState(false);
@@ -30,7 +30,7 @@ export function useCoverSearch(ctx: FormCtx, hadCover: boolean) {
       if (!stillCurrent(key)) return;
       base.current = {...base.current, cover: result.cover, coverSource: result.coverSource};
       setHasCover(true);
-      setCoverStatus(`已匹配 · ${result.coverSource.title}`);
+      setCoverStatus('已换成所选封面');
       setCandidates([]);
       dirty();
     } catch (err) {
@@ -49,7 +49,7 @@ export function useCoverSearch(ctx: FormCtx, hadCover: boolean) {
       base.current = {...base.current, cover: data, coverSource: {title: '', artist: '', provider: 'upload'}};
       setHasCover(true);
       setCandidates([]);
-      setCoverStatus('已使用自己上传的封面');
+      setCoverStatus('已用你上传的封面');
       dirty();
     } catch (err) {
       setCoverStatus(err instanceof Error ? err.message : String(err));

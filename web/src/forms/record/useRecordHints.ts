@@ -24,7 +24,7 @@ export function useRecordHints(ctx: FormCtx, cover: CoverSearch) {
     }
     set({title: m.title, artist});
     if (m.cover) { base.current = {...base.current, cover: m.cover}; cover.setHasCover(true); }
-    cover.setCoverStatus(m.cover ? '已带入库内封面' : '尚无封面');
+    cover.setCoverStatus(m.cover ? '已带入库内封面' : '还没有封面');
     setHints({label: '已带入库内资料，可继续修改。', items: []});
     dirty();
   }
@@ -33,7 +33,7 @@ export function useRecordHints(ctx: FormCtx, cover: CoverSearch) {
     if (norm(value) !== norm(base.current.title || '')) artistAuto.current = false;
     set({title: value});
     dirty();
-    cover.setCoverStatus(cover.hasCover ? '使用现有封面' : '尚无封面');
+    cover.setCoverStatus(cover.hasCover ? '使用现有封面' : '还没有封面');
     clearTimeout(timer.current);
     timer.current = window.setTimeout(() => {
       const q = value.trim();

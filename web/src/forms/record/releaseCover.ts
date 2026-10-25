@@ -20,7 +20,7 @@ export async function matchReleaseCover(candidate: ReleaseCandidate, isCurrent: 
     if (!isCurrent()) return null;
     if (front?.cover) {
       return {cover: front.cover, coverSource: {title: candidate.title, artist: candidate.artist, provider: 'Cover Art Archive（此版本）'},
-        status: '已匹配 · 此版本封面（Cover Art Archive）'};
+        status: '此版本自己的封面'};
     }
   }
   const found = await borrowed;
@@ -31,8 +31,8 @@ export async function matchReleaseCover(candidate: ReleaseCandidate, isCurrent: 
         'covers/download', {token: found.token, ...(stashCovers() ? {stash: true} : {})});
       if (!isCurrent()) return null;
       if (image.cover) return {cover: image.cover, coverSource: image.coverSource,
-        status: found.kind === 'album' ? '已匹配 · 同一张专辑的封面（不一定是此版本）' : '已匹配 · iTunes 数字封面（不一定是此版本）'};
+        status: found.kind === 'album' ? '借用同专辑的封面，包装可能不同' : '借用 iTunes 数字封面，包装可能不同'};
     } catch { /* 网络或封面错误不影响已确认的发行版 */ }
   }
-  return {status: '这张专辑暂时找不到封面，可点「换一张封面」或上传'};
+  return {status: '没找到封面，可以换一张或上传'};
 }
