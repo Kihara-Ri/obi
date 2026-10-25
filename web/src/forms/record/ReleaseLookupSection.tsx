@@ -6,6 +6,7 @@ import {RECORD_BARCODE} from '../../components/ui/LightboxScan';
 import {FocusInput} from '../../components/ui/FocusInput';
 import {BarcodeScanner, ScanField} from '../../components/BarcodeScanner';
 import {ReleaseCandidateCard, ReleaseSummary, sourceName} from '../../components/ReleaseCandidateCard/ReleaseCandidateCard';
+import type {CoverOrigin} from '../../core/version-cover';
 import {CoverPanel} from './CoverPanel';
 import type {CoverSearch} from './useCoverSearch';
 import type {RecordValues} from './context';
@@ -23,8 +24,8 @@ const working0 = (L: ReleaseLookup) => L.busy || L.verification === 'pending';
 const summaryShown = (v: RecordValues, L: ReleaseLookup) =>
   !!(v.title && v.artist) && !L.candidates.length;
 
-export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, photoSources = []}: {
-  v: RecordValues; lookup: ReleaseLookup; cover: CoverSearch; coverSrc: string;
+export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, coverOrigin, photoSources = []}: {
+  v: RecordValues; lookup: ReleaseLookup; cover: CoverSearch; coverSrc: string; coverOrigin?: CoverOrigin | null;
   /** 已就绪的实物照片（key 标识同一张，src 可直接加载）；条码为空时自动从中识别 */
   photoSources?: {key: string; src: string}[];
 }) {
@@ -77,7 +78,11 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, photoSource
   const working = L.busy || L.verification === 'pending';
   const phase: Phase = working ? 'busy' : L.candidates.length ? 'choose' : L.notFound ? 'miss'
     : L.manualRelease ? 'manual' : confirmed && L.verification === 'verified' ? 'ok' : 'idle';
-  const status = phase === 'ok' ? `已确认 · ${sourceName(info)}` : L.message
+  const sourceUrl = info.musicBrainzReleaseId ? 'https://musicbrainz.org/release/' + info.musicBrainzReleaseId
+    : 'https://www.discogs.com/release/' + info.discogsReleaseId;
+  // 已确认：来源链接只在这一行出现（摘要头部不再重复一个来源标）
+  const status = phase === 'ok' ? <>已确认 · <a className="lookup-source" href={sourceUrl} target="_blank" rel="noopener noreferrer"
+    aria-label={`在 ${sourceName(info)} 查看`}>{sourceName(info)} ↗</a></> : L.message
     || (phase === 'manual' ? (info.unofficial === '1' ? '非官方发行 · 未经资料库核对' : '手动录入 · 未经资料库核对') : v.title && !confirmed ? '尚未确认发行版' : '');
   return (
     <section className="record-barcode-entry form-section">
@@ -109,10 +114,9 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, photoSource
           </button>}</ReleaseCandidateCard>)}
       </ul> : null}
       {summaryShown(v, L) ? <div className="rcc is-confirmed">
-        <ReleaseSummary title={v.title} artist={v.artist} info={info} art={coverSrc}
-          source={confirmed ? sourceName(info) : info.unofficial === '1' ? '非官方' : L.manualRelease ? '手动' : '未确认'}
-          url={confirmed ? (info.musicBrainzReleaseId ? 'https://musicbrainz.org/release/' + info.musicBrainzReleaseId
-            : 'https://www.discogs.com/release/' + info.discogsReleaseId) : undefined}/>
+        <ReleaseSummary title={v.title} artist={v.artist} info={info} art={coverSrc} origin={coverOrigin}
+          source={phase === 'ok' ? undefined : confirmed ? sourceName(info) : info.unofficial === '1' ? '非官方' : L.manualRelease ? '手动' : '未确认'}
+          url={confirmed ? sourceUrl : undefined}/>
         <CoverPanel cover={cover} src={coverSrc} busy={cover.busy} inline/>
       </div> : null}
           <FocusInput open={editing} title="查询发行版" value={text} placeholder="条形码，或唱片编号如 AMCY-2434"

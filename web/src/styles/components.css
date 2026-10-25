@@ -117,3 +117,5 @@ img.cover.is-ready{opacity:1}
   .empty{animation:empty-in .36s var(--ease-out) backwards}
 }
 @keyframes empty-in{from{opacity:0;translate:0 8px}to{opacity:1;translate:0 0}}
+/* 封面来源角标（查询页专辑列表、版本卡片、表单里的已确认版本共用）：贴封面右下角，外层需 position:relative */
+.cover-origin{position:absolute;right:2px;bottom:2px;padding:0 4px;border-radius:4px;background:var(--surface-3);color:var(--text);opacity:.92;font:600 9px/14px var(--font);font-style:normal;letter-spacing:.2px;pointer-events:none;white-space:nowrap}

@@ -53,7 +53,7 @@ function Album({hit, owned, confirming, onAdd}: {hit: AlbumHit; owned: AlbumReco
     <div className="ah-row">
       <button type="button" className="ah-main" aria-expanded={open} onClick={toggle}>
         <span className="ah-art">{src ? <img key={src} src={src} alt="" loading="lazy" style={{opacity: 0}} onLoad={e => {setShown(true); reveal(e.currentTarget);}} onError={fail}/> : <span className="ah-none" aria-hidden="true">♪</span>}
-          {src && shown && label ? <i className="ah-src" title={`封面来源：${label}`}>{label}</i> : null}</span>
+          {src && shown && label ? <i className="cover-origin" title={`封面来源：${label}`}>{label}</i> : null}</span>
         <span className="ll-text"><strong>{hit.title}</strong><span>{hit.artist}</span>
           <span>{[hit.year, KIND[hit.kind]].filter(Boolean).join(' · ')}</span></span>
       </button>

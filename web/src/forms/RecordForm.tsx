@@ -19,6 +19,7 @@ import {buildPayload} from './record/buildPayload';
 import {initialValues, seedFields, type FormCtx, type RecordValues} from './record/context';
 import {applyCover} from './record/pickRelease';
 import {matchReleaseCover} from './record/releaseCover';
+import {originOf} from '../core/version-cover';
 import {MoneySection} from './record/MoneySection';
 import {PhotoEntry} from './record/PhotoEntry';
 import {PackageReview, ReleaseDetails} from './record/ReleaseDetails';
@@ -112,7 +113,7 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
         <div className="error" role="alert">{error}</div>
         <PhotoEntry ctx={ctx} photos={photos} recordId={r?.id ?? null}/>
         <h3 className="section-title form-group-title">专辑资料</h3>
-        <ReleaseLookupSection v={v} lookup={lookup} cover={cover} coverSrc={base.current.cover || ''}
+        <ReleaseLookupSection v={v} lookup={lookup} cover={cover} coverSrc={base.current.cover || ''} coverOrigin={originOf(base.current.coverSource)}
           photoSources={photos.slots.flatMap((p, i) => 'existing' in p ? [{key: `e${p.existing}`, src: `/api/photo/${r?.id}/${p.existing}`}]
             : 'data' in p ? [{key: p.token ?? `d${i}`, src: p.data}] : [])}/>
         {id && mbId ? <button type="button" className="quiet record-refresh-release"

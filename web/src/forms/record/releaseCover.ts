@@ -19,7 +19,7 @@ export async function matchReleaseCover(candidate: ReleaseCandidate, isCurrent: 
     const front = await api<{cover: string}>('catalog/front-cover?' + (stashCovers() ? 'stash=1&' : '') + 'id=' + encodeURIComponent(candidate.id)).catch(() => null);
     if (!isCurrent()) return null;
     if (front?.cover) {
-      return {cover: front.cover, coverSource: {title: candidate.title, artist: candidate.artist},
+      return {cover: front.cover, coverSource: {title: candidate.title, artist: candidate.artist, provider: 'Cover Art Archive（此版本）'},
         status: '已匹配 · 此版本封面（Cover Art Archive）'};
     }
   }

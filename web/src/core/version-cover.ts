@@ -3,7 +3,7 @@
 // ②③ 由服务端 covers/fallback 判定，只认名字精确对上的；借来的封面要提示「不一定是这个版本的包装」。
 import {api} from './api';
 import {displayReleaseTitle} from './release-metadata';
-import type {ReleaseCandidate} from '../types';
+import type {CoverSource, ReleaseCandidate} from '../types';
 
 export interface BorrowedCover {
   token: string; thumbnail: string; title: string; artist: string; provider?: string;
@@ -31,4 +31,17 @@ export function borrowedCover(c: ReleaseCandidate): Promise<BorrowedCover | null
   }).then(r => r.candidate ?? null, () => { asked.delete(c.id); return null; });
   asked.set(c.id, ask);
   return ask;
+}
+
+/** 封面角标：这张封面从哪来（卡片与表单共用同一套说法） */
+export type CoverOrigin = 'own' | BorrowedCover['kind'] | 'upload';
+export const ORIGIN_LABEL: Record<CoverOrigin, string> = {own: '此版本', album: '同专辑', digital: 'iTunes', upload: '上传'};
+/** 已存封面的来源（记录 / 表单里的 coverSource）；旧记录没记来源时返回 null，不标 */
+export function originOf(src?: CoverSource | null): CoverOrigin | null {
+  const p = src?.provider || '';
+  if (p === 'upload') return 'upload';
+  if (/iTunes/i.test(p) || /mzstatic\.com/.test(src?.url || '')) return 'digital';
+  if (p.includes('此版本')) return 'own';
+  if (p.includes('Cover Art Archive')) return 'album';
+  return null;
 }

@@ -38,15 +38,15 @@ export function useCoverSearch(ctx: FormCtx, hadCover: boolean) {
     }
   }
 
-  /** 自己准备的封面：从相册 / 文件选图，压缩成 JPEG 后直接作为封面（保存时服务端落盘），不再带第三方来源。 */
+  /** 自己准备的封面：从相册 / 文件选图，压缩成 JPEG 后直接作为封面（保存时服务端落盘），来源只记「上传」。 */
   async function uploadCover(file: File) {
     setBusy(true);
     setCoverStatus('处理图片中…');
     try {
       const data = await compressPhoto(file);
       if (data.length > 2_900_000) throw new Error('图片太大，请换一张较小的');
-      const {coverSource: _drop, ...rest} = base.current;
-      base.current = {...rest, cover: data};
+      // 来源只记「自己上传」，供封面角标显示；不带第三方来源
+      base.current = {...base.current, cover: data, coverSource: {title: '', artist: '', provider: 'upload'}};
       setHasCover(true);
       setCandidates([]);
       setCoverStatus('已使用自己上传的封面');

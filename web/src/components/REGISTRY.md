@@ -43,7 +43,7 @@
 | `PageVeil` | 库存 ↔ 展示的转场幕布：Splash 转场版合上 → 预加载封面（`core/preload-covers`，上限 48 张、5 秒兜底）→ 打开。仅手机、非历史导航、非减少动态 | `covers: string[]` `onDone` |
 | `PeekUnderlay` | 子页左缘右划返回时垫在内容下面的上一级页面（更多 / 设置），由 `obi-peek` 事件开关，仅手势期间挂载，`inert` | 无（事件驱动） |
 | `WhatsNew` | 更新后第一次打开的更新说明弹窗：原生 `<dialog>`，列出上次看过的版本之后的 CHANGELOG 条目（最多 4 版），关闭即记下当前版本；首次安装不弹 | 无（读 `state.service.version`） |
-| `ReleaseCandidateCard` `ReleaseSummary` | 发行版卡片：名称 + 来源 → 关键信息网格 → 可展开的曲目与版本资料（按需取详情，不重复摘要字段）→ 调用方的操作区（render prop）。「查询」页（复制 / 入库）与专辑表单（选用此版本、已确认摘要）共用；头部封面点开放大用 `useArtExpand`（编辑页候选封面行同用）| 候选 `c` `children({info, load, busy})`；`ReleaseSummary` 另可 `title` `artist` `info` `source?` `url?` |
+| `ReleaseCandidateCard` `ReleaseSummary` `OriginTag` | 发行版卡片（摘要与角标在同目录 `ReleaseSummary.tsx`）：封面（右下角 `OriginTag` 标来源：此版本 / 同专辑 / iTunes / 上传，样式 `.cover-origin` 与查询页专辑列表共用；封面按 `core/version-cover` 的顺序找）+ 名称 + 来源（艺人下一行小字）→ 关键信息网格 → 可展开的曲目与版本资料（按需取详情，不重复摘要字段）→ 调用方的操作区（render prop）。「查询」页（复制 / 入库）与专辑表单（选用此版本、已确认摘要）共用；头部封面点开放大用 `useArtExpand`（编辑页候选封面行同用）| 候选 `c` `children({info, load, busy})`；`fallbackArt?`；`ReleaseSummary` 另可 `title` `artist` `info` `source?` `url?` `origin?` |
 | `ListingSteps` | 上架资料顶部三步进度（分析照片 / 核对 / 生成文案） | `steps[{label,done}]`；当前步 = 第一个未完成 |
 | `PurchaseForm` | 管理页「编辑买入信息」：金额 / 币种 / 日期 / 额外费用 / 渠道 | 复用 `MoneySection`、`ShopField`；管钱的编辑都放这里 |
 | `PhotoDownload` | 专辑详情「实物照片」标题右侧的下载图标：手机把原图交给系统分享面板（存储图像进相册），桌面下载 ZIP | `id` `count` `revision` `artist` `title`；手机进入详情时预取照片，分享须在点击手势内同步调用；加载中禁用，图标有 aria-label |

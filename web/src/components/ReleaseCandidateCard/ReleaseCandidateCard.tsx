@@ -1,39 +1,15 @@
-// 发行版卡片：名称 + 来源 → 关键信息网格 → 可展开的曲目与版本资料 → 调用方给的操作区。
+// 发行版卡片：封面（带来源角标）+ 名称 + 来源 → 关键信息网格 → 可展开的曲目与版本资料 → 调用方给的操作区。
 // 「查询」页（复制 / 入库）与专辑表单（选用此版本）共用；详情按需请求，摘要里已有的字段不在详情重复。
 import {useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode} from 'react';
 import {api} from '../../core/api';
 import {dedupeCatalog, regionName} from '../../core/release-metadata';
+import {OriginTag, ReleaseSummary, sourceName} from './ReleaseSummary';
 import type {ReleaseCandidate, ReleaseInfo} from '../../types';
 import {Tracklist} from '../Tracklist';
 import {useArtExpand} from './useArtExpand';
 import {burnReveal} from '../../core/burn-reveal';
-import {BORROWED_NOTE, borrowedCover, ownCoverBase, type BorrowedCover} from '../../core/version-cover';
+import {BORROWED_NOTE, borrowedCover, ownCoverBase, type BorrowedCover, type CoverOrigin} from '../../core/version-cover';
 import './ReleaseCandidateCard.css';
-
-const sourceName = (info: {musicBrainzReleaseId?: string; discogsReleaseId?: string}, discogs?: boolean) =>
-  discogs || (info.discogsReleaseId && !info.musicBrainzReleaseId) ? 'Discogs' : 'MusicBrainz';
-
-/** 头部（名称、艺人、来源）+ 关键信息网格；表单里已确认的版本直接用它。 */
-export function ReleaseSummary({title, artist, info, source, url, art, headless}: {
-  title: string; artist: string; info: ReleaseInfo; source?: string; url?: string; art?: string; headless?: boolean;
-}) {
-  const expand = useArtExpand<HTMLElement>();
-  const facts: [string, string | undefined][] = [
-    ['唱片编号', dedupeCatalog(info.catalogNumber)], ['条码', info.barcode], ['厂牌', info.label],
-    ['发行地区', regionName(info.country)], ['发行日', info.releaseDate]];
-  return <>
-    {headless ? null : <header className={'rcc-head' + (expand.big ? ' is-big' : '')} ref={expand.head}>
-      {art ? <img className="rcc-art rcc-art-zoom" ref={expand.art} src={art} alt="封面" onClick={expand.toggle}/> : null}
-      <span className="rcc-break" aria-hidden="true"/>
-      <div className="rcc-main"><strong>{title}</strong><span>{artist}</span></div>
-      {source ? url ? <a className="rcc-source" href={url} target="_blank" rel="noopener noreferrer"
-        aria-label={`在 ${source} 查看`}>{source} ↗</a> : <span className="rcc-source">{source}</span> : null}
-    </header>}
-    <dl className="rcc-facts">
-      {facts.filter(([, v]) => v).map(([k, v]) => <div key={k}><dt>{k}</dt><dd className="num">{v}</dd></div>)}
-    </dl>
-  </>;
-}
 
 export interface CardCtx {info: ReleaseInfo; load: () => Promise<ReleaseInfo>; busy: boolean}
 
@@ -131,6 +107,7 @@ export function ReleaseCandidateCard({c, fold, tag, fallbackArt, children}: {c: 
     burnReveal(el);
   }, [artState]);
   const art = artState === 'ok' && cur ? cur.small : '';
+  const origin: CoverOrigin | null = cur ? (/mzstatic\.com/.test(cur.small) ? 'digital' : cur.kind) : null;
   const artImg = cur && artState !== 'none' ? <img key={cur.small + tries} className={'rcc-art rcc-art-img' + (artState !== 'ok' ? ' is-pending' : '')} ref={expand.art} src={(expand.big ? cur.big : cur.small) + (tries ? (cur.small.includes('?') ? '&' : '?') + 'r=' + tries : '')} alt="封面"
     style={expand.big ? {backgroundImage: `url(${cur.small})`} : undefined}
     onClick={fold ? expand.toggle : undefined} onLoad={() => setLoaded(true)} onError={next}/> : null;
@@ -157,7 +134,7 @@ export function ReleaseCandidateCard({c, fold, tag, fallbackArt, children}: {c: 
 
   const i0 = c.releaseInfo;
   const body = <>
-    <ReleaseSummary title={c.title} artist={c.artist} info={c.releaseInfo} source={sourceName({}, c.source === 'discogs')} url={c.url} art={art} headless={fold}/>
+    <ReleaseSummary title={c.title} artist={c.artist} info={c.releaseInfo} source={sourceName({}, c.source === 'discogs')} url={c.url} art={art} origin={artState === 'ok' ? origin : null} headless={fold}/>
     <button type="button" className="rcc-more" aria-expanded={open} onClick={toggle}>
       <span>曲目与版本资料</span><i aria-hidden="true">{open ? '−' : '+'}</i>
     </button>
@@ -178,9 +155,12 @@ export function ReleaseCandidateCard({c, fold, tag, fallbackArt, children}: {c: 
   return <li className={'rcc is-fold' + (!folded ? ' is-open' : '')}>
     <button type="button" className={'rcc-fold' + (expand.big ? ' is-big' : '')} ref={expand.head} aria-expanded={!folded}
       onClick={e => { if (!(e.target as Element).closest('.rcc-art-img')) setFolded(!folded); }}>
-      {artImg}
+      <span className="rcc-art-frame">
+        {artImg}
+        {artState !== 'ok' ? <span className={'rcc-art is-' + artState} aria-hidden="true">{artState === 'none' ? '无封面' : '找封面…'}</span> : null}
+        {artState === 'ok' ? <OriginTag origin={origin}/> : null}
+      </span>
       <span className="rcc-break" aria-hidden="true"/>
-      {artState !== 'ok' ? <span className={'rcc-art is-' + artState} aria-hidden="true">{artState === 'none' ? '无封面' : '找封面…'}</span> : null}
       <span className="rcc-main">
         <strong>{dedupeCatalog(i0.catalogNumber) || c.title}{tag ? <em className="rcc-tag">{tag}</em> : null}</strong>
         <span>{[regionName(i0.country), i0.releaseDate, i0.label].filter(Boolean).join(' · ')}</span>
@@ -192,4 +172,4 @@ export function ReleaseCandidateCard({c, fold, tag, fallbackArt, children}: {c: 
   </li>;
 }
 
-export {sourceName};
+export {OriginTag, ReleaseSummary, sourceName};
