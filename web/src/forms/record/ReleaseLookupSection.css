@@ -28,4 +28,12 @@
 .lookup-manual-entry b{color:var(--text);font-weight:600}
 .lookup-manual-entry i{font-style:normal;font-size:18px;color:var(--muted);flex:none}
 .lookup-manual-entry:hover{background:var(--surface-3)}
+.lookup-manual-entry:active{background:var(--surface-3);border-color:var(--accent-deep)}
+.lookup-manual-entry,.lookup-leave-manual{transition:background var(--slide-ms) var(--slide-ease),border-color var(--slide-ms) var(--slide-ease),opacity .16s}
+.lookup-manual-entry i{transition:transform var(--slide-ms) var(--slide-ease)}
+.lookup-manual-entry:hover i,.lookup-manual-entry:active i{transform:translateX(3px)}
 .lookup-status .lookup-leave-manual{margin-left:auto;flex:none;padding:6px 12px;font-size:12.5px;min-height:32px}
+/* 手动录入的进 / 出场：状态行与输入区淡入并轻微下移到位，点击后的入口 / 状态行淡出；减少动态效果由 base.css 统一关闭 */
+@keyframes lookup-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.lookup-status.is-manual,.lookup-in{animation:lookup-in var(--slide-ms) var(--slide-ease) both}
+.lookup-manual-entry.is-leaving,.lookup-status.is-leaving{opacity:0;transform:translateY(-4px);transition:opacity .16s ease-out,transform .16s ease-out}

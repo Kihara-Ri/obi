@@ -119,7 +119,7 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
         {id && mbId ? <button type="button" className="quiet record-refresh-release"
           disabled={lookup.busy} onClick={() => void lookup.refreshReleaseMetadata()}>从 MusicBrainz 补全缺失发行资料</button> : null}
         <ReleaseDetails ctx={ctx} show={!!(id || identified)} onUnofficial={lookup.setUnofficial}/>
-        {id || manualRelease ? <div className="form-grid form-section">
+        {id || manualRelease ? <div className={'form-grid form-section' + (manualRelease && !id ? ' lookup-in' : '')}>
           <Field label={manualRelease && !id ? '专辑名' : '专辑名（更正用）'} name="title" required autoComplete="off" value={v.title}
                  onChange={e => mbId ? (set({title: e.target.value}), dirty()) : onTitleInput(e.target.value)}/>
           <Field label="艺人" name="artist" required autoComplete="off" value={v.artist}

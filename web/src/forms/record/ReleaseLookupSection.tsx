@@ -76,6 +76,11 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, coverOrigin
     window.addEventListener(RECORD_BARCODE, on);
     return () => window.removeEventListener(RECORD_BARCODE, on);
   }, []);
+  // 点「手动录入 / 改回查询」先播一段退场动画再切换状态（时长与 .lookup-out 一致）
+  const [leaving, setLeaving] = useState(false);
+  const timer = useRef(0);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+  const afterExit = (go: () => void) => { setLeaving(true); timer.current = window.setTimeout(() => { setLeaving(false); go(); }, 160); };
   const confirmed = !!(info.musicBrainzReleaseId || info.discogsReleaseId);
   const working = L.busy || L.verification === 'pending';
   const phase: Phase = working ? 'busy' : L.candidates.length ? 'choose' : L.notFound ? 'miss'
@@ -102,17 +107,18 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, coverOrigin
           {reading ? '正在从照片识别条码…' : '从照片识别条码'}</button>
         {readMsg ? <span role="status">{readMsg}</span> : null}
       </p> : readMsg ? <p className="lookup-photo-read"><span role="status">{readMsg}</span></p> : null}
-      {status ? <p className={`lookup-status is-${phase}`} role="status">
+      {status ? <p className={`lookup-status is-${phase}` + (leaving ? ' is-leaving' : '')} role="status">
         {phase === 'busy' ? <span className="lookup-spinner" aria-hidden="true"/> : <b aria-hidden="true">{phase === 'choose' ? L.candidates.length : MARK[phase]}</b>}
         <span>{status}</span>
         {phase === 'miss' && !L.manualRelease ? <span className="lookup-miss-actions">
           <button type="button" className="quiet" onClick={() => L.setUnofficial(true)}>非官方发行</button>
           <button type="button" onClick={L.enterManually}>按未收录版本录入</button></span> : null}
-        {phase === 'manual' && canLeaveManual ? <button type="button" className="lookup-leave-manual" onClick={L.leaveManual}>改回查询</button> : null}
+        {phase === 'manual' && canLeaveManual ? <button type="button" className="lookup-leave-manual" disabled={leaving} onClick={() => afterExit(L.leaveManual)}>改回查询</button> : null}
       </p> : null}
       {/* 没有条码 / 编号时不会进入「查不到」状态，入口常驻，不等查询失败 */}
       {!working && !L.manualRelease && !confirmed && !v.title && !L.candidates.length && phase !== 'miss' ?
-        <button type="button" className="lookup-manual-entry" onClick={L.enterManually}>
+        <button type="button" className={'lookup-manual-entry' + (leaving ? ' is-leaving' : '')} disabled={leaving}
+          onClick={() => afterExit(L.enterManually)}>
           <span>没有条码或编号？<b>按未收录版本手动录入</b></span><i aria-hidden="true">›</i>
         </button> : null}
       {L.candidates.length ? <ul className="release-candidates" aria-label="选择发行版本">
