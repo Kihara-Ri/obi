@@ -162,7 +162,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
       musicBrainzReleaseId: '', discogsReleaseId: '', manualRelease: '1', unofficial: unofficial ? '1' : ''},
       ...(manualRelease ? {} : {packaging: null})});
     setMessage(unofficial ? '非官方发行 · 请填写专辑名、艺人，版本说明里写明来源'
-      : '手动录入 · 请填写专辑名、艺人；不核对资料库，不生成 3D');
+      : '手动录入 · 填专辑名、艺人，之后可在「待确认发行版」补查');
     dirty();
   };
   const enterManually = () => markManual(false);

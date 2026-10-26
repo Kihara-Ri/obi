@@ -105,7 +105,11 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, coverOrigin
         <span>{status}</span>
         {phase === 'miss' && !L.manualRelease ? <span className="lookup-miss-actions">
           <button type="button" className="quiet" onClick={() => L.setUnofficial(true)}>非官方发行</button>
-          <button type="button" className="quiet" onClick={L.enterManually}>手动录入</button></span> : null}
+          <button type="button" onClick={L.enterManually}>按未收录版本录入</button></span> : null}
+      </p> : null}
+      {/* 没有条码 / 编号时不会进入「查不到」状态，入口常驻，不等查询失败 */}
+      {!working && !L.manualRelease && !confirmed && !v.title && !L.candidates.length && phase !== 'miss' ? <p className="lookup-manual-entry">
+        没有条码或编号？<button type="button" className="quiet" onClick={L.enterManually}>按未收录版本手动录入</button>
       </p> : null}
       {L.candidates.length ? <ul className="release-candidates" aria-label="选择发行版本">
         {L.candidates.map(c => <ReleaseCandidateCard key={c.id} c={c} fold>{() =>
