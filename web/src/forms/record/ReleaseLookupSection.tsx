@@ -24,9 +24,11 @@ const working0 = (L: ReleaseLookup) => L.busy || L.verification === 'pending';
 const summaryShown = (v: RecordValues, L: ReleaseLookup) =>
   !!(v.title && v.artist) && !L.candidates.length;
 
-export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, coverOrigin, photoSources = []}: {
+export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, coverOrigin, photoSources = [], canLeaveManual}: {
   v: RecordValues; lookup: ReleaseLookup; cover: CoverSearch; coverSrc: string; coverOrigin?: CoverOrigin | null;
   /** 已就绪的实物照片（key 标识同一张，src 可直接加载）；条码为空时自动从中识别 */
+  /** 新增时手动录入可退回查询；编辑已有记录不提供，避免改动既有标记 */
+  canLeaveManual?: boolean;
   photoSources?: {key: string; src: string}[];
 }) {
   const info = v.releaseInfo;
@@ -106,11 +108,13 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, coverOrigin
         {phase === 'miss' && !L.manualRelease ? <span className="lookup-miss-actions">
           <button type="button" className="quiet" onClick={() => L.setUnofficial(true)}>非官方发行</button>
           <button type="button" onClick={L.enterManually}>按未收录版本录入</button></span> : null}
+        {phase === 'manual' && canLeaveManual ? <button type="button" className="lookup-leave-manual" onClick={L.leaveManual}>改回查询</button> : null}
       </p> : null}
       {/* 没有条码 / 编号时不会进入「查不到」状态，入口常驻，不等查询失败 */}
-      {!working && !L.manualRelease && !confirmed && !v.title && !L.candidates.length && phase !== 'miss' ? <p className="lookup-manual-entry">
-        没有条码或编号？<button type="button" className="quiet" onClick={L.enterManually}>按未收录版本手动录入</button>
-      </p> : null}
+      {!working && !L.manualRelease && !confirmed && !v.title && !L.candidates.length && phase !== 'miss' ?
+        <button type="button" className="lookup-manual-entry" onClick={L.enterManually}>
+          <span>没有条码或编号？<b>按未收录版本手动录入</b></span><i aria-hidden="true">›</i>
+        </button> : null}
       {L.candidates.length ? <ul className="release-candidates" aria-label="选择发行版本">
         {L.candidates.map(c => <ReleaseCandidateCard key={c.id} c={c} fold>{() =>
           <button type="button" className="primary rcc-add" disabled={L.busy} onClick={() => void L.chooseRelease(c)}>

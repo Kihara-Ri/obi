@@ -162,14 +162,14 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
       musicBrainzReleaseId: '', discogsReleaseId: '', manualRelease: '1', unofficial: unofficial ? '1' : ''},
       ...(manualRelease ? {} : {packaging: null})});
     setMessage(unofficial ? '非官方发行 · 请填写专辑名、艺人，版本说明里写明来源'
-      : '手动录入 · 请填专辑名、艺人，之后可补查');
+      : '手动录入 · 请填专辑名、艺人');
     dirty();
   };
-  const enterManually = () => markManual(false);
   const setUnofficial = (on: boolean) => {
     if (on) markManual(true); else { set({releaseInfo: {...v.releaseInfo, unofficial: ''}}); dirty(); } // 取消只去标记
   };
-
+  const leaveManual = () => { // 退出手动录入回到查询，已填名称 / 艺人保留
+    set({releaseInfo: {...v.releaseInfo, manualRelease: '', unofficial: ''}}); setMessage(''); dirty(); };
   const refreshReleaseMetadata = async () => {
     const id = v.releaseInfo.musicBrainzReleaseId;
     if (!id) return;
@@ -195,6 +195,6 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
 
   return {mode, setMode, barcode, catalogNumber, candidates, busy, message, notFound,
     verification, manualRelease, identified, changeBarcode, changeCatalogNumber, lookup,
-    enterManually, setUnofficial, refreshReleaseMetadata, chooseRelease, setCatalogNumber, search};
+    enterManually: () => markManual(false), leaveManual, setUnofficial, refreshReleaseMetadata, chooseRelease, setCatalogNumber, search};
 }
 export type ReleaseLookup = ReturnType<typeof useReleaseLookup>;

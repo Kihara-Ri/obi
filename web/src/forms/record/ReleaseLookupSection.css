@@ -24,5 +24,8 @@
 .lookup-status .lookup-miss-actions button{margin-left:0}
 .lookup-photo-read{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 0;font-size:12.5px;color:var(--muted)}
 .lookup-photo-read .quiet{padding:4px 10px;font-size:12.5px}
-.lookup-manual-entry{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;margin:8px 0 0;font-size:12.5px;color:var(--muted)}
-.lookup-manual-entry .quiet{padding:4px 10px;font-size:12.5px}
+.lookup-manual-entry{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;margin-top:8px;padding:10px 14px;text-align:left;font-size:13px;color:var(--muted);background:var(--surface-2);border:1px dashed var(--border-strong);border-radius:12px;min-height:44px}
+.lookup-manual-entry b{color:var(--text);font-weight:600}
+.lookup-manual-entry i{font-style:normal;font-size:18px;color:var(--muted);flex:none}
+.lookup-manual-entry:hover{background:var(--surface-3)}
+.lookup-status .lookup-leave-manual{margin-left:auto;flex:none;padding:6px 12px;font-size:12.5px;min-height:32px}

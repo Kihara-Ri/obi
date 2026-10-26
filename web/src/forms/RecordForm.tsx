@@ -113,7 +113,7 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
         <div className="error" role="alert">{error}</div>
         <PhotoEntry ctx={ctx} photos={photos} recordId={r?.id ?? null}/>
         <h3 className="section-title form-group-title">专辑资料</h3>
-        <ReleaseLookupSection v={v} lookup={lookup} cover={cover} coverSrc={base.current.cover || ''} coverOrigin={originOf(base.current.coverSource)}
+        <ReleaseLookupSection canLeaveManual={!id} v={v} lookup={lookup} cover={cover} coverSrc={base.current.cover || ''} coverOrigin={originOf(base.current.coverSource)}
           photoSources={photos.slots.flatMap((p, i) => 'existing' in p ? [{key: `e${p.existing}`, src: `/api/photo/${r?.id}/${p.existing}`}]
             : 'data' in p ? [{key: p.token ?? `d${i}`, src: p.data}] : [])}/>
         {id && mbId ? <button type="button" className="quiet record-refresh-release"
