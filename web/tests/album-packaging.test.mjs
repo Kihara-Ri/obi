@@ -165,3 +165,15 @@ test('经图像校准的 Mini LP 外开口两板用双压痕纸脊，旧实体�
   assert.equal(assets.albumModelAsset({...mini, miniLP: false}, true), '/models/packaging/gatefold-2.glb');
   assert.equal(assets.albumModelAsset({...mini, pocketOpening: 'inner'}, true), '/models/packaging/gatefold-2-inner.glb');
 });
+
+test('包装显示：预设与资料库包装名映射到图标种类和中文名，认不出的保留原文', () => {
+  assert.equal(packaging.packagingKind('Jewel Case'), 'jewel');
+  assert.equal(packaging.packagingKind('Cardboard/Paper Sleeve'), 'card-sleeve');
+  assert.equal(packaging.packagingKind('Slim Jewel Case'), 'slimline');
+  assert.equal(packaging.packagingKind('Digipak'), 'digipak');
+  assert.equal(packaging.packagingKind('Digisleeve'), 'digisleeve');
+  assert.equal(packaging.packagingKind(''), '');
+  assert.deepEqual(packaging.packagingDisplay('Jewel Case'), {kind: 'jewel', name: '标准塑料盒', term: 'Jewel Case'});
+  assert.deepEqual(packaging.packagingDisplay('Keep Case'), {kind: 'other', name: 'DVD 式塑料盒', term: 'Keep Case'});
+  assert.deepEqual(packaging.packagingDisplay('奇怪包装'), {kind: 'other', name: '奇怪包装', term: ''});
+});

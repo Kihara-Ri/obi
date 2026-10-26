@@ -1,0 +1,6 @@
+/* 包装标签：图标 + 中文名，原术语小字在下；跟随所在行的对齐方式 */
+.pkg-label{display:inline-flex;align-items:center;gap:8px;vertical-align:middle}
+.pkg-label svg{flex:none;color:var(--muted)}
+.pkg-label-text{display:flex;flex-direction:column;line-height:1.25}
+.pkg-label-text small{font-size:11.5px;color:var(--faint)}
+.detail-grid .pkg-label-text{align-items:flex-end;text-align:right}

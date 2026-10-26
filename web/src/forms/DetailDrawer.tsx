@@ -21,6 +21,7 @@ import {NavRow} from '../components/ui/NavRow';
 import {InfoIco, SlidersIco} from '../components/icons';
 import {bulkAction} from './shared';
 import {formatPackagingName} from '../core/album-packaging';
+import {PackagingLabel} from '../components/PackagingIcon';
 import {dedupeCatalog, displayRegion, displayReleaseTitle} from '../core/release-metadata';
 import {Rows} from './detail/Rows';
 import {openReleasePage} from './detail/ReleasePage';
@@ -99,7 +100,7 @@ function DetailBody({id, back}: {id: string; back?: DetailBack}) {
         {modules.trading && r.listed ? <span className="pill listed">已上架</span> : null}
       </div> : null}
       <Rows rows={[
-        !!pkg && {label: '包装', value: pkg === '待核对' ? '包装待核对' : pkg},
+        !!pkg && {label: '包装', value: pkg === '待核对' ? '包装待核对' : <PackagingLabel text={pkg}/>},
         !!r.obi && {label: '侧标', value: r.obi},
         !!catalog && {label: '唱片编号', value: catalog, copy: info.catalogNumber},
         !!info.barcode && {label: '条码', value: info.barcode, copy: info.barcode},

@@ -11,7 +11,7 @@
 | `Combobox` | 可输入又可下拉的组合框，输入过滤、可填列表外的新值 | `value` `onChange` `options[{value,label,leading?}]` `listLabel` `leading?` `emptyHint?` | role=combobox + aria-activedescendant；↑↓ Enter Esc Tab；外部点击关闭 | 高亮项填充 |
 | `Seg` | 分段控件（互斥选择），滑块动画 | `options[{value,label,ariaLabel?,title?,disabled?}]` `value` `onValue` `ariaLabel?` `disabled?` `persistKey?`（页面切换重挂后仍从上次位置滑过去） | role=group + 每段 aria-pressed；←→↑↓ Home End 移动焦点 | 选中段加粗 + 滑块 |
 | `TabPanel` | 标签页内容区：切换时按方向滑入并淡入，首次不播 | `value` `order[]` `children` | role=tabpanel；与 `Seg` 配合 | 方向性滑入 |
-| `OptionCards` | 带图标的互斥选项卡（图标上、文字下，选中强调描边 + 淡底），适合选项能画出来的设置 | `options[{value,label,icon}]` `value` `onValue` `ariaLabel` | role=radiogroup / radio；←→↑↓ 移动并选中 | 选中描边 |
+| `OptionCards` | 带图标的互斥选项卡（图标上、文字下，选中强调描边 + 淡底），适合选项能画出来的设置 | `options[{value,label,icon}]` `value` `onValue` `ariaLabel` `columns?`(每行张数，默认一行) | role=radiogroup / radio；←→↑↓ 移动并选中 | 选中描边 |
 | `Switch` | 开关 | `on` `onToggle` `label?` `disabled?` | role=switch + aria-checked；命中区向外扩 | 旋钮位置 |
 | `NavRow` | 导航列表行：图标 + 标题 + 右侧数值/控件 + 箭头，一行一件事，没有副标题 | `icon` `title` `value?` `trailing?` `href?`｜`onClick?` | 链接 / 按钮 / 静态三种形态 | 右侧数值与箭头 |
 | `Collapse` | 内容区平滑展开 / 收起（高度 + 淡入），收起时内容 inert 但保持挂载 | `open` `children` `id?` | 触发按钮自行设 aria-expanded / aria-controls | 展开动画 |
@@ -36,6 +36,7 @@
 
 | 组件 | 用途 | 备注 |
 | --- | --- | --- |
+| `PackagingIcon` / `PackagingLabel` / `PackagingPicker` | 包装类型示意图（按 `PACKAGING_PRESETS` 的 value，另有 other / 未填写）；`PackagingLabel` 详情里显示「图标 + 中文名 + 原术语小字」；`PackagingPicker` 是表单里的图标选项卡（`OptionCards` 三列），不让手打包装名 | `kind` / `text` / `value` `onPick` |
 | `ModuleChooser` `ModulePresets` `ModuleTiles` `ModulePhone` `ModuleImpact` `ModuleIcon` | 设置 · 功能与首次设置：使用方式图标卡 → 功能图标开关（点按开关，联动依赖）+ 默认首页 → 迷你手机实时预览底栏与详情管理（新增「+」、收起虚线「−」）；完整变化清单收在「全部变化与说明」 | 预览数据来自 `core/modules` 的 `SURFACE_GROUPS`（含 `icon` 键），与导航及表单的模块判断同步维护；选中/开启用对勾与粗边区分，不只靠颜色 |
 | `Details` | 带展开 / 收起高度动画的 `<details>`：用 Chevron 做箭头，替代所有裸 `<details>`；`Disclosure` 基于它 | `summary` `children` `className?` `open?`+`onOpenChange?` 或 `defaultOpen?` |
 | `LightboxScan` | 编辑表单照片灯箱里的「识别条码并核对发行版」：用应用内识别器读当前照片，识别到有效条码后在照片上框出，再发 `record-barcode` 交给表单发行版区块就地查询；详情照片墙不再提供（2026-10-24） | `src` `onDone` |

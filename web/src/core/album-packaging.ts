@@ -109,3 +109,44 @@ export function setPackagingPhoto(spec: PackagingSpec | null | undefined, role: 
   }
   return result;
 }
+
+/** 包装的中文名（显示用；存储仍是英文术语）。键为 PACKAGING_PRESETS 的 value，另有 other。 */
+export const PACKAGING_ZH: Record<string, string> = {
+  'jewel': '标准塑料盒', 'slimline': '薄塑料盒', 'multi': '多碟厚塑料盒',
+  'card-sleeve': '单口纸套', 'gatefold': '对折纸套', 'digisleeve': '三折纸套',
+  'digipak': '纸盒带托盘', 'digibook': '精装书本', 'rigid-box': '硬纸盒', 'mini-lp': '迷你 LP 纸套',
+  'other': '其他包装',
+};
+
+// MusicBrainz / Discogs 的包装名 → 预设；不在表里的再按旧文字规则解析，仍认不出就是 other。
+const CATALOG_KINDS: Record<string, string> = {
+  'jewel case': 'jewel', 'super jewel box': 'jewel', 'super jewel case': 'jewel',
+  'slim jewel case': 'slimline', 'slimline jewel case': 'slimline', 'fatbox': 'multi',
+  'cardboard/paper sleeve': 'card-sleeve', 'paper sleeve': 'card-sleeve', 'card sleeve': 'card-sleeve',
+  'gatefold cover': 'gatefold', 'digipack': 'digipak', 'digipak': 'digipak',
+  'book': 'digibook', 'digibook': 'digibook', 'box': 'rigid-box',
+};
+const OTHER_ZH: Record<string, string> = {
+  'keep case': 'DVD 式塑料盒', 'snap case': '卡扣塑料盒', 'plastic sleeve': '塑料软套',
+  'discbox slider': '抽拉纸盒', 'longbox': '长纸盒', 'clamshell case': '翻盖塑料盒', 'metal tin': '铁盒',
+  'none': '无包装', 'other': '其他包装',
+};
+
+/** 文字包装名 → 预设 value；空文字为 ''，认不出为 'other'。 */
+export function packagingKind(text: string): string {
+  const t = text.normalize('NFKC').trim().toLowerCase();
+  if (!t) return '';
+  const preset = PACKAGING_PRESETS.find(p => p.label.toLowerCase() === t);
+  if (preset) return preset.value;
+  if (CATALOG_KINDS[t]) return CATALOG_KINDS[t];
+  const parsed = packagingPreset(text);
+  return parsed.startsWith('__') ? 'other' : parsed;
+}
+
+/** 显示用：图标种类 + 中文名 + 原术语（与中文名重复时不再给）。 */
+export function packagingDisplay(text: string): {kind: string; name: string; term: string} {
+  const kind = packagingKind(text);
+  const t = text.normalize('NFKC').trim().toLowerCase();
+  const name = kind === 'other' ? OTHER_ZH[t] || text.trim() : PACKAGING_ZH[kind] || '';
+  return {kind, name, term: name === text.trim() ? '' : text.trim()};
+}

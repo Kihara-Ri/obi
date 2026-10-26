@@ -1,7 +1,7 @@
 import type {DiscCalibration} from '@diedu/album-engine/disc-calibration';
 // API 数据模型：与 storage.py 的 state() 输出一一对应。
 // 金额一律是字符串（服务端 Decimal 量化到分），显示时再转 Number。
-import {formatPackagingName} from './core/album-packaging';
+import {formatPackagingName, packagingDisplay} from './core/album-packaging';
 import {copyEditionLabel} from './core/copy-edition';
 import {displayRegion} from './core/release-metadata';
 
@@ -270,14 +270,21 @@ export const SALE_NAMES: Record<SaleStatus, string> = {
 // 实物版次和侧标独立于 MusicBrainz 发行资料；未填写不代表无侧标。
 export function labelTags(r: AlbumRecord): string[] {
   const p = copyEditionLabel(displayRegion(r.releaseInfo?.country, r.pressing), r.obi);
-  return [p, formatPackagingName(r.version, r.packaging)].filter(Boolean);
+  return [p, packagingText(formatPackagingName(r.version, r.packaging))].filter(Boolean);
+}
+
+/** 摘要里的包装用中文名（「待核对」写成「包装待核对」）。 */
+function packagingText(pkg: string): string {
+  return !pkg ? '' : pkg === '待核对' ? '包装待核对' : packagingDisplay(pkg).name;
 }
 
 /** 列表行的元信息拆成「地区」+「其他」两层：地区（美国 / 日本…）突出，侧标与包装次之；包装未核对写成「包装待核对」。 */
-export function metaTokens(r: AlbumRecord): {region: string; details: string[]} {
+export function metaTokens(r: AlbumRecord): {region: string; details: string[]; packaging: {kind: string; name: string} | null} {
   const pkg = formatPackagingName(r.version, r.packaging);
+  const name = packagingText(pkg);
   return {
     region: displayRegion(r.releaseInfo?.country, r.pressing),
-    details: [r.obi?.trim(), pkg === '待核对' ? '包装待核对' : pkg].filter((x): x is string => !!x),
+    details: [r.obi?.trim(), name].filter((x): x is string => !!x),
+    packaging: name && pkg !== '待核对' ? {kind: packagingDisplay(pkg).kind, name} : null,
   };
 }

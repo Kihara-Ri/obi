@@ -2,6 +2,7 @@
 import {useApp} from '../../state/AppContext';
 import type {AppCtx} from '../../state/AppContext';
 import {formatPackagingName} from '../../core/album-packaging';
+import {PackagingLabel} from '../../components/PackagingIcon';
 import {dedupeCatalog, displayRegion, regionName} from '../../core/release-metadata';
 import {Tracklist} from '../../components/Tracklist';
 import {Rows} from './Rows';
@@ -36,7 +37,7 @@ function ReleaseBody({id}: {id: string}) {
     ]}/>
     <h3 className="section-title">规格</h3>
     <Rows rows={[
-      pkg && {label: '包装', value: pkg},
+      pkg && {label: '包装', value: pkg === '待核对' ? '包装待核对' : <PackagingLabel text={pkg}/>},
       info.edition && {label: '版次', value: info.edition},
       info.format && {label: '介质', value: info.format},
       info.discCount && {label: '碟数', value: info.discCount},

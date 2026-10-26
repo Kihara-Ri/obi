@@ -4,6 +4,7 @@ import type {AlbumRecord} from '../types';
 import {metaTokens} from '../types';
 import {ArtistButton} from './ArtistButton';
 import {Cover} from './Cover';
+import {PackagingIcon} from './PackagingIcon';
 
 export function AlbumSummary({r, onDetail, onArtist, money, actions, coverOverlay, metadata}: {
   r: AlbumRecord;
@@ -14,7 +15,7 @@ export function AlbumSummary({r, onDetail, onArtist, money, actions, coverOverla
   coverOverlay?: ReactNode;
   metadata?: ReactNode;
 }) {
-  const {region, details} = metaTokens(r);
+  const {region, details, packaging} = metaTokens(r);
   const version = [region, ...details].filter(Boolean).join(' · ');
   return <div className="album-row">
     <div className={`album-summary${actions ? ' has-actions' : ''}`} data-id={r.id}>
@@ -29,7 +30,8 @@ export function AlbumSummary({r, onDetail, onArtist, money, actions, coverOverla
         {version || metadata ? <div className="album-meta">
           {version ? <div className="album-version" title={version}>
             {region ? <b className="am-region">{region}</b> : null}
-            {details.map(d => <span key={d}>{d}</span>)}
+            {details.map(d => <span key={d} className={d === packaging?.name ? 'am-pkg' : undefined}>
+              {d === packaging?.name ? <PackagingIcon kind={packaging.kind} height={13}/> : null}{d}</span>)}
           </div> : null}
           {metadata}
         </div> : null}

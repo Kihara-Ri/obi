@@ -12,9 +12,11 @@ export interface OptionCardsProps {
   onValue: (value: string) => void;
   ariaLabel: string;
   className?: string;
+  /** 每行几张；默认全部排一行（选项多时用它折行）。 */
+  columns?: number;
 }
 
-export function OptionCards({options, value, onValue, ariaLabel, className = ''}: OptionCardsProps) {
+export function OptionCards({options, value, onValue, ariaLabel, className = '', columns}: OptionCardsProps) {
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     const step = {ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1}[e.key];
     if (!step) return;
@@ -26,7 +28,7 @@ export function OptionCards({options, value, onValue, ariaLabel, className = ''}
   };
   return (
     <div className={`option-cards${className ? ` ${className}` : ''}`} role="radiogroup" aria-label={ariaLabel}
-         style={{gridTemplateColumns: `repeat(${options.length},minmax(0,1fr))`}} onKeyDown={onKeyDown}>
+         style={{gridTemplateColumns: `repeat(${columns ?? options.length},minmax(0,1fr))`}} onKeyDown={onKeyDown}>
       {options.map(o => (
         <button key={o.value} type="button" role="radio" aria-checked={o.value === value}
                 tabIndex={o.value === value ? 0 : -1} onClick={() => onValue(o.value)}>
