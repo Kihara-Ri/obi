@@ -162,7 +162,7 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
         </div>
       </div>
       <div className="drawer-footer">
-        {!id && !identified ? <p className="footer-hint">先查询并确认发行版，才能保存</p> : null}
+        {!id && !identified ? <p className="footer-hint">先查询并确认发行版（或手动录入），才能保存</p> : null}
         <button type="button" onClick={() => app.backDrawer()}>取消</button>
         <button type="submit" className="primary" aria-busy={saving} disabled={saving || !edited}>{id ? '保存修改' : '保存并入库'}</button>
       </div>
