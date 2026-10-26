@@ -2,6 +2,7 @@
 // 直接 <a href> 指向附件时，iOS 会用“快速查看”盖住整个页面，且（主屏/PWA 模式下）没有返回键。
 
 import {ApiError} from './api';
+import {serverOffline} from './backend';
 
 function fileNameFrom(header: string | null, fallback: string): string {
   const m = header?.match(/filename="([^"]+)"/);
@@ -10,7 +11,7 @@ function fileNameFrom(header: string | null, fallback: string): string {
 
 // 返回实际保存/分享的文件名；用户在系统分享面板取消时视为成功，不报错。
 export async function downloadFile(path: string, fallbackName: string, options?: {share?: boolean}): Promise<string> {
-  if (!navigator.onLine) throw new ApiError('网络已断开，请联网后再导出');
+  if (serverOffline()) throw new ApiError('网络已断开，请联网后再导出');
   const r = await fetch('/api/' + path, {credentials: 'same-origin'});
   if (!r.ok) {
     let msg = '导出失败，请重试';

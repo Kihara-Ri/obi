@@ -12,6 +12,11 @@ export function isLocalSite(): boolean {
   return !!document.querySelector('meta[name="obi-local"]');
 }
 
+/** 服务器版断网才算「不可用」；本机站点的读写都在手机 / 浏览器里完成，只有外网检索才需要联网，由用到时就地提示。 */
+export function serverOffline(): boolean {
+  return !navigator.onLine && !isLocalSite();
+}
+
 /** 本机站点：引擎就绪后才返回；失败给出原因并抛出，页面不再往下渲染。服务器部署：立即返回。 */
 export async function ensureBackend(): Promise<void> {
   if (!isLocalSite()) return;

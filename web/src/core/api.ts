@@ -1,5 +1,7 @@
 // /api/* 统一封装：断网预检、JSON 序列化、错误携带状态码（401 → 登录跳转）。
 
+import {serverOffline} from './backend';
+
 export class ApiError extends Error {
   status?: number;
   constructor(message: string, status?: number) {
@@ -10,7 +12,7 @@ export class ApiError extends Error {
 
 export async function api<T = unknown>(path: string, data?: unknown,
                                        opts?: {signal?: AbortSignal}): Promise<T> {
-  if (data !== undefined && !navigator.onLine) {
+  if (data !== undefined && serverOffline()) {
     throw new ApiError('网络已断开，输入仍保留，请联网后再保存');
   }
   const r = await fetch('/api/' + path, {
@@ -27,7 +29,7 @@ export async function api<T = unknown>(path: string, data?: unknown,
 
 /** 整文件上传（服务端 routes.UPLOAD）：请求体就是文件本身，不经 JSON / base64，几百 MB 的备份包也不翻倍占内存 */
 export async function apiUpload<T = unknown>(path: string, file: Blob, type = 'application/zip'): Promise<T> {
-  if (!navigator.onLine) throw new ApiError('网络已断开，请联网后再试');
+  if (serverOffline()) throw new ApiError('网络已断开，请联网后再试');
   const r = await fetch('/api/' + path, {method: 'POST', headers: {'Content-Type': type}, body: file});
   let x: { error?: string } | undefined;
   try { x = await r.json(); } catch { /* 非 JSON 响应按通用错误处理 */ }

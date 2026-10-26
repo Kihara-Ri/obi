@@ -103,7 +103,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
         if (!current()) return;
         setNotFound(true);
         if (auto) setVerification('failed');
-        setMessage(controller.signal.aborted ? '查询超时，可重试或手动录入'
+        setMessage(controller.signal.aborted ? '查询超时，可重试或手动录入' : !navigator.onLine ? '当前没有网络，暂时无法查询，可手动录入'
           : err instanceof Error ? err.message : String(err));
       } finally {
         window.clearTimeout(timer);

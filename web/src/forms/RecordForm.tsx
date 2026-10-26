@@ -12,7 +12,7 @@ import type {AlbumRecord, Currency, ReleaseCandidate, Status} from '../types';
 import {CopyEditionFields} from '../components/CopyEditionFields';
 import {Seg} from '../components/ui/Seg';
 import {ShopField} from '../components/ShopField';
-import {Field, TextareaField} from './fields';
+import {TextareaField} from './fields';
 import {usePhotoSlots} from './PhotoSlots';
 import {useFormSubmit} from './shared';
 import {buildPayload} from './record/buildPayload';
@@ -23,6 +23,7 @@ import {originOf} from '../core/version-cover';
 import {MoneySection} from './record/MoneySection';
 import {PhotoEntry} from './record/PhotoEntry';
 import {PackageReview, ReleaseDetails} from './record/ReleaseDetails';
+import {FocusField} from './FocusField';
 import {ReleaseLookupSection} from './record/ReleaseLookupSection';
 import {useCostPreview} from './record/useCostPreview';
 import {useCoverSearch} from './record/useCoverSearch';
@@ -120,10 +121,9 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
           disabled={lookup.busy} onClick={() => void lookup.refreshReleaseMetadata()}>从 MusicBrainz 补全缺失发行资料</button> : null}
         <ReleaseDetails ctx={ctx} show={!!(id || identified)} onUnofficial={lookup.setUnofficial}/>
         {id || manualRelease ? <div className={'form-grid form-section' + (manualRelease && !id ? ' lookup-in' : '')}>
-          <Field label={manualRelease && !id ? '专辑名' : '专辑名（更正用）'} name="title" required autoComplete="off" value={v.title}
-                 onChange={e => mbId ? (set({title: e.target.value}), dirty()) : onTitleInput(e.target.value)}/>
-          <Field label="艺人" name="artist" required autoComplete="off" value={v.artist}
-                 onChange={e => onArtistInput(e.target.value)}/>
+          <FocusField label={manualRelease && !id ? '专辑名' : '专辑名（更正用）'} name="title" required value={v.title}
+                      onValue={t => mbId ? (set({title: t}), dirty()) : onTitleInput(t)}/>
+          <FocusField label="艺人" name="artist" required value={v.artist} onValue={onArtistInput}/>
         </div> : null}
         {id && !mbId ? <div id="ta-hints" className="suggestions">
           {hints.label ? <small>{hints.label}</small> : null}

@@ -50,7 +50,7 @@ export function AmountInput({value, onValue, integer = false, zeroOnEmpty = true
   </>;
 }
 
-function useSheet() {
+export function useSheet() {
   const q = '(max-width:840px)';
   const [m, setM] = useState(() => window.matchMedia(q).matches);
   useEffect(() => {
