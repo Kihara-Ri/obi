@@ -250,7 +250,7 @@ test('四条轨道的屏幕投影可往返，扇形与环形跟随弧线的纵�
   }
   const fanCenter = motion.galleryOrbitPoint('fan', 0, 200);
   const fanSide = motion.galleryOrbitPoint('fan', 1.5, 200);
-  assert.ok(fanSide.y > fanCenter.y + 30);
+  assert.ok(fanSide.y > fanCenter.y + 24);
   const ringCenter = motion.galleryOrbitPoint('ring', 0, 200);
   const ringSide = motion.galleryOrbitPoint('ring', 1.5, 200);
   assert.ok(ringSide.y < ringCenter.y - 40);
@@ -261,12 +261,13 @@ test('四条轨道的屏幕投影可往返，扇形与环形跟随弧线的纵�
 
 test('扇形在整数停留点保留原来的封面位置、角度和大小', () => {
   // Frozen from the established resting fan, independent of the handoff path.
+  // 中心与紧邻一张沿用原弧线；外侧收紧（每张 +11°），手机上两侧能多露几张。
   const resting = [
     [0, -.08, .08, 0, 1, 1],
     [.5184688454, .0063322504, .01, 19, .95, 1],
-    [.9809869632, .2560124296, -.06, 38, .9, 1],
-    [1.3376415658, .6420962231, -.13, 57, .85, .6],
-    [1.5499441602, 1.1229192774, -.2, 76, .8, 0],
+    [.7950082205, .1314893125, -.06, 30, .9, 1],
+    [1.0429340336, .3066209984, -.13, 41, .85, .6],
+    [1.2533230554, .5254240508, -.2, 52, .8, 0],
   ];
   for (let offset = -4; offset <= 4; offset++) {
     const expected = resting[Math.abs(offset)];
@@ -486,4 +487,55 @@ test('巡游起停曲线：两端平滑、单调，端点附近减速但不停',
   assert.ok(edgeEase(0, 1000, 200) > 0 && edgeEase(0, 1000, 200) < .2);
   assert.equal(edgeEase(500, 1000, 200), 1);
   assert.ok(edgeEase(1000, 1000, 200) < .2);
+});
+
+test('巡游起步曲线：一开始就有速度，单调升到 1，不是前半段几乎不动的 S 形', () => {
+  const {rampEase, smootherstep} = motion;
+  assert.equal(rampEase(0), 0);
+  assert.equal(rampEase(1), 1);
+  assert.ok(rampEase(.2) > .45, '起步 20% 时间就有近一半速度');
+  assert.ok(rampEase(.2) > smootherstep(.2) * 5);
+  let last = -1;
+  for (let i = 0; i <= 20; i++) {const v = rampEase(i / 20); assert.ok(v >= last); last = v;}
+});
+
+test('封面墙循环周期为张数与列数的最小公倍数，并多铺一屏', () => {
+  // 16 张 3 列：48 张一周期（16 行），可见 6 行 → 48 + 18 = 66 张 → 5 份
+  assert.deepEqual(motion.galleryWallLoop(16, 3, 6), {periodItems: 48, copies: 5});
+  // 张数恰好整除列数：一份就是一个周期
+  assert.deepEqual(motion.galleryWallLoop(12, 3, 4), {periodItems: 12, copies: 2});
+});
+
+test('循环前进超过周期后折回，保留小数位置', () => {
+  assert.equal(motion.advanceGalleryLoop(90, 1, 20, 100), 10);
+  assert.equal(motion.advanceGalleryLoop(10.25, .5, 1, 100), 10.75);
+  assert.equal(motion.advanceGalleryLoop(5, 1, 20, 0), 0);
+});
+
+test('巡游写滚动：只写整像素，余下不足 1px 用容器 translate 补上，清除后不留位移', () => {
+  const roaming = require(join(output, 'components/useGalleryRoaming.js'));
+  // 模拟 WebKit：scrollTop / scrollLeft 写入后取整
+  const fake = () => {
+    let top = 0, left = 0;
+    const element = {style: {translate: ''}, dataset: {}, querySelectorAll: () => [],
+      get scrollTop() {return top;}, set scrollTop(v) {top = Math.round(v);},
+      get scrollLeft() {return left;}, set scrollLeft(v) {left = Math.round(v);}};
+    return element;
+  };
+  const el = fake();
+  const seen = [];
+  for (let p = 100; p < 101.01; p += .25) {
+    const actual = roaming.paintGalleryScroll(el, p);
+    const shift = el.style.translate ? -parseFloat(el.style.translate.split(' ')[1]) : 0;
+    seen.push(actual + shift);
+  }
+  // 画面位置 = 整数滚动 + 补偿，逐帧连续前进而不是停住再跳 1px
+  seen.forEach((value, i) => assert.ok(Math.abs(value - (100 + i * .25)) < .002, `frame ${i}: ${value}`));
+  const h = fake();
+  roaming.paintGalleryScroll(h, 40.6, true);
+  assert.equal(h.scrollLeft, 40);
+  assert.equal(h.style.translate, '-0.6px 0');
+  roaming.clearGalleryScrollRests(h);
+  assert.equal(h.style.translate, '');
+  assert.ok(!('roamRest' in h.dataset));
 });

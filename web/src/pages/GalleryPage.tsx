@@ -4,14 +4,14 @@ import {useReducedMotion} from '../hooks/useReducedMotion';
 import {useImmersive} from '../hooks/useImmersive';
 import {useSessionState} from '../core/useSessionState';
 import {useApp} from '../state/AppContext';
-import {GALLERY_MODES, GALLERY_ROAMING_DEFAULTS, galleryIndex, galleryModeHasFocus, galleryRecords, isCollectedRecord, readGalleryPreferences, saveGalleryPreferences, showcaseGroups} from '../core/gallery';
+import {GALLERY_MODES, galleryIndex, galleryRecords, galleryRoamingSeconds, isCollectedRecord, readGalleryPreferences, saveGalleryPreferences, showcaseGroups} from '../core/gallery';
 import type {GalleryPreferences, GalleryScope, ShowcaseGroup} from '../core/gallery';
 import {PageHead} from '../components/PageHead';
 import {GalleryStage} from '../components/GalleryStage';
 import {GalleryFocus} from '../components/GalleryFocus';
 import {GalleryModePicker} from '../components/GalleryModePicker';
 import {GalleryScopePicker} from '../components/GalleryScopePicker';
-import {GalleryRoamingSwitch} from '../components/GalleryRoamingControls';
+import {GalleryRoamingPacePicker, GalleryRoamingSwitch} from '../components/GalleryRoamingControls';
 import {GallerySettings} from '../components/GallerySettings/GallerySettings';
 import {ShowcaseSwitch, useShowcaseSwitch} from '../components/ShowcaseSwitch';
 import {GearIcon} from '../components/ui/GearIcon';
@@ -43,25 +43,29 @@ export function GalleryPage() {
   const updatePreference = (patch: Partial<GalleryPreferences>) => setPreferences(p => ({...p, ...patch}));
   const pick = (id: string) => updatePreference({currentId: id});
   const modeLabel = GALLERY_MODES.find(m => m.value === preferences.mode)!.label;
-  const roamingSeconds = preferences.roamingSpeeds[preferences.mode] ?? GALLERY_ROAMING_DEFAULTS[preferences.mode];
+  const roamingSeconds = galleryRoamingSeconds(preferences.mode, preferences.roamingPace);
   const scopeLabel = scope.kind === 'favorites' ? '我喜欢' : scope.kind === 'artist' ? scope.artist
     : scope.kind === 'group' ? groups.groups.find(g => g.id === scope.groupId)?.name ?? '展示组'
       : '全部收藏';
 
+  const countText = `${records.length} 张${query.trim() ? '匹配的' : ''}收藏`;
+  const roamingControls = <div className="gallery-roaming-group">
+    <GalleryRoamingSwitch enabled={roaming} disabled={!records.length && !roaming} onToggle={() => setRoaming(v => !v)}/>
+    {roaming ? <GalleryRoamingPacePicker pace={preferences.roamingPace} onPace={roamingPace => updatePreference({roamingPace})}/> : null}
+  </div>;
+
   const openSettings = () => {
     app.openDrawer({title: '展示设置', compact: true, initialFocus: 'close',
-      content: <GallerySettings mode={preferences.mode} inGroup={preferences.scope.kind === 'group'} roaming={roaming}
-        discrete={galleryModeHasFocus(preferences.mode)}
+      content: <GallerySettings mode={preferences.mode} inGroup={preferences.scope.kind === 'group'}
         initial={{sort: preferences.sort === 'group' && preferences.scope.kind !== 'group' ? 'recent' : preferences.sort,
-          density: preferences.density, spacing: preferences.spacing, axis: preferences.axis, showTitles: preferences.showTitles, seconds: roamingSeconds}}
-        onChange={updatePreference}
-        onSpeed={seconds => setPreferences(p => ({...p, roamingSpeeds: {...p.roamingSpeeds, [p.mode]: seconds}}))}/>,
+          density: preferences.density, spacing: preferences.spacing, axis: preferences.axis, showTitles: preferences.showTitles}}
+        onChange={updatePreference}/>,
     });
   };
 
   const chooseMode = () => {
-    app.openDrawer({title: '选择展示方式', wide: true,
-      content: <GalleryModePicker mode={preferences.mode} onSelect={mode => {
+    app.openDrawer({title: '选择展示方式', compact: true, initialFocus: 'close',
+      content: <GalleryModePicker mode={preferences.mode} records={records} onSelect={mode => {
         updatePreference({mode}); app.closeDrawer();
       }}/>,
     });
@@ -147,33 +151,31 @@ export function GalleryPage() {
       collectedAt={albumLikes.collectedAt[focusedRecord.id]}/> : null}
     {probe ? <ImmersiveDiag probe={probe}/> : null}
     <PageHead title={switchOn ? <><span className="head-title-text">收藏展示</span><span className="title-switch"><ShowcaseSwitch current="gallery"/></span></> : '收藏展示'} desc="把收藏铺开，慢慢看。"
-              actions={<button type="button" className="quiet head-text" onClick={immersive ? exitImmersive : enterImmersive}>
-                {immersive ? '退出沉浸' : '沉浸展示'}
-              </button>}/>
+              actions={immersive
+                ? <div className="gallery-immersive-bar">{roamingControls}
+                    <button type="button" className="quiet head-text" onClick={exitImmersive}>退出沉浸</button></div>
+                : <button type="button" className="quiet head-text" onClick={enterImmersive}>沉浸展示</button>}/>
     <div className="gallery-controls">
       <div className="gallery-filters">
         <div className="gallery-filter-inputs">
           <button type="button" className="gallery-scope-trigger" onClick={chooseScope} aria-haspopup="dialog"
-                  aria-label={`展示范围：${scopeLabel}`} title={scopeLabel}>
-            <span className="gallery-trigger-cap">范围</span><strong>{scopeLabel}</strong>
+                  aria-label={`展示范围：${scopeLabel}，${countText}`} title={scopeLabel}>
+            <strong>{scopeLabel}</strong><span className="gallery-scope-count">· {records.length}</span>
           </button>
           <label className="gallery-search"><span className="gallery-visually-hidden">搜索收藏</span>
             <input type="search" placeholder="搜索专辑或艺人" value={query} onChange={e => setQuery(e.target.value)}/>
           </label>
+          <span className="gallery-visually-hidden" role="status" aria-atomic="true">{countText}</span>
         </div>
         <div className="gallery-toolbar">
           <button type="button" className="gallery-mode-trigger" onClick={chooseMode} aria-haspopup="dialog"
                   aria-label={`展示方式：${modeLabel}`}>
-            <span className="gallery-trigger-cap">方式</span><strong>{modeLabel}</strong>
+            <strong>{modeLabel}</strong>
           </button>
-          <span className="gallery-count" role="status" aria-atomic="true"
-                title={`${records.length} 张${query.trim() ? '匹配的' : ''}收藏`}>
-            {records.length} 张<span className="gallery-visually-hidden">{query.trim() ? '匹配的收藏' : '收藏'}</span>
-          </span>
-          <button type="button" className="gallery-adjust-trigger" aria-haspopup="dialog" onClick={openSettings}>
-            <GearIcon size={14}/>展示设置
-          </button>
-          <GalleryRoamingSwitch enabled={roaming} disabled={!records.length && !roaming} onToggle={() => setRoaming(v => !v)}/>
+          <span className="gallery-toolbar-gap"/>
+          <button type="button" className="gallery-adjust-trigger gallery-settings-trigger" aria-haspopup="dialog" aria-label="展示设置"
+                  title="展示设置" onClick={openSettings}><GearIcon size={16}/></button>
+          {roamingControls}
         </div>
       </div>
       {reducedMotion && roaming ? <span className="gallery-waterfall-note" role="status">减少动态效果已开启，巡游暂时暂停</span> : null}

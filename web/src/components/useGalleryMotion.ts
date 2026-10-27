@@ -1,7 +1,10 @@
 import {useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react';
 import type {MouseEvent, PointerEvent} from 'react';
-import {advanceGalleryCarousel, advanceGalleryMotion, advanceGalleryRoaming, clampGalleryPosition, galleryReleaseVelocity, releaseGalleryMotion, smootherstep, wrapGalleryPosition} from '../core/gallery-motion';
+import {advanceGalleryCarousel, advanceGalleryMotion, advanceGalleryRoaming, clampGalleryPosition, galleryReleaseVelocity, rampEase, releaseGalleryMotion, wrapGalleryPosition} from '../core/gallery-motion';
 import type {GalleryMotionState, GalleryPoint} from '../core/gallery-motion';
+
+/** 点开巡游后中心布局第一次翻页的等待（秒）。 */
+const FIRST_TURN_DELAY = .6;
 
 export interface GalleryMotionOptions {
   position: number;
@@ -92,8 +95,9 @@ export function useGalleryMotion(options: GalleryMotionOptions) {
   }, []);
   const resetAutoClock = useCallback(() => {
     const current = latest.current;
+    const {min, max} = bounds();
     carousel.current = advanceGalleryCarousel(carousel.current, 0, positionRef.current,
-      current.autoInterval?.() ?? 4, current.min, current.max, true).clock;
+      current.autoInterval?.() ?? 4, min, max, true).clock;
     resumeAt.current = current.autoInterval ? 0 : performance.now() + 2800;
   }, []);
   const stop = useCallback((save = true) => {
@@ -133,11 +137,13 @@ export function useGalleryMotion(options: GalleryMotionOptions) {
       positionRef.current = motion.current.position;
     } else if (canAutoRun() && at >= resumeAt.current) {
       if (latest.current.autoInterval) {
-        const center = clampGalleryPosition(Math.round(positionRef.current), latest.current.min, latest.current.max);
+        // 循环轨道（loopCount）上没有两端，停留后一直朝同一方向翻
+        const {min, max} = bounds();
+        const center = clampGalleryPosition(Math.round(positionRef.current), min, max);
         let destination: number | null = center !== positionRef.current ? center : null;
         if (destination === null) {
           const next = advanceGalleryCarousel(carousel.current, seconds, positionRef.current,
-            latest.current.autoInterval(), latest.current.min, latest.current.max);
+            latest.current.autoInterval(), min, max);
           carousel.current = next.clock;
           destination = next.destination;
         }
@@ -146,9 +152,9 @@ export function useGalleryMotion(options: GalleryMotionOptions) {
           autoTransition.current = true;
         }
       } else {
-        // 自动匀速运动起步按 S 形曲线加速（任何一次中断后重新出发都会重新爬升）
-        autoRamp.current = Math.min(1, autoRamp.current + seconds / 1.2);
-        const velocity = (latest.current.autoVelocity?.() || 0) * smootherstep(autoRamp.current);
+        // 自动匀速运动起步：0.5 秒缓出到设定速度（任何一次中断后重新出发都会重新起步）
+        autoRamp.current = Math.min(1, autoRamp.current + seconds / .5);
+        const velocity = (latest.current.autoVelocity?.() || 0) * rampEase(autoRamp.current);
         lastAutoVelocity.current = velocity;
         if (latest.current.autoBounce) {
           const next = advanceGalleryRoaming(positionRef.current, autoDirection.current, seconds, velocity,
@@ -223,10 +229,29 @@ export function useGalleryMotion(options: GalleryMotionOptions) {
     }
   }, [options.position, options.min, options.max, options.enabled, options.scopeKey, stop]);
 
+  // 退出循环：先把无界位置折回 [0, loopCount)，后面的归位 / 夹取就不会把画面拉到最后一张
+  const previousLoop = useRef(options.loopCount);
+  useLayoutEffect(() => {
+    const previous = previousLoop.current;
+    previousLoop.current = options.loopCount;
+    if (!previous || options.loopCount) return;
+    const folded = wrapGalleryPosition(positionRef.current, previous);
+    const target = motion.current?.target;
+    stop(false);
+    positionRef.current = folded;
+    latest.current.onFrame(folded);
+    if (target !== null && target !== undefined) moveTo(wrapGalleryPosition(target, previous));
+    else commit();
+  }, [options.loopCount, stop, moveTo, commit]);
+
   const autoInterval = options.autoInterval?.();
   useEffect(() => {
     if (canAutoRun()) {
       resetAutoClock();
+      // 刚点开巡游：中心布局约 0.6 秒后就翻第一张，不必干等一整段停留；之后照常按停留时间翻
+      const interval = latest.current.autoInterval?.();
+      if (interval && options.autoRun && !wasAutoRunning.current)
+        carousel.current = {...carousel.current, elapsed: Math.max(0, interval - FIRST_TURN_DELAY)};
       previousAt.current = 0;
       schedule();
     } else if (wasAutoRunning.current && !options.autoRun && !gesture.current && (!motion.current || autoTransition.current)) {

@@ -1,8 +1,8 @@
-/* 展示设置抽屉：每项一个分区，标题在上、控件在下；开关类（带说明 / 单个控件）左文右控件。 */
-.gallery-settings{display:flex;flex-direction:column;gap:20px;padding-bottom:8px}
-.gallery-settings section{display:flex;flex-direction:column;gap:10px}
-.gallery-settings h3{margin:0;font-size:13px;font-weight:600;color:var(--muted)}
-.gallery-settings-row{flex-direction:row!important;align-items:center;justify-content:space-between;gap:14px}
-.gallery-settings-row h3{color:var(--text);font-size:15px;font-weight:550}
-.gallery-settings-row p{margin:3px 0 0;font-size:12px;color:var(--faint)}
-.gallery-settings-note{margin:0;font-size:12px;color:var(--faint)}
+/* 展示设置抽屉：每项一行，左标题、右分段控件；窄屏放不下时控件换到标题下方。 */
+.gallery-settings{display:flex;flex-direction:column;gap:6px;padding-bottom:8px}
+.gallery-settings-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;flex-wrap:wrap}
+.gallery-settings-row+.gallery-settings-row{border-top:1px solid var(--hairline);padding-top:6px}
+.gallery-settings-row h3{margin:0;font-size:14px;font-weight:550;color:var(--text);white-space:nowrap}
+.gallery-settings-row .seg{flex:0 1 auto;margin-left:auto}
+.gallery-settings-row .seg button{min-height:36px;padding-inline:12px}
+.gallery-settings-note{margin:4px 0 0;font-size:12px;color:var(--faint)}

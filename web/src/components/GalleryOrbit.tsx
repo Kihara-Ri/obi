@@ -1,18 +1,13 @@
 import {useLayoutEffect, useMemo, useRef, useState} from 'react';
 import type {KeyboardEvent} from 'react';
 import {GALLERY_ROAMING_DEFAULTS, galleryIndex} from '../core/gallery';
-import {galleryFanLayer, galleryOrbitPoint, galleryOrbitPose, projectGalleryCrate, projectGalleryOrbit} from '../core/gallery-motion';
+import {galleryFanLayer, galleryOrbitPoint, galleryOrbitPose, projectGalleryCrate, projectGalleryOrbit, wrapGalleryPosition} from '../core/gallery-motion';
 import type {GalleryOrbitMode} from '../core/gallery-motion';
 import type {GalleryStageProps} from './GalleryStage';
 import {GalleryCase} from './GalleryCase';
+import {StageArrow} from './GalleryStageControls';
 import {useGalleryMotion} from './useGalleryMotion';
-
-function OrbitArrow({next = false}: {next?: boolean}) {
-  return <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2"
-    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-    <path d={next ? 'M5 12h14m-6-6 6 6-6 6' : 'M19 12H5m6-6-6 6 6 6'}/>
-  </svg>;
-}
+import './GalleryOrbit.css';   // 翻阅 / 环形关键帧：由 scripts/gallery-orbit-keyframes.mjs 生成，勿手改
 
 /** The rear shell sits behind the opaque cards. Side walls and a full front
  * board occlude their lower edges; they do not inherit the moving card pose. */
@@ -29,7 +24,8 @@ function CrateShell({front = false}: {front?: boolean}) {
   </div>;
 }
 
-/** Bounded, continuously scrubbed cover rails for the four central display modes. */
+/** Bounded, continuously scrubbed cover rails for the four central display modes.
+ * 巡游时轨道首尾相接（loopCount）：卡片按「槽位」排列，槽位折回记录序号，最后一张之后接第一张。 */
 export function GalleryOrbit({records, mode, currentId, roaming = false, roamingSpeed = GALLERY_ROAMING_DEFAULTS[mode], onPick, onFocus}: GalleryStageProps) {
   const orbitMode = mode as GalleryOrbitMode;
   const index = galleryIndex(records, currentId);
@@ -46,12 +42,15 @@ export function GalleryOrbit({records, mode, currentId, roaming = false, roaming
   const geometry = useRef({size: 190, perspective: 1050});
   const livePosition = useRef(index);
   const scopeKey = useMemo(() => `${mode}:${records.map(record => record.id).join('|')}`, [mode, records]);
+  const looping = roaming && records.length > 1;
+  const loopingRef = useRef(looping); loopingRef.current = looping;
+  const recordAt = (slot: number) => records[loopingRef.current ? wrapGalleryPosition(slot, records.length) : slot];
 
   const paint = (position: number) => {
     livePosition.current = position;
     const nextCenter = Math.floor(position);
     if (centerRef.current !== nextCenter) {centerRef.current = nextCenter; setWindowCenter(nextCenter);}
-    const selected = Math.max(0, Math.min(records.length - 1, Math.round(position)));
+    const selected = loopingRef.current ? Math.round(position) : Math.max(0, Math.min(records.length - 1, Math.round(position)));
     if (selected !== activeRef.current) {activeRef.current = selected; setActiveIndex(selected);}
     for (const [recordIndex, entry] of nodes.current) {
       const {node, button} = entry;
@@ -76,14 +75,14 @@ export function GalleryOrbit({records, mode, currentId, roaming = false, roaming
       if (button && changed) {
         button.tabIndex = active ? 0 : -1;
         button.setAttribute('aria-pressed', String(active));
-        const record = records[recordIndex];
+        const record = recordAt(recordIndex);
         if (record) button.setAttribute('aria-label', `${active ? '放大展示' : '选择'}：${record.title} · ${record.artist}`);
       }
     }
   };
 
   const motion = useGalleryMotion({position: index, min: 0, max: Math.max(0, records.length - 1), snap: true,
-    scopeKey, enabled: records.length > 0,
+    scopeKey, enabled: records.length > 0, loopCount: looping ? records.length : undefined,
     autoRun: roaming && records.length > 1,
     autoInterval: () => Math.max(2, Math.min(30, roamingSpeed)),
     releaseVelocityLimit: mode === 'crate' ? 1.8 : 10,
@@ -91,11 +90,12 @@ export function GalleryOrbit({records, mode, currentId, roaming = false, roaming
     onDragEnd: () => space.current?.removeAttribute('data-dragging'),
     onFrame: paint,
     onCommit: position => {
-      const selected = Math.max(0, Math.min(records.length - 1, Math.round(position)));
-      if (records[selected]) onPick(records[selected].id);
+      const slot = loopingRef.current ? Math.round(position) : Math.max(0, Math.min(records.length - 1, Math.round(position)));
+      const record = recordAt(slot);
+      if (record) onPick(record.id);
       if (keyboardFocus.current) {
         keyboardFocus.current = false;
-        requestAnimationFrame(() => nodes.current.get(selected)?.button?.focus({preventScroll: true}));
+        requestAnimationFrame(() => nodes.current.get(slot)?.button?.focus({preventScroll: true}));
       }
     },
     project: (start, current, startPosition, anchor) => {
@@ -130,11 +130,12 @@ export function GalleryOrbit({records, mode, currentId, roaming = false, roaming
   useLayoutEffect(() => {paint(motion.positionRef.current);}, [windowCenter, activeIndex, mode, scopeKey]);
 
   if (!records.length) return null;
-  const first = Math.max(0, windowCenter - 4), last = Math.min(records.length, windowCenter + 5);
-  const choose = (recordIndex: number, source?: HTMLElement) => {
+  const first = looping ? windowCenter - 4 : Math.max(0, windowCenter - 4);
+  const last = looping ? windowCenter + 5 : Math.min(records.length, windowCenter + 5);
+  const choose = (slot: number, source?: HTMLElement) => {
     if (motion.isClickSuppressed()) return;
-    if (recordIndex === Math.round(motion.positionRef.current)) onFocus(records[recordIndex].id, source);
-    else motion.moveTo(recordIndex);
+    if (slot === Math.round(motion.positionRef.current)) onFocus(recordAt(slot).id, source);
+    else motion.moveTo(slot);
   };
   const step = (by: number) => {
     if (mode === 'fan') motion.step(by);
@@ -153,14 +154,15 @@ export function GalleryOrbit({records, mode, currentId, roaming = false, roaming
       if (forward || backward) step(forward ? 1 : -1);
       else motion.moveTo(event.key === 'Home' ? 0 : records.length - 1, false);
     } else if (event.key === 'Enter' && event.target === event.currentTarget) {
-      event.preventDefault(); onFocus(records[selected].id);
+      event.preventDefault(); onFocus(recordAt(selected).id);
     }
   };
 
-  const cards = records.slice(first, last).map((record, offset) => {
+  const cards = Array.from({length: last - first}, (_, offset) => {
     const recordIndex = first + offset;
+    const record = recordAt(recordIndex);
     const active = recordIndex === activeIndex;
-    return <div key={record.id} className={`gallery-item gallery-orbit-card${active ? ' is-current' : ''}`}
+    return <div key={recordIndex} className={`gallery-item gallery-orbit-card${active ? ' is-current' : ''}`}
       data-motion-index={recordIndex} data-current={active}
       ref={node => {
         if (node) nodes.current.set(recordIndex, {node, button: node.querySelector<HTMLButtonElement>('.gallery-cover-button')});
@@ -190,14 +192,14 @@ export function GalleryOrbit({records, mode, currentId, roaming = false, roaming
       {mode === 'crate' ? <CrateShell front/> : null}
       </div>
       <div className="gallery-stage-controls" role="group" aria-label="切换专辑">
-        <button type="button" className="gallery-stage-arrow" disabled={controlIndex <= 0}
+        <button type="button" className="gallery-stage-arrow" disabled={!looping && controlIndex <= 0}
           aria-label="上一张副本" title="上一张" onClick={() => step(-1)}>
-          <OrbitArrow/>
+          <StageArrow/>
         </button>
-        <span className="gallery-stage-position" aria-hidden="true">{activeIndex + 1} / {records.length}</span>
-        <button type="button" className="gallery-stage-arrow" disabled={controlIndex >= records.length - 1}
+        <span className="gallery-stage-position" aria-hidden="true">{wrapGalleryPosition(activeIndex, records.length) + 1} / {records.length}</span>
+        <button type="button" className="gallery-stage-arrow" disabled={!looping && controlIndex >= records.length - 1}
           aria-label="下一张副本" title="下一张" onClick={() => step(1)}>
-          <OrbitArrow next/>
+          <StageArrow next/>
         </button>
       </div>
     </div>

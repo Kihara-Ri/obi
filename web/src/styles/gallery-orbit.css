@@ -8,22 +8,28 @@
 .gallery-orbit-space .gallery-cover-button{height:100%;box-shadow:3px 4px 0 var(--border-strong),8px 16px 26px var(--shadow-ink);border:1px solid var(--hairline)}
 /* Crate cards are opaque planes ordered back-to-front. A board, rather than a
    floating rail, masks their bases when the selected card tips forward. */
-.gallery-orbit.gallery-stage--crate .gallery-orbit-card{top:calc((100% - var(--gallery-controls-height))*.58);will-change:transform}
+/* 整组（后排唱片顶边 → 箱底）在舞台里上下居中：卡片中心比舞台中线低约 .2 个封面 */
+.gallery-orbit.gallery-stage--crate .gallery-orbit-space{--crate-y:calc((100% - var(--gallery-controls-height))*.5 + var(--gallery-size)*.2)}
+.gallery-orbit.gallery-stage--crate .gallery-orbit-card{top:var(--crate-y);will-change:transform}
 .gallery-orbit.gallery-stage--crate .gallery-orbit-rail{perspective:none}
 /* A full-height perspective viewport keeps the same pose coordinates, but cuts
    every card (including its contact lift) off at the physical box bottom.
    The shell remains a sibling so its grounding shadow is never clipped. */
 .gallery-crate-records{
-  --crate-bottom:calc((100% - var(--gallery-controls-height))*.58 + var(--gallery-size)*.62);
+  --crate-bottom:calc(var(--crate-y) + var(--gallery-size)*.62);
   position:absolute;inset:0;z-index:2;perspective:1050px;
-  perspective-origin:50% calc((100% - var(--gallery-controls-height))*.58);
+  perspective-origin:50% var(--crate-y);
   clip-path:polygon(0 0,100% 0,100% var(--crate-bottom),0 var(--crate-bottom));
 }
 .gallery-crate-shell{
-  --crate-light:color-mix(in srgb,var(--border-strong) 70%,var(--text));
-  --crate-side:color-mix(in srgb,var(--surface-3) 76%,var(--bg));
+  /* 实木箱：暖色木板 + 细木纹，上沿一道受光高光；深浅主题共用同一组木色 */
+  --crate-light:#d3a26b;
+  --crate-wood:#9a6436;
+  --crate-wood-dark:#6a4022;
+  --crate-side:#57341c;
+  --crate-grain:repeating-linear-gradient(90deg,rgb(0 0 0/.07) 0 1px,transparent 1px 9px,rgb(255 255 255/.04) 9px 10px,transparent 10px 23px);
   position:absolute;width:calc(var(--gallery-size)*1.18);height:calc(var(--gallery-size)*.72);
-  left:50%;top:calc((100% - var(--gallery-controls-height))*.58 - var(--gallery-size)*.1);
+  left:50%;top:calc(var(--crate-y) - var(--gallery-size)*.1);
   transform:translateX(-50%);pointer-events:none;
 }
 .gallery-crate-shell--rear{z-index:1}
@@ -33,32 +39,44 @@
   background:linear-gradient(var(--bg),var(--surface-2));
 }
 .gallery-crate-back{
-  position:absolute;left:7%;right:7%;top:0;height:14%;border:1px solid var(--border-strong);
+  position:absolute;left:7%;right:7%;top:0;height:14%;border:1px solid var(--crate-wood-dark);
   border-top:2px solid var(--crate-light);border-radius:3px 3px 0 0;
-  background:linear-gradient(var(--surface-3),var(--surface-2));
+  background:var(--crate-grain),linear-gradient(var(--crate-wood-dark),var(--crate-side));
 }
 .gallery-crate-side{
-  position:absolute;inset:0;background:linear-gradient(100deg,var(--crate-side),var(--surface-3));
+  position:absolute;inset:0;background:linear-gradient(100deg,var(--crate-side),var(--crate-wood-dark));
 }
 .gallery-crate-side--left{clip-path:polygon(7% 0,10% 5%,4% 76%,0 88%)}
-.gallery-crate-side--right{clip-path:polygon(90% 5%,93% 0,100% 88%,96% 76%);background:linear-gradient(260deg,var(--crate-side),var(--surface-3))}
+.gallery-crate-side--right{clip-path:polygon(90% 5%,93% 0,100% 88%,96% 76%);background:linear-gradient(260deg,var(--crate-side),var(--crate-wood-dark))}
 .gallery-crate-side::after{
   content:"";position:absolute;inset:0;background:var(--crate-light);
   clip-path:polygon(7% 0,10% 5%,9.7% 5.8%,7% .7%);
 }
 .gallery-crate-side--right::after{clip-path:polygon(90% 5%,93% 0,93% .7%,90.3% 5.8%)}
 .gallery-crate-board{
-  position:absolute;left:0;right:0;top:68%;bottom:0;pointer-events:auto;
-  border:1px solid var(--border-strong);border-top:3px solid var(--crate-light);border-radius:3px 3px 7px 7px;
-  background:linear-gradient(160deg,var(--surface-3),var(--surface-2) 72%);
-  box-shadow:inset 0 1px var(--hairline),inset 0 -2px color-mix(in srgb,var(--bg) 60%,transparent),0 8px 14px var(--shadow-ink);
+  /* 加高的前挡板：当前封面露出约 70%（板顶在卡片中心下方 .2 个封面） */
+  position:absolute;left:0;right:0;top:42%;bottom:0;pointer-events:auto;
+  border:1px solid var(--crate-wood-dark);border-top:3px solid var(--crate-light);border-radius:3px 3px 7px 7px;
+  background:var(--crate-grain),linear-gradient(170deg,var(--crate-wood),var(--crate-wood-dark) 85%);
+  box-shadow:inset 0 1px rgb(255 255 255/.18),inset 0 -3px rgb(0 0 0/.25),0 10px 18px var(--shadow-ink);
 }
 .gallery-crate-handle{
   position:absolute;width:25%;height:clamp(4px,calc(var(--gallery-size)*.026),11px);
-  left:37.5%;top:39%;border:1px solid var(--border-strong);border-radius:999px;
-  background:var(--bg);box-shadow:inset 0 2px 2px var(--shadow-ink),0 1px var(--hairline);
+  left:37.5%;top:46%;border:1px solid var(--crate-side);border-radius:999px;
+  background:#2a180c;box-shadow:inset 0 2px 2px rgb(0 0 0/.5),0 1px rgb(255 255 255/.16);
 }
-.gallery-orbit.gallery-stage--ring .gallery-orbit-rail:after{content:"";position:absolute;width:calc(var(--gallery-size)*3.3);height:calc(var(--gallery-size)*.75);left:50%;top:calc((100% - var(--gallery-controls-height))*.58);transform:translate(-50%,-50%);border:2px solid var(--border-strong);border-radius:50%;box-shadow:0 4px 0 var(--surface-3);pointer-events:none;z-index:0}
+/* 翻阅：卡片略上移，封面下方一道渐隐的地面倒影（-webkit-box-reflect：Safari / Chrome 支持，其他浏览器无倒影） */
+/* 扇形：整把牌（中心抬起 → 两侧下垂）在舞台里上下居中 */
+.gallery-orbit.gallery-stage--fan .gallery-orbit-card{top:calc((100% - var(--gallery-controls-height))*.5 - var(--gallery-size)*.05)}
+.gallery-orbit.gallery-stage--flow .gallery-orbit-card{top:calc((100% - var(--gallery-controls-height))*.44)}
+.gallery-orbit.gallery-stage--flow .gallery-cover-button{box-shadow:0 10px 24px var(--shadow-ink);-webkit-box-reflect:below 3px linear-gradient(transparent 62%,rgb(255 255 255/.22))}
+/* 环形：整圈（后排顶边 → 前排底边）上下居中；底下一整块椭圆底座，前排封面立在它的前沿，后排落在后沿 */
+.gallery-orbit.gallery-stage--ring .gallery-orbit-space{--ring-y:calc((100% - var(--gallery-controls-height))*.5 + var(--gallery-size)*.22)}
+.gallery-orbit.gallery-stage--ring .gallery-orbit-card{top:var(--ring-y)}
+.gallery-orbit.gallery-stage--ring .gallery-orbit-rail:after{content:"";position:absolute;width:min(calc(var(--gallery-size)*2.5),calc(100% - 6px));height:calc(var(--gallery-size)*1.05);left:50%;top:calc(var(--ring-y) + var(--gallery-size)*.42);transform:translate(-50%,-50%);border:1px solid var(--border-strong);border-radius:50%;background:radial-gradient(ellipse at 50% 35%,color-mix(in srgb,var(--surface-3) 70%,transparent),color-mix(in srgb,var(--surface-2) 40%,transparent) 70%);box-shadow:0 3px 0 var(--surface-3),0 14px 26px var(--shadow-ink);pointer-events:none;z-index:0}
+/* 转到环后的封面变暗：关键帧给出 --orbit-shade，暗层盖在封面上（不用 filter，免得压平盒子的立体厚度） */
+.gallery-orbit.gallery-stage--ring .gallery-cover-button{position:relative}
+.gallery-orbit.gallery-stage--ring .gallery-cover-button::after{content:"";position:absolute;inset:0;border-radius:inherit;background:#000;opacity:var(--orbit-shade,0);pointer-events:none}
 .gallery-orbit-rail .gallery-orbit-card.is-orbit-near{z-index:8}
 .gallery-orbit-rail .gallery-orbit-card.is-current{z-index:12}
 .gallery-orbit-rail .gallery-orbit-card.is-orbit-outgoing{z-index:14}
@@ -76,65 +94,25 @@
   .gallery-orbit.gallery-stage--fan .gallery-orbit-space,.gallery-orbit.gallery-stage--ring .gallery-orbit-space{--gallery-size:135px}
   .gallery-page.is-immersive .gallery-orbit-space{height:100svh;min-height:250px}
 }
-.gallery-orbit.gallery-stage--flow .gallery-orbit-card{animation-name:gallery-orbit-flow}
-@keyframes gallery-orbit-flow{
-  0%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*-2.99),calc(var(--gallery-size)*0),calc(var(--gallery-size)*-1.38)) rotateX(0deg) rotateY(64.5deg) rotateZ(0deg) scale(0.76);opacity:0}
-  6.25%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*-2.655),calc(var(--gallery-size)*0),calc(var(--gallery-size)*-1.19)) rotateX(0deg) rotateY(64.5deg) rotateZ(0deg) scale(0.76);opacity:0.1}
-  12.5%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*-2.32),calc(var(--gallery-size)*0),calc(var(--gallery-size)*-1)) rotateX(0deg) rotateY(64.5deg) rotateZ(0deg) scale(0.76);opacity:0.6}
-  18.75%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*-1.985),calc(var(--gallery-size)*0),calc(var(--gallery-size)*-0.81)) rotateX(0deg) rotateY(64.5deg) rotateZ(0deg) scale(0.8);opacity:1}
-  25%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*-1.65),calc(var(--gallery-size)*0),calc(var(--gallery-size)*-0.62)) rotateX(0deg) rotateY(64.5deg) rotateZ(0deg) scale(0.84);opacity:1}
-  31.25%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*-1.315),calc(var(--gallery-size)*0),calc(var(--gallery-size)*-0.43)) rotateX(0deg) rotateY(64.5deg) rotateZ(0deg) scale(0.88);opacity:1}
-  37.5%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*-0.98),calc(var(--gallery-size)*0),calc(var(--gallery-size)*-0.24)) rotateX(0deg) rotateY(43deg) rotateZ(0deg) scale(0.92);opacity:1}
-  43.75%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*-0.49),calc(var(--gallery-size)*0),calc(var(--gallery-size)*-0.05)) rotateX(0deg) rotateY(21.5deg) rotateZ(0deg) scale(0.96);opacity:1}
-  50%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*0),calc(var(--gallery-size)*0),calc(var(--gallery-size)*0.14)) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1}
-  56.25%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*0.49),calc(var(--gallery-size)*0),calc(var(--gallery-size)*-0.05)) rotateX(0deg) rotateY(-21.5deg) rotateZ(0deg) scale(0.96);opacity:1}
-  62.5%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*0.98),calc(var(--gallery-size)*0),calc(var(--gallery-size)*-0.24)) rotateX(0deg) rotateY(-43deg) rotateZ(0deg) scale(0.92);opacity:1}
-  68.75%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*1.315),calc(var(--gallery-size)*0),calc(var(--gallery-size)*-0.43)) rotateX(0deg) rotateY(-64.5deg) rotateZ(0deg) scale(0.88);opacity:1}
-  75%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*1.65),calc(var(--gallery-size)*0),calc(var(--gallery-size)*-0.62)) rotateX(0deg) rotateY(-64.5deg) rotateZ(0deg) scale(0.84);opacity:1}
-  81.25%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*1.985),calc(var(--gallery-size)*0),calc(var(--gallery-size)*-0.81)) rotateX(0deg) rotateY(-64.5deg) rotateZ(0deg) scale(0.8);opacity:1}
-  87.5%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*2.32),calc(var(--gallery-size)*0),calc(var(--gallery-size)*-1)) rotateX(0deg) rotateY(-64.5deg) rotateZ(0deg) scale(0.76);opacity:0.6}
-  93.75%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*2.655),calc(var(--gallery-size)*0),calc(var(--gallery-size)*-1.19)) rotateX(0deg) rotateY(-64.5deg) rotateZ(0deg) scale(0.76);opacity:0.1}
-  100%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*2.99),calc(var(--gallery-size)*0),calc(var(--gallery-size)*-1.38)) rotateX(0deg) rotateY(-64.5deg) rotateZ(0deg) scale(0.76);opacity:0}
-}
 .gallery-orbit.gallery-stage--crate .gallery-orbit-card{animation-name:gallery-orbit-crate}
 @keyframes gallery-orbit-crate{
-  0%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*2.32),calc(var(--gallery-size)*0.12)) rotateX(75deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;z-index:132}
-  6.25%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*2.03),calc(var(--gallery-size)*0.12)) rotateX(75deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;z-index:128}
-  12.5%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*1.74),calc(var(--gallery-size)*0.12)) rotateX(75deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;z-index:124}
-  18.75%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*1.45),calc(var(--gallery-size)*0.12)) rotateX(75deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;z-index:120}
-  25%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*1.16),calc(var(--gallery-size)*0.12)) rotateX(75deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;z-index:116}
-  31.25%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*0.87),calc(var(--gallery-size)*0.12)) rotateX(75deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;z-index:112}
-  37.5%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*0.58),calc(var(--gallery-size)*0.12)) rotateX(75deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;z-index:108}
-  43.75%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*0.29),calc(var(--gallery-size)*0.09)) rotateX(36deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;z-index:104}
+  0%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*2.32),calc(var(--gallery-size)*0.12)) rotateX(75deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:0;z-index:132}
+  6.25%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*2.03),calc(var(--gallery-size)*0.12)) rotateX(75deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:0;z-index:128}
+  12.5%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*1.74),calc(var(--gallery-size)*0.12)) rotateX(75deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:0;z-index:124}
+  18.75%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*1.45),calc(var(--gallery-size)*0.12)) rotateX(75deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:0;z-index:120}
+  25%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*1.16),calc(var(--gallery-size)*0.12)) rotateX(75deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:0;z-index:116}
+  31.25%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*0.87),calc(var(--gallery-size)*0.12)) rotateX(75deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:0;z-index:112}
+  37.5%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*0.58),calc(var(--gallery-size)*0.12)) rotateX(75deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:0;z-index:108}
+  43.75%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*0.29),calc(var(--gallery-size)*0.09)) rotateX(36deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:0.75;z-index:104}
   50%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*-0),calc(var(--gallery-size)*0.06)) rotateX(-3deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;z-index:100}
-  56.25%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*-0.065),calc(var(--gallery-size)*-0.03)) rotateX(-4deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;z-index:96}
-  62.5%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*-0.13),calc(var(--gallery-size)*-0.12)) rotateX(-5deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;z-index:92}
-  68.75%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*-0.195),calc(var(--gallery-size)*-0.21)) rotateX(-6deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;z-index:88}
-  75%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*-0.26),calc(var(--gallery-size)*-0.3)) rotateX(-7deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;z-index:84}
-  81.25%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*-0.325),calc(var(--gallery-size)*-0.39)) rotateX(-8deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;z-index:80}
-  87.5%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*-0.39),calc(var(--gallery-size)*-0.48)) rotateX(-9deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;z-index:76}
-  93.75%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*-0.455),calc(var(--gallery-size)*-0.57)) rotateX(-10deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;z-index:72}
-  100%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*-0.52),calc(var(--gallery-size)*-0.66)) rotateX(-11deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;z-index:68}
-}
-.gallery-orbit.gallery-stage--ring .gallery-orbit-card{animation-name:gallery-orbit-ring}
-@keyframes gallery-orbit-ring{
-  0%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*-0.8908427),calc(var(--gallery-size)*-1.3985527),calc(var(--gallery-size)*-2.5235221)) rotateX(0deg) rotateY(78deg) rotateZ(0deg) scale(0.84);opacity:0}
-  6.25%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*-1.1973882),calc(var(--gallery-size)*-1.2050271),calc(var(--gallery-size)*-2.1859776)) rotateX(0deg) rotateY(78deg) rotateZ(0deg) scale(0.86);opacity:0.1}
-  12.5%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*-1.3897834),calc(var(--gallery-size)*-0.9652626),calc(var(--gallery-size)*-1.7677836)) rotateX(0deg) rotateY(78deg) rotateZ(0deg) scale(0.88);opacity:0.6}
-  18.75%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*-1.4496865),calc(var(--gallery-size)*-0.7021164),calc(var(--gallery-size)*-1.3088078)) rotateX(0deg) rotateY(78deg) rotateZ(0deg) scale(0.9);opacity:1}
-  25%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*-1.3713868),calc(var(--gallery-size)*-0.4406752),calc(var(--gallery-size)*-0.8528056)) rotateX(0deg) rotateY(64deg) rotateZ(0deg) scale(0.92);opacity:1}
-  31.25%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*-1.1623489),calc(var(--gallery-size)*-0.2058628),calc(var(--gallery-size)*-0.443249)) rotateX(0deg) rotateY(48deg) rotateZ(0deg) scale(0.94);opacity:1}
-  37.5%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*-0.842501),calc(var(--gallery-size)*-0.0200645),calc(var(--gallery-size)*-0.1191823)) rotateX(0deg) rotateY(32deg) rotateZ(0deg) scale(0.96);opacity:1}
-  43.75%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*-0.442335),calc(var(--gallery-size)*0.0990069),calc(var(--gallery-size)*0.0885004)) rotateX(0deg) rotateY(16deg) rotateZ(0deg) scale(0.98);opacity:1}
-  50%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*0),calc(var(--gallery-size)*0.14),calc(var(--gallery-size)*0.16)) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1}
-  56.25%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*0.442335),calc(var(--gallery-size)*0.0990069),calc(var(--gallery-size)*0.0885004)) rotateX(0deg) rotateY(-16deg) rotateZ(0deg) scale(0.98);opacity:1}
-  62.5%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*0.842501),calc(var(--gallery-size)*-0.0200645),calc(var(--gallery-size)*-0.1191823)) rotateX(0deg) rotateY(-32deg) rotateZ(0deg) scale(0.96);opacity:1}
-  68.75%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*1.1623489),calc(var(--gallery-size)*-0.2058628),calc(var(--gallery-size)*-0.443249)) rotateX(0deg) rotateY(-48deg) rotateZ(0deg) scale(0.94);opacity:1}
-  75%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*1.3713868),calc(var(--gallery-size)*-0.4406752),calc(var(--gallery-size)*-0.8528056)) rotateX(0deg) rotateY(-64deg) rotateZ(0deg) scale(0.92);opacity:1}
-  81.25%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*1.4496865),calc(var(--gallery-size)*-0.7021164),calc(var(--gallery-size)*-1.3088078)) rotateX(0deg) rotateY(-78deg) rotateZ(0deg) scale(0.9);opacity:1}
-  87.5%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*1.3897834),calc(var(--gallery-size)*-0.9652626),calc(var(--gallery-size)*-1.7677836)) rotateX(0deg) rotateY(-78deg) rotateZ(0deg) scale(0.88);opacity:0.6}
-  93.75%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*1.1973882),calc(var(--gallery-size)*-1.2050271),calc(var(--gallery-size)*-2.1859776)) rotateX(0deg) rotateY(-78deg) rotateZ(0deg) scale(0.86);opacity:0.1}
-  100%{transform:translate(-50%,-50%) translate3d(calc(var(--gallery-size)*0.8908427),calc(var(--gallery-size)*-1.3985527),calc(var(--gallery-size)*-2.5235221)) rotateX(0deg) rotateY(-78deg) rotateZ(0deg) scale(0.84);opacity:0}
+  56.25%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*-0.08),calc(var(--gallery-size)*-0.03)) rotateX(-4deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;z-index:96}
+  62.5%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*-0.16),calc(var(--gallery-size)*-0.12)) rotateX(-5deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;z-index:92}
+  68.75%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*-0.24),calc(var(--gallery-size)*-0.21)) rotateX(-6deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;z-index:88}
+  75%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*-0.32),calc(var(--gallery-size)*-0.3)) rotateX(-7deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;z-index:84}
+  81.25%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*-0.4),calc(var(--gallery-size)*-0.39)) rotateX(-8deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;z-index:80}
+  87.5%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*-0.48),calc(var(--gallery-size)*-0.48)) rotateX(-9deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;z-index:76}
+  93.75%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*-0.56),calc(var(--gallery-size)*-0.57)) rotateX(-10deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;z-index:72}
+  100%{transform:translate(-50%,-50%) translate3d(0,calc(var(--gallery-size)*-0.64),calc(var(--gallery-size)*-0.66)) rotateX(-11deg) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;z-index:68}
 }
 @media(prefers-reduced-motion:reduce){
   /* Paused seeking is direct manipulation, not autonomous animation; inertia is disabled in the hook. */

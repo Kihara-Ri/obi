@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "prebuild": "node scripts/clean.mjs && node scripts/gallery-fan.mjs && node scripts/album-engine-models.mjs",
+    "prebuild": "node scripts/clean.mjs && node scripts/gallery-fan.mjs && node scripts/gallery-orbit-keyframes.mjs && node scripts/album-engine-models.mjs",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "test": "node tests/run.mjs",

@@ -6,15 +6,16 @@
 .gallery-filter-inputs{display:flex;flex:1;align-items:center;gap:8px;min-width:min(100%,300px);max-width:540px}
 .gallery-search{flex:1;min-width:0}
 .gallery-search input{background:var(--surface);min-height:44px}
-.gallery-scope-trigger{min-width:0;max-width:42%;min-height:44px;display:flex;align-items:center;gap:6px;padding:8px 10px}
-.gallery-scope-trigger strong{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.gallery-toolbar{display:flex;flex:1;align-items:center;gap:8px;min-width:min(100%,260px);flex-wrap:wrap}
-.gallery-mode-trigger{flex:0 1 auto;min-width:0;min-height:44px;display:flex;align-items:center;gap:6px;padding:8px 10px}
+.gallery-scope-trigger{min-width:0;max-width:46%;min-height:44px;display:flex;align-items:center;gap:5px;padding:8px 11px}
+.gallery-scope-trigger strong{min-width:0;font-size:13px;font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gallery-scope-count{flex:none;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.gallery-toolbar{display:flex;flex:1;align-items:center;gap:6px;min-width:min(100%,260px)}
+.gallery-toolbar-gap{flex:1}
+.gallery-mode-trigger{flex:0 1 auto;min-width:0;min-height:44px;display:flex;align-items:center;padding:8px 12px}
 .gallery-mode-trigger strong{font-size:13px;font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.gallery-mode-trigger>span{flex:none}
-.gallery-adjust-trigger{display:flex;align-items:center;gap:6px;flex:none;min-height:44px;padding:8px;font-size:12px}
+.gallery-adjust-trigger{display:flex;align-items:center;justify-content:center;gap:6px;flex:none;min-width:44px;min-height:44px;padding:8px 10px;font-size:12px}
+.gallery-settings-trigger{padding:8px}
 .gallery-waterfall-note{font-size:11px;color:var(--faint)}
-.gallery-count{flex:1;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 .gallery-visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 
 /* 整个应用树一起沉浸，资料抽屉与照片灯箱仍保持可见。 */
@@ -24,7 +25,9 @@
 .gallery-page.is-immersive .page-head{position:fixed;top:calc(10px + env(safe-area-inset-top));right:calc(12px + env(safe-area-inset-right));left:auto;z-index:40;
   width:auto;margin:0;padding:0;border:0;background:none;backdrop-filter:none;justify-content:flex-end;transition:opacity .3s}
 .gallery-page.is-immersive.is-chrome-idle .page-head{opacity:0;pointer-events:none}
-.gallery-page.is-immersive .head-actions button{background:var(--chrome-nav);border:1px solid var(--border-strong);border-radius:999px;box-shadow:var(--shadow-sm);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.gallery-immersive-bar{display:flex;align-items:center;gap:2px;padding:3px;background:var(--chrome-nav);border:1px solid var(--border-strong);border-radius:999px;box-shadow:var(--shadow-sm);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.gallery-immersive-bar button{border-color:transparent;background:none;border-radius:999px}
+.gallery-immersive-bar .gallery-roaming-group{padding-right:4px;margin-right:2px;border-right:1px solid var(--border)}
 .gallery-page.is-immersive .page-head>div:first-child,.gallery-page.is-immersive .page-head::before{display:none}
 /* 控件区在沉浸里不显示；进出时由 stage-expand 把它连同标题、底栏一起滑出 / 滑回 */
 .gallery-page.is-immersive .gallery-controls{display:none}
@@ -37,14 +40,8 @@
   .gallery-controls{gap:9px;margin-bottom:12px}
   .gallery-filters{gap:8px}
   .gallery-filter-inputs{flex-basis:100%;max-width:none}
-  .gallery-toolbar{flex-basis:100%;gap:4px;flex-wrap:wrap}
-  .gallery-mode-trigger{flex:0 0 auto;min-width:0;padding-inline:10px}
-  .gallery-mode-trigger strong{font-size:12px}
-  .gallery-count{flex:1;font-size:11px}
-  .gallery-adjust-trigger{min-width:44px;padding-inline:4px}
-  .gallery-page.is-immersive .head-actions button{font-size:12px;padding:7px 10px;min-height:44px}
+  .gallery-toolbar{flex-basis:100%;gap:4px}
+  .gallery-adjust-trigger{padding-inline:8px}
+  .gallery-immersive-bar button{font-size:12px;padding:7px 10px;min-height:40px}
 }
-/* 这三个按钮打开的是选择面板（抽屉），不是下拉：用「范围 / 方式」小标签 + 齿轮图标，不再用向下的小箭头 */
-.gallery-trigger-cap{flex:none;font-size:11px;font-weight:500;color:var(--faint)}
-
-}
+/* 范围 / 方式打开的是选择面板（抽屉），不是下拉：不加向下的小箭头；只有就地弹出的速度胶囊带箭头 */

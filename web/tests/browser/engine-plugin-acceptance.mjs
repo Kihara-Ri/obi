@@ -43,7 +43,7 @@ export async function accept(page, {baseURL, expectations, screenshotDir, stage 
         sessionStorage.setItem('obi-acceptance-preferences',
           JSON.stringify({value: localStorage.getItem('album-gallery-v1')}));
       localStorage.setItem('album-gallery-v1', JSON.stringify({mode: 'tiles', density: 'medium',
-        showTitles: false, sort: 'recent', currentId: null, scope: {kind: 'all'}, roamingSpeeds: {}}));
+        showTitles: false, sort: 'recent', currentId: null, scope: {kind: 'all'}, roamingPace: 'normal'}));
     } catch { /* Blank initial page has no origin yet. */ }
   });
   const results = [];

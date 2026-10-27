@@ -1,8 +1,12 @@
+import {useEffect, useRef} from 'react';
+import type {PointerEvent as ReactPointerEvent} from 'react';
 import type {AlbumRecord} from '../types';
 import type {GalleryAxis, GalleryDensity, GalleryMode, GallerySpacing} from '../core/gallery';
 import {GalleryWall} from './GalleryWall';
 import {GalleryOrbit} from './GalleryOrbit';
-import {GalleryFilm, GalleryTable, GalleryIsometric} from './GalleryContinuous';
+import {GalleryFilm} from './GalleryFilm';
+import {GalleryTable} from './GalleryTable';
+import {GalleryIsometric} from './GalleryIsometric';
 
 export interface GalleryStageProps {
   records: AlbumRecord[];
@@ -56,5 +60,3 @@ export function GalleryStage(props: GalleryStageProps) {
           : <GalleryOrbit {...props}/>;
   return <div key={props.mode} className="gallery-stage-layout" data-mode={props.mode} onPointerDownCapture={touch}>{scene}</div>;
 }
-import {useEffect, useRef} from 'react';
-import type {PointerEvent as ReactPointerEvent} from 'react';

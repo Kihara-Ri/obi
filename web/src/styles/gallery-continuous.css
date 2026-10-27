@@ -1,12 +1,12 @@
 /* 连续胶片、自然延伸的桌面与有限视口等距斜列。 */
 .gallery-continuous-cover{user-select:none;-webkit-user-select:none}
-.gallery-film-shell{--film-size:clamp(150px,21vw,230px);--film-gap:6px;--film-controls:66px;position:relative;padding-bottom:var(--film-controls);background:var(--surface-3);border:1px solid var(--border);border-radius:7px;overflow:hidden}
+.gallery-film-shell{--film-size:clamp(150px,21vw,230px);--film-gap:6px;--film-controls:116px;position:relative;padding-bottom:var(--film-controls);overflow:hidden}
 .gallery-density--small .gallery-film-shell{--film-size:clamp(120px,17vw,180px)}
 .gallery-density--large .gallery-film-shell{--film-size:clamp(180px,25vw,280px)}
 .gallery-film-shell::before,.gallery-film-shell::after{content:"";position:absolute;left:0;right:0;z-index:1;height:11px;background:var(--film-hole);pointer-events:none;-webkit-mask:var(--film-hole-mask) 0 0/22px 11px repeat-x;mask:var(--film-hole-mask) 0 0/22px 11px repeat-x}
 .gallery-film-shell::before{top:10px}
 .gallery-film-shell::after{bottom:calc(var(--film-controls) + 8px)}
-.gallery-film-rail{position:relative;display:flex;align-items:center;gap:var(--film-gap);width:100%;padding:30px max(16px,calc(50% - var(--film-size)*.5)) 58px;overflow-x:auto;overflow-y:hidden;touch-action:pan-x pan-y pinch-zoom;scroll-snap-type:none;scroll-behavior:auto;scrollbar-width:none;cursor:grab;background:var(--film-base)}
+.gallery-film-rail{position:relative;display:flex;align-items:center;gap:var(--film-gap);width:100%;padding:30px max(16px,calc(50% - var(--film-size)*.5)) 58px;overflow-x:auto;overflow-y:hidden;touch-action:pan-x pan-y pinch-zoom;scroll-snap-type:none;scroll-behavior:auto;scrollbar-width:none;cursor:grab;background:var(--film-base);border:1px solid var(--border);border-radius:7px}
 .gallery-film-rail::-webkit-scrollbar{display:none}
 .gallery-film-rail[data-dragging=true]{cursor:grabbing}
 .gallery-film-item{--d:1;flex:0 0 var(--film-size);width:var(--film-size);aspect-ratio:1;min-width:0;
@@ -26,21 +26,33 @@
 .gallery-film-item .gallery-cover-button{height:100%;border:0;border-radius:0;box-shadow:0 0 0 1px var(--film-edge)}
 .gallery-isometric-shell .gallery-stage-controls{bottom:10px}
 
-.gallery-table-grid{--table-min:144px;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,var(--table-min)),1fr));align-items:start;gap:36px;padding:24px;min-width:0;background:radial-gradient(ellipse at 50% 20%,var(--surface-2),var(--bg) 78%);border:1px solid var(--border);border-radius:var(--radius);touch-action:pan-y pinch-zoom}
-.gallery-density--small .gallery-table-grid{--table-min:110px;gap:28px}
-.gallery-density--large .gallery-table-grid{--table-min:210px;gap:44px}
-.gallery-table-item{min-width:0;scroll-margin-block:90px}
-.gallery-table-item .gallery-cover-button{height:auto;aspect-ratio:1;box-shadow:2px 3px 0 var(--border-strong),6px 9px 20px var(--shadow-ink)}
+/* 桌面铺开：舞台本身是一张桌面（暖木色混入主题底色 + 竖向木纹 + 上方一盏台灯的光晕），唱片随手散放：
+   按副本稳定取一档角度（±8°）与左右 / 上下错位，行距收紧让相邻唱片偶尔压住一角。错位只用 transform，不影响循环量出的行距。 */
+.gallery-stage--table{
+  --desk-wood:color-mix(in srgb,#8a5a34 36%,var(--surface-2));
+  --desk-deep:color-mix(in srgb,#4a2e18 30%,var(--bg));
+  background:
+    radial-gradient(ellipse 90% 60% at 50% 18%,rgb(255 236 200/.10),transparent 70%),
+    repeating-linear-gradient(90deg,rgb(0 0 0/.06) 0 1px,transparent 1px 13px,rgb(255 255 255/.03) 13px 14px,transparent 14px 31px),
+    linear-gradient(var(--desk-wood),var(--desk-deep));
+  border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:inset 0 0 40px rgb(0 0 0/.22);
+}
+.gallery-table-grid{--table-min:144px;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,var(--table-min)),1fr));align-items:start;gap:14px 30px;padding:30px 28px;min-width:0;touch-action:pan-y pinch-zoom}
+.gallery-density--small .gallery-table-grid{--table-min:110px;gap:10px 22px}
+.gallery-density--large .gallery-table-grid{--table-min:210px;gap:18px 40px}
+.gallery-table-item{min-width:0;scroll-margin-block:90px;position:relative}
+.gallery-table-item .gallery-cover-button{height:auto;aspect-ratio:1;border:1px solid rgb(255 255 255/.08);box-shadow:0 1px 1px rgb(0 0 0/.35),3px 8px 14px rgb(0 0 0/.32),10px 18px 30px var(--shadow-ink)}
 .gallery-table-item .gallery-tile-caption{padding-top:15px}
-.gallery-table-angle--0>.gallery-cover-button{transform:rotate(-5deg)}
-.gallery-table-angle--1>.gallery-cover-button{transform:rotate(3deg)}
-.gallery-table-angle--2>.gallery-cover-button{transform:rotate(-2deg)}
-.gallery-table-angle--3>.gallery-cover-button{transform:rotate(5deg)}
-.gallery-table-angle--4>.gallery-cover-button{transform:rotate(-3deg)}
-.gallery-table-angle--5>.gallery-cover-button{transform:rotate(4deg)}
-.gallery-table-angle--6>.gallery-cover-button{transform:rotate(-4deg)}
-.gallery-table-angle--7>.gallery-cover-button{transform:rotate(2deg)}
-.gallery-table-angle--8>.gallery-cover-button{transform:rotate(-1deg)}
+.gallery-table-angle--0>.gallery-cover-button{transform:translate(-6%,4%) rotate(-7deg)}
+.gallery-table-angle--1>.gallery-cover-button{transform:translate(5%,10%) rotate(5deg)}
+.gallery-table-angle--2>.gallery-cover-button{transform:translate(-3%,-4%) rotate(-3deg)}
+.gallery-table-angle--3>.gallery-cover-button{transform:translate(7%,2%) rotate(8deg)}
+.gallery-table-angle--4>.gallery-cover-button{transform:translate(-8%,12%) rotate(-5deg)}
+.gallery-table-angle--5>.gallery-cover-button{transform:translate(4%,-6%) rotate(6deg)}
+.gallery-table-angle--6>.gallery-cover-button{transform:translate(-5%,8%) rotate(-8deg)}
+.gallery-table-angle--7>.gallery-cover-button{transform:translate(8%,-2%) rotate(3deg)}
+.gallery-table-angle--8>.gallery-cover-button{transform:translate(2%,6%) rotate(-2deg)}
 
 .gallery-isometric-shell{--iso-preferred:clamp(90px,12vw,148px);--iso-controls:64px;--iso-height:440px;--iso-size:min(var(--iso-preferred),calc((var(--iso-height) - var(--iso-controls))/3.15),calc((100vw - 68px)/3.15));--iso-step:calc(var(--iso-size)*.94);position:relative;padding-bottom:var(--iso-controls);border:1px solid var(--border);border-radius:var(--radius);background:radial-gradient(ellipse at 50% 70%,var(--surface-2),var(--bg) 75%);overflow:hidden;isolation:isolate}
 .gallery-density--small .gallery-isometric-shell{--iso-preferred:clamp(72px,9vw,112px)}
@@ -53,19 +65,29 @@
 .gallery-isometric-lane--1{--iso-lane-x:0px;--iso-lane-y:0px;--iso-lane-shift:calc(var(--iso-step)*.5)}
 .gallery-isometric-lane--2{--iso-lane-x:calc(var(--iso-size)*.82);--iso-lane-y:calc(var(--iso-size)*-.82);--iso-lane-shift:0px}
 .gallery-isometric-item .gallery-cover-button{height:100%;box-shadow:4px 6px 0 var(--border-strong),10px 17px 22px var(--shadow-ink);border:1px solid var(--hairline)}
+/* 当前那张沿墙面法线抬起一点、投影加深；四边用渐隐遮罩，封面滑出舞台时淡出而不是被一刀切掉 */
+.gallery-isometric-item .gallery-cover-button{transition:transform .22s ease,box-shadow .22s ease}
+.gallery-isometric-item.is-current .gallery-cover-button{transform:translateZ(18px);box-shadow:6px 9px 0 var(--border-strong),18px 28px 34px var(--shadow-ink)}
+.gallery-isometric-gesture{
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 9%,#000 91%,transparent),linear-gradient(transparent,#000 9%,#000 88%,transparent);
+  -webkit-mask-composite:source-in;
+  mask-image:linear-gradient(90deg,transparent,#000 9%,#000 91%,transparent),linear-gradient(transparent,#000 9%,#000 88%,transparent);
+  mask-composite:intersect;
+}
+@media (prefers-reduced-motion:reduce){.gallery-isometric-item .gallery-cover-button{transition:none}}
 @keyframes gallery-isometric-position{
   from{transform:translate(-50%,-50%) translate(calc(var(--iso-step)*-16 + var(--iso-lane-x) + var(--iso-lane-shift)),calc(var(--iso-step)*-16 + var(--iso-lane-y) + var(--iso-lane-shift))) rotateX(30deg) rotateZ(-35deg)}
   to{transform:translate(-50%,-50%) translate(calc(var(--iso-step)*16 + var(--iso-lane-x) + var(--iso-lane-shift)),calc(var(--iso-step)*16 + var(--iso-lane-y) + var(--iso-lane-shift))) rotateX(30deg) rotateZ(-35deg)}
 }
 .gallery-page.is-immersive .gallery-isometric-shell{--iso-height:100svh}
 @media(max-width:840px){
-  .gallery-film-shell{--film-size:min(48vw,220px);--film-gap:14px}
+  .gallery-film-shell{--film-size:min(48vw,220px);--film-gap:8px}
   .gallery-density--small .gallery-film-shell{--film-size:min(36vw,160px)}
   .gallery-density--large .gallery-film-shell{--film-size:min(58vw,260px)}
   .gallery-film-rail{padding-block:28px 56px}
-  .gallery-table-grid{--table-min:112px;gap:22px;padding:18px}
-  .gallery-density--small .gallery-table-grid{--table-min:86px;gap:18px}
-  .gallery-density--large .gallery-table-grid{--table-min:140px;gap:28px}
+  .gallery-table-grid{--table-min:112px;gap:8px 22px;padding:24px 22px}
+  .gallery-density--small .gallery-table-grid{--table-min:86px;gap:6px 16px}
+  .gallery-density--large .gallery-table-grid{--table-min:140px;gap:12px 28px}
   .gallery-isometric-shell{--iso-preferred:min(25vw,128px);--iso-height:390px}
   .gallery-density--small .gallery-isometric-shell{--iso-preferred:min(19vw,100px)}
   .gallery-density--large .gallery-isometric-shell{--iso-preferred:min(30vw,144px)}

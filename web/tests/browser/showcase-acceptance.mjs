@@ -138,7 +138,7 @@ export async function accept(page, {baseURL, expectations, screenshotDir, saveSh
       if (!sessionStorage.getItem('obi-acceptance-preferences'))
         sessionStorage.setItem('obi-acceptance-preferences', JSON.stringify({value: localStorage.getItem('album-gallery-v1')}));
       localStorage.setItem('album-gallery-v1', JSON.stringify({mode: 'tiles', density: 'medium',
-        showTitles: false, sort: 'recent', currentId: null, scope: {kind: 'all'}, roamingSpeeds: {}}));
+        showTitles: false, sort: 'recent', currentId: null, scope: {kind: 'all'}, roamingPace: 'normal'}));
       window.__showcaseContexts = 0;
       window.__showcaseLosses = 0;
       const tracked = new WeakSet();

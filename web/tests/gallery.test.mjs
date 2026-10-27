@@ -81,7 +81,7 @@ test('九种展示模式的偏好均可保存恢复', () => {
   for (const mode of gallery.GALLERY_MODES) {
     assert.ok(mode.label.trim());
     assert.ok(mode.description.trim());
-    const preferences = {mode: mode.value, density: 'large', spacing: 'wide', axis: 'horizontal', showTitles: true, sort: 'artist', currentId: 'copy-b', scope: {kind: 'all'}, roamingSpeeds: {}};
+    const preferences = {mode: mode.value, density: 'large', spacing: 'wide', axis: 'horizontal', showTitles: true, sort: 'artist', currentId: 'copy-b', scope: {kind: 'all'}, roamingPace: 'fast'};
     gallery.saveGalleryPreferences(preferences);
     assert.deepEqual(gallery.readGalleryPreferences(), preferences, mode.value);
   }
@@ -104,16 +104,30 @@ test('当前副本移除后回退到有效起点', () => {
   assert.equal(gallery.galleryIndex([], 'current'), 0);
 });
 
-test('每种布局独立恢复巡游速度，旧偏好和非法速度回退，不保存巡游启动状态', () => {
-  storage.set('album-gallery-v1', JSON.stringify({mode: 'crate', roaming: true,
-    roamingSpeeds: {crate: 3, film: 30, flow: 1, ring: 31, tiles: '8', waterfall: 2.5}}));
+test('巡游档位所有布局共用，旧的按布局秒数迁移到最接近的档位，不保存巡游启动状态', () => {
+  // 唱片箱默认 5 秒：旧设 3 秒 ≈ 1.67× → 快（1.5×）；其他布局的旧秒数不参与
+  storage.set('album-gallery-v1', JSON.stringify({mode: 'crate', roaming: true, roamingSpeeds: {crate: 3, film: 30}}));
   const preferences = gallery.readGalleryPreferences();
-  assert.deepEqual(preferences.roamingSpeeds, {film: 30, crate: 3});
+  assert.equal(preferences.roamingPace, 'fast');
   assert.equal(Object.hasOwn(preferences, 'roaming'), false);
-  gallery.saveGalleryPreferences({...preferences, roamingSpeeds: {...preferences.roamingSpeeds, fan: 12}});
-  assert.deepEqual(gallery.readGalleryPreferences().roamingSpeeds, {film: 30, crate: 3, fan: 12});
-  storage.set('album-gallery-v1', JSON.stringify({mode: 'waterfall'}));
-  assert.deepEqual(gallery.readGalleryPreferences().roamingSpeeds, {});
+  assert.equal(Object.hasOwn(preferences, 'roamingSpeeds'), false);
+  storage.set('album-gallery-v1', JSON.stringify({mode: 'film', roamingSpeeds: {film: 30}}));
+  assert.equal(gallery.readGalleryPreferences().roamingPace, 'slowest');
+  // 已有档位优先于旧秒数；非法旧值与缺省回到标准
+  storage.set('album-gallery-v1', JSON.stringify({mode: 'film', roamingPace: 'slow', roamingSpeeds: {film: 2}}));
+  assert.equal(gallery.readGalleryPreferences().roamingPace, 'slow');
+  storage.set('album-gallery-v1', JSON.stringify({mode: 'tiles', roamingPace: 'turbo', roamingSpeeds: {tiles: 2.5}}));
+  assert.equal(gallery.readGalleryPreferences().roamingPace, 'normal');
+});
+
+test('档位换算成各布局的秒数：标准 = 默认秒数，很快为一半、很慢为两倍', () => {
+  for (const {value} of gallery.GALLERY_MODES) {
+    const base = gallery.GALLERY_ROAMING_DEFAULTS[value];
+    assert.equal(gallery.galleryRoamingSeconds(value, 'normal'), base);
+    assert.equal(gallery.galleryRoamingSeconds(value, 'fastest'), base / 2);
+    assert.equal(gallery.galleryRoamingSeconds(value, 'slowest'), base * 2);
+    assert.ok(gallery.galleryRoamingSeconds(value, 'fastest') >= 2);
+  }
 });
 
 test('艺人范围精确匹配本地名称，搜索继续限定在该艺人内', () => {

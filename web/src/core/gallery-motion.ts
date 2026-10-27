@@ -79,6 +79,21 @@ export function advanceGalleryRoaming(position: number, direction: number, secon
   return {position: min + (phase < span ? phase : span * 2 - phase), direction: phase < span ? forward : -forward};
 }
 
+/** 封面墙无缝循环：重复到「张数是列数的整数倍」为一个周期，接缝处每一列都对得上；再多铺一屏给接缝之后的画面。 */
+export function galleryWallLoop(count: number, columns: number, visibleRows: number): {periodItems: number; copies: number} {
+  const n = Math.max(1, Math.floor(count)), c = Math.max(1, Math.floor(columns));
+  const gcd = (a: number, b: number): number => b ? gcd(b, a % b) : a;
+  const periodItems = n / gcd(n, c) * c;
+  return {periodItems, copies: Math.ceil((periodItems + Math.max(1, Math.ceil(visibleRows)) * c) / n)};
+}
+
+/** 循环轨道上前进；超过一个周期就减回去，小数位置保留（浏览器把 scrollTop 取整也不丢速度）。 */
+export function advanceGalleryLoop(position: number, seconds: number, speed: number, period: number): number {
+  if (!(period > 0)) return 0;
+  const travel = Number.isFinite(seconds) && Number.isFinite(speed) ? Math.max(0, seconds) * Math.abs(speed) : 0;
+  return wrapGalleryPosition(position + travel, period);
+}
+
 export interface GalleryCarouselClock {elapsed: number; direction: number}
 
 /** Rest for the selected interval, then request one normal-speed neighboring turn. */
@@ -199,22 +214,25 @@ function sampleOrbitPose(mode: GalleryOrbitMode, offset: number, handoff = true)
   const pose: GalleryOrbitPose = {x: 0, y: 0, z: 0, rotateX: 0, rotateY: 0, rotateZ: 0,
     scale: 1, opacity: Math.max(0, Math.min(1, 3.6 - a))};
   if (mode === 'flow') {
-    pose.x = Math.sign(offset) * (a <= 1 ? .98 * a : .98 + .67 * (a - 1));
-    pose.z = .14 - .38 * a;
-    pose.rotateY = -Math.sign(offset) * Math.min(a, 1.5) * 43;
-    pose.scale = 1 - .08 * Math.min(a, 3);
+    // 紧凑的翻阅：邻张斜转 60° 互相压叠，手机上两侧各能看到两张（±0.55 / ±0.75 / ±0.95 个封面宽）
+    pose.x = Math.sign(offset) * (a <= 1 ? .55 * a : .55 + .3 * (a - 1));
+    pose.z = .14 - .38 * Math.min(a, 1) - .1 * Math.max(0, a - 1);
+    pose.rotateY = -Math.sign(offset) * Math.min(a, 1) * 60;
+    pose.scale = 1 - .06 * Math.min(a, 3);
   } else if (mode === 'crate') {
     const tipped = Math.min(Math.max(-offset, 0), 1);
-    pose.y = offset < 0 ? -.58 * offset : -.13 * offset;
+    // 翻过的那张朝观者倒下并淡出；后面的唱片每张多露一截顶边
+    pose.y = offset < 0 ? -.58 * offset : -.16 * offset;
     pose.z = offset < 0 ? .06 + .06 * tipped : .06 - .18 * offset;
     pose.rotateX = offset < 0 ? -3 + 78 * tipped : -3 - 2 * Math.min(offset, 4);
-    pose.opacity = offset <= -1 ? 0 : 1;
+    pose.opacity = offset <= -1 ? 0 : 1 - tipped * tipped;
   } else if (mode === 'fan') {
-    const angle = offset * .33;
+    // 中心与紧邻一张保持原弧线（换层时轮廓已错开，不闪层）；更外侧每张只再转 11°、收紧排布，手机上两侧能多露几张
+    const angle = Math.sign(offset) * (a <= 1 ? .33 * a : .33 + .19 * (a - 1));
     pose.x = 1.6 * Math.sin(angle);
     pose.y = -.08 + 1.6 * (1 - Math.cos(angle));
     pose.z = .08 - .07 * a;
-    pose.rotateZ = offset * 19;
+    pose.rotateZ = Math.sign(offset) * (a <= 1 ? 19 * a : 19 + 11 * (a - 1));
     pose.scale = 1 - .05 * Math.min(a, 4);
     if (handoff) {
       // Peel the rigid case gently away from the stack along its existing arc.
@@ -232,8 +250,9 @@ function sampleOrbitPose(mode: GalleryOrbitMode, offset: number, handoff = true)
       }
     }
   } else {
+    // 环形：横向半径收紧到 1.1 个封面，两侧各两张往后绕时基本留在舞台内（纵深与高度不变）
     const angle = offset * .62;
-    pose.x = 1.45 * Math.sin(angle);
+    pose.x = 1.1 * Math.sin(angle);
     pose.y = .14 - .86 * (1 - Math.cos(angle));
     pose.z = .16 - 1.5 * (1 - Math.cos(angle));
     pose.rotateY = -Math.max(-78, Math.min(78, offset * 32));
@@ -313,6 +332,12 @@ export function projectGalleryOrbit(mode: GalleryOrbitMode, point: GalleryPoint,
   }
   return Math.max(-4, Math.min(4, best));
 }
+
+/** 巡游起停的速度曲线（三次缓出）：一开始就明显在动，越接近设定速度越平顺；不用 S 形是因为它前半段几乎不动，起步显得拖沓。 */
+export const rampEase = (t: number): number => {
+  const x = Math.max(0, Math.min(1, Number.isFinite(t) ? t : 0));
+  return 1 - (1 - x) ** 3;
+};
 
 /** 五次平滑阶梯：两端速度和加速度都为 0，起步、收尾没有顿挫。 */
 export const smootherstep = (t: number): number => {

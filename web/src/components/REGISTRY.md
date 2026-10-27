@@ -40,7 +40,12 @@
 | `ModuleChooser` `ModulePresets` `ModuleTiles` `ModulePhone` `ModuleImpact` `ModuleIcon` | 设置 · 功能与首次设置：使用方式图标卡 → 功能图标开关（点按开关，联动依赖）+ 默认首页 → 迷你手机实时预览底栏与详情管理（新增「+」、收起虚线「−」）；完整变化清单收在「全部变化与说明」 | 预览数据来自 `core/modules` 的 `SURFACE_GROUPS`（含 `icon` 键），与导航及表单的模块判断同步维护；选中/开启用对勾与粗边区分，不只靠颜色 |
 | `Details` | 带展开 / 收起高度动画的 `<details>`：用 Chevron 做箭头，替代所有裸 `<details>`；`Disclosure` 基于它 | `summary` `children` `className?` `open?`+`onOpenChange?` 或 `defaultOpen?` |
 | `LightboxScan` | 编辑表单照片灯箱里的「识别条码并核对发行版」：用应用内识别器读当前照片，识别到有效条码后在照片上框出，再发 `record-barcode` 交给表单发行版区块就地查询；详情照片墙不再提供（2026-10-24） | `src` `onDone` |
-| `GallerySettings` | 展示页「展示设置」抽屉内容：展示顺序 / 封面大小 / 间距 / 滑动方向用 `OptionCards`（示意图见 `GallerySettings/icons.tsx`），「显示标题与艺术家」用 `Switch`，巡游速度；抽屉内容是快照，用本地 state 镜像并回写页面偏好 | `mode` `inGroup` `roaming` `discrete` `initial` `onChange` `onSpeed` |
+| `GallerySettings` | 展示页「展示设置」抽屉内容：每项一行（左标题、右 `Seg`）——顺序 / 封面大小 / 间距 / 滑动方向，「显示标题与艺术家」用 `Switch`；巡游速度不在这里；抽屉内容是快照，用本地 state 镜像并回写页面偏好 | `mode` `inGroup` `initial` `onChange` |
+| `GalleryRoamingSwitch` `GalleryRoamingPacePicker` | 展示页巡游开关（播放 / 暂停图标按钮）与速度胶囊：胶囊显示倍率，点开就地浮出 5 档 `Seg`（选中即生效、浮层不关，点外面 / Esc 收起）；工具区与沉浸悬浮条共用 | `enabled` `onToggle` / `pace` `onPace` |
+| `StageArrow` `StageControls` `stageKey` | 展示舞台的箭头图标、箭头 + 位置指示条、←→ 键处理（`GalleryStageControls.tsx`）；胶片 / 等距 / 中心布局共用 | `next?` / `index` `count` `start` `end` `step` |
+| `measureGalleryGridLoop` | 网格布局（封面墙 / 桌面铺开）巡游无缝循环的周期测量：按 offsetTop 数列数与行距，返回副本份数、周期像素与单份可滚距离（`useGalleryRoaming.ts`）；新网格布局要循环时复用它 |
+| `GalleryFilmNavigator` | 胶片下方导航：印样条（小封面一排，当前高亮并滚到中间，点击跳转）+ `StageControls` 胶囊；替代原滑杆 |
+| `useGalleryDragScroll` | 桌面鼠标拖动横向滚动容器（只写 scrollLeft、竖向手势让给页面、拖后吞掉误点 click）；胶片使用，新的横向轨道可复用 |
 | `PageVeil` | 库存 ↔ 展示的转场幕布：Splash 转场版合上 → 预加载封面（`core/preload-covers`，上限 48 张、5 秒兜底）→ 打开。仅手机、非历史导航、非减少动态 | `covers: string[]` `onDone` |
 | `PeekUnderlay` | 子页左缘右划返回时垫在内容下面的上一级页面（更多 / 设置），由 `obi-peek` 事件开关，仅手势期间挂载，`inert` | 无（事件驱动） |
 | `WhatsNew` | 更新后第一次打开的更新说明弹窗：原生 `<dialog>`，列出上次看过的版本之后的 CHANGELOG 条目（最多 4 版），关闭即记下当前版本；首次安装不弹 | 无（读 `state.service.version`） |
