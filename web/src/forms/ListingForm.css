@@ -1,14 +1,17 @@
-/* 上架页先展示可复制文案；素材与次要选项顺序后置，底部固定取用操作。 */
-.listing-reading-host{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
-.listing-body{display:flex;flex-direction:column;gap:var(--listing-gap)}
+/* 上架页：文案在前，素材与次要选项后置；区块之间只留一条分隔线，底部取用操作固定。 */
+.listing-body{min-height:0;display:flex;flex-direction:column;gap:var(--listing-gap);scrollbar-width:none}
+.listing-body::-webkit-scrollbar{display:none}
 .listing-body>.error:empty{display:none}
+.listing-body>.listing-photos{padding-top:var(--listing-gap);border-top:1px solid var(--border)}
 .listing-fields{border:0;padding:0;margin:0;min-width:0;display:grid;gap:var(--listing-gap)}
-.listing-options{border-bottom:1px solid var(--border);padding-bottom:var(--listing-gap)}
+.listing-options{border-top:1px solid var(--border)}
+.listing-options+.listing-options{border-top:0}
 .listing-options>summary{min-height:var(--listing-touch-size);display:flex;align-items:center;color:var(--muted);font-size:var(--listing-small-size)}
-.listing-options .details-body{padding-top:var(--listing-gap-sm)}
+.listing-options .details-body{padding:var(--listing-gap-sm) 0 var(--listing-gap)}
 .listing-note{margin:0;font-size:var(--listing-small-size);color:var(--muted)}
 .listing-note.is-warn{color:var(--orange)}
-.listing-actions,.listing-candidate-actions{display:flex;gap:var(--listing-gap-sm);flex-wrap:wrap}
+.listing-candidate-actions{display:flex;gap:var(--listing-gap-sm);flex-wrap:wrap}
 .listing-conflict{color:var(--orange);border-color:var(--orange);background:transparent;text-align:left}
 .listing-footer>.copy-button,.listing-footer>.primary{flex:1;min-width:0}
 .listing-footer>.photo-download-button{flex:0 1 auto}
+.listing-footer>.photo-download-button:only-child{flex:1}

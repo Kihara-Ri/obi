@@ -86,6 +86,6 @@
 - 上下文里的尺寸 / 外观覆盖（如 `.gallery-setting .seg button`）留在使用处所属的页面样式里，组件自己的 CSS 只放通用外观。
 - 动效：时长与缓动用 `tokens.css` 的 `--dur-fast/--dur/--dur-slow`、`--ease-out`（进场减速）、`--ease-soft`（状态过渡）；滑块仍用 `--slide-ms/--slide-ease`。`prefers-reduced-motion` 下 `base.css` 全局关闭动画与过渡。按钮没有全局按下位移（见 AGENTS.md）。
 
-- `ListingCopy`：文案预览/编辑；长文限高，点击原位覆盖展开、明确收起/Esc 返回，原占位/滚动/底栏不变。`ListingCopyReader` 只管阅读层与焦点；复用 AutoTextarea。
-- `ListingPhotos`：本副本缩略图与单张复制；复用 PhotoDownload 保存全部，不混入资料库封面。
+- `ListingCopy`：文案卡片，空态（就地生成 / 手动编写）、阅读（长文限高渐隐，就地展开，sticky 收起条）、编辑（输入框，完成/保存在表单底栏）；复用 AutoTextarea。
+- `ListingPhotos`：本副本自适应缩略图（加载骨架/失败态）、右下角图标复制单张；复用 PhotoDownload 保存全部，不混入资料库封面。
 - `ListingOptions`（forms）：默认折叠的风格、本次补充与生成选项；复用 ListingPreferences。

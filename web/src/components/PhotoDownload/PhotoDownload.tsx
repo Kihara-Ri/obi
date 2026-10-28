@@ -60,6 +60,6 @@ export function PhotoDownload({id, count, revision, artist, title, variant = 'ic
     aria-label={displayLabel || label} title={label} aria-busy={loading || phase === 'saving'}
     disabled={disabled || !count || loading || phase === 'saving'} onClick={onClick}>
     {loading || phase === 'saving' ? SpinIco : phase === 'done' ? CheckIco : DownloadIco}
-    {variant === 'button' ? <span>{phase === 'saving' ? '保存中…' : displayLabel || '保存图片'}</span> : null}
+    {variant === 'button' ? <span>{phase === 'saving' ? '保存中…' : loading ? '读取照片…' : displayLabel || '保存图片'}</span> : null}
   </button>;
 }

@@ -36,6 +36,7 @@ function ListingForm({id}: {id: string}) {
   const [dirty, setDirty] = useState(false);
   const [saved, setSaved] = useState(!!r.listingDraft || !!r.listingDescription);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const photos = usePhotoFiles(id, r.photoCount, r.photoRevision ?? 0, r.artist, r.title);
   const [supplement, setSupplement] = useState(r.listingDraft?.generation?.supplement ?? '');
   const [provider, setProvider] = useState<ListingProvider>();
@@ -78,10 +79,10 @@ function ListingForm({id}: {id: string}) {
   const phaseText = progress === 'writing' ? '正在生成文案…' : progress === 'saving' ? '正在保存草稿…'
     : r.photoCount ? '正在核对资料与照片…' : '正在整理已有资料…';
   return <form onSubmit={e => e.preventDefault()}>
-    <div className="listing-reading-host">
     <div className="drawer-body listing-body">
       <ListingCopy draft={shown} saved={saved && !dirty} candidate={!!candidate} busy={busy || stale}
-        ready={!!ready && !!preferences && !stale} onGenerate={() => generate()} onChange={change} onSave={saveDraft}/>
+        ready={!!ready && !!preferences && !stale} editing={editing} generating={task.busy ? phaseText : undefined}
+        onEditing={setEditing} onGenerate={() => generate()} onChange={change}/>
       {candidate ? <div className="listing-candidate-actions" aria-label="候选操作">
         <button type="button" disabled={stale || busy} onClick={async () => {
           setSettingsBusy(true); setError('');
@@ -131,13 +132,16 @@ function ListingForm({id}: {id: string}) {
         </fieldset>
       </Details>
     </div>
-    </div>
     <div className="drawer-footer listing-footer">
+      {editing && !candidate ? <>
+        <button type="button" onClick={() => setEditing(false)}>完成</button>
+        <button type="button" className="primary" aria-busy={saving} disabled={busy || stale} onClick={saveDraft}>保存草稿</button>
+      </> : <>
       {r.photoCount ? <PhotoDownload id={id} count={r.photoCount} revision={r.photoRevision ?? 0} artist={r.artist} title={r.title}
         variant="button" label="保存图片" preparedFiles={photos.files} disabled={stale}/> : null}
       {shown.description.trim() ? <CopyButton variant="button" label="复制文案" text={[shown.title, shown.description].filter(Boolean).join('\n\n')}/>
-        : <button type="button" className="primary" aria-busy={task.busy} disabled={busy || stale || !ready || !preferences}
-          onClick={() => generate()}>{task.busy ? phaseText : 'AI 生成上架资料'}</button>}
+        : null}
+      </>}
     </div>
   </form>;
 }
