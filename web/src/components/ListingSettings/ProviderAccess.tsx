@@ -1,9 +1,11 @@
-// 密钥 / 授权区：DeepSeek、OpenCode 填密钥（只显示末四位）；OpenAI、Claude 走授权登录；兼容 API 由服务端配置。
+// 密钥 / 授权区：DeepSeek、OpenCode 填密钥（只显示末四位；OpenCode 可网页登录后从剪贴板回填）；OpenAI、Claude 走授权登录；兼容 API 由服务端配置。
 import {useState} from 'react';
 import {api} from '../../core/api';
 import type {ListingProvider} from '../../core/listing';
 import {Dropdown} from '../ui/Dropdown';
 import {Seg} from '../ui/Seg';
+import {isLocalSite} from '../../core/backend';
+import {OpenCodeLogin} from './OpenCodeLogin';
 
 interface Props {
   provider: ListingProvider; busy: boolean;
@@ -15,10 +17,10 @@ interface Props {
 type KeyProvider = 'deepseek' | 'opencode';
 const KEY_PROVIDERS: Record<KeyProvider, {label: string; mask: string; hint: string; href: string; link: string}> = {
   deepseek: {label: 'DeepSeek API Key', mask: 'sk-••••••••',
-    hint: '密钥只保存在服务器的受限文件中，不会回传到页面，也不进入业务备份。',
+    hint: '',
     href: 'https://platform.deepseek.com/api_keys', link: '获取密钥 ↗'},
   opencode: {label: 'OpenCode API Key', mask: '••••••••',
-    hint: 'Go 订阅与按量余额使用同一把 OpenCode Console 密钥；切换计费通道后要重新读取模型。密钥只保存在服务器的受限文件中，不进入业务备份。',
+    hint: 'Go 订阅与按量余额使用同一把 OpenCode Console 密钥；切换计费通道后要重新读取模型。',
     href: 'https://opencode.ai/console', link: 'OpenCode Console ↗'},
 };
 
@@ -45,6 +47,7 @@ export function ProviderAccess({provider, busy, run, configure, login}: Props) {
         <button type="button" disabled={busy} onClick={() => setReplacing(true)}>更换密钥</button>
         {provider.keySource === 'saved' ? <button type="button" className="danger" disabled={busy} onClick={disconnect}>移除密钥</button> : null}
       </div> : <div className="listing-credentials">
+        {id === 'opencode' ? <OpenCodeLogin busy={busy} onKey={setKey}/> : null}
         <label>{meta.label}<input type="password" autoComplete="new-password" value={key}
           onChange={e => setKey(e.target.value)} maxLength={2000}/></label>
         <div className="provider-keyrow">
@@ -54,7 +57,7 @@ export function ProviderAccess({provider, busy, run, configure, login}: Props) {
           {replacing ? <button type="button" disabled={busy} onClick={() => {setReplacing(false); setKey('');}}>取消</button> : null}
         </div>
       </div>}
-      <p className="small-note">{meta.hint}</p>
+      <p className="small-note">{meta.hint}密钥只保存在{isLocalSite() ? '这台设备的应用数据里' : '服务器的受限文件中'}，不会回传到页面，也不进入业务备份。</p>
       <a href={meta.href} target="_blank" rel="noopener noreferrer">{meta.link}</a>
     </div>;
   }

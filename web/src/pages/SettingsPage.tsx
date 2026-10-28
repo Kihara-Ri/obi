@@ -9,7 +9,6 @@ import {Seg} from '../components/ui/Seg';
 import {TabPanel} from '../components/ui/TabPanel';
 import {AccountSettings} from './settings/AccountSettings';
 import {DataSettings} from './settings/DataSettings';
-import {ListingSettings} from '../components/ListingSettings';
 import {FeedbackSection} from '../components/FeedbackSection';
 import {AppUpdateSection} from '../components/AppUpdateSection';
 
@@ -55,7 +54,6 @@ export function SettingsPage() {
           </Disclosure>
         </section>
         <AlbumEngineSettings/>
-        {app.modules.trading ? <ListingSettings/> : null}
         <AppUpdateSection/>
         <FeedbackSection/>
       </> : null}

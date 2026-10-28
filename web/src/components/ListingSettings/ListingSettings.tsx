@@ -45,8 +45,8 @@ export function ListingSettings() {
     </button></li>;
   };
   return <section className="settings-section listing-settings" aria-label="视觉模型接口设置">
-    <h3>视觉模型接口</h3>
-    <p className="small-note">可同时保留各服务商连接，分别设置模型。分析仅发送本副本照片、专辑名与艺人，且只在你点击分析时调用。</p>
+    <h3>已连接服务</h3>
+    <p className="small-note">售卖照片识别用的视觉模型。可同时保留各服务商连接，分别设置模型。分析仅发送本副本照片、专辑名与艺人，且只在你点击分析时调用。</p>
     {local && provider ? <p className="small-note">本机版只支持 OpenCode / DeepSeek 的密钥通道；ChatGPT 与 Claude 请在服务器版使用。</p> : null}
     <p role="alert" className="error">{error}</p>
     {provider ? <>

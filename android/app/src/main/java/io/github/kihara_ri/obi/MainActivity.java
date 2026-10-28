@@ -493,6 +493,12 @@ public class MainActivity extends Activity {
             return relay == null ? "" : relay.base();
         }
 
+        /** 剪贴板纯文本（OpenCode 网页登录回填密钥）；读不到返回空串，见 {@link Clip}。 */
+        @JavascriptInterface
+        public String clipboardText() {
+            return Clip.read(MainActivity.this);
+        }
+
         @JavascriptInterface
         public String updateStatus() {
             return Updater.status(MainActivity.this);

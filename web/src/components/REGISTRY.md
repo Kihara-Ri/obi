@@ -53,9 +53,10 @@
 | `PurchaseForm` | 管理页「编辑买入信息」：金额 / 币种 / 日期 / 额外费用 / 渠道 | 复用 `MoneySection`、`ShopField`；管钱的编辑都放这里 |
 | `PhotoDownload` | 专辑详情「实物照片」标题右侧的下载图标：手机把原图交给系统分享面板（存储图像进相册），桌面下载 ZIP | `id` `count` `revision` `artist` `title`；手机进入详情时预取照片，分享须在点击手势内同步调用；加载中禁用，图标有 aria-label |
 | `ListingReview` | 照片证据、版本候选及人工核对 | 不自动采用候选或覆盖文案；确认用 checkbox |
-| `ListingSettings` | 服务商列表：连接/测试/在用状态，点入详情抽屉 | 复用 Drawer；密钥/令牌不回传，只显示末四位 |
+| `ListingSettings` | 设置「账户 → 已连接服务」：服务商列表，连接/测试/在用状态，点入详情抽屉（仅二手交易） | 复用 Drawer；密钥/令牌不回传，只显示末四位 |
 | `ProviderPage` | 服务商详情：头部状态、三步进度、密钥/模型/测试三块 | 复用 ListingSteps、Dropdown；状态只走 token |
 | `ProviderAccess` | 详情页「密钥/授权」区（按服务商分支） | 密钥输入后即清空；移除/更换分开 |
+| `OpenCodeLogin` | OpenCode 网页登录：打开 opencode.ai/auth，回到应用时读剪贴板回填密钥框（不自动保存） | `busy` `onKey`；剪贴板经 `core/clipboard` 的 `readClipboardText`（安卓走原生桥）；另有「粘贴」按钮兜底 |
 | `ProviderIcon` | 服务商品牌 SVG 图标（Lobe Icons, MIT） | 品牌色走 `--brand-*` token；OpenAI 单色随文字色 |
 | `Chevron` | 全站唯一箭头（down / right，open 旋转） | 同一 SVG、14px、同一过渡；禁止再用 › ▾ ▸ 字符或另画箭头；折叠用 `Collapse` |
 | `ui/Drawer` | 抽屉 / 手机底部 sheet：遮罩、焦点圈、Esc、下拉收起、脏表单确认 | 存量文件（见 `.ai-kit/legacy.txt`），动到时拆分 |

@@ -27,11 +27,11 @@ const openFrom = async tab => {
 };
 const open = () => openFrom(page);
 try {
-  // 设置 · 高级 · 视觉模型接口：服务商列表 → 点进详情抽屉完成密钥 / 模型 / 设为在用（D-013）。
+  // 设置 · 账户 · 已连接服务（视觉模型）：服务商列表 → 点进详情抽屉完成密钥 / 模型 / 设为在用（D-013）。
   const openSettings = async () => {
     await page.goto(base + '/#settings');
-    await page.getByRole('button', {name: '高级', exact: true}).click();
-    await page.getByRole('heading', {name: '视觉模型接口', exact: true}).waitFor();
+    await page.getByRole('button', {name: '账户', exact: true}).click();
+    await page.getByRole('heading', {name: '已连接服务', exact: true}).waitFor();
   };
   const openProvider = async name => {
     const row = page.locator('.provider-item').filter({has: page.locator('b', {hasText: new RegExp(`^${name}$`, 'u')})});

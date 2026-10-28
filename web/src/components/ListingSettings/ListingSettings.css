@@ -34,3 +34,7 @@
 .provider-keyrow .danger{color:var(--red)}
 .provider-use{justify-self:stretch;min-height:var(--listing-touch-size)}
 .provider-head>div,.provider-keyrow>*{min-width:0}
+.provider-login{display:grid;gap:var(--listing-gap-sm)}
+.provider-login-go{display:inline-flex;align-items:center;justify-content:center;min-height:var(--listing-touch-size);padding:0 16px;border:1px solid var(--accent);border-radius:var(--radius-sm);background:var(--accent);color:var(--accent-ink);font-weight:650;text-decoration:none}
+.provider-login-go:hover{background:var(--accent-strong);border-color:var(--accent-strong);color:var(--accent-ink)}
+.provider-login-go[aria-disabled=true]{opacity:.55;pointer-events:none}

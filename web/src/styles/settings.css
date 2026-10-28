@@ -10,7 +10,8 @@
   }
 
 /* 设置分段标签页 + 状态行 + 功能模块开关 */
-.settings-tabs{margin-bottom:14px;max-width:440px}
+/* 滑块裁在轨道内：窗口变窄 / 旋转时，停在最右「账户」的滑块从旧位置滑回期间不撑出横向滚动 */
+.settings-tabs{margin-bottom:14px;max-width:440px;overflow:hidden}
 .settings-tabs button{padding:8px 4px}
 .settings-stats{display:grid;gap:2px;margin:6px 0}
 .settings-stats>div{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
