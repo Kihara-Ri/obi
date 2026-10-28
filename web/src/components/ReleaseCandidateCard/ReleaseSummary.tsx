@@ -2,11 +2,12 @@
 // 版本卡片展开后与专辑表单里的已确认版本共用。
 import {dedupeCatalog, regionName} from '../../core/release-metadata';
 import {ORIGIN_LABEL, type CoverOrigin} from '../../core/version-cover';
+import {sourceName} from '../../core/release-source';
 import type {ReleaseInfo} from '../../types';
 import {useArtExpand} from './useArtExpand';
 
-export const sourceName = (info: {musicBrainzReleaseId?: string; discogsReleaseId?: string}, discogs?: boolean) =>
-  discogs || (info.discogsReleaseId && !info.musicBrainzReleaseId) ? 'Discogs' : 'MusicBrainz';
+/** 来源显示名由 core/release-source 统一决定；这里重新导出，保持既有调用点的导入路径。 */
+export {sourceName};
 
 /** 封面右下角的来源角标（此版本 / 同专辑 / iTunes / 上传），版本卡片与表单的封面共用 */
 export const OriginTag = ({origin}: {origin?: CoverOrigin | null}) =>

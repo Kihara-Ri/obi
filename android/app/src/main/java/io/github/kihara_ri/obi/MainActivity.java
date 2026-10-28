@@ -71,6 +71,7 @@ public class MainActivity extends Activity {
     private FrameLayout root;
     private WebView web;
     private WebView popup;
+    private ModelRelay relay;
     private ValueCallback<Uri[]> fileCallback;
     private Uri cameraOutput;
     private Runnable afterCameraPermission;
@@ -94,6 +95,8 @@ public class MainActivity extends Activity {
         root = new FrameLayout(this);
         setContentView(root);
         applySystemBars();
+        relay = new ModelRelay();
+        relay.start();   // 失败时 base() 为空，页面仍可记账，只是模型接口不可用
 
         if (WebViewFeature.isFeatureSupported(WebViewFeature.SERVICE_WORKER_BASIC_USAGE)) {
             // Service Worker 的预缓存与更新请求不经过页面的 WebViewClient，要单独接到同一份资源
@@ -175,6 +178,8 @@ public class MainActivity extends Activity {
         s.setDomStorageEnabled(true);
         s.setDatabaseEnabled(true);
         s.setMediaPlaybackRequiresUserGesture(false);
+        // 本机模型中继监听 http://127.0.0.1（D-030）；页面在 https 源，需允许这一次明文回环请求。
+        s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(false);
         s.setSupportMultipleWindows(true);
@@ -482,6 +487,12 @@ public class MainActivity extends Activity {
             return BuildConfigVersion.name(MainActivity.this);
         }
 
+        /** 本机模型中继地址（含一次性路径 token）；未启动时返回空串。 */
+        @JavascriptInterface
+        public String modelRelay() {
+            return relay == null ? "" : relay.base();
+        }
+
         @JavascriptInterface
         public String updateStatus() {
             return Updater.status(MainActivity.this);
@@ -581,6 +592,7 @@ public class MainActivity extends Activity {
         if (updateDialog != null) updateDialog.dismiss();
         closePopup();
         if (web != null) web.destroy();
+        if (relay != null) relay.close();
         super.onDestroy();
     }
 }

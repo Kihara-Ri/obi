@@ -3,6 +3,7 @@ import {useEffect, useState} from 'react';
 import {api} from '../../core/api';
 import type {ListingProvider} from '../../core/listing';
 import {useApp} from '../../state/AppContext';
+import {isLocalSite} from '../../core/backend';
 import {Chevron, Collapse} from '../ui';
 import {PROVIDER_NAMES} from './providerNames';
 import {ProviderIcon} from './ProviderIcon';
@@ -14,6 +15,7 @@ type Row = ListingProvider['providers'][number];
 
 export function ListingSettings() {
   const app = useApp();
+  const local = isLocalSite();
   const [provider, setProvider] = useState<ListingProvider>();
   const [error, setError] = useState('');
   const [open, setOpen] = useState(false);
@@ -24,7 +26,7 @@ export function ListingSettings() {
     const off = onListingChanged(() => {void load();});
     return () => {alive = false; off();};
   }, []);
-  const rows = provider?.providers ?? [];
+  const rows = (provider?.providers ?? []).filter(row => !local || (row.id !== 'openai' && row.id !== 'anthropic' && row.id !== 'api'));
   const current = rows.find(row => row.inUse) ?? rows[0];
   const others = rows.filter(row => row !== current);
   const Row = ({row}: {row: Row}) => {
@@ -35,6 +37,7 @@ export function ListingSettings() {
       <span className="provider-item-main"><b>{meta.name}</b><small>{meta.note}</small>
         <span className="provider-badges">
           {row.inUse ? <span className="badge-use">分析在用</span> : null}
+          {meta.beta ? <span className="badge-beta" aria-label="测试功能">Beta</span> : null}
           <span className={row.tested ? 'badge-ok' : row.connected ? 'badge-warn' : 'badge-off'}>
             {row.tested ? '已通过测试' : row.connected ? '未测试' : '未连接'}</span>
         </span></span>
@@ -44,6 +47,7 @@ export function ListingSettings() {
   return <section className="settings-section listing-settings" aria-label="视觉模型接口设置">
     <h3>视觉模型接口</h3>
     <p className="small-note">可同时保留各服务商连接，分别设置模型。分析仅发送本副本照片、专辑名与艺人，且只在你点击分析时调用。</p>
+    {local && provider ? <p className="small-note">本机版只支持 OpenCode / DeepSeek 的密钥通道；ChatGPT 与 Claude 请在服务器版使用。</p> : null}
     <p role="alert" className="error">{error}</p>
     {provider ? <>
       {current ? <ul className="provider-list"><Row row={current}/></ul> : null}

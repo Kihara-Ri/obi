@@ -1,5 +1,6 @@
 // 条码 / 唱片编号查询的纯逻辑：输入识别、条码校验位、本地库命中、最近查询（只存本浏览器）。
 import {prefs} from './prefs';
+import {identityOf} from './release-source';
 import type {AlbumRecord} from '../types';
 
 export type LookupKind = 'barcode' | 'catalog';
@@ -79,10 +80,9 @@ export function saveRecent(list: string[]): void {
 export const pushRecent = (list: string[], value: string) =>
   [value, ...list.filter(x => x !== value)].slice(0, RECENT_MAX);
 
-/** 还没确认发行版：没有绑定 MusicBrainz / Discogs 版本，也没标过「两个资料库都没有」（manualRelease）。
+/** 还没确认发行版：没有绑定任何资料库版本（MusicBrainz / Discogs / Deezer），也没标过「都没有」（manualRelease）。
  *  已售出与回收站的不管。 */
 export function releasePending(r: AlbumRecord): boolean {
   if (r.status === 'sold' || r.status === 'trash') return false;
-  const info = r.releaseInfo;
-  return !(info && (info.musicBrainzReleaseId || info.discogsReleaseId || info.manualRelease === '1'));
+  return !(r.releaseInfo && (identityOf(r.releaseInfo) || r.releaseInfo.manualRelease === '1'));
 }

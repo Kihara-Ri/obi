@@ -17,6 +17,7 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
         android:label="Obi"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:supportsRtl="true"
         android:theme="@style/Theme.Obi">
         <!-- 华为 / 荣耀 EMUI：声明适配刘海屏，否则全屏时顶部仍被系统涂黑一条 -->

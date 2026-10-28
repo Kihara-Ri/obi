@@ -66,6 +66,26 @@ try {
   if (await use.count()) await use.click();
   await page.locator('.provider-head .badge-use').waitFor();
   await closeProvider();
+  // OpenCode：Go 订阅与按量余额共用 Console 密钥，模型目录按通道隔离；目录不声明图片能力。
+  await openProvider('OpenCode');
+  await page.getByLabel('OpenCode API Key', {exact: true}).fill('acceptance-opencode-placeholder');
+  await page.getByRole('button', {name: '保存密钥', exact: true}).click();
+  await page.getByRole('button', {name: '读取可用模型', exact: true}).click();
+  await page.getByRole('combobox', {name: /^照片分析模型：/u}).click();
+  await page.getByRole('option', {name: 'acceptance-open-model', exact: true}).click();
+  await page.getByText('目录未声明图片能力，实际可用性以服务商响应为准。', {exact: true}).waitFor();
+  await page.getByRole('button', {name: '测试连接', exact: true}).click();
+  await page.getByText(/读取模型目录成功/u).waitFor();
+  await page.getByRole('button', {name: '按量余额', exact: true}).click();
+  await page.locator('.provider-page').getByText('尚未读取', {exact: true}).waitFor();
+  await page.getByRole('button', {name: 'Go 订阅', exact: true}).click();
+  await page.getByRole('button', {name: '刷新模型列表', exact: true}).waitFor();
+  await page.locator('.provider-head .badge-use').waitFor();
+  await closeProvider();
+  // 恢复 DeepSeek 为分析在用，后续分析仍走模拟 Chat Completions 上游。
+  await openProvider('DeepSeek');
+  await page.getByRole('button', {name: '设为分析在用', exact: true}).click();
+  await closeProvider();
   await openProvider('OpenAI · ChatGPT');
   await page.getByRole('status').filter({hasText: '尚未授权'}).waitFor();
   await closeProvider();

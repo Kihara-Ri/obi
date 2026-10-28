@@ -28,14 +28,15 @@ def catalogue_candidates(catalogue, analysis):
 
 
 class ListingAnalysis:
-    def __init__(self, store, catalogue, model):
+    def __init__(self, store, catalogue, model, inline=False):
         self.store, self.catalogue, self.model = store, catalogue, model
-        self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='listing-analysis')
+        # 本机模式（Pyodide）不能起线程：inline=True 时在请求里直接跑完；服务器仍用单线程队列。
+        self.executor = None if inline else ThreadPoolExecutor(max_workers=1, thread_name_prefix='listing-analysis')
         self.lock = threading.Lock()
         self.jobs = {}
 
     def close(self):
-        self.executor.shutdown(wait=True, cancel_futures=True)
+        if self.executor: self.executor.shutdown(wait=True, cancel_futures=True)
         if hasattr(self.model, 'close'): self.model.close()
 
     def start(self, data):
@@ -51,7 +52,8 @@ class ListingAnalysis:
             ident = uuid.uuid4().hex
             job = {'id': ident, 'recordId': record['id'], 'status': 'running', 'photoRevision': revision}
             self.jobs[ident] = job
-        self.executor.submit(self._run, ident, record, images, revision, selection)
+        if self.executor: self.executor.submit(self._run, ident, record, images, revision, selection)
+        else: self._run(ident, record, images, revision, selection)
         return dict(job)
 
     def _run(self, ident, record, images, revision, selection):

@@ -1,6 +1,7 @@
 // 把查询页选中的版本绑定到库里已有的一张专辑（没有条码的专辑靠文字搜索确认版本）。
 // 只改发行资料，专辑名 / 艺人 / 封面 / 成本等不动；用户自己写的刻码、附件、观察记录保留。
 import {api} from '../core/api';
+import {identityFromCandidate} from '../core/release-source';
 import type {AppCtx} from '../state/AppContext';
 import type {AlbumRecord, ReleaseCandidate, ReleaseInfo} from '../types';
 
@@ -19,9 +20,7 @@ async function saveInfo(app: AppCtx, r: AlbumRecord, info: ReleaseInfo, done: st
 }
 
 export function confirmRelease(app: AppCtx, r: AlbumRecord, c: ReleaseCandidate, info: ReleaseInfo) {
-  const identity = c.source === 'discogs'
-    ? {musicBrainzReleaseId: '', discogsReleaseId: c.id.replace('discogs-', ''), manualRelease: ''}
-    : {musicBrainzReleaseId: c.id, discogsReleaseId: '', manualRelease: ''};
+  const identity = identityFromCandidate(c);
   const kept = Object.fromEntries(KEEP.map(k => [k, r.releaseInfo?.[k] ?? '']));
   return saveInfo(app, r, {...info, ...identity, ...kept}, '已确认发行版');
 }

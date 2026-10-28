@@ -322,18 +322,20 @@ def releases(svc):
 
 def api_release(h, svc): h.send({'releaseInfo':releases(svc).release_details(query(h).get('id'))})
 def lookup_sources(svc, barcode, catno, exact, hedge=1.5):
-    """先查 MusicBrainz；没有精确匹配（或暂时不可用）再查备用来源 Discogs，并如实返回各来源结果。
-    MusicBrainz 迟迟没有答复（>hedge 秒）时并行启动 Discogs，不让用户串行等两个来源；
-    MusicBrainz 很快命中则不打扰 Discogs。两个来源都不可用才报错，都没有则返回空候选与 sources 说明。"""
+    """先查 MusicBrainz；没有精确匹配（或暂时不可用）再查备用来源，并如实返回各来源结果。
+    条码的备用来源是 Deezer，唱片编号的是 Discogs（Discogs 搜索不索引条码）。
+    MusicBrainz 迟迟没有答复（>hedge 秒）时并行启动备用来源，不让用户串行等两个来源；
+    MusicBrainz 很快命中则不打扰备用来源。两个来源都不可用才报错，都没有则返回空候选与 sources 说明。"""
     from concurrent.futures import ThreadPoolExecutor, TimeoutError as Slow
     sources = {}
+    backup_label = 'deezer' if barcode else 'discogs'
 
     def musicbrainz():
         return exact(releases(svc).catalog({'title': '', 'artist': '',
             'releaseInfo': {'barcode': barcode, 'catalogNumber': catno}}))
 
-    def discogs():
-        return releases(svc).fallback(barcode, catno)
+    def backup():
+        return releases(svc).backup(barcode, catno)
 
     def settle(name, future):
         try:
@@ -344,40 +346,52 @@ def lookup_sources(svc, barcode, catno, exact, hedge=1.5):
         sources[name] = 'found' if found else 'none'
         return found
 
+    def settle_backup(future):
+        try:
+            found, name = future.result()
+        except ValidationError as exc:
+            sources[backup_label] = str(exc)
+            return []
+        if name: sources[name] = 'found' if found else 'none'
+        return found
+
     with ThreadPoolExecutor(max_workers=2) as pool:
         mb = pool.submit(musicbrainz)
         dc = None
         try:
             mb.exception(timeout=hedge)
         except Slow:
-            dc = pool.submit(discogs)
+            dc = pool.submit(backup)
         candidates = settle('musicbrainz', mb)
         if not candidates:
-            candidates = settle('discogs', dc or pool.submit(discogs))
+            candidates = settle_backup(dc or pool.submit(backup))
     if not candidates and all(v not in ('none', 'found') for v in sources.values()):
         raise ValidationError('发行资料库暂时不可用，请稍后重试（' + '；'.join(sources.values()) + '）')
     return candidates, sources
 
 
 def api_barcode_lookup(h, svc, body):
-    """精确条形码检索 CD 发行版（MusicBrainz 优先，Discogs 备用），复用现有节流与缓存。"""
+    """精确条形码检索 CD 发行版（MusicBrainz 优先，Deezer 备用），复用现有节流与缓存。"""
     barcode = body.get('barcode', '')
     from twins import clean_barcode
     barcode = clean_barcode(barcode)
     if not barcode: raise ValidationError('请输入完整的条形码')
     candidates, sources = lookup_sources(svc, barcode, '', lambda found: [c for c in found if c['identifierMatch']
-        and re.sub(r'\D', '', c['releaseInfo'].get('barcode', '')) == barcode])
+        and re.sub(r'\D', '', c['releaseInfo'].get('barcode', '')).lstrip('0') == barcode.lstrip('0')])
     h.send({'barcode': barcode, 'candidates': candidates, 'sources': sources})
 
 
 def verify_barcode_release(svc, barcode, release_id):
-    """Check the full barcode against the exact catalog release (MusicBrainz or Discogs), never by title."""
+    """Check the full barcode against the exact catalog release, never by title."""
     from twins import clean_barcode, UUID
     barcode = clean_barcode(barcode)
     if not barcode: raise ValidationError('请输入完整的条形码')
-    if isinstance(release_id, str) and release_id.startswith('discogs-'):
-        if clean_barcode(releases(svc).release_details(release_id).get('barcode', '')) != barcode:
-            raise ValidationError('Discogs 中该条码不属于当前发行版本，请重新查询并选择正确版本')
+    if isinstance(release_id, str) and (release_id.startswith('discogs-') or release_id.startswith('deezer-')):
+        source = 'Discogs' if release_id.startswith('discogs-') else 'Deezer'
+        published = releases(svc).release_details(release_id)
+        # Discogs 可能给 "4 582213 912173"；Deezer 的 UPC-A 与日本 EAN-13 只在左侧补零上不同。
+        if clean_barcode(published.get('barcode', '')).lstrip('0') != barcode.lstrip('0'):
+            raise ValidationError(f'{source} 中该条码不属于当前发行版本，请重新查询并选择正确版本')
         return {'barcode': barcode, 'releaseId': release_id, 'valid': True}
     if not isinstance(release_id, str) or not UUID.fullmatch(release_id):
         raise ValidationError('请先查询并选择对应的发行版本')

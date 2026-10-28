@@ -27,9 +27,11 @@ export function ProviderPage({id}: {id: ListingProviderId}) {
         <h3>{meta.name}</h3>
         <div className="provider-badges">
           {tested ? <span className={tested.ok ? 'badge-ok' : 'badge-bad'}>{tested.ok ? '已通过连接测试' : '连接测试未通过'}</span> : null}
+          {meta.beta ? <span className="badge-beta" aria-label="测试功能">Beta</span> : null}
           {provider.inUse ? <span className="badge-use">分析在用</span> : null}
         </div>
         <p className="small-note">{meta.note}{selected ? ` · 当前模型 ${selected.label}` : ''}</p>
+        {meta.beta ? <p className="small-note">Beta：功能可用，OpenCode 接口或模型目录变化时可能需要调整。</p> : null}
       </div>
     </header>
     <ListingSteps steps={steps}/>

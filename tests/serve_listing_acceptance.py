@@ -26,15 +26,22 @@ def main():
         def log_message(self, *args): pass
         def do_GET(self):
             if self.path != '/v1/models': self.send_error(404); return
-            raw = json.dumps({'data': [
-                {'id': 'acceptance-vision', 'display_name': '验收图片模型', 'input_modalities': ['text', 'image'],
-                 'effort': {'supported_levels': ['low', 'high', 'max']}},
-                {'id': 'acceptance-text', 'display_name': '验收文字模型', 'input_modalities': ['text']}]}).encode()
+            # OpenCode 真实目录不返回图片/强度元数据；验收用同一个上游模拟这一形态。
+            rows = ([{'id': 'acceptance-open-model'}] if
+                    self.headers.get('Authorization', '').endswith('acceptance-opencode-placeholder') else [
+                        {'id': 'acceptance-vision', 'display_name': '验收图片模型', 'input_modalities': ['text', 'image'],
+                         'effort': {'supported_levels': ['low', 'high', 'max']}},
+                        {'id': 'acceptance-text', 'display_name': '验收文字模型', 'input_modalities': ['text']}])
+            raw = json.dumps({'data': rows}).encode()
             self.send_response(200); self.send_header('Content-Type', 'application/json')
             self.send_header('Content-Length', str(len(raw))); self.end_headers(); self.wfile.write(raw)
         def do_POST(self):
             request = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
-            if self.path != '/v1/chat/completions' or 'image_url' not in str(request['messages']):
+            if self.path not in ('/v1/chat/completions', '/openai/v1/chat/completions') or 'image_url' not in str(request['messages']):
+                self.send_error(400); return
+            if self.path == '/openai/v1/chat/completions' and (
+                    not self.headers.get('x-opencode-session', '').startswith('ses_')
+                    or self.headers.get('User-Agent') != 'Obi-Album-Ledger'):
                 self.send_error(400); return
             if request['model'] == 'acceptance-vision' and (request.get('thinking') != {'type': 'enabled'} or request.get('reasoning_effort') != 'high'):
                 self.send_error(400); return
@@ -48,7 +55,8 @@ def main():
     threading.Thread(target=upstream.serve_forever, daemon=True).start()
     os.environ.update(LISTING_API_BASE=f'http://127.0.0.1:{upstream.server_port}/v1',
                       LISTING_API_MODEL='acceptance-only-model', LISTING_API_KEY='acceptance-only-key',
-                      DEEPSEEK_API_BASE=f'http://127.0.0.1:{upstream.server_port}/v1')
+                      DEEPSEEK_API_BASE=f'http://127.0.0.1:{upstream.server_port}/v1',
+                      OPENCODE_API_BASE=f'http://127.0.0.1:{upstream.server_port}')
     services = build(args.data_dir)
     services.auth = None
     server = ThreadingHTTPServer(('127.0.0.1', 0), make_handler(services))

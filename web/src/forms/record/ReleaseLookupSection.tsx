@@ -2,11 +2,11 @@
 // 条码与唱片编号只在这里编辑，「发行资料」折叠区不再重复提供；状态一律走 phase，文案保持一行。
 import {useEffect, useRef, useState} from 'react';
 import {barcodeFromPhotos} from '../../core/photo-barcode';
-import {RECORD_BARCODE} from '../../components/ui/LightboxScan';
 import {FocusInput} from '../../components/ui/FocusInput';
 import {BarcodeScanner, ScanField} from '../../components/BarcodeScanner';
 import {ReleaseCandidateCard, ReleaseSummary, sourceName} from '../../components/ReleaseCandidateCard/ReleaseCandidateCard';
 import type {CoverOrigin} from '../../core/version-cover';
+import {boundSource, sourceUrl} from '../../core/release-source';
 import {CoverPanel} from './CoverPanel';
 import type {CoverSearch} from './useCoverSearch';
 import type {RecordValues} from './context';
@@ -51,44 +51,35 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, coverOrigin
   const scanned = (code: string) => {
     setScanning(false); setEditing(false); change(code); void L.search('barcode', code);
   };
-  // 从照片识别条码：条码还是空时，新就绪的照片自动识别；手动按钮会重看全部照片
+  // 从照片识别条码：条码还是空时，新就绪的照片自动识别（引擎已自动读取，不再提供手动按钮）
   const [reading, setReading] = useState(false);
   const [readMsg, setReadMsg] = useState('');
   const seen = useRef(new Set<string>());
-  const readPhotos = async (all: boolean) => {
-    const list = photoSources.filter(p => all || !seen.current.has(p.key));
+  const readPhotos = async () => {
+    const list = photoSources.filter(p => !seen.current.has(p.key));
     list.forEach(p => seen.current.add(p.key));
     if (!list.length) return;
     setReading(true); setReadMsg('');
     const code = await barcodeFromPhotos(list.map(p => p.src));
     setReading(false);
     if (code) { setReadMsg(`已从照片识别条码 ${code}`); scanned(code); }
-    else setReadMsg(all ? '照片里没有识别到条码，可以手动输入或用相机扫' : '');
   };
   // 从详情里识别出的条码：表单一打开就带着它查询（先于照片自动识别）
   const barcodeEmpty = !text && !working0(L);
   const sourceKeys = photoSources.map(p => p.key).join(',');
-  useEffect(() => { if (barcodeEmpty && !reading) void readPhotos(false); }, [sourceKeys, barcodeEmpty]);
-  // 灯箱里识别到条码：直接就地查询当前这张的发行版
-  const scannedRef = useRef(scanned); scannedRef.current = scanned;
-  useEffect(() => {
-    const on = (e: Event) => { scannedRef.current(String((e as CustomEvent).detail)); setReadMsg(`已从照片识别条码 ${(e as CustomEvent).detail}`); };
-    window.addEventListener(RECORD_BARCODE, on);
-    return () => window.removeEventListener(RECORD_BARCODE, on);
-  }, []);
+  useEffect(() => { if (barcodeEmpty && !reading) void readPhotos(); }, [sourceKeys, barcodeEmpty]);
   // 点「手动录入 / 改回查询」先播一段退场动画再切换状态（时长与 .lookup-out 一致）
   const [leaving, setLeaving] = useState(false);
   const timer = useRef(0);
   useEffect(() => () => window.clearTimeout(timer.current), []);
   const afterExit = (go: () => void) => { setLeaving(true); timer.current = window.setTimeout(() => { setLeaving(false); go(); }, 160); };
-  const confirmed = !!(info.musicBrainzReleaseId || info.discogsReleaseId);
+  const confirmed = !!boundSource(info);
   const working = L.busy || L.verification === 'pending';
   const phase: Phase = working ? 'busy' : L.candidates.length ? 'choose' : L.notFound ? 'miss'
     : L.manualRelease ? 'manual' : confirmed && L.verification === 'verified' ? 'ok' : 'idle';
-  const sourceUrl = info.musicBrainzReleaseId ? 'https://musicbrainz.org/release/' + info.musicBrainzReleaseId
-    : 'https://www.discogs.com/release/' + info.discogsReleaseId;
+  const link = sourceUrl(info);
   // 已确认：来源链接只在这一行出现（摘要头部不再重复一个来源标）
-  const status = phase === 'ok' ? <>已确认 · <a className="lookup-source" href={sourceUrl} target="_blank" rel="noopener noreferrer"
+  const status = phase === 'ok' ? <>已确认 · <a className="lookup-source" href={link} target="_blank" rel="noopener noreferrer"
     aria-label={`在 ${sourceName(info)} 查看`}>{sourceName(info)} ↗</a></> : L.message
     || (phase === 'manual' ? (info.unofficial === '1' ? '非官方发行 · 未经资料库核对' : '手动录入 · 未经资料库核对') : v.title && !confirmed ? '尚未确认发行版' : '');
   return (
@@ -102,11 +93,7 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, coverOrigin
         </ScanField>
         <button type="button" className="primary" aria-busy={working} onClick={() => void L.lookup()} disabled={working}>查询</button>
       </div>
-      {photoSources.length && !text ? <p className="lookup-photo-read">
-        <button type="button" className="quiet" disabled={reading} onClick={() => void readPhotos(true)}>
-          {reading ? '正在从照片识别条码…' : '从照片识别条码'}</button>
-        {readMsg ? <span role="status">{readMsg}</span> : null}
-      </p> : readMsg ? <p className="lookup-photo-read"><span role="status">{readMsg}</span></p> : null}
+      {readMsg ? <p className="lookup-photo-read"><span role="status">{readMsg}</span></p> : null}
       {status ? <p className={`lookup-status is-${phase}` + (leaving ? ' is-leaving' : '')} role="status">
         {phase === 'busy' ? <span className="lookup-spinner" aria-hidden="true"/> : <b aria-hidden="true">{phase === 'choose' ? L.candidates.length : MARK[phase]}</b>}
         <span>{status}</span>
@@ -130,7 +117,7 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, coverOrigin
       {summaryShown(v, L) ? <div className="rcc is-confirmed">
         <ReleaseSummary title={v.title} artist={v.artist} info={info} art={coverSrc} origin={coverOrigin}
           source={phase === 'ok' ? undefined : confirmed ? sourceName(info) : info.unofficial === '1' ? '非官方' : L.manualRelease ? '手动' : '未确认'}
-          url={confirmed ? sourceUrl : undefined}/>
+          url={confirmed ? link : undefined}/>
         <CoverPanel cover={cover} src={coverSrc} busy={cover.busy} inline/>
       </div> : null}
           <FocusInput open={editing} title="查询发行版" value={text} placeholder="条形码，或唱片编号如 AMCY-2434"

@@ -129,6 +129,98 @@ class ProviderTests(unittest.TestCase):
             self.assertEqual(payload['thinking'], {'type': 'disabled'})
             self.assertNotIn('reasoning_effort', payload)
 
+    def test_opencode_go_lane_reads_console_catalogue_and_ready(self):
+        self.providers.connect({'provider': 'opencode', 'apiKey': 'test-opencode-key'})
+        with patch('server.listing_providers.request', return_value={'data': [
+                {'id': 'kimi-k3'}, {'id': 'gpt-6-luna'}]}) as upstream:
+            rows = self.providers.models('opencode')
+        self.assertEqual(upstream.call_args.args[0], 'https://opencode.ai/inference/go/v1/models')
+        self.assertEqual(upstream.call_args.kwargs['headers']['Authorization'], 'Bearer test-opencode-key')
+        self.assertEqual([row['value'] for row in rows], ['kimi-k3', 'gpt-6-luna'])
+        self.assertIsNone(rows[0]['vision'])
+        self.providers.configure({'provider': 'opencode', 'model': 'kimi-k3'})
+        status = self.providers.status()
+        self.assertEqual((status['provider'], status['lane'], status['ready']), ('opencode', 'go', True))
+        self.assertEqual([row['id'] for row in status['providers']],
+                         ['openai', 'deepseek', 'anthropic', 'opencode', 'api'])
+        self.assertNotIn('test-opencode-key', json.dumps(status))
+        self.assertEqual(self.providers.snapshot()['base'], 'https://opencode.ai/inference/go')
+
+    def test_opencode_lanes_need_their_own_catalogue_and_selection(self):
+        self.providers.connect({'provider': 'opencode', 'apiKey': 'test-opencode-key'})
+        with patch('server.listing_providers.request', return_value={'data': [{'id': 'kimi-k3'}]}):
+            self.providers.models('opencode')
+        self.providers.configure({'provider': 'opencode', 'model': 'kimi-k3'})
+        self.providers.configure({'provider': 'opencode', 'lane': 'zen'})
+        status = self.providers.status()
+        self.assertEqual((status['lane'], status['models'], status['model'], status['ready']),
+                         ('zen', [], '', False))
+        with patch('server.listing_providers.request', return_value={'data': [{'id': 'glm-5.3'}]}) as upstream:
+            self.providers.models('opencode')
+        self.assertEqual(upstream.call_args.args[0], 'https://opencode.ai/inference/v1/models')
+        self.providers.configure({'provider': 'opencode', 'model': 'glm-5.3'})
+        self.providers.configure({'provider': 'opencode', 'lane': 'go'})
+        self.assertEqual((self.providers.status()['model'], self.providers.status()['ready']), ('kimi-k3', True))
+        with self.assertRaises(ValidationError):
+            self.providers.configure({'provider': 'opencode', 'lane': 'free'})
+
+    def test_opencode_analysis_uses_console_chat_completions_with_session(self):
+        from server.listing_model import ListingModel
+        self.providers.connect({'provider': 'opencode', 'apiKey': 'test-opencode-key'})
+        with patch('server.listing_providers.request', return_value={'data': [{'id': 'kimi-k3'}]}):
+            self.providers.models('opencode')
+        self.providers.configure({'provider': 'opencode', 'model': 'kimi-k3'})
+        observed = {}
+        def upstream(url, data=None, headers=None, **kwargs):
+            observed.update(url=url, body=json.loads(data), headers=headers, kwargs=kwargs)
+            return {'choices': [{'message': {'content': '{"pending":["需补拍"]}'}}]}
+        with patch('server.listing_model.request', side_effect=upstream):
+            ListingModel(self.auth, self.providers).analyze({'title': 'B', 'artist': 'A'}, [(0, '.jpg', b'photo')])
+        self.assertEqual(observed['url'], 'https://opencode.ai/inference/go/openai/v1/chat/completions')
+        self.assertTrue(observed['headers']['x-opencode-session'].startswith('ses_'))
+        self.assertEqual(observed['headers']['User-Agent'], 'Obi-Album-Ledger')
+        self.assertEqual(observed['body']['model'], 'kimi-k3')
+        self.assertIn('image_url', str(observed['body']['messages']))
+        self.assertNotIn('response_format', observed['body'])
+        self.assertIn('OpenCode 客户端', observed['kwargs']['forbidden'])
+
+    def test_opencode_forbidden_http_status_uses_specific_message(self):
+        from urllib.error import HTTPError
+        from server.listing_transport import request
+        class Forbidden:
+            def open(self, *args, **kwargs): raise HTTPError('https://example.test', 403, 'forbidden', {}, None)
+        with patch('server.listing_transport.build_opener', return_value=Forbidden()):
+            with self.assertRaises(ValidationError) as caught:
+                request('https://example.test', forbidden='该模型可能仅限 OpenCode 客户端使用')
+        self.assertEqual(str(caught.exception), '该模型可能仅限 OpenCode 客户端使用')
+
+    def test_opencode_environment_key_disconnect_and_local_base(self):
+        with patch.dict('os.environ', {'OPENCODE_API_KEY': 'test-env-open-code',
+                                       'OPENCODE_API_BASE': 'http://127.0.0.1:9'}):
+            self.providers.configure({'provider': 'opencode'})
+            status = self.providers.status()
+            self.assertTrue(status['connected'])
+            self.assertEqual(status['keySource'], 'server')
+            with patch('server.listing_providers.request', return_value={'data': [{'id': 'm'}]}) as upstream:
+                self.providers.models('opencode')
+            self.assertEqual(upstream.call_args.args[0], 'http://127.0.0.1:9/v1/models')
+            self.providers.disconnect('opencode')
+            self.assertFalse(self.providers.status()['connected'])
+            self.providers.connect({'provider': 'opencode', 'apiKey': 'test-saved-open-code'})
+            self.assertTrue(self.providers.status('opencode')['connected'])
+
+    def test_opencode_rejects_plain_http_remote_base(self):
+        with patch.dict('os.environ', {'OPENCODE_API_BASE': 'http://model.example.test'}):
+            with self.assertRaises(ValidationError): self.providers.status('opencode')
+
+    def test_opencode_uses_android_relay_base_when_present(self):
+        from server.listing_provider_config import api_endpoint
+        with patch.dict('os.environ', {'OPENCODE_RELAY_BASE': 'http://127.0.0.1:9/p/t/opencode'}):
+            self.assertEqual(api_endpoint('opencode', {'opencodeLane': 'go'}),
+                             'http://127.0.0.1:9/p/t/opencode/inference/go')
+            self.assertEqual(api_endpoint('opencode', {'opencodeLane': 'zen'}),
+                             'http://127.0.0.1:9/p/t/opencode/inference')
+
 
 class ProviderPageTests(ProviderTests):
     def test_view_without_activating_and_connection_test_result(self):

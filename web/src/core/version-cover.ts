@@ -11,9 +11,9 @@ export interface BorrowedCover {
   kind: 'album' | 'digital';
 }
 
-/** 这个版本自己的封面目录（MusicBrainz 版本才有；Discogs 版本没有） */
+/** 这个版本自己的封面目录（只有 MusicBrainz 版本有；其余来源用候选自带的封面） */
 export const ownCoverBase = (c: ReleaseCandidate) =>
-  c.source !== 'discogs' && /^[0-9a-f-]{36}$/.test(c.id) ? 'https://coverartarchive.org/release/' + c.id + '/' : '';
+  /^[0-9a-f-]{36}$/.test(c.id) ? 'https://coverartarchive.org/release/' + c.id + '/' : '';
 
 export const BORROWED_NOTE: Record<BorrowedCover['kind'], string> = {
   album: '这个版本自己没有封面，先用同一张专辑的封面，不一定是这个版本的包装。',
@@ -34,13 +34,16 @@ export function borrowedCover(c: ReleaseCandidate): Promise<BorrowedCover | null
 }
 
 /** 封面角标：这张封面从哪来（卡片与表单共用同一套说法） */
-export type CoverOrigin = 'own' | BorrowedCover['kind'] | 'upload';
-export const ORIGIN_LABEL: Record<CoverOrigin, string> = {own: '此版本', album: '同专辑', digital: 'iTunes', upload: '上传'};
+export type CoverOrigin = 'own' | BorrowedCover['kind'] | 'platform' | 'upload';
+export const ORIGIN_LABEL: Record<CoverOrigin, string> = {
+  own: '此版本', album: '同专辑', digital: 'iTunes', platform: '资料库', upload: '上传',
+};
 /** 已存封面的来源（记录 / 表单里的 coverSource）；旧记录没记来源时返回 null，不标 */
 export function originOf(src?: CoverSource | null): CoverOrigin | null {
   const p = src?.provider || '';
   if (p === 'upload') return 'upload';
   if (/iTunes/i.test(p) || /mzstatic\.com/.test(src?.url || '')) return 'digital';
+  if (/Deezer|Bandcamp/i.test(p)) return 'platform';
   if (p.includes('此版本')) return 'own';
   if (p.includes('Cover Art Archive')) return 'album';
   return null;

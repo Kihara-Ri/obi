@@ -2,20 +2,20 @@
 import type {Dispatch, MutableRefObject, SetStateAction} from 'react';
 import {api} from '../../core/api';
 import {displayReleaseTitle, releaseRegion} from '../../core/release-metadata';
+import {SOURCE_LABEL, identityFromCandidate, identityOf} from '../../core/release-source';
 import type {ReleaseCandidate, ReleaseInfo} from '../../types';
 import type {FormCtx} from './context';
 import {matchReleaseCover} from './releaseCover';
 import type {CoverSearch} from './useCoverSearch';
 
-const SOURCE_NAME: Record<string, string> = {musicbrainz: 'MusicBrainz', discogs: 'Discogs'};
+const SOURCE_NAME: Record<string, string> = {...SOURCE_LABEL};
 
 /** 只列出出错的来源；都正常（found / none）返回空串。 */
 export function failedSources(sources: Record<string, string> = {}) {
   return Object.entries(sources).filter(([, s]) => s !== 'none' && s !== 'found')
     .map(([name, s]) => `${SOURCE_NAME[name] ?? name}：${s}`).join('；');
 }
-export const identityOf = (info: ReleaseInfo) =>
-  info.musicBrainzReleaseId || (info.discogsReleaseId ? 'discogs-' + info.discogsReleaseId : '');
+export {identityOf};
 
 
 /** 只补当前缺失的字段，已有（含人工修改）的值保持不变。 */
@@ -42,10 +42,7 @@ export async function pickRelease(candidate: ReleaseCandidate, d: PickDeps) {
   const {v, set, dirty, formRef} = ctx;
   const seq = ++sequence.current;
   const current = () => seq === sequence.current && !!formRef.current?.isConnected;
-  const discogs = candidate.source === 'discogs';
-  const identity = discogs
-    ? {musicBrainzReleaseId: '', discogsReleaseId: candidate.id.replace('discogs-', ''), manualRelease: ''}
-    : {musicBrainzReleaseId: candidate.id, discogsReleaseId: '', manualRelease: ''};
+  const identity = identityFromCandidate(candidate);
   const changed = candidate.id !== identityOf(v.releaseInfo);
   // 封面只依赖候选的标题与艺人，与曲目详情并行查找，不必等详情返回。
   // 已有封面（含旧记录里本来就正确的封面）一律保留：只在没有封面时自动匹配，想换封面由用户点「重新匹配」。

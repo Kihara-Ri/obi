@@ -69,6 +69,6 @@ python3 tests/serve_listing_acceptance.py --data-dir /path/to/sample-home/instan
 LISTING_ACCEPTANCE_URL=http://127.0.0.1:<空闲端口> node web/tests/browser/listing-acceptance.mjs
 ```
 
-测试服务只接受固定样本目录，启动本机模拟 Chat Completions 上游；浏览器通过真实 API 通道依次验证：多服务商切换、DeepSeek 保存密钥/读取真实协议模型目录/仅文字模型禁选/思考强度持久化、兼容 API 静态模型就绪、DeepSeek 参数经过模拟 HTTP 上游校验、分析轮询、保留手写正文、人工确认生成、复制到剪贴板、选图排序/首图、ZIP 下载、保存不标记上架、重开持久化、手机宽度、并发草稿冲突。CI 在完整真实封面/模型验收结束后运行，不影响前一阶段样本契约。截图与图片包放入 `OBI_PREVIEW_SCREENSHOTS` 指定目录（默认 `/tmp/obi-listing-browser`）。
+测试服务只接受固定样本目录，启动本机模拟 Chat Completions 上游；浏览器通过真实 API 通道依次验证：多服务商切换、DeepSeek 保存密钥/读取真实协议模型目录/仅文字模型禁选/思考强度持久化、OpenCode 保存密钥/读取无能力元数据的目录/连接测试/Go 与按量余额目录隔离、兼容 API 静态模型就绪、DeepSeek 参数经过模拟 HTTP 上游校验、分析轮询、保留手写正文、人工确认生成、复制到剪贴板、选图排序/首图、ZIP 下载、保存不标记上架、重开持久化、手机宽度、并发草稿冲突。CI 在完整真实封面/模型验收结束后运行，不影响前一阶段样本契约。截图与图片包放入 `OBI_PREVIEW_SCREENSHOTS` 指定目录（默认 `/tmp/obi-listing-browser`）。
 
 该验收使用模拟模型，不能证明真实 OAuth 授权成功、模型可用性、照片版本或品相准确率。真实 OAuth 需用户完成授权，选择视觉模型后以实拍副本单独验收。正常流程要求 console/pageerror 为零；并发保存用例仅允许预期的 HTTP 400 诊断。

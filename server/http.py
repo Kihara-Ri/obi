@@ -12,7 +12,7 @@ from domain import ValidationError, ConflictError
 from . import routes, static_files
 
 CSP = ("default-src 'self'; img-src 'self' data: https://*.mzstatic.com https://archive.org "
-       "https://*.archive.org https://coverartarchive.org; style-src 'self'; "
+       "https://*.archive.org https://coverartarchive.org https://*.dzcdn.net https://*.bcbits.com; style-src 'self'; "
        "script-src 'self' 'unsafe-eval'; worker-src 'self' blob:; connect-src 'self'; "
        "frame-ancestors 'none'; base-uri 'none'")
 MAX_BODY = 50 * 1024 * 1024

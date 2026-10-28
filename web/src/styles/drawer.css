@@ -139,6 +139,9 @@ details.adv:not([open]) > :not(summary){display:none}
 .cover-status.is-busy{color:var(--text)}
 .cover-actions{flex:none;display:flex;flex-direction:column;gap:6px}
 .cover-actions>button{padding:6px 12px;font-size:13px}
+.cover-url{display:flex;gap:8px;margin-top:8px}
+.cover-url>input{flex:1;min-width:0;font-size:13px}
+.cover-url>button{flex:none;padding:6px 14px;font-size:13px}
 .cover-deck{display:flex;align-items:center;gap:12px;width:100%;margin-top:10px;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);text-align:left;color:var(--text);font-size:13.5px}
 .cover-deck>span:nth-child(2){flex:1;min-width:0}
 .cover-deck-stack{display:flex;flex:none}

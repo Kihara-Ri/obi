@@ -28,6 +28,8 @@ services:
       - LISTING_API_KEY=${LISTING_API_KEY:-}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
       - DEEPSEEK_API_BASE=${DEEPSEEK_API_BASE:-https://api.deepseek.com}
+      - OPENCODE_API_KEY=${OPENCODE_API_KEY:-}
+      - OPENCODE_API_BASE=${OPENCODE_API_BASE:-}
       - LISTING_CLAUDE_BIN=${LISTING_CLAUDE_BIN:-}
     restart: unless-stopped
 

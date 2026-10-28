@@ -22,6 +22,14 @@ export async function matchReleaseCover(candidate: ReleaseCandidate, isCurrent: 
       return {cover: front.cover, coverSource: {title: candidate.title, artist: candidate.artist, provider: 'Cover Art Archive（此版本）'},
         status: '此版本自己的封面'};
     }
+  } else if (candidate.cover) {
+    // Deezer 候选自带封面：交给服务端下载并落盘，和 CAA 封面走同一套备份。
+    try {
+      const image = await api<{cover: string; coverSource: AlbumRecord['coverSource']}>('covers/download',
+        {token: candidate.cover, ...(stashCovers() ? {stash: true} : {})});
+      if (!isCurrent()) return null;
+      if (image.cover) return {cover: image.cover, coverSource: image.coverSource, status: '此版本自己的封面'};
+    } catch { /* 下载失败退回借用封面 */ }
   }
   const found = await borrowed;
   if (!isCurrent()) return null;

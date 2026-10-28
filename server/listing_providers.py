@@ -6,7 +6,8 @@ from domain import ValidationError
 from .chatgpt_credentials import RESOURCE
 from .listing_capabilities import normalize_models
 from .listing_claude import ClaudeProvider
-from .listing_provider_config import ProviderConfig, api_endpoint, api_key, fingerprint, provider_id
+from .listing_provider_config import (OPENCODE_LANES, PROVIDERS, ProviderConfig, api_endpoint, api_key,
+                                      fingerprint, opencode_headers, opencode_lane, provider_id)
 from .listing_transport import request
 
 
@@ -24,7 +25,8 @@ class ListingProviders:
             value = self.claude.status()
             return value.get('accountId') or value.get('label', ''), value['connected']
         key = api_key(provider, state)
-        return fingerprint(api_endpoint(provider) + ':' + key), bool(key)
+        scope = api_endpoint(provider, state) + ('|' + opencode_lane(state) if provider == 'opencode' else '')
+        return fingerprint(scope + ':' + key), bool(key)
 
     def profile(self, provider, state):
         scope, connected = self.identity(provider, state)
@@ -41,18 +43,22 @@ class ListingProviders:
         selected = next((row for row in models if row['value'] == model), None)
         ready = connected and bool(model) and (provider == 'api' or selected is not None and selected['vision'] is not False)
         login = claude if provider == 'anthropic' else legacy
-        key = api_key(provider, state) if provider in ('api', 'deepseek') else ''
+        key = api_key(provider, state) if provider in ('api', 'deepseek', 'opencode') else ''
         return {**legacy, 'provider': provider, 'inUse': provider == state['provider'], 'keyTail': key[-4:],
-                'tested': state.get('tests', {}).get(name), 'keySource': 'saved' if state['profiles'].get(provider, {}).get('apiKey') else 'server', 'method': 'api' if provider in ('api', 'deepseek') else 'oauth',
-                'model': model, 'effort': profile.get('effort', ''), 'connected': connected, 'ready': bool(ready),
+                'tested': state.get('tests', {}).get(name), 'keySource': 'saved' if state['profiles'].get(provider, {}).get('apiKey') else 'server',
+                'method': 'api' if provider in ('api', 'deepseek', 'opencode') else 'oauth',
+                'lane': opencode_lane(state), 'model': model, 'effort': profile.get('effort', ''), 'connected': connected, 'ready': bool(ready),
                 'models': models, 'apiConfigured': bool(api_key('api', state) and os.getenv('LISTING_API_MODEL')),
                 'apiModel': os.getenv('LISTING_API_MODEL', ''), 'loginPending': login.get('loginPending', False),
                 'loginError': login.get('loginError', ''), 'loginUrl': login.get('loginUrl', ''),
                 'claudeInstalled': claude['installed'], 'providers': [
                     {'id': item, 'connected': self.identity(item, state)[1], 'inUse': item == state['provider'],
-                     'tested': (state.get('tests', {}).get(self.profile(item, state)[0]) or {}).get('ok')} for item in ('openai', 'deepseek', 'anthropic', 'api')]}
+                     'tested': (state.get('tests', {}).get(self.profile(item, state)[0]) or {}).get('ok')} for item in PROVIDERS]}
 
     def configure(self, data):
+        if 'lane' in data:
+            if data['lane'] not in OPENCODE_LANES: raise ValidationError('请选择 OpenCode 的计费通道')
+            with self.config.locked() as current: current['opencodeLane'] = data['lane']
         state = self.config.read()
         provider = provider_id(data.get('provider', 'api' if data.get('method') == 'api' else
                                        'openai' if data.get('method') == 'oauth' else state['provider']))
@@ -76,10 +82,11 @@ class ListingProviders:
 
     def connect(self, data):
         provider = provider_id(data.get('provider'))
-        if provider != 'deepseek': raise ValidationError('该服务商请使用授权登录或服务端配置')
+        if provider not in ('deepseek', 'opencode'): raise ValidationError('该服务商请使用授权登录或服务端配置')
         key = data.get('apiKey', '')
+        label = 'OpenCode' if provider == 'opencode' else 'DeepSeek'
         if not isinstance(key, str) or not 1 <= len(key) <= 2000 or any(c.isspace() for c in key):
-            raise ValidationError('请输入有效的 DeepSeek API Key')
+            raise ValidationError(f'请输入有效的 {label} API Key')
         with self.config.locked() as state:
             state['profiles'][provider] = {'apiKey': key}
             for field in ('profiles', 'catalogues', 'tests'):
@@ -93,6 +100,9 @@ class ListingProviders:
         name, _, connected = self.profile(provider, state)
         if not connected: raise ValidationError('请先连接所选服务商')
         if provider == 'anthropic': rows = self.claude.models(account=name.split(':', 1)[1])
+        elif provider == 'opencode':
+            rows = request(api_endpoint(provider, state) + '/v1/models',
+                           headers=opencode_headers(api_key(provider, state))).get('data')
         else:
             base = RESOURCE if provider == 'openai' else api_endpoint(provider)
             key = self.auth.access_token(name.split(':', 1)[1]) if provider == 'openai' else api_key(provider, state)
@@ -127,7 +137,7 @@ class ListingProviders:
         if not connected or not model or (provider != 'api' and (not selected or selected['vision'] is False)):
             raise ValidationError('请先连接服务商、读取模型并选择支持图片的模型')
         result = {'provider': provider, 'model': model, 'effort': profile.get('effort', ''), 'account': name.split(':', 1)[1]}
-        if provider in ('api', 'deepseek'): result.update(base=api_endpoint(provider), key=api_key(provider, state))
+        if provider in ('api', 'deepseek', 'opencode'): result.update(base=api_endpoint(provider, state), key=api_key(provider, state))
         return result
 
     def disconnect(self, provider):

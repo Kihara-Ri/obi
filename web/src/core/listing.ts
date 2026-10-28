@@ -12,14 +12,14 @@ export interface ListingDraft {
   versionText: string; conditionText: string; versionConfirmed: boolean; conditionConfirmed: boolean;
   selectedRelease?: string; analysis?: ListingAnalysis;
 }
-export type ListingProviderId = 'openai' | 'deepseek' | 'anthropic' | 'api';
+export type ListingProviderId = 'openai' | 'deepseek' | 'anthropic' | 'opencode' | 'api';
 export interface ListingModelOption {
   value: string; label: string; efforts: string[]; vision: boolean | null; resolvedModel: string;
 }
 export interface ListingProvider {
   provider: ListingProviderId; effort: string; models: ListingModelOption[]; ready: boolean;
   providers: {id: ListingProviderId; connected: boolean; inUse: boolean; tested?: boolean}[];
-  inUse: boolean; keyTail: string; keySource: 'saved' | 'server';
+  inUse: boolean; keyTail: string; keySource: 'saved' | 'server'; lane: 'go' | 'zen';
   tested: {ok: boolean; at: number; error: string} | null;
   claudeInstalled: boolean; loginUrl: string;
   connected: boolean; method: 'oauth' | 'api'; model: string; active: string;

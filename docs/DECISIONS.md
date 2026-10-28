@@ -305,3 +305,50 @@ v3.6.22–v3.6.37 在补丁版本里改了 `MainActivity`（沉浸展示），�
   - 「换一张封面」保持宽搜、由用户点选，不受此约束。
 - **代价**：此版本没有图时多一次服务端查询（MusicBrainz / iTunes 有限速，卡片多时会慢几秒）；借来的封面可能与实物包装不同。
 - **何时重新评估**：用户反映借来的封面常与实物不符时，改为只在卡片上展示、不自动写入记录。
+
+## D-028 · 条码备用源改为 Deezer；Bandcamp 只作封面地址来源
+- **日期**：2026-10-28
+- **状态**：生效中
+- **背景**：
+  - 二次元 / 特摄实体盘常出现「扫码没有任何结果」。实测 Discogs 的搜索接口不索引条码（`barcode=` 与 `q=<JAN>` 均返回 0，`catno=` 正常），D-014 设计的「MusicBrainz 没命中就查 Discogs 精确条码」实际一直空转。
+  - Deezer 的 `album/upc:<JAN>` 可精确命中日本商业盘（日本 CD 的 JAN 与数字版 UPC 同码），返回厂牌、日期、曲目与封面。
+  - Bandcamp 没有条码与唱片编号体系；主站（含 API 与专辑页）对 Python 标准库的 TLS 指纹返回挑战页（I-017），但图片 CDN `f4.bcbits.com` 可正常访问。
+- **决定**：
+  - 条码链路改为 **MusicBrainz → Deezer**；Discogs 的条码分支删除，只保留唱片编号链路 **MusicBrainz → Discogs**。
+  - 新增发行资料字段 `deezerId`；Deezer 只收录数字发行，不写 `format` 为 CD、不填碟数。`unofficial` 仍要求不绑定任何资料库版本。
+  - **Bandcamp 不作为发行版数据源**：不建候选、不加身份字段、不参与检索与条码核对。只在封面面板提供「从网址」：粘贴 Bandcamp 图片地址（`f4.bcbits.com`），服务端按 `covers.artwork_url` 白名单下载并落盘，来源记为 Bandcamp。
+  - 来源分发收敛到 `web/src/core/release-source.ts`（MusicBrainz / Discogs / Deezer），页面不再写 `source === 'discogs' ? … : MusicBrainz`。
+- **代价**：
+  - Deezer 覆盖数字发行：日本「通常盘」常能命中，初回 / 限定盘的独立 JAN 往往没有，仍需 Discogs 编号或手动录入。
+  - Bandcamp 封面需要用户自己在专辑页右键复制图片地址，无法自动搜索。
+  - 本机模式（D-019）不接 Deezer：它不返回 CORS 头，浏览器同步 XHR 取不到。
+- **何时重新评估**：Bandcamp 放宽反爬或开放官方 API 时，重新评估是否恢复名称检索；取得 ORICON API 或 VGMdb 官方 API 时补特摄限定盘。
+
+### D-019 补充（2026-10-28）：售卖识别进入安卓本机模式
+安卓外壳新增原生回环中继，本机模式可以组装售卖辅助（仅 OpenCode / DeepSeek 密钥通道）。浏览器静态站点没有中继，仍不含售卖照片识别。见 D-030。
+
+## D-029 · 售卖识别新增 OpenCode（Go 订阅 / 按量余额）服务商
+- **日期**：2026-10-28
+- **状态**：生效中（界面标 Beta）
+- **背景**：用户使用 OpenCode Go 订阅，要求把它作为独立的视觉模型服务商接入售卖照片识别，而不是伪装成「OpenAI 兼容 API」。OpenCode Console 同时提供 Go（订阅）与按量余额两条通道，使用同一把 Console API Key，区别只在网关地址；两条通道都提供 OpenAI / Anthropic / Gemini 兼容入口，并把请求翻译到模型的原生协议。
+- **决定**：
+  - 新增独立服务商 id `opencode`，密钥在设置页填写（只显示末四位，保存在服务端受限文件），保留 `OPENCODE_API_KEY` 环境变量回退；断开设置抑制回接。
+  - 计费通道（`opencodeLane`：`go` / `zen`）保存在服务商配置里；身份指纹包含计费通道与网关地址，模型目录与选择按通道隔离，切回旧通道恢复原选择。
+  - 模型目录取 `<base>/v1/models`；分析统一走 `<base>/openai/v1/chat/completions`（网关负责翻译成模型原生协议），带每个任务生成的 `x-opencode-session` 会话头与自有 User-Agent，不发送 `response_format`。
+  - 目录不返回图片与思考强度能力：按「未声明」展示，不按模型名猜测；仅文字模型在分析时由服务商响应暴露错误。免费档模型（仅限 OpenCode 客户端）或工作区未授权时，分析请求返回 403，界面显示「可能仅限 OpenCode 客户端使用，或工作区未授权此模型」，不自动切换计费来源。网关地址可用 `OPENCODE_API_BASE` 覆盖（仅 HTTPS 或本机 HTTP，供自建代理与验收）。
+- **代价**：目录没有能力元数据，无法像 OpenAI / Claude 那样预先屏蔽仅文字模型；Go 面向编码 agent 流量、按模型有月度额度，非编码用途可能受限。翻译层行为随 OpenCode 更新，失败需按其文档调整；单次分析只发送本副本照片与名称/艺人，失败不自动切换计费来源。
+- **何时重新评估**：OpenCode 在模型目录中提供图片 / 思考能力元数据，或 Go 的用途与额度规则不再适合本应用时。
+
+## D-030 · 安卓本机模式：原生回环中继跑售卖照片识别
+- **日期**：2026-10-28
+- **状态**：生效中
+- **背景**：用户要求安卓本机版也能用 OpenCode 做售卖照片识别。实测 OpenCode 的 CORS 预检 `OPTIONS /inference/go/openai/v1/chat/completions` 返回 404、没有 `Access-Control-Allow-*`，浏览器里的 Pyodide 无法直连；本机模式原先也没有组装售卖服务，且分析用线程池、ChatGPT 授权用 fcntl、Claude 用子进程，浏览器里都不可用。
+- **决定**：
+  - 安卓外壳新增 `ModelRelay`：只绑定 `127.0.0.1` 的随机端口，路径带每次启动随机生成的 token；只允许 `Origin: https://appassets.androidplatform.net`，只转发 `/p/<token>/opencode/inference/...` 到 `https://opencode.ai/inference/...`；方法限 GET / POST，请求体上限 40 MB，只透传 Authorization / Content-Type / X-Opencode-Session / Accept，补 CORS、`Access-Control-Allow-Private-Network` 与固定 User-Agent。拒绝把它扩成任意主机代理。
+  - WebView 保持 `https://appassets.androidplatform.net` 源（不能换源，否则 IndexedDB 里的账本读不到），只对回环中继开启 `MIXED_CONTENT_ALWAYS_ALLOW`；`network_security_config` 只对 127.0.0.1 / localhost 放行明文。
+  - 页面经 `ObiAndroid.modelRelay()` 取得中继地址，启动引擎时写入 `OPENCODE_RELAY_BASE`；`api_endpoint('opencode')` 只按这个前缀改写。没有中继（浏览器静态站点）时 `local_entry.build_local()` 不组装 `listings`，售卖入口维持不可用。
+  - 本机售卖只开放 OpenCode / DeepSeek 的密钥通道；ChatGPT OAuth、Claude Code 与兼容 API 仍仅服务器版。默认服务商在本地从 OpenAI / Claude 自动落到 OpenCode。
+  - Pyodide 不能起线程：`ListingAnalysis(inline=True)` 在请求内直接跑完；本机 Service Worker 只把 `/api/listing/analyze` 的等待上限放宽到 300 秒。
+  - 这是原生外壳改动，按 D-023 必须随**次版本**发布（3.11.0），不能当补丁下发。
+- **代价**：WebView 全局允许混合内容，安全性弱于默认；回环中继多了一个本机监听端口与代理面（用 token + Origin + 主机/路径白名单收敛）；本机分析期间主引擎 Worker 被占用，其他 /api 请求要等它结束；ChatGPT / Claude 仍无法在本机使用。
+- **何时重新评估**：OpenCode 支持 CORS 后可删掉中继；WebView 支持按源放行混合内容；或安卓版改为可选连接服务器。

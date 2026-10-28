@@ -46,14 +46,15 @@ async function relay(req) {
     const channel = new BroadcastChannel('obi-api');
     const id = Math.random().toString(36).slice(2) + Date.now();
     const finish = (res) => { clearTimeout(timer); channel.close(); resolve(res); };
+    const url = new URL(req.url);
+    // 本机模式下模型分析在请求里就地跑完（不能起线程），给它更长的等待；其他接口仍按 120 秒。
     const timer = setTimeout(() => finish(new Response(JSON.stringify({ error: '本机引擎没有响应，请刷新页面' }),
-      { status: 503, headers: { 'Content-Type': 'application/json' } })), 120000);
+      { status: 503, headers: { 'Content-Type': 'application/json' } })), url.pathname === '/api/listing/analyze' ? 300000 : 120000);
     channel.onmessage = (ev) => {
       const m = ev.data;
       if (!m || m.t !== 'res' || m.id !== id) return;
       finish(new Response(m.status === 304 ? null : m.body, { status: m.status, headers: m.headers }));
     };
-    const url = new URL(req.url);
     const headers = {};
     req.headers.forEach((v, k) => { headers[k] = v; });
     channel.postMessage({ t: 'req', id, method: req.method, target: url.pathname + url.search, headers, body: body.byteLength ? body : null });

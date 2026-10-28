@@ -1,4 +1,4 @@
-"""iTunes album artwork search. Only Apple artwork hosts can be fetched."""
+"""Album artwork download. Only the hosts in `artwork_url` (Apple / Cover Art Archive / Deezer / Bandcamp) may be fetched."""
 from contextlib import closing
 import sqlite3
 from pathlib import Path
@@ -60,7 +60,10 @@ def artist_matches(artist, who, loose=False):
 
 def artwork_url(url):
     p = urlsplit(url)
-    if p.scheme != 'https' or not p.hostname or not (p.hostname.endswith('.mzstatic.com') or p.hostname == 'archive.org' or p.hostname.endswith('.archive.org') or p.hostname == 'coverartarchive.org') or p.username or p.password or p.port not in (None,443):
+    hosts = ('archive.org', 'coverartarchive.org', 'cdn-images.dzcdn.net')
+    allowed = (p.hostname and (p.hostname.endswith('.mzstatic.com') or p.hostname.endswith('.archive.org')
+               or p.hostname.endswith('.bcbits.com') or p.hostname in hosts))
+    if p.scheme != 'https' or not p.hostname or not allowed or p.username or p.password or p.port not in (None,443):
         raise ValidationError('封面来源不是受支持的图片地址')
     return url
 
@@ -184,6 +187,16 @@ class CoverService:
         if not item and m:   # 此发行版的正面图：无需先搜索，由前端直接给出候选
             item={'url':f'https://coverartarchive.org/release/{m.group(1)}/front-1200','provider':'Cover Art Archive（此版本）',
                   'page':'https://musicbrainz.org/release/'+m.group(1),'title':'此版本的封面','artist':'','country':'AUTO'}
+        if not item and isinstance(token, str) and token.startswith('https://'):
+            # 用户直接给的封面地址（Bandcamp 专辑页右键复制的图片地址、Deezer 等）：
+            # 只认受支持主机，仍走同一套落盘与备份。
+            safe = artwork_url(token)
+            host = urlsplit(safe).hostname or ''
+            if 'dzcdn' in host: provider = 'Deezer（此版本）'
+            elif 'bcbits' in host: provider = 'Bandcamp（此版本）'
+            elif 'mzstatic' in host: provider = 'iTunes（此版本）'
+            else: provider = 'Cover Art Archive（此版本）'
+            item={'url':safe,'provider':provider,'page':'','title':'此版本的封面','artist':'','country':'AUTO'}
         if not item: raise ValidationError('候选封面已过期，请重新查找')
         data=self.read(artwork_url(item['url']),2*1024*1024)
         if data.startswith(b'\xff\xd8\xff'): mime='image/jpeg'

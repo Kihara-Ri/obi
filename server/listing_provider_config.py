@@ -6,7 +6,11 @@ from urllib.parse import urlsplit
 from domain import ValidationError
 from .chatgpt_credentials import Credentials
 
-PROVIDERS = ('openai', 'deepseek', 'anthropic', 'api')
+PROVIDERS = ('openai', 'deepseek', 'anthropic', 'opencode', 'api')
+OPENCODE_LANES = ('go', 'zen')
+OPENCODE_BASE = {'go': 'https://opencode.ai/inference/go', 'zen': 'https://opencode.ai/inference'}
+OPENCODE_UA = 'Obi-Album-Ledger'
+OPENCODE_FORBIDDEN = '该模型可能仅限 OpenCode 客户端使用，或工作区未授权此模型'
 
 
 def provider_id(value):
@@ -14,14 +18,35 @@ def provider_id(value):
     return value
 
 
-def api_endpoint(provider):
-    name, default = ('DEEPSEEK_API_BASE', 'https://api.deepseek.com') if provider == 'deepseek' else ('LISTING_API_BASE', 'https://api.openai.com/v1')
-    base = os.getenv(name, default).rstrip('/')
-    parsed = urlsplit(base)
+def https_base(value):
+    parsed = urlsplit(value)
     if (parsed.scheme != 'https' and not (parsed.scheme == 'http' and parsed.hostname in ('127.0.0.1', 'localhost'))
             or not parsed.netloc or parsed.username or parsed.password or parsed.query or parsed.fragment):
         raise ValidationError('模型 API 地址无效')
-    return base
+    return value.rstrip('/')
+
+
+def opencode_lane(state):
+    lane = (state or {}).get('opencodeLane', 'go')
+    if lane not in OPENCODE_LANES: raise ValidationError('请选择 OpenCode 的计费通道')
+    return lane
+
+
+def api_endpoint(provider, state=None):
+    if provider == 'opencode':
+        lane = opencode_lane(state)
+        relay = os.getenv('OPENCODE_RELAY_BASE', '').rstrip('/')
+        if relay:   # 安卓本机模式：原生回环中继补 CORS 与 User-Agent（D-030）
+            return https_base(relay + ('/inference/go' if lane == 'go' else '/inference'))
+        return https_base(os.getenv('OPENCODE_API_BASE') or OPENCODE_BASE[lane])
+    name, default = ('DEEPSEEK_API_BASE', 'https://api.deepseek.com') if provider == 'deepseek' else ('LISTING_API_BASE', 'https://api.openai.com/v1')
+    return https_base(os.getenv(name, default))
+
+
+def opencode_headers(key, session=''):
+    headers = {'Authorization': 'Bearer ' + key, 'User-Agent': OPENCODE_UA}
+    if session: headers['x-opencode-session'] = session
+    return headers
 
 
 class ProviderConfig(Credentials):
@@ -32,6 +57,7 @@ class ProviderConfig(Credentials):
             state.setdefault('profiles', {})
             state.setdefault('catalogues', {})
             state.setdefault('tests', {})
+            state.setdefault('opencodeLane', 'go')
 
     def read(self):
         with self.locked() as state: return copy.deepcopy(state)
@@ -39,6 +65,8 @@ class ProviderConfig(Credentials):
 
 def api_key(provider, state):
     if state['profiles'].get(provider, {}).get('disabled'): return ''
+    if provider == 'opencode':
+        return (state['profiles'].get(provider, {}).get('apiKey') or os.getenv('OPENCODE_API_KEY', ''))
     return (state['profiles'].get(provider, {}).get('apiKey') or
             os.getenv('DEEPSEEK_API_KEY' if provider == 'deepseek' else 'LISTING_API_KEY', ''))
 

@@ -25,7 +25,7 @@ const rememberArt = (url: string) => {
 };
 
 /** 卡片上的一张候选封面：小图 / 放大图地址，以及它是不是这个版本自己的 */
-interface Art {small: string; big: string; kind: 'own' | BorrowedCover['kind']}
+interface Art {small: string; big: string; kind: 'own' | 'platform' | BorrowedCover['kind']}
 const caaArt = (base: string, kind: Art['kind']): Art => ({small: base + 'front-250', big: base + 'front-500', kind});
 const urlArt = (url: string, kind: Art['kind']): Art => ({small: url.replace(/\/\d+x\d+bb\./, '/300x300bb.'), big: url.replace(/\/\d+x\d+bb\./, '/600x600bb.'), kind});
 
@@ -41,9 +41,11 @@ export function ReleaseCandidateCard({c, fold, tag, fallbackArt, children}: {c: 
   const chain = useMemo(() => {
     const own = ownCoverBase(c);
     const list: Art[] = own ? [caaArt(own, 'own')] : [];
+    // Deezer 候选在搜索摘要里就带回了自己的封面，直接用，不再借同专辑的图。
+    if (!own && c.cover) list.push({small: c.coverSmall || c.cover, big: c.cover, kind: 'platform'});
     if (fallbackArt) list.push(/front-\d+$/.test(fallbackArt) ? caaArt(fallbackArt.replace(/front-\d+$/, ''), 'album') : urlArt(fallbackArt, 'album'));
     return list;
-  }, [c.id, c.source, fallbackArt]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [c.id, c.source, c.cover, c.coverSmall, fallbackArt]);   // eslint-disable-line react-hooks/exhaustive-deps
   const [arts, setArts] = useState(chain);
   const [idx, setIdx] = useState(0);
   const asked = useRef(false);
@@ -134,7 +136,7 @@ export function ReleaseCandidateCard({c, fold, tag, fallbackArt, children}: {c: 
 
   const i0 = c.releaseInfo;
   const body = <>
-    <ReleaseSummary title={c.title} artist={c.artist} info={c.releaseInfo} source={sourceName({}, c.source === 'discogs')} url={c.url} art={art} origin={artState === 'ok' ? origin : null} headless={fold}/>
+    <ReleaseSummary title={c.title} artist={c.artist} info={c.releaseInfo} source={sourceName(c.releaseInfo)} url={c.url} art={art} origin={artState === 'ok' ? origin : null} headless={fold}/>
     <button type="button" className="rcc-more" aria-expanded={open} onClick={toggle}>
       <span>曲目与版本资料</span><i aria-hidden="true">{open ? '−' : '+'}</i>
     </button>
@@ -147,7 +149,7 @@ export function ReleaseCandidateCard({c, fold, tag, fallbackArt, children}: {c: 
       <Tracklist releaseInfo={info}/>
     </div> : null}
     {artState === 'loading' ? <p className="rcc-msg" role="status">封面查找中…</p> : null}
-    {fold && artState === 'ok' && cur && cur.kind !== 'own' ? <p className="rcc-msg">{BORROWED_NOTE[cur.kind]}</p> : null}
+    {fold && artState === 'ok' && cur && (cur.kind === 'album' || cur.kind === 'digital') ? <p className="rcc-msg">{BORROWED_NOTE[cur.kind]}</p> : null}
     {fold && artState === 'none' ? <p className="rcc-msg">暂时找不到这张专辑的封面：入库后可在表单里点「换一张封面」继续查找，或上传自己拍的。</p> : null}
     {children?.({info, load, busy})}
   </>;

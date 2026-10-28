@@ -1,6 +1,7 @@
 // 专辑表单共享：表单值类型、初始值与各 hook 共用的上下文（值、改值、原记录快照、脏标记）。
 import type {Dispatch, MutableRefObject, RefObject, SetStateAction} from 'react';
 import {displayReleaseTitle, releaseRegion} from '../../core/release-metadata';
+import {identityFromCandidate} from '../../core/release-source';
 import type {AlbumRecord, Currency, PackagingSpec, ReleaseCandidate, ReleaseInfo, Status} from '../../types';
 
 export interface RecordValues {
@@ -45,9 +46,7 @@ export function initialValues(base: Partial<AlbumRecord>, where: Status | null):
 
 /** 「查询」页带入的已核对发行版 → 新增表单的初始字段（身份取自候选，不按标题猜）。 */
 export function seedFields(c: ReleaseCandidate): Partial<AlbumRecord> {
-  const discogs = c.source === 'discogs';
-  const releaseInfo = {...c.releaseInfo, manualRelease: '',
-    musicBrainzReleaseId: discogs ? '' : c.id, discogsReleaseId: discogs ? c.id.replace('discogs-', '') : ''};
+  const releaseInfo = {...c.releaseInfo, ...identityFromCandidate(c)};
   return {title: displayReleaseTitle(c.title), artist: c.artist, version: releaseInfo.packaging || '',
     pressing: releaseRegion(releaseInfo.country), releaseInfo};
 }

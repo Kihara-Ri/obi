@@ -38,9 +38,18 @@ export function useCoverSearch(ctx: FormCtx, hadCover: boolean) {
     }
   }
 
+  /** 直接给图片地址（Bandcamp 专辑页右键封面「复制图片地址」）：服务端只接受受支持主机，仍走落盘与备份。 */
+  async function coverFromUrl(raw: string) {
+    const value = raw.trim();
+    if (!/^https:\/\/(?:[\w-]+\.)*(?:bcbits\.com|dzcdn\.net|mzstatic\.com|coverartarchive\.org|archive\.org)\//i.test(value)) {
+      setCoverStatus('封面地址不受支持：请粘贴 Bandcamp / Deezer / iTunes 的图片地址');
+      return;
+    }
+    await chooseCover(value, coverKey());
+  }
+
   /** 自己准备的封面：从相册 / 文件选图，压缩成 JPEG 后直接作为封面（保存时服务端落盘），来源只记「上传」。 */
-  async function uploadCover(file: File) {
-    setBusy(true);
+  async function uploadCover(file: File) {    setBusy(true);
     setCoverStatus('处理图片中…');
     try {
       const data = await compressPhoto(file);
@@ -89,6 +98,6 @@ export function useCoverSearch(ctx: FormCtx, hadCover: boolean) {
   }
 
   return {coverStatus, setCoverStatus, candidates, setCandidates, hasCover, setHasCover,
-    busy, setBusy, coverKey, chooseCover, findCover, uploadCover};
+    busy, setBusy, coverKey, chooseCover, coverFromUrl, findCover, uploadCover};
 }
 export type CoverSearch = ReturnType<typeof useCoverSearch>;

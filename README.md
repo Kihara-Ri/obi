@@ -4,7 +4,9 @@
 
 属于自己的 CD 收藏与交易工具。从整理或展示收藏开始，按需启用购入记录、二手交易与海外周转；每张实物拥有独立的版本、照片和记录。数据保存在自己的服务设备，框架不包含个人数据。
 
-启用二手交易后，可在专辑详情的「上架资料」按本副本照片分析版本与可见品相，人工核对后生成售卖草稿、复制文案、选图排序并下载图片包，在闲鱼网页版手动发布。草稿不改变上架状态。识别可同时保留 OpenAI（ChatGPT OAuth）、DeepSeek（API Key）、Anthropic（官方 Claude Code OAuth）的连接，按服务商读取模型与支持的思考强度；也保留兼容 API 通道。配置见[部署说明](部署说明.md#售卖照片识别)。
+启用二手交易后，可在专辑详情的「上架资料」按本副本照片分析版本与可见品相，人工核对后生成售卖草稿、复制文案、选图排序并下载图片包，在闲鱼网页版手动发布。草稿不改变上架状态。识别可同时保留 OpenAI（ChatGPT OAuth）、DeepSeek（API Key）、Anthropic（官方 Claude Code OAuth）、OpenCode（Beta，Go 订阅 / 按量余额，Console API Key）的连接，按服务商读取模型与支持的思考强度；也保留兼容 API 通道。配置见[部署说明](部署说明.md#售卖照片识别)。
+
+条码查不到的版本会自动再查 Deezer（Discogs 的搜索不索引条码），唱片编号仍走 Discogs；封面可以直接粘贴 Bandcamp 等图片地址保存。
 
 ## 按需选择功能
 
@@ -77,7 +79,7 @@ docker compose up -d --build
 
 升级 = `git pull && docker compose up -d --build`；停止 = `docker compose down`（数据保留）。
 
-**安卓手机（不需要服务器）：** 在 [Releases](https://github.com/Kihara-Ri/obi/releases) 下载 `Obi-<版本>.apk` 直接安装，数据只存在手机上，之后有新版本会自动更新，见[部署说明 · 安卓安装包](部署说明.md#安卓安装包不用托管下载即装)。
+**安卓手机（不需要服务器）：** 在 [Releases](https://github.com/Kihara-Ri/obi/releases) 下载 `Obi-<版本>.apk` 直接安装，数据只存在手机上，之后有新版本会自动更新；本机版也可用 OpenCode（Beta）/ DeepSeek 做售卖照片识别，见[部署说明 · 安卓安装包](部署说明.md#安卓安装包不用托管下载即装)。
 
 也可以在 [Releases](https://github.com/Kihara-Ri/obi/releases) 直接下载 `album-ledger.tar.gz`（无需 git，裸机 Python 运行，见部署说明）。
 

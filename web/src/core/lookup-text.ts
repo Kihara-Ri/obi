@@ -1,5 +1,6 @@
 // 查询结果 → 一段整理好的文字，便于直接贴给 AI 询问这张专辑；只含资料库查到的事实与库里是否已有，不含价格等个人信息。
 import type {ReleaseCandidate, ReleaseInfo} from '../types';
+import {sourceName} from './release-source';
 import {releaseLabels} from './release-text';
 import {trackDiscs, trackDuration} from './tracklist';
 
@@ -12,7 +13,7 @@ export function releaseText(c: ReleaseCandidate, info: ReleaseInfo, owned = ''):
     const value = info[key];
     if (!SKIP.has(key) && typeof value === 'string' && value) lines.push(`${label}：${value}`);
   }
-  lines.push(`资料来源：${c.source === 'discogs' ? 'Discogs' : 'MusicBrainz'}${c.url ? ' ' + c.url : ''}`);
+  lines.push(`资料来源：${sourceName(c.releaseInfo)}${c.url ? ' ' + c.url : ''}`);
   if (owned) lines.push(`我的收藏：${owned}`);
   const discs = trackDiscs(info);
   discs.forEach(disc => {

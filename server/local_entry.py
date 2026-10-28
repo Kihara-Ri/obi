@@ -12,6 +12,7 @@ Worker 调用本模块的 handle()，数据写进浏览器（见 static/local/en
 """
 import io
 import json
+import os
 import sys
 import tempfile
 import types
@@ -58,15 +59,18 @@ class LocalHandler:
 
 
 def build_local(data_dir):
-    """从浏览器里的数据目录组装服务：只含账本、封面、发行资料、艺人资料；无后台线程。"""
+    """从浏览器里的数据目录组装服务：账本、封面、发行资料、艺人资料与售卖辅助；无后台线程。"""
     from covers import CoverService
     from musicbrainz import MusicBrainzClient
     from rates import RateService
     from server import Services
     from server.artists import ArtistService
     from server.catalog_art import ArtClient
+    from server.chatgpt_auth import ChatGPTAuth
     from server.discogs_catalog import DiscogsCatalog
     from server.engine_plugins import PluginManager
+    from server.listing_analysis import ListingAnalysis
+    from server.listing_model import ListingModel
     from server.release_catalog import ReleaseCatalog
     from storage import Store
     data = Path(data_dir)
@@ -77,8 +81,16 @@ def build_local(data_dir):
     plugins = PluginManager(store, None, mb)   # 本机模式不带 plugins/ 目录：引擎显示为不可用
     artists = ArtistService(store, mb, covers, write_lock=routes.WRITE_LOCK)
     artists.prewarm_enabled = False
+    releases = ReleaseCatalog(mb=mb, discogs=DiscogsCatalog())
+    # 售卖辅助只在安卓原生中继可用时启用（D-030）：浏览器静态站点直连 OpenCode 会被 CORS 挡下。
+    listings = None
+    if os.getenv('OPENCODE_RELAY_BASE', '').strip():
+        listings = ListingAnalysis(store, releases, ListingModel(ChatGPTAuth(data)), inline=True)
+        with listings.model.providers.config.locked() as state:
+            if state['provider'] in ('openai', 'anthropic'): state['provider'] = 'opencode'
+    # Deezer 不返回 CORS 头，浏览器里的同步 XHR 取不到，本机模式只接 MusicBrainz 与 Discogs。
     return Services(store=store, plugins=plugins, catalog_art=ArtClient(), covers=covers,
-                    releases=ReleaseCatalog(mb=mb, discogs=DiscogsCatalog()), twins=plugins.facade,
+                    releases=releases, twins=plugins.facade, listings=listings,
                     artists=artists, rates=rates)
 
 
@@ -93,6 +105,9 @@ class Engine:
         h = LocalHandler(method, target, headers)
         path = urlsplit(target).path
         if not path.startswith('/api/'): h.send({'error': '接口不存在'}, 404); return h
+        if path.startswith('/api/listing/') and self.svc.listings is None:
+            h.send({'error': '浏览器本机模式不支持售卖照片识别；请用安卓安装包（OpenCode / DeepSeek）或服务器版'}, 400)
+            return h
         try:
             if method == 'GET':
                 fn = routes.resolve_get(path)

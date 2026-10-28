@@ -9,7 +9,7 @@ class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl): return None
 
 
-def request(url, data=None, headers=None, stream=False):
+def request(url, data=None, headers=None, stream=False, forbidden=''):
     try:
         response = build_opener(NoRedirect()).open(Request(url, data=data, headers=headers or {}), timeout=120)
         if stream: return response
@@ -18,7 +18,7 @@ def request(url, data=None, headers=None, stream=False):
         if len(raw) > 2 * 1024 * 1024: raise ValidationError('模型服务响应过大')
         return json.loads(raw) if raw else {}
     except HTTPError as exc:
-        labels = {401: '授权已失效，请重新登录或检查 API 密钥', 403: '当前账号没有所需权限',
+        labels = {401: '授权已失效，请重新登录或检查 API 密钥', 403: forbidden or '当前账号没有所需权限',
                   429: '模型额度不足或限流，请稍后重试'}
         raise ValidationError(labels.get(exc.code, f'模型服务返回 HTTP {exc.code}')) from None
     except (URLError, OSError, TimeoutError):

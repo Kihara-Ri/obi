@@ -8,8 +8,15 @@ import {dropCandidate, type CoverSearch} from './useCoverSearch';
 
 export function CoverPanel({cover, src, busy, inline}: {cover: CoverSearch; src: string; busy: boolean; inline?: boolean}) {
   const [open, setOpen] = useState(false);
+  const [urlOpen, setUrlOpen] = useState(false);
+  const [url, setUrl] = useState('');
   const file = useRef<HTMLInputElement>(null);
   const many = cover.candidates.length > 1;
+  const applyUrl = () => {
+    if (!url.trim()) return;
+    void cover.coverFromUrl(url);
+    setUrl('');
+  };
   return (
     <section className={'cover-search' + (inline ? ' is-inline' : '')}>
       <div className="cover-row">
@@ -21,10 +28,18 @@ export function CoverPanel({cover, src, busy, inline}: {cover: CoverSearch; src:
         <span className="cover-actions">
           <button type="button" disabled={busy} onClick={() => cover.findCover()}>换一张封面</button>
           <button type="button" disabled={busy} onClick={() => file.current?.click()}>上传封面</button>
+          <button type="button" disabled={busy} aria-expanded={urlOpen} onClick={() => setUrlOpen(!urlOpen)}>从网址</button>
         </span>
         <input ref={file} type="file" accept="image/*,.heic,.heif" hidden
           onChange={e => {const f = e.target.files?.[0]; e.target.value = ''; if (f) void cover.uploadCover(f);}}/>
       </div>
+      {urlOpen ? <div className="cover-url">
+        <input type="url" inputMode="url" autoComplete="off" aria-label="封面图片地址"
+          placeholder="粘贴 Bandcamp 封面图片地址（专辑页右键封面 → 复制图片地址）"
+          value={url} onChange={e => setUrl(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); applyUrl(); } }}/>
+        <button type="button" disabled={busy || !url.trim()} onClick={applyUrl}>使用</button>
+      </div> : null}
       {cover.candidates.length ? <>
         {many ? <button type="button" className="cover-deck" aria-expanded={open} onClick={() => setOpen(!open)}>
           <span className="cover-deck-stack" aria-hidden="true">

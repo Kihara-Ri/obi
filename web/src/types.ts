@@ -149,7 +149,9 @@ export interface ReleaseMedium {
 }
 
 export interface ReleaseInfo {
-  catalogNumber?: string; barcode?: string; musicBrainzReleaseId?: string; discogsReleaseId?: string; manualRelease?: string; unofficial?: string; label?: string; country?: string;
+  catalogNumber?: string; barcode?: string; musicBrainzReleaseId?: string; discogsReleaseId?: string;
+  deezerId?: string;
+  manualRelease?: string; unofficial?: string; label?: string; country?: string;
   releaseDate?: string; edition?: string; packaging?: string; format?: string; discCount?: string;
   matrix?: string; extras?: string; observations?: string; tracklist?: string[]; media?: ReleaseMedium[];
 }
@@ -163,7 +165,10 @@ export interface ListingFields {
 
 export interface ReleaseCandidate {
   id: string; title: string; artist: string; releaseInfo: ReleaseInfo;
-  identifierMatch: boolean; url: string; source?: 'discogs';
+  identifierMatch: boolean; url: string;
+  source?: 'musicbrainz' | 'discogs' | 'deezer';
+  /** Deezer 候选自带封面（MusicBrainz 走 Cover Art Archive） */
+  cover?: string; coverSmall?: string;
 }
 
 export interface SaleItem {

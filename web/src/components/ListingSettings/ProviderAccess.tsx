@@ -1,8 +1,9 @@
-// 密钥 / 授权区：DeepSeek 用密钥（只显示末四位）；OpenAI、Claude 走授权登录；兼容 API 由服务端配置。
+// 密钥 / 授权区：DeepSeek、OpenCode 填密钥（只显示末四位）；OpenAI、Claude 走授权登录；兼容 API 由服务端配置。
 import {useState} from 'react';
 import {api} from '../../core/api';
 import type {ListingProvider} from '../../core/listing';
 import {Dropdown} from '../ui/Dropdown';
+import {Seg} from '../ui/Seg';
 
 interface Props {
   provider: ListingProvider; busy: boolean;
@@ -10,6 +11,16 @@ interface Props {
   configure: (patch: object) => Promise<void>;
   login: (account?: string) => void;
 }
+
+type KeyProvider = 'deepseek' | 'opencode';
+const KEY_PROVIDERS: Record<KeyProvider, {label: string; mask: string; hint: string; href: string; link: string}> = {
+  deepseek: {label: 'DeepSeek API Key', mask: 'sk-••••••••',
+    hint: '密钥只保存在服务器的受限文件中，不会回传到页面，也不进入业务备份。',
+    href: 'https://platform.deepseek.com/api_keys', link: '获取密钥 ↗'},
+  opencode: {label: 'OpenCode API Key', mask: '••••••••',
+    hint: 'Go 订阅与按量余额使用同一把 OpenCode Console 密钥；切换计费通道后要重新读取模型。密钥只保存在服务器的受限文件中，不进入业务备份。',
+    href: 'https://opencode.ai/console', link: 'OpenCode Console ↗'},
+};
 
 export function ProviderAccess({provider, busy, run, configure, login}: Props) {
   const [key, setKey] = useState('');
@@ -20,24 +31,33 @@ export function ProviderAccess({provider, busy, run, configure, login}: Props) {
     const result = await api<{revoked: boolean}>('listing/disconnect', {provider: id});
     if (!result.revoked) throw new Error('本机授权已清除；远端撤销未确认，请在服务商设置中断开 Obi');
   });};
-  if (id === 'deepseek') return <div className="provider-block">
-    {provider.keyTail && !replacing ? <div className="provider-keyrow">
-      <span className="provider-mask" aria-label="已保存的密钥">sk-••••••••{provider.keyTail}</span>
-      <button type="button" disabled={busy} onClick={() => setReplacing(true)}>更换密钥</button>
-      {provider.keySource === 'saved' ? <button type="button" className="danger" disabled={busy} onClick={disconnect}>移除密钥</button> : null}
-    </div> : <div className="listing-credentials">
-      <label>DeepSeek API Key<input type="password" autoComplete="new-password" value={key}
-        onChange={e => setKey(e.target.value)} maxLength={2000}/></label>
-      <div className="provider-keyrow">
-        <button type="button" disabled={busy || !key.trim()} onClick={() => {void run(async () => {
-          await api('listing/connection', {provider: 'deepseek', apiKey: key.trim()}); setKey(''); setReplacing(false);
-        });}}>保存密钥</button>
-        {replacing ? <button type="button" disabled={busy} onClick={() => {setReplacing(false); setKey('');}}>取消</button> : null}
-      </div>
-    </div>}
-    <p className="small-note">密钥只保存在服务器的受限文件中，不会回传到页面，也不进入业务备份。</p>
-    <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener noreferrer">获取密钥 ↗</a>
-  </div>;
+  if (id === 'deepseek' || id === 'opencode') {
+    const meta = KEY_PROVIDERS[id];
+    return <div className="provider-block">
+      {id === 'opencode' ? <div className="provider-lane">
+        <span className="small-note">计费通道</span>
+        <Seg ariaLabel="OpenCode 计费通道" value={provider.lane} disabled={busy}
+          options={[{value: 'go', label: 'Go 订阅'}, {value: 'zen', label: '按量余额'}]}
+          onValue={lane => {void configure({lane});}}/>
+      </div> : null}
+      {provider.keyTail && !replacing ? <div className="provider-keyrow">
+        <span className="provider-mask" aria-label="已保存的密钥">{meta.mask}{provider.keyTail}</span>
+        <button type="button" disabled={busy} onClick={() => setReplacing(true)}>更换密钥</button>
+        {provider.keySource === 'saved' ? <button type="button" className="danger" disabled={busy} onClick={disconnect}>移除密钥</button> : null}
+      </div> : <div className="listing-credentials">
+        <label>{meta.label}<input type="password" autoComplete="new-password" value={key}
+          onChange={e => setKey(e.target.value)} maxLength={2000}/></label>
+        <div className="provider-keyrow">
+          <button type="button" disabled={busy || !key.trim()} onClick={() => {void run(async () => {
+            await api('listing/connection', {provider: id, apiKey: key.trim()}); setKey(''); setReplacing(false);
+          });}}>保存密钥</button>
+          {replacing ? <button type="button" disabled={busy} onClick={() => {setReplacing(false); setKey('');}}>取消</button> : null}
+        </div>
+      </div>}
+      <p className="small-note">{meta.hint}</p>
+      <a href={meta.href} target="_blank" rel="noopener noreferrer">{meta.link}</a>
+    </div>;
+  }
   if (id === 'openai') return <div className="provider-block">
     <p role="status">{provider.connected ? '已授权 ChatGPT' : provider.loginPending ? '等待完成授权…' : '尚未授权'}</p>
     {provider.accounts.length ? <Dropdown label="ChatGPT 账号" disabled={busy} value={provider.active}

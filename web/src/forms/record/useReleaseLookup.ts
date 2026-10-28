@@ -4,6 +4,7 @@ import {useEffect, useRef, useState} from 'react';
 import {api} from '../../core/api';
 import {gs1Valid} from '../../core/lookup';
 import {releaseRegion} from '../../core/release-metadata';
+import {SOURCE_LABEL, identityFromId, sourceOf} from '../../core/release-source';
 import type {AlbumRecord, ReleaseCandidate, ReleaseInfo} from '../../types';
 import type {FormCtx} from './context';
 import {identityOf, failedSources, fillMissing, pickRelease} from './pickRelease';
@@ -30,8 +31,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
   const abort = useRef<AbortController | null>(null);
   // 修改条码后，只有旧发行版 ID 经校验通过、或用户从新候选中确认，才有可信身份。
   const verified = useRef(initialInfo ? identityOf(initialInfo) : '');
-  const manualRelease = v.releaseInfo.manualRelease === '1' && !v.releaseInfo.musicBrainzReleaseId
-    && !v.releaseInfo.discogsReleaseId;
+  const manualRelease = v.releaseInfo.manualRelease === '1' && !identityOf(v.releaseInfo);
   const identified = !!(identityOf(v.releaseInfo) || manualRelease);
 
   const reset = () => { ++sequence.current; abort.current?.abort(); inflight.current = null; cover.setBusy(false); };
@@ -48,14 +48,14 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
     setVerification('pending');
     setMessage(next ? '校验中…' : '');
     // 校验期间保留已有曲目；选择另一个发行版会换成它自己的曲目。
-    set({releaseInfo: {...live.current.releaseInfo, barcode: next, musicBrainzReleaseId: '', discogsReleaseId: ''}});
+    set({releaseInfo: {...live.current.releaseInfo, barcode: next, ...identityFromId('')}});
     dirty();
   };
   const changeCatalogNumber = (value: string) => {
     reset(); setCatalogNumber(value); setCandidates([]); setMessage(''); setNotFound(false);
     if (manualRelease) { set({releaseInfo: {...live.current.releaseInfo, catalogNumber: value}}); dirty(); return; }
     if (!manualRelease && value !== v.releaseInfo.catalogNumber) {
-      set({releaseInfo: {...v.releaseInfo, musicBrainzReleaseId: '', discogsReleaseId: '', tracklist: [], media: []}});
+      set({releaseInfo: {...v.releaseInfo, ...identityFromId(''), tracklist: [], media: []}});
       dirty();
     }
   };
@@ -91,8 +91,8 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
         setCandidates(result.candidates);
         if (auto) setVerification('failed');
         if (result.candidates.length) {
-          const onlyDiscogs = result.candidates.every(c => c.source === 'discogs');
-          setMessage(`${onlyDiscogs ? 'Discogs 找到' : '找到'} ${result.candidates.length} 个版本，请选择`);
+          const backupOnly = result.candidates.every(c => sourceOf(c) !== 'musicbrainz');
+          setMessage(`${backupOnly ? SOURCE_LABEL[sourceOf(result.candidates[0])] + ' 找到' : '找到'} ${result.candidates.length} 个版本，请选择`);
         } else {
           setNotFound(true);
           setMessage(note
@@ -133,9 +133,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
         try {
           await api('catalog/barcode/verify', {barcode: number, releaseId});
           if (sequence.current !== seq) return;
-          setV(prev => ({...prev, releaseInfo: releaseId.startsWith('discogs-')
-            ? {...prev.releaseInfo, barcode: number, discogsReleaseId: releaseId.slice(8)}
-            : {...prev.releaseInfo, barcode: number, musicBrainzReleaseId: releaseId}}));
+          setV(prev => ({...prev, releaseInfo: {...prev.releaseInfo, barcode: number, ...identityFromId(releaseId)}}));
           setVerification('verified'); setBusy(false);
           setMessage('');
           return;
@@ -159,7 +157,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
     reset(); verified.current = '';
     setVerification('verified'); setCandidates([]); setNotFound(false);
     set({releaseInfo: {...v.releaseInfo, barcode: barcode.trim(), catalogNumber: catalogNumber.trim(),
-      musicBrainzReleaseId: '', discogsReleaseId: '', manualRelease: '1', unofficial: unofficial ? '1' : ''},
+      ...identityFromId(''), manualRelease: '1', unofficial: unofficial ? '1' : ''},
       ...(manualRelease ? {} : {packaging: null})});
     setMessage(unofficial ? '非官方发行 · 请填写专辑名、艺人，版本说明里写明来源'
       : '手动录入 · 请填专辑名、艺人');

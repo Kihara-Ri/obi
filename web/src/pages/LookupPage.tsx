@@ -33,7 +33,6 @@ export function LookupPage() {
   const [recent, setRecent] = useState(loadRecent);
   const [target, setTarget] = useState<AlbumRecord | null>(null);  // 正在为库里这张确认发行版
   const abort = useRef<AbortController | null>(null);
-
   const search = async (input = text, fallback = '') => {
     const wantText = isTextQuery(input);
     const parsed = wantText ? ({ok: true, kind: 'text', value: input.trim()} as const) : classify(input);
@@ -125,7 +124,7 @@ export function LookupPage() {
         {recent.map(item => <button key={item} type="button" className="chip" onClick={() => void search(item)}>{item}</button>)}
         <button type="button" className="quiet" onClick={() => { setRecent([]); saveRecent([]); }}>清除</button>
       </div> : null}
-      {busy ? <p className="lookup-msg" role="status">查询中 · MusicBrainz，无结果时转 Discogs</p> : null}
+      {busy ? <p className="lookup-msg" role="status">查询中 · MusicBrainz，无结果时转 {/^[\d\s-]+$/.test(text.trim()) ? 'Deezer' : 'Discogs'}</p> : null}
       {!found && !busy && !error ? <PendingReleases onPick={startConfirm}/> : null}
       {found && isText ? <section aria-label="专辑搜索结果" className="lookup-results">
         <h2>{found.albums.length ? `找到 ${found.albums.length} 张专辑，点开看版本` : '没有找到相近的专辑'}</h2>

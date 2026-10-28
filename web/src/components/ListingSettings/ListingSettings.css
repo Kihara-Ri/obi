@@ -19,6 +19,7 @@
 .provider-badges .badge-ok{color:var(--green);border-color:var(--green)}
 .provider-badges .badge-bad{color:var(--red);border-color:var(--red)}
 .provider-badges .badge-warn{color:var(--orange);border-color:var(--orange)}
+.provider-badges .badge-beta{color:var(--purple);border-color:var(--purple)}
 .provider-badges .badge-use{color:var(--accent-ink);background:var(--accent);border-color:var(--accent)}
 .provider-page{display:grid;gap:var(--listing-gap)}
 .provider-head{display:flex;gap:12px;align-items:flex-start}
@@ -27,6 +28,8 @@
 .provider-section h4{margin:0;font-size:14px}
 .provider-block{display:grid;gap:var(--listing-gap-sm)}
 .provider-keyrow{display:flex;flex-wrap:wrap;align-items:center;gap:var(--listing-gap-sm)}
+.provider-lane{display:flex;flex-wrap:wrap;align-items:center;gap:var(--listing-gap-sm)}
+.provider-lane .seg{min-width:0}
 .provider-mask{font-family:ui-monospace,monospace;color:var(--muted);margin-right:auto;overflow-wrap:anywhere}
 .provider-keyrow .danger{color:var(--red)}
 .provider-use{justify-self:stretch;min-height:var(--listing-touch-size)}

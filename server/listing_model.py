@@ -1,8 +1,10 @@
 """照片分析的两种模型通道；OAuth 与 API 显式选择，不自动转付费通道。"""
 import base64
 import json
+import uuid
 from domain import ValidationError
 from domain_listing import clean_analysis
+from .listing_provider_config import OPENCODE_FORBIDDEN, opencode_headers
 from .listing_transport import request, responses_text
 
 PROMPT = '''你是二手 CD 实物照片核对助手。只观察用户给定的这张副本照片。
@@ -73,13 +75,24 @@ class ListingModel:
         else:
             payload = {'model': model, 'messages': [{'role': 'system', 'content': PROMPT},
                         {'role': 'user', 'content': content}], 'response_format': {'type': 'json_object'}}
-            if effort:
-                if provider == 'deepseek':
-                    payload['thinking'] = {'type': 'disabled' if effort == 'none' else 'enabled'}
-                    if effort != 'none': payload['reasoning_effort'] = effort
-                else: payload['reasoning_effort'] = effort
-            result = request(settings['base'] + '/chat/completions', json.dumps(payload).encode(),
-                             {'Authorization': 'Bearer ' + settings['key'], 'Content-Type': 'application/json'})
+            if provider == 'opencode':
+                # Console 把 OpenAI 请求翻译成模型原生协议：不发送 response_format（部分原生 API 没有该字段），
+                # 会话头让网关在同一任务内复用路由与提示缓存。
+                payload.pop('response_format')
+                if effort: payload['reasoning_effort'] = effort
+                headers = opencode_headers(settings['key'], 'ses_' + uuid.uuid4().hex)
+                headers['Content-Type'] = 'application/json'
+                url = settings['base'] + '/openai/v1/chat/completions'
+            else:
+                headers = {'Authorization': 'Bearer ' + settings['key'], 'Content-Type': 'application/json'}
+                url = settings['base'] + '/chat/completions'
+                if effort:
+                    if provider == 'deepseek':
+                        payload['thinking'] = {'type': 'disabled' if effort == 'none' else 'enabled'}
+                        if effort != 'none': payload['reasoning_effort'] = effort
+                    else: payload['reasoning_effort'] = effort
+            extra = {'forbidden': OPENCODE_FORBIDDEN} if provider == 'opencode' else {}
+            result = request(url, json.dumps(payload).encode(), headers, **extra)
             try: raw = result['choices'][0]['message']['content']
             except (KeyError, IndexError, TypeError): raise ValidationError('模型返回结构无效，请重试') from None
         return parse_analysis(raw, [index for index, _, _ in images])

@@ -42,9 +42,10 @@ def read_json(url, timeout=35):
 
 
 class ReleaseCatalog:
-    def __init__(self, mb=None, discogs=None):
+    def __init__(self, mb=None, discogs=None, deezer=None):
         self.mb = mb
-        self.discogs = discogs   # 备用来源：MusicBrainz 没有收录时查 Discogs
+        self.discogs = discogs   # 编号备用来源
+        self.deezer = deezer     # 条码备用来源（日本 CD 的 JAN 与数字版 UPC 同码）
         self.catalog_lock = threading.Lock(); self.catalog_at = 0; self.catalog_cache = {}
         self.release_cache = {}
 
@@ -111,13 +112,27 @@ class ReleaseCatalog:
             return result
 
     def fallback(self, barcode='', catno=''):
-        """MusicBrainz 无精确匹配时的备用检索；未配置备用来源则返回空。"""
-        return self.discogs.search(barcode, catno) if self.discogs else []
+        """MusicBrainz 无精确匹配时的备用检索。
+        条码只查 Deezer（Discogs 的搜索接口不索引条码，查了也永远为空）；
+        编号只查 Discogs（Deezer 没有编号索引）。未配置备用来源则返回空。"""
+        found, _ = self.backup(barcode, catno)
+        return found
+
+    def backup(self, barcode='', catno=''):
+        """返回 (候选, 实际来源名)；没有可用备用来源时来源名为空。"""
+        if barcode and self.deezer:
+            return self.deezer.search(barcode=barcode), 'deezer'
+        if not barcode and catno and self.discogs:
+            return self.discogs.search(catno=catno), 'discogs'
+        return [], ''
 
     def release_details(self, ident):
         if isinstance(ident,str) and ident.startswith('discogs-'):
             if not self.discogs: raise ValidationError('备用发行资料来源未启用')
             return self.discogs.release_details(ident)
+        if isinstance(ident,str) and ident.startswith('deezer-'):
+            if not self.deezer: raise ValidationError('Deezer 发行资料来源未启用')
+            return self.deezer.release_details(ident)
         if not isinstance(ident,str) or not re.fullmatch(r'[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}',ident):
             raise ValidationError('发行版本编号不正确')
         with self.catalog_lock:

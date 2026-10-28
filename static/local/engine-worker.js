@@ -10,6 +10,7 @@ const channel = new BroadcastChannel('obi-api');
 const say = (m) => postMessage(m);
 const NET_ROUTES = /^\/api\/(rate|release-details|catalog\/|covers\/(search|download|fallback))/;
 let role = 'main';
+let relay = '';
 let engine = null;
 let pyodide = null;
 let syncing = Promise.resolve();
@@ -52,12 +53,15 @@ async function boot() {
   FS.mount(FS.filesystems.IDBFS, {}, dir);
   await new Promise((resolve, reject) => FS.syncfs(true, (err) => (err ? reject(err) : resolve())));
   say({ progress: '正在打开数据…' });
+  pyodide.globals.set('obiRelay', role === 'main' ? (relay || '') : '');
   pyodide.runPython(`
+import os
 import sys
 sys.path.insert(0, '/app')
 from js import obiXhr
 from server.local_entry import Engine, install_browser_runtime
 install_browser_runtime(obiXhr)
+if obiRelay: os.environ['OPENCODE_RELAY_BASE'] = str(obiRelay)
 engine = Engine('${dir}', seed=${role === 'main' ? 'True' : 'False'})
 `);
   engine = pyodide.globals.get('engine');
@@ -85,8 +89,11 @@ async function serve(m) {
 const wanted = (m) => NET_ROUTES.test(m.target.split('?')[0]) === (role === 'net');
 
 onmessage = (event) => {
-  if (event.data !== 'start' && event.data !== 'start-net') return;
-  role = event.data === 'start-net' ? 'net' : 'main';
+  const data = event.data;
+  const start = typeof data === 'string' ? data : data && data.start;
+  if (start !== 'start' && start !== 'start-net') return;
+  relay = data && typeof data === 'object' ? (data.relay || '') : '';
+  role = start === 'start-net' ? 'net' : 'main';
   navigator.locks.request(role === 'net' ? 'obi-local-net' : 'obi-local-engine', { ifAvailable: true }, async (lock) => {
     if (!lock) { say({ busy: true }); return; }
     try {
