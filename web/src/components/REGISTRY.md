@@ -49,10 +49,11 @@
 | `PeekUnderlay` | 子页左缘右划返回时垫在内容下面的上一级页面（更多 / 设置），由 `obi-peek` 事件开关，仅手势期间挂载，`inert` | 无（事件驱动） |
 | `WhatsNew` | 更新后第一次打开的更新说明弹窗：原生 `<dialog>`，列出上次看过的版本之后的 CHANGELOG 条目（最多 4 版），关闭即记下当前版本；首次安装不弹 | 无（读 `state.service.version`） |
 | `ReleaseCandidateCard` `ReleaseSummary` `OriginTag` | 发行版卡片（摘要与角标在同目录 `ReleaseSummary.tsx`）：封面（右下角 `OriginTag` 标来源：此版本 / 同专辑 / iTunes / 上传，样式 `.cover-origin` 与查询页专辑列表共用；封面按 `core/version-cover` 的顺序找）+ 名称 + 来源（艺人下一行小字）→ 关键信息网格 → 可展开的曲目与版本资料（按需取详情，不重复摘要字段）→ 调用方的操作区（render prop）。「查询」页（复制 / 入库）与专辑表单（选用此版本、已确认摘要）共用；头部封面点开放大用 `useArtExpand`（编辑页候选封面行同用）| 候选 `c` `children({info, load, busy})`；`fallbackArt?`；`ReleaseSummary` 另可 `title` `artist` `info` `source?` `url?` `origin?` |
-| `ListingSteps` | 上架资料顶部三步进度（分析照片 / 核对 / 生成文案） | `steps[{label,done}]`；当前步 = 第一个未完成 |
+| `ListingSteps` | 服务商设置步骤与上架资料运行进度（整理资料 / 核对实物 / 生成文案） | `steps[{label,done}]`；当前步 = 第一个未完成 |
 | `PurchaseForm` | 管理页「编辑买入信息」：金额 / 币种 / 日期 / 额外费用 / 渠道 | 复用 `MoneySection`、`ShopField`；管钱的编辑都放这里 |
-| `PhotoDownload` | 专辑详情「实物照片」标题右侧的下载图标：手机把原图交给系统分享面板（存储图像进相册），桌面下载 ZIP | `id` `count` `revision` `artist` `title`；手机进入详情时预取照片，分享须在点击手势内同步调用；加载中禁用，图标有 aria-label |
-| `ListingReview` | 照片证据、版本候选及人工核对 | 不自动采用候选或覆盖文案；确认用 checkbox |
+| `PhotoDownload` | 专辑详情「实物照片」标题右侧的下载图标：手机把原图交给系统分享面板（存储图像进相册），桌面下载 ZIP | `id` `count` `revision` `artist` `title`；可传 `variant="button"` 与共享 `preparedFiles` 用于上架页；手机进入详情时预取照片，分享须在点击手势内同步调用；加载中禁用，图标有 aria-label |
+| `ListingReview` | 实物核对摘要、待核实事项与照片依据 | 无逐项确认；冲突默认展开、其余依据折叠 |
+| `ListingPreferences` | 全局默认文案风格与自定义预设管理 | 复用 Dropdown、Details；保存/删除走偏好 revision，预设随备份恢复 |
 | `ListingSettings` | 设置「账户 → 已连接服务」：服务商列表，连接/测试/在用状态，点入详情抽屉（仅二手交易） | 复用 Drawer；密钥/令牌不回传，只显示末四位 |
 | `ProviderPage` | 服务商详情：头部状态、三步进度、密钥/模型/测试三块 | 复用 ListingSteps、Dropdown；状态只走 token |
 | `ProviderAccess` | 详情页「密钥/授权」区（按服务商分支） | 密钥输入后即清空；移除/更换分开 |
@@ -84,3 +85,7 @@
 - 组件文件头部写用途、关键行为与键盘约定；样式只用 token（`var(--…)`）。
 - 上下文里的尺寸 / 外观覆盖（如 `.gallery-setting .seg button`）留在使用处所属的页面样式里，组件自己的 CSS 只放通用外观。
 - 动效：时长与缓动用 `tokens.css` 的 `--dur-fast/--dur/--dur-slow`、`--ease-out`（进场减速）、`--ease-soft`（状态过渡）；滑块仍用 `--slide-ms/--slide-ease`。`prefers-reduced-motion` 下 `base.css` 全局关闭动画与过渡。按钮没有全局按下位移（见 AGENTS.md）。
+
+- `ListingCopy`：文案预览/编辑；长文限高，点击原位覆盖展开、明确收起/Esc 返回，原占位/滚动/底栏不变。`ListingCopyReader` 只管阅读层与焦点；复用 AutoTextarea。
+- `ListingPhotos`：本副本缩略图与单张复制；复用 PhotoDownload 保存全部，不混入资料库封面。
+- `ListingOptions`（forms）：默认折叠的风格、本次补充与生成选项；复用 ListingPreferences。

@@ -1,12 +1,14 @@
-/* 上架资料表单：分析 / 文案卡片、提示、发布记录折叠块（核对卡片样式在 ListingReview.css） */
-.listing-analyze,.listing-review{margin-bottom:var(--listing-gap)}
-.listing-copy{margin-bottom:var(--listing-gap)}
-.listing-card .small-note{margin:0}
-.listing-actions{display:flex;gap:8px;flex-wrap:wrap}
-.listing-note{margin:0;font-size:12.5px;color:var(--muted)}
+/* 上架页先展示可复制文案；素材与次要选项顺序后置，底部固定取用操作。 */
+.listing-reading-host{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.listing-body{display:flex;flex-direction:column;gap:var(--listing-gap)}
+.listing-body>.error:empty{display:none}
+.listing-fields{border:0;padding:0;margin:0;min-width:0;display:grid;gap:var(--listing-gap)}
+.listing-options{border-bottom:1px solid var(--border);padding-bottom:var(--listing-gap)}
+.listing-options>summary{min-height:var(--listing-touch-size);display:flex;align-items:center;color:var(--muted);font-size:var(--listing-small-size)}
+.listing-options .details-body{padding-top:var(--listing-gap-sm)}
+.listing-note{margin:0;font-size:var(--listing-small-size);color:var(--muted)}
 .listing-note.is-warn{color:var(--orange)}
-.listing-analyze button{justify-self:start}
-.listing-publish{padding:var(--listing-gap);border:1px dashed var(--border-strong);border-radius:var(--radius)}
-.listing-publish summary{cursor:pointer;font-size:13px;font-weight:600}
-.listing-publish summary{transition:margin-bottom .28s cubic-bezier(.2,.8,.3,1)}
-.listing-publish.is-open summary{margin-bottom:10px}
+.listing-actions,.listing-candidate-actions{display:flex;gap:var(--listing-gap-sm);flex-wrap:wrap}
+.listing-conflict{color:var(--orange);border-color:var(--orange);background:transparent;text-align:left}
+.listing-footer>.copy-button,.listing-footer>.primary{flex:1;min-width:0}
+.listing-footer>.photo-download-button{flex:0 1 auto}

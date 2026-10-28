@@ -6,6 +6,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from domain import ValidationError
 from .listing_photos import listing_record, read_photos
+from .listing_generation import ListingGeneration
 
 
 def catalogue_candidates(catalogue, analysis):
@@ -27,7 +28,7 @@ def catalogue_candidates(catalogue, analysis):
     return list(candidates.values())[:30], error
 
 
-class ListingAnalysis:
+class ListingAnalysis(ListingGeneration):
     def __init__(self, store, catalogue, model, inline=False):
         self.store, self.catalogue, self.model = store, catalogue, model
         # 本机模式（Pyodide）不能起线程：inline=True 时在请求里直接跑完；服务器仍用单线程队列。

@@ -31,8 +31,11 @@ class ProviderTests(unittest.TestCase):
         self.assertTrue(rows[0]['vision'])
         self.assertEqual(rows[0]['efforts'], ['none', 'low', 'high', 'max'])
         self.assertFalse(rows[1]['vision'])
-        with self.assertRaises(ValidationError):
-            self.providers.configure({'provider': 'deepseek', 'model': 'text-model', 'effort': ''})
+        status = self.providers.configure({'provider': 'deepseek', 'model': 'text-model', 'effort': ''})
+        self.assertTrue(status['textReady'])
+        self.assertFalse(status['ready'])
+        self.assertEqual(self.providers.snapshot(require_images=False)['model'], 'text-model')
+        with self.assertRaises(ValidationError): self.providers.snapshot(require_images=True)
         with self.assertRaises(ValidationError):
             self.providers.configure({'provider': 'deepseek', 'model': 'vision-model', 'effort': 'medium'})
 

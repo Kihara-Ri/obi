@@ -1,12 +1,12 @@
 // 复制按钮：点一下把 text 复制到剪贴板，图标短暂变成对勾并弹提示（失败也提示）。
-// 只有图标（可读名称由 label 提供）；用在专辑详情的专辑名、唱片编号、条码旁，不要用在会被整行点击覆盖的区域。
+// 默认图标用于元数据旁；variant=button 提供带文字的主操作。不要用于会被整行点击覆盖的区域。
 import {useEffect, useRef, useState} from 'react';
 import {copyText} from '../../core/clipboard';
 import {useApp} from '../../state/AppContext';
 import {CheckIco, CopyIco} from '../icons';
 import './CopyButton.css';
 
-export function CopyButton({text, label}: {text: string; label: string}) {
+export function CopyButton({text, label, variant = 'icon', disabled = false}: {text: string; label: string; variant?: 'icon' | 'button'; disabled?: boolean}) {
   const app = useApp();
   const [done, setDone] = useState(false);
   const timer = useRef(0);
@@ -19,6 +19,6 @@ export function CopyButton({text, label}: {text: string; label: string}) {
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => setDone(false), 1600);
   };
-  return <button type="button" className={`copy-btn${done ? ' is-done' : ''}`} aria-label={label} title={label}
-    onClick={() => void copy()}>{done ? CheckIco : CopyIco}</button>;
+  return <button type="button" className={`${variant === 'button' ? 'copy-button primary' : 'copy-btn'}${done ? ' is-done' : ''}`} disabled={disabled} aria-label={label} title={label}
+    onClick={() => void copy()}>{done ? CheckIco : CopyIco}{variant === 'button' ? <span>{done ? '已复制' : label}</span> : null}</button>;
 }

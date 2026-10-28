@@ -1,17 +1,23 @@
-// 上架资料与售卖草稿：按「分析照片 → 核对版本与品相 → 生成文案」三步排列，顶部进度条显示做到哪一步。
-// 准备/保存草稿不改变上架状态；只有显式按钮才标记上架。
+// 一键准备售卖资料；新草稿自动保存，已有文案先看候选，显式采用后才替换。
 import {useEffect, useRef, useState} from 'react';
 import {api} from '../core/api';
-import {draftFor, saleDescription} from '../core/listing';
-import type {ListingAnalysis, ListingProvider} from '../core/listing';
+import {draftFor, listingContextChanged} from '../core/listing';
+import type {ListingDraft, ListingPreferences as Preferences, ListingProvider} from '../core/listing';
 import {useApp} from '../state/AppContext';
 import type {AppCtx} from '../state/AppContext';
-import {Field, TextareaField} from './fields';
+import {Field} from './fields';
 import {useFormSubmit} from './shared';
+import {useListingTask} from './useListingTask';
 import {ListingReview} from '../components/ListingReview';
+import {ListingOptions} from './ListingOptions';
+import {ListingCopy} from '../components/ListingCopy/ListingCopy';
+import {ListingPhotos} from '../components/ListingPhotos/ListingPhotos';
+import {PhotoDownload} from '../components/PhotoDownload';
+import {usePhotoFiles} from '../components/PhotoDownload/usePhotoFiles';
+import {CopyButton} from '../components/CopyButton';
 import {ListingSteps} from '../components/ListingSteps/ListingSteps';
-import './ListingForm.css';
 import {Details} from '../components/ui/Details';
+import './ListingForm.css';
 
 export function openListingForm(app: AppCtx, id: string) {
   app.openDrawer({title: '售卖与上架资料', asForm: true, content: <ListingForm id={id}/>});
@@ -19,112 +25,119 @@ export function openListingForm(app: AppCtx, id: string) {
 
 function ListingForm({id}: {id: string}) {
   const app = useApp();
-  const currentRecord = app.rec(id)!;
-  const r = useRef(currentRecord).current; // 草稿与选图始终绑定打开时的版本，不能借刷新绕过并发冲突。
-  const stale = currentRecord.revision !== r.revision;
+  const current = app.rec(id)!;
+  const r = useRef(current).current;
+  const [revision, setRevision] = useState(r.revision);
   const [channel, setChannel] = useState(r.listingChannel || '');
   const [url, setUrl] = useState(r.listingUrl || '');
   const [draft, setDraft] = useState(() => draftFor(r));
+  const [candidate, setCandidate] = useState<ListingDraft>();
+  const localEdits = useRef(false);
+  const [dirty, setDirty] = useState(false);
+  const [saved, setSaved] = useState(!!r.listingDraft || !!r.listingDescription);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const photos = usePhotoFiles(id, r.photoCount, r.photoRevision ?? 0, r.artist, r.title);
+  const [supplement, setSupplement] = useState(r.listingDraft?.generation?.supplement ?? '');
   const [provider, setProvider] = useState<ListingProvider>();
-  const [analyzing, setAnalyzing] = useState(false);
-  const request = useRef<AbortController | null>(null);
-  const timer = useRef<number | undefined>(undefined);
+  const [preferences, setPreferences] = useState<Preferences>();
+  const [settingsBusy, setSettingsBusy] = useState(false);
   const {error, saving, run, setError} = useFormSubmit();
+  const task = useListingTask(async result => {
+    if (!result.draft) throw new Error('模型没有返回完整草稿，请重试');
+    if (result.autoSaved && result.savedRevision) {
+      setDraft(result.draft); setRevision(result.savedRevision); setCandidate(undefined);
+      setDirty(false); localEdits.current = false; setSaved(true); app.setDrawerDirty(false);
+      await app.refresh(); app.toast('上架资料已生成并保存');
+    } else {setCandidate(result.draft); app.setDrawerDirty(true);}
+  });
   useEffect(() => {
     const abort = new AbortController();
-    api<ListingProvider>('listing/status', undefined, {signal: abort.signal}).then(setProvider)
-      .catch(e => {if (!abort.signal.aborted) setError(e.message);});
-    return () => {abort.abort(); request.current?.abort(); window.clearTimeout(timer.current);};
+    void Promise.all([
+      api<ListingProvider>('listing/status', undefined, {signal: abort.signal}).then(setProvider),
+      api<Preferences>('listing/preferences', undefined, {signal: abort.signal}).then(setPreferences),
+    ]).catch(e => {if (!abort.signal.aborted) setError(e.message);});
+    return () => abort.abort();
   }, []);
-  const change = (value: typeof draft) => {setDraft(value); app.setDrawerDirty(true);};
-  const analyze = async () => {
-    request.current?.abort();
-    const abort = new AbortController(); request.current = abort;
-    setAnalyzing(true); setError('');
-    const fail = (e: unknown) => {
-      if (!abort.signal.aborted) {setError(e instanceof Error ? e.message : '分析失败'); setAnalyzing(false);}
-    };
-    try {
-      const job = await api<{id: string}>('listing/analyze', {id, revision: r.revision, photoRevision: r.photoRevision ?? 0}, {signal: abort.signal});
-      const poll = async () => {
-        try {
-          const result = await api<{status: string; error?: string; analysis?: ListingAnalysis}>(`listing/job?id=${job.id}`, undefined, {signal: abort.signal});
-          if (result.status === 'running') {timer.current = window.setTimeout(() => {void poll();}, 1500); return;}
-          setAnalyzing(false);
-          if (result.status === 'failed') throw new Error(result.error);
-          if (result.analysis) {
-            setDraft(current => ({...current, analysis: result.analysis, versionConfirmed: false, conditionConfirmed: false}));
-            app.setDrawerDirty(true);
-          }
-        } catch (e) {fail(e);}
-      };
-      await poll();
-    } catch (e) {fail(e);}
+  const stale = current.revision !== revision;
+  const busy = task.busy || saving || settingsBusy;
+  const ready = r.photoCount ? provider?.ready : provider?.textReady;
+  const change = (value: ListingDraft) => {setDraft(value); markDirty();};
+  const markDirty = (protect = true) => {if (protect) localEdits.current = true; setDirty(true); setSaved(false); app.setDrawerDirty(true);};
+  const generate = (reanalyze = false) => {
+    setError('');
+    void task.start({id, revision, photoRevision: r.photoRevision ?? 0, supplement,
+      presetId: preferences?.defaultPreset, autoSave: !localEdits.current && !candidate,
+      analysisJobId: task.job?.id, reanalyze});
   };
-  const ready = provider?.ready;
-  const bothConfirmed = draft.versionConfirmed && draft.conditionConfirmed;
-  const facts = draft.analysis;
-  return <form onSubmit={e => {
-    e.preventDefault();
-    void run(app, () => api('listing/draft', {id, revision: r.revision, draft, listing: {channel, url}}), '售卖草稿已保存', {backOnSave: true});
-  }}>
-    <div className="drawer-body">
-      <ListingSteps steps={[
-        {label: '分析照片', done: !!facts},
-        {label: '核对版本与品相', done: bothConfirmed},
-        {label: '生成文案', done: !!draft.description.trim()},
-      ]}/>
-      <div className="error" role="alert">{error}</div>
-      {stale ? <p className="listing-note is-warn" role="alert">记录已在其他位置更新，请关闭后重新打开。当前文案仍可复制。</p> : null}
-      {r.listingDraft && r.listingDraft.photoRevision !== (r.photoRevision ?? 0)
-        ? <p className="listing-note is-warn" role="status">照片已变更；已保留手写文案，请重新分析并核对。</p> : null}
-
-      <section className="listing-card listing-analyze" aria-label="分析照片">
-        <h4>分析本副本照片</h4>
-        <p className="small-note">{!r.photoCount ? '这张副本还没有实物照片，先在编辑里添加照片。'
-          : facts ? `已识别标识 ${facts.identifiers.length} 项、可见品相 ${facts.observations.length} 项；照片更新后可重新分析。`
-            : `共 ${r.photoCount} 张照片。分析只给出带照片编号的线索，最终由你核对。`}</p>
-        <button type="button" className={facts ? '' : 'primary'} disabled={stale || !r.photoCount || analyzing || !ready}
-                onClick={() => {void analyze();}}>
-          {analyzing ? '正在分析照片与查询版本…' : facts ? '重新分析' : '开始分析'}</button>
-        {!ready ? <p className="listing-note">请先在 设置 → 账户 → 已连接服务 中连接模型；也可以跳过分析，直接手写核对。</p> : null}
-      </section>
-
-      <ListingReview draft={draft} onChange={change}/>
-
-      <section className="listing-card listing-copy" aria-label="售卖文案">
-        <h4>售卖文案</h4>
-        <Field label="售卖标题" name="listing-title" value={draft.title} maxLength={500}
-          onChange={e => change({...draft, title: e.target.value})}/>
-        <TextareaField label="售卖正文" name="listing-description" value={draft.description}
-          onChange={description => change({...draft, description})}/>
-        <div className="listing-actions">
-          <button type="button" className={bothConfirmed ? 'primary' : ''} disabled={!bothConfirmed} onClick={() => {
-            if (draft.description.trim() && !window.confirm('重新生成会替换当前正文，是否继续？')) return;
-            change({...draft, description: saleDescription(draft)});
-          }}>用已确认信息生成正文</button>
-          <button type="button" disabled={!draft.description} onClick={async () => {
-            try {await navigator.clipboard.writeText([draft.title, draft.description].filter(Boolean).join('\n\n'));app.toast('售卖文案已复制');}
-            catch {app.toast('复制失败，可选中文案手动复制','warn');}
-          }}>复制售卖文案</button>
-        </div>
-        {!bothConfirmed ? <p className="small-note">先在上面确认版本与品相，才能生成正文。</p> : null}
-        <p className="small-note">在闲鱼手动发布；照片在专辑详情“实物照片”右侧图标保存。保存草稿不会标记上架。</p>
-      </section>
-
-      <Details className="listing-publish" summary="已发布？记录平台与链接">
-        <Field label="上架平台（选填）" name="listing-channel" value={channel} maxLength={100}
-          placeholder="例如：闲鱼" onChange={e => {setChannel(e.target.value);app.setDrawerDirty(true);}}/>
-        <Field label="商品链接（选填）" name="listing-url" type="url" value={url} maxLength={2000}
-          placeholder="https://…" onChange={e => {setUrl(e.target.value);app.setDrawerDirty(true);}}/>
-        <button type="button" disabled={stale || saving || analyzing} onClick={() => {void run(app,
-          () => api('listing/draft', {id, revision: r.revision, draft, markListed: true, listing: {channel, url}}),
-          '已保存并标记上架', {backOnSave: true});}}>保存并标记上架</button>
+  const progress = task.job?.phase;
+  const analysis = task.job?.analysis || draft.analysis;
+  const shown = candidate ?? draft;
+  const conflicts = shown.analysis?.conflicts ?? [];
+  const saveDraft = () => {void run(app, () => api('listing/draft', {id, revision, draft, listing: {channel, url}}),
+    '售卖草稿已保存', {backOnSave: true});};
+  const phaseText = progress === 'writing' ? '正在生成文案…' : progress === 'saving' ? '正在保存草稿…'
+    : r.photoCount ? '正在核对资料与照片…' : '正在整理已有资料…';
+  return <form onSubmit={e => e.preventDefault()}>
+    <div className="listing-reading-host">
+    <div className="drawer-body listing-body">
+      <ListingCopy draft={shown} saved={saved && !dirty} candidate={!!candidate} busy={busy || stale}
+        ready={!!ready && !!preferences && !stale} onGenerate={() => generate()} onChange={change} onSave={saveDraft}/>
+      {candidate ? <div className="listing-candidate-actions" aria-label="候选操作">
+        <button type="button" disabled={stale || busy} onClick={async () => {
+          setSettingsBusy(true); setError('');
+          try {
+            const result = await api<{revision: number}>('listing/draft', {id, revision, draft: candidate, listing: {channel, url}});
+            setDraft(candidate); setRevision(result.revision); setCandidate(undefined); setDirty(false); localEdits.current = false; setSaved(true);
+            app.setDrawerDirty(false); await app.refresh(); app.toast('已采用并保存新文案');
+          } catch (e) {setError(e instanceof Error ? e.message : '保存失败');}
+          finally {setSettingsBusy(false);}
+        }}>采用并保存</button>
+        <button type="button" disabled={busy} onClick={() => {setCandidate(undefined); app.setDrawerDirty(dirty);}}>保留原稿</button>
+      </div> : null}
+      {conflicts.length ? <button type="button" className="listing-conflict" onClick={() => setReviewOpen(true)}>
+        版本有冲突 · 查看核对依据</button> : null}
+      <div className="error" role="alert">{error || task.error}</div>
+      {stale ? <p className="listing-note is-warn" role="alert">记录已在其他位置更新，请重新打开。当前文案仍可复制。</p> : null}
+      {r.listingDraft && (r.listingDraft.photoRevision !== (r.photoRevision ?? 0) || listingContextChanged(r))
+        ? <p className="listing-note is-warn">资料或照片已变更，旧文案已保留，请重新生成。</p> : null}
+      {task.busy ? <div role="status" aria-live="polite">
+        <ListingSteps steps={[{label: '整理资料', done: progress !== 'preparing'},
+          {label: '核对实物', done: !!analysis}, {label: '生成文案', done: false}]}/>
+        <p className="listing-note">{phaseText}</p>
+      </div> : null}
+      {!ready && provider ? <p className="listing-note">{provider.textReady && r.photoCount
+        ? '当前模型仅支持文字；请在设置中选择支持图片的模型。' : '请先在 设置 → 账户 → 已连接服务 中连接并选择模型。'}</p> : null}
+      <ListingPhotos id={id} count={r.photoCount} revision={r.photoRevision ?? 0} files={photos.files}
+        disabled={stale} error={photos.error} retry={photos.retry}/>
+      <ListingOptions value={preferences} busy={busy || stale} supplement={supplement}
+        onSupplement={value => {setSupplement(value); markDirty(false);}}
+        onSave={async value => {
+          setSettingsBusy(true);
+          try {const next = await api<Preferences>('listing/preferences', value); setPreferences({...next, builtins: value.builtins});}
+          finally {setSettingsBusy(false);}
+        }}/>
+      {shown.analysis ? <Details className="listing-options" summary="核对与依据" open={reviewOpen} onOpenChange={setReviewOpen}>
+        <ListingReview draft={shown} onReanalyze={!stale && ready && !busy ? () => generate(true) : undefined}/>
+      </Details> : null}
+      <Details className="listing-options" summary="已发布？记录平台与链接">
+        <fieldset className="listing-fields" disabled={stale || busy || !!candidate}>
+          <Field label="上架平台（选填）" name="listing-channel" value={channel} maxLength={100}
+            onChange={e => {setChannel(e.target.value); markDirty();}}/>
+          <Field label="商品链接（选填）" name="listing-url" type="url" value={url} maxLength={2000}
+            onChange={e => {setUrl(e.target.value); markDirty();}}/>
+          <button type="button" onClick={() => {void run(app,
+            () => api('listing/draft', {id, revision, draft, markListed: true, listing: {channel, url}}),
+            '已保存并标记上架', {backOnSave: true});}}>保存并标记上架</button>
+        </fieldset>
       </Details>
     </div>
-    <div className="drawer-footer">
-      <button type="button" onClick={() => app.backDrawer()}>取消</button>
-      <button type="submit" className="primary" aria-busy={saving || analyzing} disabled={stale || saving || analyzing}>保存草稿</button>
+    </div>
+    <div className="drawer-footer listing-footer">
+      {r.photoCount ? <PhotoDownload id={id} count={r.photoCount} revision={r.photoRevision ?? 0} artist={r.artist} title={r.title}
+        variant="button" label="保存图片" preparedFiles={photos.files} disabled={stale}/> : null}
+      {shown.description.trim() ? <CopyButton variant="button" label="复制文案" text={[shown.title, shown.description].filter(Boolean).join('\n\n')}/>
+        : <button type="button" className="primary" aria-busy={task.busy} disabled={busy || stale || !ready || !preferences}
+          onClick={() => generate()}>{task.busy ? phaseText : 'AI 生成上架资料'}</button>}
     </div>
   </form>;
 }

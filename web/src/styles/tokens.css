@@ -6,7 +6,7 @@
    theme.js 同时负责把 theme-color meta 与所选主题对齐。 */
 :root{
   /* 售卖素材：缩略图最小宽、组间距、控制触控尺寸。 */
-  --listing-photo-size:6rem; --listing-gap:1rem; --listing-gap-sm:.5rem; --listing-touch-size:2.75rem;
+  --listing-photo-size:6rem; --listing-thumb-size:4rem; --listing-title-size:1.125rem; --listing-copy-size:1rem; --listing-small-size:.75rem; --listing-copy-line:1.75; --listing-copy-min:10rem; --listing-preview-max:14rem; --listing-preview-fade:3rem; --listing-action-pad:.75rem; --listing-gap:1rem; --listing-gap-sm:.5rem; --listing-touch-size:2.75rem;
   /* 主色家族（闲鱼黄）：accent=填充（按钮/chip/开关/徽标）；strong=填充悬停；
      ink=黄底上的文字；deep=浅底上的强调文字与细线（正黄在白卡上不可读）；
      wash=聚焦/按压的暖色底；text=强调色文字（浅色=墨色、深色=黄）；

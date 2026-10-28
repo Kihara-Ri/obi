@@ -1,0 +1,2 @@
+.listing-preferences,.listing-preferences .details-body{display:grid;gap:var(--listing-gap-sm)}
+.listing-preferences label{display:grid;gap:var(--listing-gap-sm)}

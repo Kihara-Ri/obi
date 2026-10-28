@@ -1,0 +1,24 @@
+.listing-copy{display:grid;gap:var(--listing-gap);min-width:0}
+.listing-copy-head{display:flex;align-items:center;justify-content:space-between;gap:var(--listing-gap-sm)}
+.listing-copy-head h4{margin:0;font-size:var(--listing-small-size);font-weight:normal;color:var(--muted)}
+.listing-copy-tools{display:flex;align-items:center;gap:var(--listing-gap-sm)}
+.listing-copy-tools button{min-height:var(--listing-touch-size);padding:0 var(--listing-gap-sm);border:0;background:transparent;color:var(--muted);font-size:var(--listing-small-size)}
+.listing-copy-preview{user-select:text;overflow-wrap:anywhere}
+.listing-copy-preview h3{margin:0 0 var(--listing-gap);font-size:var(--listing-title-size);line-height:var(--listing-copy-line)}
+.listing-copy-preview p{margin:0;white-space:pre-wrap;font-size:var(--listing-copy-size);line-height:var(--listing-copy-line)}
+.listing-copy-empty{min-height:var(--listing-copy-min);display:flex;flex-direction:column;justify-content:center;gap:var(--listing-gap-sm);color:var(--muted);text-align:center}
+.listing-copy-empty span,.listing-copy-status{font-size:var(--listing-small-size);color:var(--muted);margin:0}
+.listing-copy-editor{display:grid;gap:var(--listing-gap)}
+.listing-copy-editor label{display:grid;gap:var(--listing-gap-sm);font-size:var(--listing-small-size);color:var(--muted)}
+.listing-copy-editor textarea{font-size:var(--listing-copy-size);line-height:var(--listing-copy-line)}
+.listing-copy-text{overflow-wrap:anywhere;user-select:text}
+.listing-copy-text h3{margin:0 0 var(--listing-gap);font-size:var(--listing-title-size);line-height:var(--listing-copy-line)}
+.listing-copy-text p{margin:0;white-space:pre-wrap;font-size:var(--listing-copy-size);line-height:var(--listing-copy-line)}
+.listing-copy-clipped{max-height:var(--listing-preview-max);overflow:hidden}
+.listing-copy-preview.is-long{cursor:pointer}
+.listing-copy-preview.is-long .listing-copy-clipped{mask-image:linear-gradient(to bottom,var(--text) calc(100% - var(--listing-preview-fade)),transparent)}
+.listing-copy-expand{display:flex;align-items:center;justify-content:center;min-height:var(--listing-touch-size);font-size:var(--listing-small-size);color:var(--muted)}
+.listing-copy-preview:focus-visible{outline:1px solid var(--accent-deep);outline-offset:1px;border-radius:var(--radius-sm)}
+.listing-copy-reader{position:absolute;bottom:0;z-index:1;display:flex;flex-direction:column;gap:var(--listing-gap);min-height:0;background:var(--surface);padding-bottom:var(--listing-gap)}
+.listing-copy-reader-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+.listing-copy-reader-scroll::-webkit-scrollbar{display:none}

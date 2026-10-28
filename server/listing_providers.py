@@ -48,6 +48,7 @@ class ListingProviders:
                 'tested': state.get('tests', {}).get(name), 'keySource': 'saved' if state['profiles'].get(provider, {}).get('apiKey') else 'server',
                 'method': 'api' if provider in ('api', 'deepseek', 'opencode') else 'oauth',
                 'lane': opencode_lane(state), 'model': model, 'effort': profile.get('effort', ''), 'connected': connected, 'ready': bool(ready),
+                'textReady': bool(connected and model and (provider == 'api' or selected is not None)),
                 'models': models, 'apiConfigured': bool(api_key('api', state) and os.getenv('LISTING_API_MODEL')),
                 'apiModel': os.getenv('LISTING_API_MODEL', ''), 'loginPending': login.get('loginPending', False),
                 'loginError': login.get('loginError', ''), 'loginUrl': login.get('loginUrl', ''),
@@ -72,7 +73,7 @@ class ListingProviders:
             raise ValidationError('模型或思考强度无效')
         if model and ('model' in data or 'effort' in data):
             row = next((row for row in state['catalogues'].get(name, []) if row['value'] == model), None)
-            if not row or row['vision'] is False: raise ValidationError('请从当前服务商目录选择支持图片的模型')
+            if not row: raise ValidationError('请从当前服务商目录选择模型')
             if effort and effort not in row['efforts']: raise ValidationError('该模型不支持所选思考强度')
         elif effort and not model: raise ValidationError('请先选择模型')
         with self.config.locked() as current:
@@ -112,7 +113,7 @@ class ListingProviders:
         with self.config.locked() as current:
             current['catalogues'][name] = rows
             profile = current['profiles'].get(name, {})
-            selected = next((r for r in rows if r['value'] == profile.get('model') and r['vision'] is not False), None)
+            selected = next((r for r in rows if r['value'] == profile.get('model')), None)
             if not selected: current['profiles'][name] = {'model': '', 'effort': ''}
             elif profile.get('effort') and profile['effort'] not in selected['efforts']: profile['effort'] = ''
         return rows
@@ -128,13 +129,13 @@ class ListingProviders:
         with self.config.locked() as state: state.setdefault('tests', {})[name] = result
         return self.status(provider)
 
-    def snapshot(self):
+    def snapshot(self, require_images=True):
         state = self.config.read()
         provider = state['provider']
         name, profile, connected = self.profile(provider, state)
         model = profile.get('model') or (os.getenv('LISTING_API_MODEL', '') if provider == 'api' else '')
         selected = next((r for r in state['catalogues'].get(name, []) if r['value'] == model), None)
-        if not connected or not model or (provider != 'api' and (not selected or selected['vision'] is False)):
+        if not connected or not model or (provider != 'api' and (not selected or require_images and selected['vision'] is False)):
             raise ValidationError('请先连接服务商、读取模型并选择支持图片的模型')
         result = {'provider': provider, 'model': model, 'effort': profile.get('effort', ''), 'account': name.split(':', 1)[1]}
         if provider in ('api', 'deepseek', 'opencode'): result.update(base=api_endpoint(provider, state), key=api_key(provider, state))

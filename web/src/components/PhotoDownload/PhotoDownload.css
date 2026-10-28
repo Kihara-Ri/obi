@@ -3,3 +3,6 @@
 .photo-download:disabled{opacity:.5}
 .photo-download:disabled{cursor:progress}
 .photo-download.is-done{color:var(--green);border-color:var(--green)}
+
+.photo-download.photo-download-button{width:auto;min-width:0;min-height:var(--listing-touch-size);height:auto;display:inline-flex;gap:var(--listing-gap-sm);padding:var(--listing-gap-sm) var(--listing-action-pad);justify-content:center;color:var(--text);background:var(--surface-2)}
+.photo-download-button svg{flex:none}

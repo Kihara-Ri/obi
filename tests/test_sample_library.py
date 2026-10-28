@@ -91,6 +91,15 @@ class SampleLibraryTests(unittest.TestCase):
         self.assertNotIn('barcode', record.get('releaseInfo', {}))
         self.assertNotIn(record['id'], self.store.twin_index()['jobs'])
 
+    def test_one_click_listing_scenarios_reuse_existing_samples(self):
+        known = self.record('dookie-jp')
+        self.assertTrue(known['releaseInfo']['catalogNumber'])
+        self.assertEqual(known['photoCount'], 0)
+        self.assertTrue(self.record('larks')['condition'])
+        self.assertFalse(self.record('minecraft').get('releaseInfo', {}).get('catalogNumber'))
+        self.assertFalse(self.record('minecraft').get('condition'))
+        self.assertEqual(self.record('lift-fists')['status'], 'overseas')
+
     def test_release_info_chain_shops_and_listing_states_cover_the_new_ui(self):
         records = self.state()['records']
         with_barcode = [r for r in records if r.get('releaseInfo', {}).get('barcode')]
@@ -427,3 +436,23 @@ class EngineFixtureExportTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ListingReadingSampleTests(unittest.TestCase):
+    def test_long_copy_fixture_reuses_existing_copy_and_is_idempotent(self):
+        from tools.seed_samples import seed_listing_photos, seed_listing_long_copy, LISTING_LONG_DESCRIPTION, open_store
+        with tempfile.TemporaryDirectory() as directory:
+            ids = seed_listing_photos(directory)
+            store = open_store(directory)
+            before = store.state()
+            self.assertEqual(seed_listing_long_copy(directory), ids)
+            after = store.state()
+            self.assertEqual(len(after['records']), len(before['records']))
+            record = next(r for r in after['records'] if r['id'] == ids['lift-fists'])
+            old = next(r for r in before['records'] if r['id'] == ids['lift-fists'])
+            self.assertEqual(record['listingDescription'], LISTING_LONG_DESCRIPTION)
+            self.assertGreater(len(LISTING_LONG_DESCRIPTION), 1000)
+            for key in ('price', 'status', 'listed', 'photoRevision', 'photoCount'):
+                self.assertEqual(record.get(key), old.get(key))
+            seed_listing_long_copy(directory)
+            self.assertEqual(store.state()['records'], after['records'])

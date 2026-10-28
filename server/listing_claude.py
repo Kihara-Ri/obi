@@ -1,5 +1,4 @@
 """通过官方 Claude Code print/SDK 协议调用；授权由 CLI 管理，不抽取其令牌。"""
-import base64
 import json
 import os
 import shutil
@@ -92,11 +91,21 @@ class ClaudeProvider:
         with self.session(account): return self._analyze(prompt, record, images, model, effort)
 
     def _analyze(self, prompt, record, images, model, effort):
-        content = [{'type': 'text', 'text': f"已记录身份（只作核对线索）：{record['artist']} / {record['title']}"}]
-        for index, extension, raw in images:
-            content += [{'type': 'text', 'text': f'照片编号 {index}（从 0 开始）'}, {'type': 'image', 'source': {
-                'type': 'base64', 'media_type': {'.jpg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp'}[extension],
-                'data': base64.b64encode(raw).decode()}}]
+        from .listing_model import image_content
+        return self._complete(prompt, image_content(record, images), model, effort)
+
+    def complete(self, prompt, content, model, effort, account=None):
+        with self.session(account): return self._complete(prompt, content, model, effort)
+
+    def _complete(self, prompt, content, model, effort):
+        converted = []
+        for part in content:
+            if part['type'] == 'text': converted.append(part)
+            else:
+                header, data = part['image_url']['url'].split(',', 1)
+                converted.append({'type': 'image', 'source': {'type': 'base64',
+                    'media_type': header.removeprefix('data:').split(';')[0], 'data': data}})
+        content = converted
         args = self.command() + ['--system-prompt', prompt, '--model', model]
         if effort: args += ['--effort', effort]
         raw = self.run(args, input=json.dumps({'type': 'user', 'message': {'role': 'user', 'content': content}}) + '\n')

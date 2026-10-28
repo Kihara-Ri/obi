@@ -20,7 +20,8 @@ from .state_sync import send_state
 from .version import uptime, version
 from .listing_routes import (api_listing_status, api_listing_analyze, api_listing_job,
     api_listing_draft, api_listing_photos, api_listing_login, api_listing_disconnect,
-    api_listing_provider, api_listing_models, api_listing_connection, api_listing_auth_code, api_listing_test)
+    api_listing_provider, api_listing_models, api_listing_connection, api_listing_auth_code, api_listing_test,
+    api_listing_generate, api_listing_preferences, api_listing_save_preferences)
 
 # 所有改状态的 store 调用共用一把锁，串行化并发写
 WRITE_LOCK = threading.Lock()
@@ -90,6 +91,16 @@ def api_photo(h, svc):
     parts = urlsplit(h.path).path.split('/')
     ok = (len(parts) == 5 and len(parts[3]) == 32
           and all(c in '0123456789abcdef' for c in parts[3]) and parts[4].isdigit())
+    expected = query(h).get('photoRevision')
+    if expected is not None and ok:
+        if not expected.isdigit(): raise ValidationError('照片版本无效')
+        with WRITE_LOCK, closing(svc.store.connect()) as db:
+            record = svc.store.get(db, 'records', parts[3])
+            if int(expected) != record.get('photoRevision', 0): raise ValidationError('照片已变更，请重新打开')
+            files = sorted((svc.store.photos_dir / parts[3]).glob(parts[4] + '.*'))
+            if not files: return h.send({'error': '照片不存在'}, 404)
+            raw = files[0].read_bytes()
+        return h.send(raw, mime=mimetypes.guess_type(files[0])[0] or 'image/jpeg')
     folder = svc.store.photos_dir / parts[3] if ok else None
     files = sorted(folder.glob(parts[4] + '.*')) if folder and folder.exists() else []
     if not files: return h.send({'error': '照片不存在'}, 404)
@@ -571,13 +582,16 @@ GET_PREFIX = {  # 带路径参数的接口
     '/api/twin-source-preview/': api_twin_source_preview,
 }
 GET.update({'/api/listing/status': api_listing_status, '/api/listing/job': api_listing_job,
-            '/api/listing/photos': api_listing_photos, '/api/listing/models': api_listing_models})
+            '/api/listing/photos': api_listing_photos, '/api/listing/models': api_listing_models,
+            '/api/listing/preferences': api_listing_preferences})
 POST = {
     # path: (处理函数, 需要登录, 需要 WRITE_LOCK)
     '/api/login': (api_login, False, False),
     '/api/logout': (api_logout, True, False),
     '/api/password': (api_password, True, True),
     '/api/listing/analyze': (api_listing_analyze, True, True),
+    '/api/listing/generate': (api_listing_generate, True, False),
+    '/api/listing/preferences': (api_listing_save_preferences, True, True),
     '/api/listing/draft': (api_listing_draft, True, True),
     '/api/listing/login': (api_listing_login, True, False),
     '/api/listing/disconnect': (api_listing_disconnect, True, False),

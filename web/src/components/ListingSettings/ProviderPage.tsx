@@ -45,9 +45,9 @@ export function ProviderPage({id}: {id: ListingProviderId}) {
             {provider.models.length ? '刷新模型列表' : '读取可用模型'}</button>
           <span className="small-note">{provider.models.length ? `共 ${provider.models.length} 个` : provider.model ? `当前：${provider.model}` : '尚未读取'}</span>
         </div>
-        {provider.models.length ? <Dropdown label="照片分析模型" disabled={busy} value={provider.model}
+        {provider.models.length ? <Dropdown label="售卖辅助模型" disabled={busy} value={provider.model}
           options={[{value: '', label: '请选择模型'}, ...provider.models.map(row => ({value: row.value,
-            label: row.label + (row.vision === false ? ' · 仅文字' : ''), disabled: row.vision === false}))]}
+            label: row.label + (row.vision === false ? ' · 仅文字' : '')}))]}
           onPick={model => {void configure({model});}}/> : null}
         {selected ? <Dropdown label="思考强度" disabled={busy} value={provider.effort}
           options={[{value: '', label: '模型默认'}, ...selected.efforts.map(value => ({value, label: efforts[value] || value}))]}
@@ -61,8 +61,8 @@ export function ProviderPage({id}: {id: ListingProviderId}) {
         {tested ? <span className="small-note" role="status">{tested.ok ? '读取模型目录成功' : tested.error} · {stamp(tested.at)}</span> : null}
       </div>
     </section>
-    {provider.inUse ? null : <button type="button" className="primary provider-use" disabled={busy || !provider.ready}
+    {provider.inUse ? null : <button type="button" className="primary provider-use" disabled={busy || !provider.textReady}
       onClick={() => {void configure({});}}>设为分析在用</button>}
-    {!provider.inUse && !provider.ready ? <p className="small-note">连接并选好支持图片的模型后，才能设为分析在用。</p> : null}
+    {!provider.inUse && !provider.textReady ? <p className="small-note">连接并选好模型后即可使用；有照片时需要支持图片的模型。</p> : null}
   </div>;
 }

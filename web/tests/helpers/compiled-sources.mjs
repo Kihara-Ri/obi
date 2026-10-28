@@ -13,7 +13,7 @@ const entries = ['core/album-engine-mount.ts', 'core/published-album.ts', 'core/
   'core/album-model-assets.ts', 'core/album-packaging.ts', 'components/CopyEditionFields.tsx',
   'core/copy-edition.ts', 'components/TwinControls.tsx',
   'core/album-entity.ts', 'core/gallery-zoom.ts', 'core/release-metadata.ts', 'components/Tracklist.tsx',
-  'components/ui/index.ts', 'core/listing.ts', 'core/download.ts', 'core/shop-groups.ts', 'core/useSessionState.ts', 'core/lookup.ts', 'core/lookup-text.ts', 'core/state-sync.ts', 'core/whats-new.ts', 'core/backup-file.ts', 'core/modules.ts'];
+  'components/ui/index.ts', 'core/listing.ts', 'core/photo-clipboard.ts', 'core/download.ts', 'core/shop-groups.ts', 'core/useSessionState.ts', 'core/lookup.ts', 'core/lookup-text.ts', 'core/state-sync.ts', 'core/whats-new.ts', 'core/backup-file.ts', 'core/modules.ts'];
 
 export function compileSources() {
   const output = mkdtempSync(join(tmpdir(), 'obi-web-tests-'));

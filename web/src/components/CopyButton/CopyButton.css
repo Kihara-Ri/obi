@@ -3,3 +3,6 @@
 .copy-btn:hover,.copy-btn:focus{background:transparent;color:var(--text)}
 .copy-btn.is-done{color:var(--green)}
 .copy-btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+.copy-button{display:inline-flex;align-items:center;justify-content:center;gap:var(--listing-gap-sm);min-height:var(--listing-touch-size)}
+.copy-button svg{flex:none}

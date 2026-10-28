@@ -54,3 +54,27 @@ class ListingRouteTests(unittest.TestCase):
         self.assertEqual(updated.get('listed'), r.get('listed'))
         self.assertEqual(updated['listingDraft']['title'], '标题')
         self.assertEqual(self.request('/api/listing/draft', body)[0], 400)
+
+    def test_generation_and_preferences_share_auth_csrf_and_module_guards(self):
+        self.assertEqual(self.request('/api/listing/preferences', login=False)[0], 401)
+        status, raw = self.request('/api/listing/preferences')
+        self.assertEqual(status, 200)
+        preferences = json.loads(raw)
+        self.assertEqual(preferences['defaultPreset'], 'concise')
+        self.assertEqual(len(preferences['builtins']), 3)
+        self.assertEqual(self.request('/api/listing/preferences', preferences, origin='https://other.test')[0], 403)
+        self.assertEqual(self.request('/api/listing/preferences', preferences)[0], 200)
+        self.assertEqual(self.request('/api/listing/preferences', preferences)[0], 400)
+        self.assertEqual(self.request('/api/listing/generate', {}, login=False)[0], 401)
+        self.assertEqual(self.request('/api/listing/generate', {}, origin='https://other.test')[0], 403)
+        self.store.set_modules(dict(acquisition=True, trading=False, circulation=True, showcase=True))
+        self.assertEqual(self.request('/api/listing/preferences')[0], 400)
+        self.assertEqual(self.request('/api/listing/generate', {})[0], 400)
+
+    def test_photo_copy_fetch_rejects_stale_revision(self):
+        with self.store.connect() as db: r = self.store.get(db, 'records', self.ids['lift-fists'])
+        path = f"/api/photo/{r['id']}/0"
+        self.assertEqual(self.request(path + f"?photoRevision={r['photoRevision']}")[0], 200)
+        self.assertEqual(self.request(path + f"?photoRevision={r['photoRevision'] + 1}")[0], 400)
+        self.assertEqual(self.request(path + '?photoRevision=invalid')[0], 400)
+        self.assertEqual(self.request(path)[0], 200)

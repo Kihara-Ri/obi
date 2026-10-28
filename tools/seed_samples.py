@@ -28,6 +28,9 @@
 --export-engine-fixtures 只导出这三种合成实体、相同棋盘 PNG 与原始 RGBA 像素，
 不创建数据库或任务；独立引擎和 Studio 使用同一组样本定义。
 
+seed_listing_long_copy 为现有 lift-fists 副本提供固定长文案，供展开/收起验收；
+不新增副本，不改照片、金额或上架状态。
+
 安全约束：只能写入 --data-dir 指定的目录；拒绝指向仓库 data/，拒绝覆盖已存在
 且非样本库的 albums.sqlite3；已灌过的目录幂等跳过。写入全部走 storage.py 的
 既有事务方法（save/bulk/ship/sell/sale_action/change_showcase_groups），
@@ -289,6 +292,27 @@ def seed_listing_reference_photos(data_dir):
     if record.get('photoCount'): return ids
     store.save({'id': rid, 'revision': record['revision'], 'photos': photos,
                 'note': '界面验收：照片为已核验发行版的公开参考图集，不是本副本实拍，不能作为售卖品相证据。'})
+    return ids
+
+
+# 只用于阅读布局验收，不冒充真实售卖说明或模型品相结论。
+LISTING_LONG_DESCRIPTION = '\n\n'.join(
+    f'阅读样本第 {i + 1} 段：这是固定样本的长文案，用于检查展开、滚动与收起。'
+    '文案展开时照片和设置保留原有占位，底部复制按钮始终可用。'
+    for i in range(18))
+
+
+def seed_listing_long_copy(data_dir):
+    """可选长文案样本：复用 lift-fists 副本及其既有照片，全部经草稿事务写入。"""
+    if check_target(data_dir): raise ValueError('只能向固定样本库准备长文案')
+    ids = existing_ids(data_dir)
+    store = open_store(data_dir)
+    with closing(store.connect()) as db: record = store.get(db, 'records', ids['lift-fists'])
+    if record.get('listingDescription') == LISTING_LONG_DESCRIPTION: return ids
+    store.save_listing_draft({'id': record['id'], 'revision': record['revision'], 'draft': {
+        'title': record['artist'] + ' ' + record['title'] + ' CD', 'description': LISTING_LONG_DESCRIPTION,
+        'versionText': '', 'conditionText': '', 'versionConfirmed': False, 'conditionConfirmed': False,
+        'photoRevision': record.get('photoRevision', 0), 'photoOrder': list(range(record.get('photoCount', 0)))}})
     return ids
 
 

@@ -3,7 +3,7 @@ import test from 'node:test';
 import {join} from 'node:path';
 import {compiledSources} from './helpers/compiled-sources.mjs';
 const {require, output} = compiledSources();
-const {draftFor, saleDescription} = require(join(output, 'core/listing.js'));
+const {draftFor, listingContextChanged} = require(join(output, 'core/listing.js'));
 
 test('stale photos keep manual copy but clear obsolete evidence, choices and confirmation', () => {
   const draft = draftFor({artist: 'A', title: 'B', photoCount: 2, photoRevision: 4,
@@ -16,8 +16,16 @@ test('stale photos keep manual copy but clear obsolete evidence, choices and con
   assert.equal(draft.analysis, undefined);
 });
 
-test('generation requires confirmation and includes only reviewed public text', () => {
-  const base = {versionText: '某版', conditionText: '盒面有擦痕', versionConfirmed: false, conditionConfirmed: true};
-  assert.throws(() => saleDescription(base));
-  assert.equal(saleDescription({...base, versionConfirmed: true}), '版本：某版\n品相：盒面有擦痕\n实物及附件以本帖照片和上述说明为准。');
+test('metadata changes invalidate analysis without deleting saved copy; money edits do not', () => {
+  const record = {artist: 'A', title: 'B', photoCount: 0, photoRevision: 0, releaseInfo: {catalogNumber: 'CD-1', media: []}};
+  const context = {album: {artist: 'A', title: 'B', releaseYear: ''}, release: {catalogNumber: 'CD-1'}, copy: {}};
+  record.listingDraft = {title: '手写标题', description: '原文案', photoRevision: 0, photoOrder: [],
+    analysis: {pending: []}, generation: {sourceContext: JSON.stringify(context)}};
+  assert.equal(listingContextChanged(record), false);
+  assert.equal(listingContextChanged({...record, price: '999'}), false);
+  const changed = {...record, releaseInfo: {catalogNumber: 'CD-2'}};
+  assert.equal(listingContextChanged(changed), true);
+  const draft = draftFor(changed);
+  assert.equal(draft.description, '原文案');
+  assert.equal(draft.analysis, undefined);
 });

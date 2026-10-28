@@ -594,12 +594,34 @@ class Store:
             photo_order(draft['photoOrder'], r.get('photoCount', 0))
             if draft.get('analysis') and draft['analysis']['photoRevision'] != draft['photoRevision']:
                 raise ValidationError('分析依据的照片已变更，请重新分析')
+            if draft.get('analysis'):
+                for row in draft['analysis']['identifiers'] + draft['analysis']['observations']:
+                    photo_order(row['photos'], r.get('photoCount', 0))
             r.update(listingDraft=draft, listingDescription=draft['description'], revision=r['revision'] + 1)
             r.update(listing)
             if mark: r['listed'] = True
             self.put(db, 'records', r)
             self.audit(db, '保存并标记上架' if mark else '保存售卖草稿', {'id': r['id']})
         return {'id': r['id'], 'revision': r['revision']}
+
+    def listing_preferences(self):
+        from domain_listing import clean_preferences
+        with closing(self.connect()) as db:
+            self.require_module('trading', db)
+            return clean_preferences(self.meta_get(db, 'listing-preferences-v1') or {})
+
+    def save_listing_preferences(self, data):
+        from domain_listing import clean_preferences
+        value = clean_preferences(data)
+        with closing(self.connect()) as db, db:
+            db.execute('BEGIN IMMEDIATE')
+            self.require_module('trading', db)
+            before = self.meta_get(db, 'listing-preferences-v1') or {'revision': 0}
+            if value['revision'] != before['revision']: raise ValidationError('文案偏好已变更，请重新打开')
+            value['revision'] += 1
+            db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)', ('listing-preferences-v1', dumps(value)))
+            self.audit(db, '保存文案偏好', {})
+        return value
 
     def last_audit(self, db, action, id):
         for (raw,) in db.execute("SELECT data FROM audit WHERE action=? ORDER BY id DESC LIMIT 500", (action,)):
@@ -850,6 +872,9 @@ class Store:
         settings = dict(b.get('settings', {}))
         if 'modules-v1' in settings: settings['modules-v1'] = clean_modules(settings['modules-v1'])
         if 'start-page-v1' in settings: settings['start-page-v1'] = clean_start_page(settings['start-page-v1'])
+        if 'listing-preferences-v1' in settings:
+            from domain_listing import clean_preferences
+            settings['listing-preferences-v1'] = clean_preferences(settings['listing-preferences-v1'])
         if 'album-favorites-v1' in settings:
             likes = settings['album-favorites-v1']
             if (not isinstance(likes,dict) or len(likes)>50000 or any(

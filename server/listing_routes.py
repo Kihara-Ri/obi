@@ -19,6 +19,18 @@ def api_listing_status(h, svc):
 def api_listing_analyze(h, svc, body): h.send(service(svc).start(body))
 
 
+def api_listing_generate(h, svc, body): h.send(service(svc).generate(body))
+
+
+def api_listing_preferences(h, svc):
+    from domain_listing import BUILTIN_PRESETS
+    h.send({**svc.store.listing_preferences(), 'builtins': BUILTIN_PRESETS})
+
+
+def api_listing_save_preferences(h, svc, body):
+    h.send(svc.store.save_listing_preferences(body))
+
+
 def api_listing_job(h, svc):
     from .routes import query
     h.send(service(svc).status(query(h).get('id', '')))

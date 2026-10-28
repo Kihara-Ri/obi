@@ -18,7 +18,10 @@ class ListingAnalysisTests(unittest.TestCase):
         rid = self.ids['lift-fists']
         with self.store.connect() as db: record = self.store.get(db, 'records', rid)
         content = image_content(record, [(1, '.png', b'image')])
-        self.assertEqual(content[0]['text'], '已记录身份（只作核对线索）：Godspeed You! Black Emperor / Lift Your Skinny Fists Like Antennas to Heaven')
+        self.assertIn(record['title'], content[0]['text'])
+        self.assertIn(record['artist'], content[0]['text'])
+        self.assertNotIn('price', content[0]['text'])
+        self.assertNotIn('noteAlbum', content[0]['text'])
         self.assertEqual(content[1]['text'], '照片编号 1（从 0 开始）')
         self.assertEqual(content[2]['image_url']['url'], 'data:image/png;base64,aW1hZ2U=')
         self.assertNotIn(record['location'], str(content))

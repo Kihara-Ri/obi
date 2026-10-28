@@ -20,8 +20,12 @@ from tools.seed_samples import check_target
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--data-dir', type=Path, required=True)
+    parser.add_argument('--long-copy', action='store_true', help='通过固定样本初始化长文案阅读场景')
     args = parser.parse_args()
     if check_target(args.data_dir): parser.error('必须使用已初始化的固定样本库')
+    if args.long_copy:
+        from tools.seed_samples import seed_listing_long_copy
+        seed_listing_long_copy(args.data_dir)
     class Model(BaseHTTPRequestHandler):
         def log_message(self, *args): pass
         def do_GET(self):
@@ -37,18 +41,30 @@ def main():
             self.send_header('Content-Length', str(len(raw))); self.end_headers(); self.wfile.write(raw)
         def do_POST(self):
             request = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
-            if self.path not in ('/v1/chat/completions', '/openai/v1/chat/completions') or 'image_url' not in str(request['messages']):
-                self.send_error(400); return
+            if self.path not in ('/v1/chat/completions', '/openai/v1/chat/completions'):
+                self.send_error(404); return
             if self.path == '/openai/v1/chat/completions' and (
                     not self.headers.get('x-opencode-session', '').startswith('ses_')
                     or self.headers.get('User-Agent') != 'Obi-Album-Ledger'):
                 self.send_error(400); return
             if request['model'] == 'acceptance-vision' and (request.get('thinking') != {'type': 'enabled'} or request.get('reasoning_effort') != 'high'):
                 self.send_error(400); return
-            analysis = {'identifiers': [], 'observations': [
-                {'text': '协议验收观察：固定模型响应，不代表实物品相', 'photos': [0]}],
-                'pending': ['此为参考图片与模拟推理；需使用实拍重新分析和试听']}
-            raw = json.dumps({'choices': [{'message': {'content': json.dumps(analysis)}}]}).encode()
+            content = request['messages'][1]['content']
+            if '售卖文案助手' in request['messages'][0]['content']:
+                context = json.loads(content[0]['text'])
+                facts = context['facts']
+                result = {'title': f"{facts['album']['artist']} {facts['album']['title']} CD",
+                          'description': facts['versionText'] + '\n' + facts['conditionText'] + '\n模拟写作 · ' + context['style']}
+            else:
+                has_photos = any(row['type'] == 'image_url' for row in content)
+                if has_photos and request['model'] == 'acceptance-text': self.send_error(400); return
+                result = {'identifiers': [], 'observations': [
+                    {'text': '协议验收观察：固定模型响应，不代表实物品相', 'photos': [0]}] if has_photos else [],
+                    'versionText': '沿用已记录发行资料（模拟核对）',
+                    'conditionText': '固定模型响应，不代表实物品相' if has_photos else '实物品相尚未核实',
+                    'pending': ['此为参考图片与模拟推理；需使用实拍重新分析和试听'] if has_photos else ['尚未核实实物品相'],
+                    'conflicts': ['验收：版本标识冲突，争议版本已省略'] if '样本冲突' in content[0]['text'] else []}
+            raw = json.dumps({'choices': [{'message': {'content': json.dumps(result)}}]}).encode()
             self.send_response(200); self.send_header('Content-Type', 'application/json')
             self.send_header('Content-Length', str(len(raw))); self.end_headers(); self.wfile.write(raw)
     upstream = ThreadingHTTPServer(('127.0.0.1', 0), Model)

@@ -178,6 +178,14 @@ jobs:
             sleep 1
           done
           LISTING_ACCEPTANCE_URL="$listing_url" node web/tests/browser/listing-acceptance.mjs
+          # 主验收会改写长文样本；结束后再经 storage 事务写入固定长文，专测展开/收起。
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          from tools.seed_samples import seed_listing_long_copy
+          seed_listing_long_copy(Path(os.environ['OBI_DEV_HOME']) / 'instance')
+          PY
+          LISTING_ACCEPTANCE_URL="$listing_url" node web/tests/browser/listing-reader-acceptance.mjs
       - name: 保存失败现场与样本诊断
         if: failure()
         uses: actions/upload-artifact@v4
