@@ -140,7 +140,7 @@ try {
   await generate();
   await page.getByRole('heading', {name: '售卖文案 · 已保存', exact: true}).waitFor();
   const saved = (await state()).records.find(r => r.id === before.id);
-  assert.ok(saved.listingDraft.description.includes('尚未核实'));
+  assert.ok(!saved.listingDraft.description.includes('尚未核实'), '内部待核实标记不得进入买家可见文案');
   assert.equal(saved.price, before.price); assert.equal(saved.listed, before.listed);
   assert.deepEqual(saved.releaseInfo, before.releaseInfo);
   assert.equal(await page.locator('#panel').getByRole('checkbox').count(), 0);

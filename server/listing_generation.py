@@ -52,6 +52,16 @@ class ListingGeneration:
     def _update_generation(self, ident, **patch):
         with self.lock: self.jobs[ident].update(copy.deepcopy(patch))
 
+    @staticmethod
+    def _photo_order(record):
+        # 沿用用户已设的首图 / 顺序（仅当照片没变且仍是完整排列），否则恢复默认顺序。
+        count = record.get('photoCount', 0)
+        saved = (record.get('listingDraft') or {})
+        order = saved.get('photoOrder')
+        if (saved.get('photoRevision') == record.get('photoRevision', 0) and isinstance(order, list)
+                and sorted(order) == list(range(count))): return list(order)
+        return list(range(count))
+
     def _check_generation(self, record):
         current = listing_record(self.store, record['id'])
         if current['revision'] != record['revision'] or current.get('photoRevision', 0) != record.get('photoRevision', 0):
@@ -71,7 +81,7 @@ class ListingGeneration:
             result = self.model.write_copy(analysis, preset, bool(record.get('photoCount')), selection, record)
             draft = clean_draft({**result, 'analysis': analysis, 'versionText': analysis['versionText'],
                 'conditionText': analysis['conditionText'], 'versionConfirmed': False, 'conditionConfirmed': False,
-                'photoRevision': record.get('photoRevision', 0), 'photoOrder': list(range(record.get('photoCount', 0))),
+                'photoRevision': record.get('photoRevision', 0), 'photoOrder': self._photo_order(record),
                 'generation': {'presetId': preset['id'], 'presetName': preset['name'], 'instructions': preset['instructions'],
                                'supplement': supplement, 'contextHash': context_hash,
                                'sourceContext': json.dumps(public_context(record), sort_keys=True, ensure_ascii=False),

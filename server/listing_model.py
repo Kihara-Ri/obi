@@ -66,18 +66,33 @@ class ListingModel:
 
     def write_copy(self, analysis, preset, has_photos, selection, record):
         from domain_listing import text
-        content = [{'type': 'text', 'text': json.dumps({
+        from .listing_copy_clean import clean_title, hedge_hits, strip_hedges
+        condition = analysis['conditionText']
+        # 内部「尚未核实」标记与待核实/冲突清单不交给写作模型，否则它会照着写进买家可见的文案。
+        if hedge_hits(condition): condition = ''
+        payload = {
             'facts': {'album': {key: record[key] for key in ('artist', 'title')},
-                      **{key: analysis[key] for key in ('versionText', 'conditionText', 'saleTerms')},
+                      'versionText': analysis['versionText'], 'conditionText': condition, 'saleTerms': analysis['saleTerms'],
                       'tracklist': (record.get('releaseInfo') or {}).get('tracklist', []),
                       'media': (record.get('releaseInfo') or {}).get('media', [])},
-            'pending': analysis['pending'], 'conflicts': analysis['conflicts'],
-            'style': preset['instructions'], 'hasPhotos': has_photos}, ensure_ascii=False)}]
-        raw = self.complete(COPY_PROMPT, content, selection)
-        value = structured_json(raw)
-        if not isinstance(value, dict): raise ValidationError('模型文案格式无效')
-        result = {key: text(value.get(key), limit) for key, limit in (('title', 500), ('description', 50000))}
-        if not all(result.values()): raise ValidationError('模型返回了空文案，请重试')
+            'versionConflict': bool(analysis['conflicts']),
+            'style': preset['instructions'], 'hasPhotos': has_photos}
+        content = [{'type': 'text', 'text': json.dumps(payload, ensure_ascii=False)}]
+
+        def write(extra=None):
+            parts = content + ([{'type': 'text', 'text': json.dumps(extra, ensure_ascii=False)}] if extra else [])
+            value = structured_json(self.complete(COPY_PROMPT, parts, selection))
+            if not isinstance(value, dict): raise ValidationError('模型文案格式无效')
+            return {key: text(value.get(key), limit) for key, limit in (('title', 500), ('description', 50000))}
+        result = write()
+        hits = hedge_hits(result['title'], result['description'])
+        if hits:  # 只重写一次；仍有残留时由 strip_hedges 删掉整句，不再调用模型。
+            retry = write({'revise': '上一版含买家不该看到的不确定措辞：' + '、'.join(hits) + '。保持事实不变重写，删掉这些内容，不要提及未知信息。',
+                           'previous': result})
+            if all(retry.values()): result = retry
+        result['title'] = clean_title(result['title']) or clean_title(f"{record['artist']} {record['title']}")
+        result['description'] = strip_hedges(result['description'])
+        if not result['description']: raise ValidationError('模型返回了空文案，请重试')
         return result
 
     def complete(self, prompt, content, settings):
