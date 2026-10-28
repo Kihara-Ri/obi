@@ -1,6 +1,7 @@
 // 一键准备售卖资料；新草稿自动保存，已有文案先看候选，显式采用后才替换。
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import {api} from '../core/api';
+import {photoFileName, photoLabel} from '../core/download';
 import {draftFor, listingContextChanged} from '../core/listing';
 import type {ListingDraft, ListingPreferences as Preferences, ListingProvider} from '../core/listing';
 import {useApp} from '../state/AppContext';
@@ -20,7 +21,8 @@ import {Details} from '../components/ui/Details';
 import './ListingForm.css';
 
 export function openListingForm(app: AppCtx, id: string) {
-  app.openDrawer({title: '售卖与上架资料', asForm: true, content: <ListingForm id={id}/>});
+  app.openDrawer({title: '售卖与上架资料', asForm: true, content: <ListingForm id={id}/>,
+    back: {label: '返回管理', run: () => { app.backDrawer(); }}});
 }
 
 function ListingForm({id}: {id: string}) {
@@ -38,6 +40,20 @@ function ListingForm({id}: {id: string}) {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const photos = usePhotoFiles(id, r.photoCount, r.photoRevision ?? 0, r.artist, r.title);
+  const count = r.photoCount;
+  // 首图 / 顺序：沿用草稿里完整有效的排列，否则默认顺序；保存图片按它排，首图即闲鱼列表首图。
+  const order = useMemo(() => {
+    const saved = draft.photoOrder;
+    return saved.length === count && [...saved].sort((a, b) => a - b).every((v, i) => v === i) ? saved : Array.from({length: count}, (_, i) => i);
+  }, [draft.photoOrder, count]);
+  const orderedFiles = useMemo(() => {
+    if (!photos.files) return photos.files;
+    const label = photoLabel(r.artist, r.title);
+    return order.map((index, position) => {
+      const file = photos.files![index];
+      return new File([file], photoFileName(label, position, file.type), {type: file.type});
+    });
+  }, [photos.files, order]);
   const [supplement, setSupplement] = useState(r.listingDraft?.generation?.supplement ?? '');
   const [provider, setProvider] = useState<ListingProvider>();
   const [preferences, setPreferences] = useState<Preferences>();
@@ -64,6 +80,19 @@ function ListingForm({id}: {id: string}) {
   const ready = r.photoCount ? provider?.ready : provider?.textReady;
   const change = (value: ListingDraft) => {setDraft(value); markDirty();};
   const markDirty = (protect = true) => {if (protect) localEdits.current = true; setDirty(true); setSaved(false); app.setDrawerDirty(true);};
+  const setCover = async (index: number) => {
+    const value = {...draft, photoOrder: [index, ...order.filter(i => i !== index)]};
+    setDraft(value);
+    // 已保存且没有未存修改时直接保存首图；否则并入当前草稿，等「保存草稿」。
+    if (saved && !dirty && !candidate && !editing && !stale && !busy) {
+      try {
+        const result = await api<{revision: number}>('listing/draft', {id, revision, draft: value, listing: {channel, url}});
+        setRevision(result.revision); await app.refresh(); app.toast('已设为首图');
+        return;
+      } catch (e) {setError(e instanceof Error ? e.message : '首图保存失败');}
+    }
+    markDirty();
+  };
   const generate = (reanalyze = false) => {
     setError('');
     void task.start({id, revision, photoRevision: r.photoRevision ?? 0, supplement,
@@ -108,7 +137,7 @@ function ListingForm({id}: {id: string}) {
       </div> : null}
       {!ready && provider ? <p className="listing-note">{provider.textReady && r.photoCount
         ? '当前模型仅支持文字；请在设置中选择支持图片的模型。' : '请先在 设置 → 账户 → 已连接服务 中连接并选择模型。'}</p> : null}
-      <ListingPhotos id={id} count={r.photoCount} revision={r.photoRevision ?? 0} files={photos.files}
+      <ListingPhotos id={id} count={r.photoCount} revision={r.photoRevision ?? 0} files={photos.files} order={order} onCover={i => {void setCover(i);}}
         disabled={stale} error={photos.error} retry={photos.retry}/>
       <ListingOptions value={preferences} busy={busy || stale} supplement={supplement}
         onSupplement={value => {setSupplement(value); markDirty(false);}}
@@ -138,7 +167,7 @@ function ListingForm({id}: {id: string}) {
         <button type="button" className="primary" aria-busy={saving} disabled={busy || stale} onClick={saveDraft}>保存草稿</button>
       </> : <>
       {r.photoCount ? <PhotoDownload id={id} count={r.photoCount} revision={r.photoRevision ?? 0} artist={r.artist} title={r.title}
-        variant="button" label="保存图片" preparedFiles={photos.files} disabled={stale}/> : null}
+        variant="button" label="保存图片" preparedFiles={orderedFiles} order={order} disabled={stale}/> : null}
       {shown.description.trim() ? <CopyButton variant="button" label="复制文案" text={[shown.title, shown.description].filter(Boolean).join('\n\n')}/>
         : null}
       </>}

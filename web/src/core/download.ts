@@ -59,13 +59,17 @@ export function photoLabel(artist: string, title: string): string {
 
 const PHOTO_EXT: Record<string, string> = {'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp'};
 
+/** 照片文件名：「艺人 - 专辑 - 序号」，序号按保存顺序（首图为 01）。 */
+export function photoFileName(label: string, position: number, type: string): string {
+  return `${label ? label + ' - ' : ''}${String(position + 1).padStart(2, '0')}${PHOTO_EXT[type] ?? '.jpg'}`;
+}
+
 // 取回本副本全部实物照片为 File（保持原格式与顺序），供手机系统分享面板直接存入相册。
 export async function fetchPhotoFiles(id: string, count: number, label: string, revision?: number): Promise<File[]> {
   return Promise.all(Array.from({length: count}, async (_, i) => {
     const r = await fetch(`/api/photo/${id}/${i}${revision === undefined ? '' : `?photoRevision=${revision}`}`, {credentials: 'same-origin'});
     if (!r.ok) throw new ApiError('照片读取失败', r.status);
     const blob = await r.blob();
-    const name = `${label ? label + ' - ' : ''}${String(i + 1).padStart(2, '0')}${PHOTO_EXT[blob.type] ?? '.jpg'}`;
-    return new File([blob], name, {type: blob.type});
+    return new File([blob], photoFileName(label, i, blob.type), {type: blob.type});
   }));
 }

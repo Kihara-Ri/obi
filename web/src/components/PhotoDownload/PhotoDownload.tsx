@@ -6,11 +6,11 @@ import {CheckIco, DownloadIco, SpinIco} from '../icons';
 import {useApp} from '../../state/AppContext';
 import './PhotoDownload.css';
 
-type Props = {id: string; count: number; revision: number; artist: string; title: string; variant?: 'icon' | 'button'; label?: string; disabled?: boolean; preparedFiles?: File[] | null};
+type Props = {id: string; count: number; revision: number; artist: string; title: string; variant?: 'icon' | 'button'; label?: string; disabled?: boolean; preparedFiles?: File[] | null; order?: number[]};
 type Prep = 'loading' | 'ready' | 'failed';
 type Phase = 'idle' | 'saving' | 'done';
 
-export function PhotoDownload({id, count, revision, artist, title, variant = 'icon', label: displayLabel, disabled = false, preparedFiles}: Props) {
+export function PhotoDownload({id, count, revision, artist, title, variant = 'icon', label: displayLabel, disabled = false, preparedFiles, order: given}: Props) {
   const app = useApp();
   const touch = useRef(!window.matchMedia('(hover: hover) and (pointer: fine)').matches).current;
   const files = useRef<File[]>([]);
@@ -35,7 +35,7 @@ export function PhotoDownload({id, count, revision, artist, title, variant = 'ic
   const fail = (message: string) => {app.toast(message, 'err'); setPhase('idle');};
   const zip = () => {
     setPhase('saving');
-    const order = Array.from({length: count}, (_, i) => i).join(',');
+    const order = (given ?? Array.from({length: count}, (_, i) => i)).join(',');
     downloadFile(`listing/photos?id=${id}&photoRevision=${revision}&order=${order}`, 'listing-photos.zip', {share: false})
       .then(() => finish(`已下载 ${count} 张照片（ZIP）`))
       .catch(e => fail(e instanceof Error ? e.message : '下载失败，请重试'));

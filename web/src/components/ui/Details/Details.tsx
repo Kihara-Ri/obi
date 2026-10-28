@@ -41,7 +41,8 @@ export function Details({summary, children, className = '', open, defaultOpen = 
       : [{height: `${full}px`, opacity: 1}, {height: '0px', opacity: 0}];
     // fill:forwards：动画结束到 React 摘掉 open 之间不能弹回原高度，否则收起后会闪一下
     const anim = el.animate(frames, {duration: MS, easing: EASE, fill: 'forwards'});
-    anim.finished.catch(() => undefined).then(() => { el.style.overflow = ''; setClosing(false); });
+    // 展开结束后撤掉 fill，高度回到自动：内容在展开后变高（如就地出现编辑区）时不会被锁在展开瞬间的高度里。
+    anim.finished.catch(() => undefined).then(() => { el.style.overflow = ''; setClosing(false); if (isOpen) anim.cancel(); });
     return () => { anim.cancel(); el.style.overflow = ''; };
   }, [isOpen]);
 
