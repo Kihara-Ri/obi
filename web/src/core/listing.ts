@@ -1,5 +1,6 @@
 // 副本售卖草稿：照片更新时保留手写文案，清除旧证据与确认；不推断版次或价格。
 import type {AlbumRecord} from '../types';
+import type {StyleOptions} from './listing-style';
 
 export interface ListingFact {text: string; photos: number[]; kind?: string}
 export interface ListingCandidate {id: string; title: string; artist: string; country: string; date: string; catalogNumber: string; barcode: string}
@@ -30,7 +31,7 @@ export interface ListingProvider {
   apiModel: string; loginPending: boolean; loginError: string; localLoginAvailable: boolean;
 }
 
-export interface ListingPreset {id: string; name: string; instructions: string}
+export interface ListingPreset {id: string; name: string; instructions: string; options?: Partial<StyleOptions>}
 export interface ListingPreferences {
   revision: number; defaultPreset: string; customPresets: ListingPreset[]; builtins: ListingPreset[];
 }

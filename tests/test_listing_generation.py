@@ -117,6 +117,20 @@ class GenerationTests(unittest.TestCase):
         self.assertIn('已变更', result['error'])
         self.assertNotIn('listingDraft', self.record('dookie-jp'))
 
+    def test_style_options_are_whitelisted_and_round_trip(self):
+        value = self.store.listing_preferences()
+        options = {'tone': 'friendly', 'length': 'short', 'layout': 'para', 'title': 'plain', 'tracks': True, 'condition': 'yes',
+                   'emoji': False, 'ending': '不议价', 'extra': '', 'junk': 'x'}
+        value.update(customPresets=[{'id': 'mine', 'name': '我的风格', 'instructions': '语气友好自然；不议价。', 'options': options}],
+                     defaultPreset='mine')
+        saved = self.store.save_listing_preferences(value)
+        row = saved['customPresets'][0]
+        self.assertNotIn('junk', row['options'])
+        self.assertIs(row['options']['tracks'], True)
+        self.assertIs(row['options']['condition'], False)  # 只认真正的布尔值
+        self.assertEqual(row['options']['ending'], '不议价')
+        self.assertEqual(self.store.listing_preferences()['customPresets'][0], row)
+
     def test_preferences_backup_conflict_validation_and_disabled_module(self):
         value = self.store.listing_preferences()
         value.update(customPresets=[{'id': 'custom', 'name': '自己的风格', 'instructions': '短句；保留瑕疵说明'}], defaultPreset='custom')

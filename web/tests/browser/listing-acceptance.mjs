@@ -161,11 +161,12 @@ try {
   assert.match(await page.locator('.listing-copy-preview').innerText(), /保留手写正文/u);
   // 自定义风格保存即成为全局默认，换风格后候选采用保存。
   await page.getByText('生成设置', {exact: true}).click();
-  await page.getByText('自定义预设', {exact: true}).click();
-  await page.getByRole('textbox', {name: '预设名称', exact: true}).fill('验收短句');
-  await page.getByRole('textbox', {name: '写作要求', exact: true}).fill('简短；保留全部已知瑕疵');
+  await page.getByRole('combobox', {name: /^文案风格：/u}).click();
+  await page.getByRole('option', {name: '＋ 我的风格', exact: true}).click();
+  await page.getByRole('button', {name: '友好', exact: true}).click();
+  await page.getByRole('textbox', {name: /^其他要求/u}).fill('简短；保留全部已知瑕疵');
   await page.getByRole('button', {name: '保存并使用', exact: true}).click();
-  await page.getByRole('combobox', {name: '文案风格：验收短句', exact: true}).waitFor();
+  await page.getByRole('combobox', {name: '文案风格：我的风格', exact: true}).waitFor();
   await generate();
   await page.getByRole('button', {name: '采用并保存', exact: true}).click();
   await page.getByRole('heading', {name: '售卖文案 · 已保存', exact: true}).waitFor();

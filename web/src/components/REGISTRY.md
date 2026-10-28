@@ -53,7 +53,7 @@
 | `PurchaseForm` | 管理页「编辑买入信息」：金额 / 币种 / 日期 / 额外费用 / 渠道 | 复用 `MoneySection`、`ShopField`；管钱的编辑都放这里 |
 | `PhotoDownload` | 专辑详情「实物照片」标题右侧的下载图标：手机把原图交给系统分享面板（存储图像进相册），桌面下载 ZIP | `id` `count` `revision` `artist` `title`；可传 `variant="button"` 与共享 `preparedFiles` 用于上架页；手机进入详情时预取照片，分享须在点击手势内同步调用；加载中禁用，图标有 aria-label |
 | `ListingReview` | 实物核对摘要、待核实事项与照片依据 | 无逐项确认；冲突默认展开、其余依据折叠 |
-| `ListingPreferences` | 全局默认文案风格与自定义预设管理 | 复用 Dropdown、Details；保存/删除走偏好 revision，预设随备份恢复 |
+| `ListingPreferences` | 文案风格单一下拉；「我的风格」用选项（Seg + Switch）配置，拼成写作要求（`core/listing-style.ts`） | 复用 Dropdown、Seg、Switch；保存/删除走偏好 revision，预设随备份恢复 |
 | `ListingSettings` | 设置「账户 → 已连接服务」：服务商列表，连接/测试/在用状态，点入详情抽屉（仅二手交易） | 复用 Drawer；密钥/令牌不回传，只显示末四位 |
 | `ProviderPage` | 服务商详情：头部状态、三步进度、密钥/模型/测试三块 | 复用 ListingSteps、Dropdown；状态只走 token |
 | `ProviderAccess` | 详情页「密钥/授权」区（按服务商分支） | 密钥输入后即清空；移除/更换分开 |
