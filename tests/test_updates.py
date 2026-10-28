@@ -169,6 +169,9 @@ lines=sys.stdin.readlines();n=int(sys.argv[-1]);sys.stdout.writelines(lines[:n])
                   'EXPECTED_SHA256':hashlib.sha256(self.package.read_bytes()).hexdigest(),
                   'FIXTURE_LOG':str(Path(self.tmp.name)/'service.log'),'FIXTURE_FAILURE':'',
                   'SHIP_LOCAL_CONFIG':str(Path(self.tmp.name)/'no-personal-override.toml')}
+        # 服务器本机发布（DEPLOY_HOST=local）会把 SHIP_HOST 等写进环境；fixture 必须从干净配置起步。
+        for key in [name for name in self.env if name.startswith('SHIP_')]:
+            if key != 'SHIP_LOCAL_CONFIG': del self.env[key]
 
     def tearDown(self):self.tmp.cleanup()
 
