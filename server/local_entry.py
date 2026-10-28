@@ -69,6 +69,7 @@ def build_local(data_dir):
     from server.chatgpt_auth import ChatGPTAuth
     from server.discogs_catalog import DiscogsCatalog
     from server.engine_plugins import PluginManager
+    from server.itunes_catalog import ItunesCatalog
     from server.listing_analysis import ListingAnalysis
     from server.listing_model import ListingModel
     from server.release_catalog import ReleaseCatalog
@@ -81,14 +82,14 @@ def build_local(data_dir):
     plugins = PluginManager(store, None, mb)   # 本机模式不带 plugins/ 目录：引擎显示为不可用
     artists = ArtistService(store, mb, covers, write_lock=routes.WRITE_LOCK)
     artists.prewarm_enabled = False
-    releases = ReleaseCatalog(mb=mb, discogs=DiscogsCatalog())
+    releases = ReleaseCatalog(mb=mb, discogs=DiscogsCatalog(), itunes=ItunesCatalog())
     # 售卖辅助只在安卓原生中继可用时启用（D-030）：浏览器静态站点直连 OpenCode 会被 CORS 挡下。
     listings = None
     if os.getenv('OPENCODE_RELAY_BASE', '').strip():
         listings = ListingAnalysis(store, releases, ListingModel(ChatGPTAuth(data)), inline=True)
         with listings.model.providers.config.locked() as state:
             if state['provider'] in ('openai', 'anthropic'): state['provider'] = 'opencode'
-    # Deezer 不返回 CORS 头，浏览器里的同步 XHR 取不到，本机模式只接 MusicBrainz 与 Discogs。
+    # Deezer 不返回 CORS 头，浏览器里的同步 XHR 取不到，本机模式只接 MusicBrainz、Discogs 与 iTunes（iTunes 回 `*`）。
     return Services(store=store, plugins=plugins, catalog_art=ArtClient(), covers=covers,
                     releases=releases, twins=plugins.facade, listings=listings,
                     artists=artists, rates=rates)

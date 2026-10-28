@@ -124,7 +124,7 @@ export function LookupPage() {
         {recent.map(item => <button key={item} type="button" className="chip" onClick={() => void search(item)}>{item}</button>)}
         <button type="button" className="quiet" onClick={() => { setRecent([]); saveRecent([]); }}>清除</button>
       </div> : null}
-      {busy ? <p className="lookup-msg" role="status">查询中 · MusicBrainz，无结果时转 {/^[\d\s-]+$/.test(text.trim()) ? 'Deezer' : 'Discogs'}</p> : null}
+      {busy ? <p className="lookup-msg" role="status">查询中 · MusicBrainz / {/^[\d\s-]+$/.test(text.trim()) ? 'Deezer / iTunes' : 'Discogs'}</p> : null}
       {!found && !busy && !error ? <PendingReleases onPick={startConfirm}/> : null}
       {found && isText ? <section aria-label="专辑搜索结果" className="lookup-results">
         <h2>{found.albums.length ? `找到 ${found.albums.length} 张专辑，点开看版本` : '没有找到相近的专辑'}</h2>
@@ -146,7 +146,7 @@ export function LookupPage() {
           <h2>{found.candidates.length ? `资料库找到 ${found.candidates.length} 个版本` : '资料库没有精确匹配'}</h2>
           {found.note ? <p className="lookup-msg">{found.note} 暂不可用，结果可能不全</p> : null}
           {!found.candidates.length && !found.note
-            ? <p className="lookup-msg">两个资料库都没有这个{what}；不会按标题猜测相似版本。</p> : null}
+            ? <p className="lookup-msg">各资料库都没有这个{what}；不会按标题猜测相似版本。</p> : null}
           <ul>{found.candidates.map(c => <LookupCard key={c.id} c={c} owned={ownedNote} confirming={!!target}
             onAdd={info => addToLibrary(c, info)}/>)}</ul>
         </section>

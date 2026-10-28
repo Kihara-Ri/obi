@@ -72,7 +72,20 @@ test('待确认发行版：已绑定版本或标过手动的不算，已售出�
   assert.equal(releasePending(r('overseas', {barcode: '123'})), true);
   assert.equal(releasePending(r('domestic', {musicBrainzReleaseId: 'x'})), false);
   assert.equal(releasePending(r('domestic', {discogsReleaseId: '7'})), false);
+  assert.equal(releasePending(r('domestic', {deezerId: '7'})), false);
+  assert.equal(releasePending(r('domestic', {itunesId: '1458696389'})), false);
   assert.equal(releasePending(r('domestic', {manualRelease: '1'})), false);
   assert.equal(releasePending(r('sold', {})), false);
   assert.equal(releasePending(r('trash', {})), false);
+});
+
+test('iTunes 来源：候选 id ↔ 身份字段 ↔ 资料库链接', () => {
+  const {sourceOf, identityFromId, identityOf, sourceName, sourceUrl} = require(join(output, 'core/release-source.js'));
+  assert.equal(sourceOf('itunes-1458696389'), 'itunes');
+  const identity = identityFromId('itunes-1458696389');
+  assert.equal(identity.itunesId, '1458696389');
+  assert.equal(identity.musicBrainzReleaseId, '');
+  assert.equal(identityOf(identity), 'itunes-1458696389');
+  assert.equal(sourceName(identity), 'iTunes');
+  assert.equal(sourceUrl(identity), 'https://music.apple.com/album/1458696389');
 });

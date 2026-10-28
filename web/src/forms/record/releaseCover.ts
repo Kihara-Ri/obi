@@ -1,5 +1,5 @@
 // 选定发行版后的封面匹配，顺序与版本卡片一致（core/version-cover.ts）：
-// 此版本自己的 Cover Art Archive 正面图 → 同一张专辑的封面 → 同名同艺人的 iTunes 数字封面。
+// 此版本自己的 Cover Art Archive 正面图 → 候选自带 / 合并来的同码数字封面 → 同一张专辑的封面 → 同名同艺人的 iTunes 数字封面。
 // 退路的查询与正面图并行发出；封面只是展示图，不证明实物版次。
 import {api} from '../../core/api';
 import {isLocalSite} from '../../core/backend';
@@ -22,8 +22,9 @@ export async function matchReleaseCover(candidate: ReleaseCandidate, isCurrent: 
       return {cover: front.cover, coverSource: {title: candidate.title, artist: candidate.artist, provider: 'Cover Art Archive（此版本）'},
         status: '此版本自己的封面'};
     }
-  } else if (candidate.cover) {
-    // Deezer 候选自带封面：交给服务端下载并落盘，和 CAA 封面走同一套备份。
+  }
+  if (candidate.cover) {
+    // Deezer / iTunes 候选自带封面（实体版则是合并来的同码数字封面）：交给服务端下载并落盘，和 CAA 封面走同一套备份。
     try {
       const image = await api<{cover: string; coverSource: AlbumRecord['coverSource']}>('covers/download',
         {token: candidate.cover, ...(stashCovers() ? {stash: true} : {})});

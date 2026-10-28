@@ -6,6 +6,7 @@ import {PackagingLabel} from '../../components/PackagingIcon';
 import {dedupeCatalog, displayRegion, regionName} from '../../core/release-metadata';
 import {Tracklist} from '../../components/Tracklist';
 import {Rows} from './Rows';
+import {boundSource, sourceName, sourceUrl} from '../../core/release-source';
 
 export function openReleasePage(app: AppCtx, id: string) {
   app.openDrawer({title: '发行资料', content: <ReleaseBody id={id}/>,
@@ -19,9 +20,7 @@ function ReleaseBody({id}: {id: string}) {
   if (!r) return null;
   const info = r.releaseInfo ?? {};
   const code = info.country;
-  const source = info.musicBrainzReleaseId
-    ? {name: 'MusicBrainz', url: 'https://musicbrainz.org/release/' + info.musicBrainzReleaseId}
-    : info.discogsReleaseId ? {name: 'Discogs', url: 'https://www.discogs.com/release/' + info.discogsReleaseId} : null;
+  const source = boundSource(info) ? {name: sourceName(info), url: sourceUrl(info)} : null;
   const pkg = info.packaging || formatPackagingName(r.version, r.packaging);
   const catalog = dedupeCatalog(info.catalogNumber);
   return <div className="detail-page">

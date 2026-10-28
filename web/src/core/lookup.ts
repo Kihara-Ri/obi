@@ -80,7 +80,7 @@ export function saveRecent(list: string[]): void {
 export const pushRecent = (list: string[], value: string) =>
   [value, ...list.filter(x => x !== value)].slice(0, RECENT_MAX);
 
-/** 还没确认发行版：没有绑定任何资料库版本（MusicBrainz / Discogs / Deezer），也没标过「都没有」（manualRelease）。
+/** 还没确认发行版：没有绑定任何资料库版本（MusicBrainz / Discogs / Deezer / iTunes），也没标过「都没有」（manualRelease）。
  *  已售出与回收站的不管。 */
 export function releasePending(r: AlbumRecord): boolean {
   if (r.status === 'sold' || r.status === 'trash') return false;

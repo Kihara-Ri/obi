@@ -10,7 +10,9 @@ from server.routes import GET, POST, api_barcode_lookup, api_release_front_cover
 class BarcodeLookupTests(unittest.TestCase):
     def setUp(self):
         self.http = SimpleNamespace(send=Mock())
-        self.vision = SimpleNamespace(catalog=Mock(return_value=[]), backup=Mock(return_value=([], 'deezer')))
+        self.deezer, self.itunes = Mock(return_value=[]), Mock(return_value=[])
+        self.vision = SimpleNamespace(catalog=Mock(return_value=[]),
+                                      backups=lambda barcode, catno: [('deezer', self.deezer), ('itunes', self.itunes)])
         self.service = SimpleNamespace(releases=self.vision)
 
     def test_only_valid_numeric_barcodes_query_catalog(self):
@@ -30,7 +32,6 @@ class BarcodeLookupTests(unittest.TestCase):
         api_barcode_lookup(self.http, self.service, {'barcode': ' 4988013047105 '})
         self.vision.catalog.assert_called_once_with({
             'title': '', 'artist': '', 'releaseInfo': {'barcode': '4988013047105', 'catalogNumber': ''}})
-        self.vision.backup.assert_not_called()
         response = self.http.send.call_args.args[0]
         self.assertEqual(response['barcode'], '4988013047105')
         self.assertEqual(len(response['candidates']), 2)
@@ -38,41 +39,52 @@ class BarcodeLookupTests(unittest.TestCase):
     def test_no_match_returns_empty_candidates_without_guessing(self):
         api_barcode_lookup(self.http, self.service, {'barcode': '96385074'})
         self.http.send.assert_called_once_with({'barcode': '96385074', 'candidates': [],
-            'sources': {'musicbrainz': 'none', 'deezer': 'none'}})
+            'sources': {'musicbrainz': 'none', 'deezer': 'none', 'itunes': 'none'}})
 
-    def test_musicbrainz_miss_falls_back_to_deezer_candidates(self):
+    def test_musicbrainz_miss_still_returns_backup_candidates(self):
         found = {'id': 'deezer-7714607', 'source': 'deezer', 'identifierMatch': True,
                  'releaseInfo': {'barcode': '4582213912173'}}
-        self.vision.backup.return_value = ([found], 'deezer')
+        self.deezer.return_value = [found]
         api_barcode_lookup(self.http, self.service, {'barcode': '4582213912173'})
-        self.vision.backup.assert_called_once_with('4582213912173', '')
+        self.deezer.assert_called_once_with()
         response = self.http.send.call_args.args[0]
         self.assertEqual(response['candidates'], [found])
-        self.assertEqual(response['sources'], {'musicbrainz': 'none', 'deezer': 'found'})
+        self.assertEqual(response['sources'], {'musicbrainz': 'none', 'deezer': 'found', 'itunes': 'none'})
 
-    def test_one_source_down_still_answers_but_both_down_reports_error(self):
-        self.vision.catalog.side_effect = ValidationError('发行资料库暂时不可用，请稍后重试')
+    def test_every_source_is_queried_even_when_musicbrainz_hits(self):
+        self.vision.catalog.return_value = [{'id': 'uuid-1', 'identifierMatch': True, 'releaseInfo': {'barcode': '4988064291892'}}]
+        self.itunes.return_value = [{'id': 'itunes-1', 'source': 'itunes', 'url': 'u', 'releaseInfo': {'barcode': '4988064291892'}}]
+        api_barcode_lookup(self.http, self.service, {'barcode': '4988064291892'})
+        self.deezer.assert_called_once_with(); self.itunes.assert_called_once_with()
+        [only] = self.http.send.call_args.args[0]['candidates']
+        self.assertEqual((only['id'], only['alsoIn'][0]['id']), ('uuid-1', 'itunes-1'))
+
+    def test_one_source_down_still_answers_but_all_down_reports_error(self):
+        self.vision.catalog.side_effect = ValidationError('MusicBrainz 暂时不可用')
         api_barcode_lookup(self.http, self.service, {'barcode': '4582213912173'})
-        self.assertEqual(self.http.send.call_args.args[0]['sources']['deezer'], 'none')
-        self.vision.backup.side_effect = ValidationError('无法连接 Deezer 或请求超时')
-        with self.assertRaises(ValidationError): api_barcode_lookup(self.http, self.service, {'barcode': '4582213912173'})
+        self.assertEqual(self.http.send.call_args.args[0]['sources'],
+                         {'musicbrainz': 'MusicBrainz 暂时不可用', 'deezer': 'none', 'itunes': 'none'})
+        self.deezer.side_effect = ValidationError('无法连接 Deezer 或请求超时')
+        self.itunes.side_effect = ValidationError('无法连接 iTunes 或请求超时')
+        with self.assertRaisesRegex(ValidationError, 'MusicBrainz.*Deezer.*iTunes'):
+            api_barcode_lookup(self.http, self.service, {'barcode': '4582213912173'})
 
 
-class HedgedLookupTests(unittest.TestCase):
-    def test_slow_musicbrainz_does_not_delay_deezer(self):
+class ConcurrentLookupTests(unittest.TestCase):
+    def test_sources_run_at_the_same_time(self):
         import threading
         from server.routes import lookup_sources
-        backup_started = threading.Event()
-        def slow_catalog(fields):
-            self.assertTrue(backup_started.wait(2), 'Deezer 应在 MusicBrainz 仍在等待时并行启动')
-            return []
-        def deezer(barcode, catno):
-            backup_started.set()
-            return [{'id': 'deezer-1', 'identifierMatch': True, 'releaseInfo': {}}], 'deezer'
-        service = SimpleNamespace(releases=SimpleNamespace(catalog=slow_catalog, backup=deezer))
-        candidates, sources = lookup_sources(service, '4582213912173', '', lambda found: found, hedge=0.05)
-        self.assertEqual([c['id'] for c in candidates], ['deezer-1'])
-        self.assertEqual(sources, {'musicbrainz': 'none', 'deezer': 'found'})
+        barrier = threading.Barrier(3, timeout=2)
+        def wait(result):
+            def run(*args):
+                barrier.wait()   # 三个来源都启动了才放行；串行执行会在这里超时
+                return result
+            return run
+        service = SimpleNamespace(releases=SimpleNamespace(catalog=wait([]), backups=lambda barcode, catno: [
+            ('deezer', wait([])), ('itunes', wait([{'id': 'itunes-1', 'releaseInfo': {'barcode': barcode}}]))]))
+        candidates, sources = lookup_sources(service, '4988064291892', '', lambda found: found)
+        self.assertEqual([c['id'] for c in candidates], ['itunes-1'])
+        self.assertEqual(sources, {'musicbrainz': 'none', 'deezer': 'none', 'itunes': 'found'})
 
 
 class ConfirmedReleaseArtTests(unittest.TestCase):

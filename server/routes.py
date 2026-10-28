@@ -276,8 +276,7 @@ def api_records(h, svc, body):
         info = item.get('releaseInfo') or {}
         if not isinstance(info, dict): continue
         new_barcode = info.get('barcode') or ''
-        new_edition = info.get('musicBrainzReleaseId') or ''
-        if not new_edition and info.get('discogsReleaseId'): new_edition = 'discogs-' + info['discogsReleaseId']
+        new_edition = release_identity(info)
         manual = info.get('manualRelease') == '1' and not new_edition
         old_barcode = old_edition = ''
         if item.get('id'):
@@ -285,9 +284,7 @@ def api_records(h, svc, body):
                 previous = svc.store.get(db, 'records', item['id'])
             previous_info = previous.get('releaseInfo') or {}
             old_barcode = previous_info.get('barcode') or ''
-            old_edition = previous_info.get('musicBrainzReleaseId') or ''
-            if not old_edition and previous_info.get('discogsReleaseId'):
-                old_edition = 'discogs-' + previous_info['discogsReleaseId']
+            old_edition = release_identity(previous_info)
         if manual:
             pass  # 两个资料库都没有收录：按用户手动录入的版本保存，不做资料库核对，也不伪造来源。
         elif (new_barcode, new_edition) != (old_barcode, old_edition):
@@ -331,58 +328,42 @@ def releases(svc):
     return svc.releases
 
 
+def release_identity(info):
+    """已绑定的资料库版本，与候选 id 同形（MusicBrainz 为裸 UUID）；与前端 core/release-source.ts 的 identityOf 一致。"""
+    if info.get('musicBrainzReleaseId'): return info['musicBrainzReleaseId']
+    for field, prefix in (('discogsReleaseId', 'discogs-'), ('deezerId', 'deezer-'), ('itunesId', 'itunes-')):
+        if info.get(field): return prefix + info[field]
+    return ''
+
+
 def api_release(h, svc): h.send({'releaseInfo':releases(svc).release_details(query(h).get('id'))})
-def lookup_sources(svc, barcode, catno, exact, hedge=1.5):
-    """先查 MusicBrainz；没有精确匹配（或暂时不可用）再查备用来源，并如实返回各来源结果。
-    条码的备用来源是 Deezer，唱片编号的是 Discogs（Discogs 搜索不索引条码）。
-    MusicBrainz 迟迟没有答复（>hedge 秒）时并行启动备用来源，不让用户串行等两个来源；
-    MusicBrainz 很快命中则不打扰备用来源。两个来源都不可用才报错，都没有则返回空候选与 sources 说明。"""
-    from concurrent.futures import ThreadPoolExecutor, TimeoutError as Slow
-    sources = {}
-    backup_label = 'deezer' if barcode else 'discogs'
-
-    def musicbrainz():
-        return exact(releases(svc).catalog({'title': '', 'artist': '',
-            'releaseInfo': {'barcode': barcode, 'catalogNumber': catno}}))
-
-    def backup():
-        return releases(svc).backup(barcode, catno)
-
-    def settle(name, future):
-        try:
-            found = future.result()
-        except ValidationError as exc:
-            sources[name] = str(exc)
-            return []
-        sources[name] = 'found' if found else 'none'
-        return found
-
-    def settle_backup(future):
-        try:
-            found, name = future.result()
-        except ValidationError as exc:
-            sources[backup_label] = str(exc)
-            return []
-        if name: sources[name] = 'found' if found else 'none'
-        return found
-
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        mb = pool.submit(musicbrainz)
-        dc = None
-        try:
-            mb.exception(timeout=hedge)
-        except Slow:
-            dc = pool.submit(backup)
-        candidates = settle('musicbrainz', mb)
-        if not candidates:
-            candidates = settle_backup(dc or pool.submit(backup))
+def lookup_sources(svc, barcode, catno, exact):
+    """同时查所有适用来源（条码：MusicBrainz / Deezer / iTunes；编号：MusicBrainz / Discogs），总等待只取最慢的一个。
+    MusicBrainz 结果经 exact 精确过滤，其余来源本身只做精确匹配；再由 release_merge.merge 按条码 / 编号去重排序
+    （日本 JAN 只影响顺序）。sources 如实列出每个来源的结果；全部来源都不可用才报错。"""
+    from concurrent.futures import ThreadPoolExecutor
+    from .release_merge import merge
+    catalog = releases(svc)
+    jobs = [('musicbrainz', lambda: exact(catalog.catalog({'title': '', 'artist': '',
+            'releaseInfo': {'barcode': barcode, 'catalogNumber': catno}})))] + catalog.backups(barcode, catno)
+    sources, found = {}, {}
+    with ThreadPoolExecutor(max_workers=len(jobs)) as pool:
+        futures = [(name, pool.submit(job)) for name, job in jobs]
+        for name, future in futures:
+            try:
+                found[name] = future.result()
+            except ValidationError as exc:
+                sources[name] = str(exc)
+                continue
+            sources[name] = 'found' if found[name] else 'none'
+    candidates = merge(found, barcode)
     if not candidates and all(v not in ('none', 'found') for v in sources.values()):
         raise ValidationError('发行资料库暂时不可用，请稍后重试（' + '；'.join(sources.values()) + '）')
     return candidates, sources
 
 
 def api_barcode_lookup(h, svc, body):
-    """精确条形码检索 CD 发行版（MusicBrainz 优先，Deezer 备用），复用现有节流与缓存。"""
+    """精确条形码检索 CD 发行版（MusicBrainz / Deezer / iTunes 并发，合并去重），复用各来源的节流与缓存。"""
     barcode = body.get('barcode', '')
     from twins import clean_barcode
     barcode = clean_barcode(barcode)
@@ -397,6 +378,13 @@ def verify_barcode_release(svc, barcode, release_id):
     from twins import clean_barcode, UUID
     barcode = clean_barcode(barcode)
     if not barcode: raise ValidationError('请输入完整的条形码')
+    if isinstance(release_id, str) and release_id.startswith('itunes-'):
+        # iTunes 详情不回带条码：按条码重新精确检索，看这一条目在不在结果里。
+        catalog = releases(svc).itunes
+        if not catalog: raise ValidationError('iTunes 发行资料来源未启用')
+        if not catalog.has_barcode(release_id, barcode):
+            raise ValidationError('iTunes 中该条码不属于当前发行版本，请重新查询并选择正确版本')
+        return {'barcode': barcode, 'releaseId': release_id, 'valid': True}
     if isinstance(release_id, str) and (release_id.startswith('discogs-') or release_id.startswith('deezer-')):
         source = 'Discogs' if release_id.startswith('discogs-') else 'Deezer'
         published = releases(svc).release_details(release_id)
@@ -407,7 +395,8 @@ def verify_barcode_release(svc, barcode, release_id):
     if not isinstance(release_id, str) or not UUID.fullmatch(release_id):
         raise ValidationError('请先查询并选择对应的发行版本')
     published = releases(svc).release_details(release_id)
-    if clean_barcode(published.get('barcode', '')) != barcode:
+    # 12 位 UPC-A 与补零的 13 位 EAN 是同一个码
+    if clean_barcode(published.get('barcode', '')).lstrip('0') != barcode.lstrip('0'):
         raise ValidationError('MusicBrainz 中该条码不属于当前发行版本，请重新查询并选择正确版本')
     return {'barcode': barcode, 'releaseId': release_id, 'valid': True}
 

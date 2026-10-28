@@ -324,6 +324,11 @@ v3.6.22–v3.6.37 在补丁版本里改了 `MainActivity`（沉浸展示），�
   - 本机模式（D-019）不接 Deezer：它不返回 CORS 头，浏览器同步 XHR 取不到。
 - **何时重新评估**：Bandcamp 放宽反爬或开放官方 API 时，重新评估是否恢复名称检索；取得 ORICON API 或 VGMdb 官方 API 时补特摄限定盘。
 
+### D-028 补充（2026-10-29）：条码第三备用源 iTunes
+- **背景**：《Ride the Wind》（门矢士 CV.井上正大，JAN 4988064291892 / AVCA-29189）在 MusicBrainz、Deezer、Discogs 均无条目，iTunes `lookup?upc=` 日本区精确命中（标题、艺人、℗ 厂牌、发行日、曲目时长、封面）。
+- **决定**：条码链路改为 **MusicBrainz → Deezer → iTunes**，前一来源有结果即停、出错继续下一来源，`sources` 如实列出每个尝试过的来源；先日本区再美国区。新增身份字段 `itunesId`（候选 id `itunes-<collectionId>`），与 `deezerId` 同为数字发行语义：不写 CD、不填碟数；`collectionName` 去掉 Apple 附加的「 - Single / - EP」；厂牌取 ℗ 行去年份；封面文件名里的编号不当唱片编号。详情接口不回带条码，条码核对改为按条码重新精确检索、看条目是否在结果中。iTunes 返回 `Access-Control-Allow-Origin: *`，本机模式（D-019）同样接入。
+- **代价**：仍只有条码，唱片编号查不到；初回 / 限定盘的独立 JAN 若未上架数字版仍需手动录入。Apple 限流常回 403，按 60 秒冷却处理。
+
 ### D-019 补充（2026-10-28）：售卖识别进入安卓本机模式
 安卓外壳新增原生回环中继，本机模式可以组装售卖辅助（仅 OpenCode / DeepSeek 密钥通道）。浏览器静态站点没有中继，仍不含售卖照片识别。见 D-030。
 
@@ -370,3 +375,15 @@ v3.6.22–v3.6.37 在补丁版本里改了 `MainActivity`（沉浸展示），�
 - **证据边界**：闲鱼[官方反馈页](https://www.goofish.com/feedback)说明可粘贴截图，但不能外推到[商品发布页](https://www.goofish.com/publish)或 App。匿名发布页测试被拦截，公开发布脚本未提供可确认的图片粘贴证据；未登录实测，不宣称支持。[Clipboard 写入文档](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard/write)说明系统可能仅保留首个图片项，因此提供单张复制和全部保存，不伪装一键复制多图。
 - **长文阅读（2026-10-28，同日改为就地展开）**：超出预览高度（`--listing-preview-max`）时点正文或「展开全文」，卡片自身以 max-height 过渡增高，下方照片与设置顺势推下；不再用覆盖层（原覆盖方案在读长文时只有头部能收起、且要维护 inert/焦点/滚动三套状态）。收起条 `position:sticky` 吸附在滚动区底部；选中文字不触发；减少动态效果直接切换。原覆盖层组件 `ListingCopyReader` 已删除。
 - **兼容**：原照片 API 保留，带 photoRevision 的请求另行校验并与照片写入共用锁，避免获取混合版本。详情图标保持原样，新增全尺寸按钮样式通过 props 复用；复制文案也扩展既有 CopyButton。
+
+## D-033 · 条码 / 编号检索改为并发查询所有来源并合并
+- **日期**：2026-10-29
+- **状态**：生效中（取代 D-014 / D-028 的「MusicBrainz 无结果才查备用来源」串行回退）
+- **背景**：串行回退最坏要等各来源超时之和；而「先判断品类再选最全的库」的思路里，最全的日本库（VGMdb、Oricon、Tower、CDJapan）没有可用接口（VGMdb 对标准库请求返回 Cloudflare 403），可用来源只有四家，全部并发查询并不贵。
+- **决定**：
+  - `routes.lookup_sources` 同时执行 MusicBrainz 与 `ReleaseCatalog.backups(barcode, catno)` 列出的来源（条码：Deezer、iTunes；编号：Discogs），总等待取最慢的一个；各来源保留自己的节流、冷却与超时。
+  - 合并在 `server/release_merge.py`，只按标识精确去重，不按标题猜：实体（MusicBrainz、Discogs）在前、数字（Deezer、iTunes）在后；Discogs 与 MusicBrainz 编号且条码都相同才视为同一版本；数字发行与已列出实体版同码（左侧补零不计）时不另列卡片，记入每一条同码实体版的 `alsoIn`（每个来源只记一条）；同码实体版恰好一条且无自带封面时才借用数字封面。两条数字发行同码留资料更全的一条。同一来源内部不合并，MusicBrainz 同码多个版次（含私录借用条码）全部保留。
+  - 日本 JAN（13 位、45 / 49 开头）只用于排序：日本区实体版在前，iTunes 先于 Deezer；不用前缀决定查不查某个来源，免得判断错漏掉结果。
+  - 前端卡片显示「另见 …」链接；实体版无 CAA 正面图时先用合并来的同码数字封面，再借同专辑封面。
+- **代价**：每次条码查询都会请求 Deezer 与 iTunes（单用户量级可接受；iTunes 限流按 60 秒冷却）。本机模式的 `ThreadPoolExecutor` 是内联实现，仍串行执行。数字封面与实体版同码，但封面细节（初回贴纸等）不保证一致，仍以实物为准。
+- **何时重新评估**：接入第五个来源，或出现可用的 VGMdb / ORICON 接口时；届时考虑按 JAN 厂牌前缀决定是否追加日本专门来源。

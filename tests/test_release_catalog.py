@@ -25,6 +25,25 @@ class ReleaseCatalogTests(unittest.TestCase):
         self.assertIn('barcode', request.call_args.args[0])
         self.assertEqual(candidates[0]['releaseInfo']['country'], 'JP')
 
+    def test_leading_zero_ean_also_queries_registered_upc_a(self):
+        from urllib.parse import parse_qs, urlsplit
+        release = {'id': '33333333-3333-3333-3333-333333333333', 'title': 'Random Access Memories', 'barcode': '888837168618',
+                   'media': [{'format': 'CD'}], 'label-info': []}
+        for typed, other in (('0888837168618', '888837168618'), ('888837168618', '0888837168618')):
+            with self.subTest(typed=typed):
+                service = ReleaseCatalog()
+                with patch('server.release_catalog.read_json', return_value={'releases': [release]}) as request:
+                    [found] = service.catalog({'title': '', 'artist': '', 'releaseInfo': {'barcode': typed}})
+                query = parse_qs(urlsplit(request.call_args.args[0]).query)['query'][0]
+                self.assertEqual(query, f'barcode:("{typed}" OR "{other}")')
+                self.assertTrue(found['identifierMatch'])
+
+    def test_japanese_ean_is_queried_as_is(self):
+        from urllib.parse import parse_qs, urlsplit
+        with patch('server.release_catalog.read_json', return_value={'releases': []}) as request:
+            ReleaseCatalog().catalog({'title': '', 'artist': '', 'releaseInfo': {'barcode': '4988064291892'}})
+        self.assertEqual(parse_qs(urlsplit(request.call_args.args[0]).query)['query'][0], 'barcode:"4988064291892"')
+
     def test_short_musicbrainz_rate_limit_is_retried_once(self):
         from musicbrainz import RateLimited
         calls = []

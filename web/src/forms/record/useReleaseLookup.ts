@@ -80,7 +80,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
     const timer = window.setTimeout(() => controller.abort(), 70000);
     const current = () => seq === sequence.current && !!formRef.current?.isConnected;
     setBusy(true); cover.setBusy(false); setCandidates([]); setNotFound(false);
-    setMessage('查询中 · MusicBrainz，无结果时转 Discogs');
+    setMessage(kind === 'barcode' ? '查询中 · MusicBrainz / Deezer / iTunes' : '查询中 · MusicBrainz / Discogs');
     const what = kind === 'barcode' ? '条码' : '编号';
     const promise = (async () => {
       try {
@@ -97,7 +97,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
           setNotFound(true);
           setMessage(note
             ? `未找到，${note} 暂不可用，结果可能不全`
-            : `两个资料库都没有这个${what}`);
+            : `各资料库都没有这个${what}`);
         }
       } catch (err) {
         if (!current()) return;

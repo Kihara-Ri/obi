@@ -45,6 +45,11 @@ class VerificationTests(unittest.TestCase):
         self.assertEqual(self.h.send.call_args.args[0]['valid'],True)
         self.source.release_details.assert_called_once_with(EDITION)
 
+    def test_upc_a_registered_release_accepts_zero_padded_ean(self):
+        self.source.release_details.return_value = {'barcode': '888837168618'}
+        api_verify_barcode(self.h, self.svc, {'barcode': '0888837168618', 'releaseId': EDITION})
+        self.assertTrue(self.h.send.call_args.args[0]['valid'])
+
     def test_changed_barcode_fails_if_musicbrainz_release_does_not_match(self):
         original=self.edited(BARCODE)
         with self.assertRaisesRegex(ValidationError, '不属于当前发行版本'):
@@ -64,6 +69,21 @@ class VerificationTests(unittest.TestCase):
         self.source.release_details.assert_called_once_with('discogs-7714607')
         with self.assertRaisesRegex(ValidationError, 'Discogs 中该条码'):
             self.save(self.new_record(barcode=BARCODE, discogsReleaseId='7714607'))
+
+    def test_new_deezer_release_is_verified_against_deezer_barcode(self):
+        self.source.release_details.return_value = {'barcode':'4582213912173'}
+        self.save(self.new_record(barcode='4582213912173', deezerId='7714607'))
+        self.source.release_details.assert_called_once_with('deezer-7714607')
+        with self.assertRaisesRegex(ValidationError, 'Deezer 中该条码'):
+            self.save(self.new_record(barcode=BARCODE, deezerId='7714607'))
+
+    def test_new_itunes_release_is_verified_by_barcode_search(self):
+        self.source.itunes = SimpleNamespace(has_barcode=Mock(side_effect=lambda ident, code: code == '4988064291892'))
+        self.save(self.new_record(barcode='4988064291892', itunesId='1458696389'))
+        self.source.itunes.has_barcode.assert_called_once_with('itunes-1458696389', '4988064291892')
+        with self.assertRaisesRegex(ValidationError, 'iTunes 中该条码'):
+            self.save(self.new_record(barcode=BARCODE, itunesId='1458696389'))
+        self.assertFalse(self.source.release_details.called)
 
     def test_manual_release_saves_without_catalog_verification(self):
         self.save(self.new_record(manualRelease='1'))

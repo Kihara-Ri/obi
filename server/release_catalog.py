@@ -42,10 +42,11 @@ def read_json(url, timeout=35):
 
 
 class ReleaseCatalog:
-    def __init__(self, mb=None, discogs=None, deezer=None):
+    def __init__(self, mb=None, discogs=None, deezer=None, itunes=None):
         self.mb = mb
         self.discogs = discogs   # 编号备用来源
-        self.deezer = deezer     # 条码备用来源（日本 CD 的 JAN 与数字版 UPC 同码）
+        self.deezer = deezer     # 条码来源（日本 CD 的 JAN 与数字版 UPC 同码）
+        self.itunes = itunes     # 条码来源（日本动画 / 特摄角色盘常只在 Apple Music）
         self.catalog_lock = threading.Lock(); self.catalog_at = 0; self.catalog_cache = {}
         self.release_cache = {}
 
@@ -84,9 +85,11 @@ class ReleaseCatalog:
         numbers = [l.get('catalog-number','') for l in labels if l.get('catalog-number')]
         digits = lambda s: re.sub(r'\D','',s)
         norm = lambda s:re.sub(r'[^\w]','',s).casefold()
-        matched = bool(barcode and digits(barcode) and digits(barcode)==digits(r.get('barcode','')) or catno and any(norm(catno)==norm(n) for n in numbers))
+        # UPC-A（12 位）与补零后的 EAN-13 是同一个码：比较时去掉前导零
+        code = lambda s: digits(s).lstrip('0')
+        matched = bool(barcode and code(barcode) and code(barcode)==code(r.get('barcode','')) or catno and any(norm(catno)==norm(n) for n in numbers))
         if barcode and catno:
-            matched = digits(barcode)==digits(r.get('barcode','')) and any(norm(catno)==norm(n) for n in numbers)
+            matched = code(barcode)==code(r.get('barcode','')) and any(norm(catno)==norm(n) for n in numbers)
         ri = clean_release_info({'catalogNumber':' / '.join(numbers), 'barcode':r.get('barcode',''),
             'label':' / '.join(l.get('label',{}).get('name','') for l in labels if l.get('label')),
             'country':r.get('country',''), 'releaseDate':'' if re.fullmatch(r'[0-]*', str(r.get('date') or '')) else r.get('date',''), 'edition':r.get('disambiguation',''),
@@ -98,7 +101,11 @@ class ReleaseCatalog:
     def catalog(self, fields):
         info = fields['releaseInfo']; barcode = info.get('barcode',''); catno = info.get('catalogNumber','')
         quote = lambda s:'"' + re.sub(r'([\\"+\-!():^\[\]{}~*?|&/])',r'\\\1',s) + '"'
-        if barcode: query = 'barcode:' + quote(barcode)
+        if barcode:
+            # MusicBrainz 按登记原样索引：美国盘常登记为 12 位 UPC-A，扫到的却是补零的 13 位 EAN（反之亦然），两种写法都查
+            digits = re.sub(r'\D', '', barcode)
+            twin = digits[1:] if len(digits) == 13 and digits[0] == '0' else '0' + digits if len(digits) == 12 else ''
+            query = 'barcode:' + (f'({quote(digits)} OR {quote(twin)})' if twin else quote(barcode))
         elif catno: query = 'catno:' + quote(catno)
         elif fields['title'] and fields['artist']: query = 'release:' + quote(fields['title']) + ' AND artist:' + quote(fields['artist'])
         else: return []
@@ -111,20 +118,16 @@ class ReleaseCatalog:
             self.catalog_cache[query] = result
             return result
 
-    def fallback(self, barcode='', catno=''):
-        """MusicBrainz 无精确匹配时的备用检索。
-        条码只查 Deezer（Discogs 的搜索接口不索引条码，查了也永远为空）；
-        编号只查 Discogs（Deezer 没有编号索引）。未配置备用来源则返回空。"""
-        found, _ = self.backup(barcode, catno)
-        return found
-
-    def backup(self, barcode='', catno=''):
-        """返回 (候选, 实际来源名)；没有可用备用来源时来源名为空。"""
-        if barcode and self.deezer:
-            return self.deezer.search(barcode=barcode), 'deezer'
-        if not barcode and catno and self.discogs:
-            return self.discogs.search(catno=catno), 'discogs'
-        return [], ''
+    def backups(self, barcode='', catno=''):
+        """MusicBrainz 之外要同时查的来源：[(来源名, 无参检索函数)]，由 routes.lookup_sources 并发执行。
+        条码查 Deezer、iTunes（Discogs 的搜索接口不索引条码，查了也永远为空）；
+        编号只查 Discogs（Deezer / iTunes 没有编号索引）。未配置的来源不列出。"""
+        if barcode:
+            chain = [('deezer', self.deezer), ('itunes', self.itunes)]
+            return [(name, lambda c=client: c.search(barcode=barcode)) for name, client in chain if client]
+        if catno and self.discogs:
+            return [('discogs', lambda: self.discogs.search(catno=catno))]
+        return []
 
     def release_details(self, ident):
         if isinstance(ident,str) and ident.startswith('discogs-'):
@@ -133,6 +136,9 @@ class ReleaseCatalog:
         if isinstance(ident,str) and ident.startswith('deezer-'):
             if not self.deezer: raise ValidationError('Deezer 发行资料来源未启用')
             return self.deezer.release_details(ident)
+        if isinstance(ident,str) and ident.startswith('itunes-'):
+            if not self.itunes: raise ValidationError('iTunes 发行资料来源未启用')
+            return self.itunes.release_details(ident)
         if not isinstance(ident,str) or not re.fullmatch(r'[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}',ident):
             raise ValidationError('发行版本编号不正确')
         with self.catalog_lock:

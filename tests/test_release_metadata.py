@@ -36,7 +36,8 @@ class ReleaseMetadataTests(unittest.TestCase):
         candidate = lambda name: {'id': name, 'identifierMatch': True,
                                   'releaseInfo': {'catalogNumber': name}}
         svc = SimpleNamespace(releases=SimpleNamespace(catalog=Mock(return_value=[
-            candidate('AMCY-2434'), candidate('AMCY-243'), candidate('OTHER-13')])) )
+            candidate('AMCY-2434'), candidate('AMCY-243'), candidate('OTHER-13')]),
+            backups=lambda barcode, catno: []))
         api_catalog_number_lookup(http, svc, {'catalogNumber':'AMCY-2434'})
         result = http.send.call_args.args[0]
         self.assertEqual([c['id'] for c in result['candidates']], ['AMCY-2434'])

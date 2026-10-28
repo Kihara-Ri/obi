@@ -30,7 +30,7 @@ class ConflictError(ValidationError, EngineConflictError):
 
 RELEASE_FIELDS = ('catalogNumber', 'barcode', 'label', 'country', 'releaseDate', 'packaging',
                   'edition', 'format', 'discCount', 'matrix', 'extras', 'observations', 'musicBrainzReleaseId',
-                  'discogsReleaseId', 'deezerId', 'manualRelease', 'unofficial')
+                  'discogsReleaseId', 'deezerId', 'itunesId', 'manualRelease', 'unofficial')
 
 
 def clean_release_info(value):
@@ -49,11 +49,13 @@ def clean_release_info(value):
         raise ValidationError('Discogs 发行版本编号不正确')
     if result['deezerId'] and not re.fullmatch(r'[1-9][0-9]{0,9}', result['deezerId']):
         raise ValidationError('Deezer 发行版本编号不正确')
+    if result['itunesId'] and not re.fullmatch(r'[1-9][0-9]{0,11}', result['itunesId']):
+        raise ValidationError('iTunes 发行版本编号不正确')
     if result['manualRelease'] not in ('', '1'): raise ValidationError('手动录入标记不正确')
     if result['unofficial'] not in ('', '1'): raise ValidationError('非官方发行标记不正确')
     if result['unofficial']:
-        # 私版没有资料库条目：只能是手动录入，不能同时绑定 MusicBrainz / Discogs / Deezer 版本
-        if release_id or result['discogsReleaseId'] or result['deezerId']:
+        # 私版没有资料库条目：只能是手动录入，不能同时绑定 MusicBrainz / Discogs / Deezer / iTunes 版本
+        if release_id or result['discogsReleaseId'] or result['deezerId'] or result['itunesId']:
             raise ValidationError('非官方发行不能绑定资料库版本')
         result['manualRelease'] = '1'
     tracks = value.get('tracklist', [])

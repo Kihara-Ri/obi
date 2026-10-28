@@ -41,8 +41,8 @@ export function ReleaseCandidateCard({c, fold, tag, fallbackArt, children}: {c: 
   const chain = useMemo(() => {
     const own = ownCoverBase(c);
     const list: Art[] = own ? [caaArt(own, 'own')] : [];
-    // Deezer 候选在搜索摘要里就带回了自己的封面，直接用，不再借同专辑的图。
-    if (!own && c.cover) list.push({small: c.coverSmall || c.cover, big: c.cover, kind: 'platform'});
+    // Deezer / iTunes 候选在搜索摘要里就带回了自己的封面；实体版没有 CAA 正面图时，接着用合并来的同码数字封面，再借同专辑的图。
+    if (c.cover) list.push({small: c.coverSmall || c.cover, big: c.cover, kind: 'platform'});
     if (fallbackArt) list.push(/front-\d+$/.test(fallbackArt) ? caaArt(fallbackArt.replace(/front-\d+$/, ''), 'album') : urlArt(fallbackArt, 'album'));
     return list;
   }, [c.id, c.source, c.cover, c.coverSmall, fallbackArt]);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -136,7 +136,7 @@ export function ReleaseCandidateCard({c, fold, tag, fallbackArt, children}: {c: 
 
   const i0 = c.releaseInfo;
   const body = <>
-    <ReleaseSummary title={c.title} artist={c.artist} info={c.releaseInfo} source={sourceName(c.releaseInfo)} url={c.url} art={art} origin={artState === 'ok' ? origin : null} headless={fold}/>
+    <ReleaseSummary title={c.title} artist={c.artist} info={c.releaseInfo} source={sourceName(c.releaseInfo)} url={c.url} alsoIn={c.alsoIn} art={art} origin={artState === 'ok' ? origin : null} headless={fold}/>
     <button type="button" className="rcc-more" aria-expanded={open} onClick={toggle}>
       <span>曲目与版本资料</span><i aria-hidden="true">{open ? '−' : '+'}</i>
     </button>
