@@ -3,6 +3,8 @@
 // 实物照片（HEIC 压缩）、碟盒/版次/侧标联动。各区块与逻辑拆在 forms/record/。
 import {useEffect, useRef, useState} from 'react';
 import {api} from '../core/api';
+import {confirmedPackagingName} from '../core/album-packaging';
+import type {RecordMetadataSave} from '../core/record-metadata';
 import {today} from '../core/format';
 import {releaseRegion} from '../core/release-metadata';
 import {prefs} from '../core/prefs';
@@ -15,7 +17,7 @@ import {ShopField} from '../components/ShopField';
 import {TextareaField} from './fields';
 import {usePhotoSlots} from './PhotoSlots';
 import {useFormSubmit} from './shared';
-import {buildPayload} from './record/buildPayload';
+import {buildMetadataPayload, buildPayload} from './record/buildPayload';
 import {initialValues, seedFields, type FormCtx, type RecordValues} from './record/context';
 import {applyCover} from './record/pickRelease';
 import {matchReleaseCover} from './record/releaseCover';
@@ -98,13 +100,22 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
       setError('发行版本已改变，请重新查询并选择 MusicBrainz 发行版');return;
     }
     if (lookup.busy) {setError('正在检索发行资料，请稍候');return;}
+    if (!confirmedPackagingName(v.version, v.packaging, v.releaseInfo.packaging)) {
+      setError('请选择这张专辑的实物包装后保存');
+      const field = formRef.current?.querySelector<HTMLElement>('#record-packaging');
+      field?.scrollIntoView({block: 'center'});
+      field?.querySelector<HTMLButtonElement>('button')?.focus({preventScroll: true});
+      return;
+    }
     if (japan && v.obi !== '带侧标' && v.obi !== '无侧标') { setError('日版请选择这张副本是带侧标还是无侧标'); return; }
     if (cover.busy) {setError('封面还在匹配中（通常约 10 秒），稍候再保存；也可以之后在编辑里补封面');return;}
     if (photos.hasPending) { setError('还有照片在处理中，等缩略图就绪后再保存'); return; }
     run(app, async () => {
       const values = japan ? v : {...v, obi: base.current.obi || ''};
-      await api('records', buildPayload(base.current, values, where, photos.slots, modules.acquisition && !id));
-    }, '已保存', {backOnSave: !!id});
+      if (id) app.applyRecordMetadata(await api<RecordMetadataSave>('records/metadata',
+        buildMetadataPayload(base.current, values, photos.slots)));
+      else await api('records', buildPayload(base.current, values, where, photos.slots, modules.acquisition));
+    }, '已保存', {backOnSave: !!id, refresh: !id});
   };
 
   return (
@@ -133,7 +144,7 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
         </div> : null}
         {id && !mbId && dupHint ? <p className="dup-hint">{dupHint}</p> : null}
         <h3 className="section-title form-group-title">这一张</h3>
-        <PackageReview ctx={ctx} record={r}/>
+        {id || identified ? <PackageReview ctx={ctx}/> : null}
         {japan ? <CopyEditionFields obi={v.obi} onChange={change => { set(change); dirty(); }}/> : null}
         {/* 编辑已有专辑时不含买入信息：钱的部分在「管理」里编辑（PurchaseForm） */}
         {!id && (modules.acquisition || modules.circulation) ? <>

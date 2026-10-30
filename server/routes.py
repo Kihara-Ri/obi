@@ -13,7 +13,7 @@ import threading
 from urllib.parse import parse_qs, urlsplit
 
 from domain import ValidationError, clean_start_page
-from storage import SCHEMA
+from storage import SCHEMA, metadata_update
 from . import archive, export_csv
 from .artists import SourceUnavailableError
 from .state_sync import send_state
@@ -261,7 +261,11 @@ def api_artists_artwork(h, svc):
 
 
 # ── POST：账本写操作（全部走 WRITE_LOCK）────────────────────────────
-def api_records(h, svc, body):
+def api_record_metadata(h, svc, body):
+    api_records(h, svc, metadata_update(body), metadata_only=True)
+
+
+def api_records(h, svc, body, *, metadata_only=False):
     # Discover only newly recorded purchase channels, after the ledger write commits.
     # The model can only suggest a favicon; it never overwrites the entered location.
     incoming = body.get('items') if isinstance(body, dict) and 'items' in body else [body]
@@ -269,10 +273,13 @@ def api_records(h, svc, body):
     proposed = {str(item.get('location', '')).strip() for item in incoming if isinstance(item, dict)}
     proposed.discard('')
     from .shop_brands import normalize
-    with closing(svc.store.connect()) as db, db:
-        recorded = {normalize(r.get('location', '')) for r in svc.store.rows(db, 'records')}
+    recorded = set()
+    if not metadata_only:
+        with closing(svc.store.connect()) as db, db:
+            recorded = {normalize(r.get('location', '')) for r in svc.store.rows(db, 'records')}
     for item in incoming:
         if not isinstance(item, dict): continue
+        if metadata_only and 'releaseInfo' not in item: continue
         info = item.get('releaseInfo') or {}
         if not isinstance(info, dict): continue
         new_barcode = info.get('barcode') or ''
@@ -298,8 +305,8 @@ def api_records(h, svc, body):
                     raise ValidationError('该发行版在 MusicBrainz 中有条码，不能直接清除；请重新选择发行版')
             elif not new_edition and (old_edition or new_barcode):
                 raise ValidationError('条码或发行版本已修改，请重新查询并确认发行版')
-    h.send(svc.store.save(body))
-    if svc.shops:
+    h.send(svc.store.save(body, metadata_only=True) if metadata_only else svc.store.save(body))
+    if svc.shops and not metadata_only:
         for name in proposed:
             if normalize(name) not in recorded:
                 try: svc.shops.schedule(name)
@@ -602,6 +609,7 @@ POST = {
     '/api/artists/work-link': (api_artists_work_link, True, False),
     '/api/artists/work-unlink': (api_artists_work_unlink, True, False),
     '/api/records': (api_records, True, True),
+    '/api/records/metadata': (api_record_metadata, True, True),
     '/api/album-favorites': (api_album_favorite, True, True),
     '/api/bulk': (api_bulk, True, True),
     '/api/sales': (api_sales, True, True),

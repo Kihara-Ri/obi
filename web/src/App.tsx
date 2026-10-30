@@ -1,8 +1,7 @@
 // 应用外壳：状态装配与刷新、hash 路由、页面分发。抽屉栈、切页动画、导航、PWA 各在自己的 hook / 组件里。
 import {useCallback, useDeferredValue, useEffect, useRef, useState} from 'react';
 import {ApiError} from './core/api';
-import {fetchState} from './core/state-sync';
-import type {StateSnapshot} from './core/state-sync';
+import {useLedgerState} from './state/useLedgerState';
 import {homePage, LEGACY_MODULES, normalizeModules, pageEnabled, PRESETS} from './core/modules';
 import {applyThemePref, themePref} from './core/theme';
 import type {ThemePref} from './core/theme';
@@ -15,7 +14,7 @@ import {useAlbumEngine} from './state/useAlbumEngine';
 import {useDrawerStack} from './state/useDrawerStack';
 import {useShelfView} from './state/useShelfView';
 import type {AppCtx} from './state/AppContext';
-import type {AppState, SortMode} from './types';
+import type {SortMode} from './types';
 import {MobileNav, navCounts, Sidebar} from './components/AppNav';
 import {Drawer} from './components/ui/Drawer';
 import {Lightbox} from './components/ui/Lightbox';
@@ -40,7 +39,7 @@ const GalleryPage = lazyPage(() => import('./pages/GalleryPage').then(m => m.Gal
 
 export default function App() {
   const route = useHashRoute();
-  const [state, setState] = useState<AppState | null>(null);
+  const {state, refresh, applyRecordMetadata} = useLedgerState();
   const [fatal, setFatal] = useState('');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<SortMode>('new');
@@ -65,15 +64,6 @@ export default function App() {
   const showcaseTab = Boolean(modules?.showcase) && home === 'gallery';
   const albumEngine = useAlbumEngine();
   const twinState = useDigitalTwins(!!modules?.showcase);
-
-  // 带上次的 ETag 拉状态：没变（304）不重渲染；有变只收变化的行，在本地拼回完整状态（core/state-sync.ts）
-  const snapshot = useRef<StateSnapshot | null>(null);
-  const refresh = useCallback(async () => {
-    const next = await fetchState(snapshot.current);
-    if (!next) return;
-    snapshot.current = next;
-    setState(next.state);
-  }, []);
 
   // 首次加载：401 → 登录页；失败 → 重试界面。页面 chunk 与状态并行加载，都到齐才出首屏。
   const [pagesLoaded, setPagesLoaded] = useState(false);
@@ -161,7 +151,7 @@ export default function App() {
     selected, setSelected,
     theme, setTheme,
     rec: id => state.records.find(r => r.id === id),
-    refresh, toast, albumEngine, ...twinState,
+    refresh, applyRecordMetadata, toast, albumEngine, ...twinState,
     openDrawer, closeDrawer, backDrawer, closeDrawerAndGo, setDrawerDirty,
   };
 

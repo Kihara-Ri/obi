@@ -6,6 +6,7 @@ import type {AlbumEngineState} from './useAlbumEngine';
 import type {ReactNode} from 'react';
 import type {ThemePref} from '../core/theme';
 import type {AlbumRecord, AppState, ModuleFlags, SortMode, TwinIndex} from '../types';
+import type {RecordMetadataSave} from '../core/record-metadata';
 
 export interface DrawerSpec {
   title: string;
@@ -42,6 +43,7 @@ export interface AppCtx {
   theme: ThemePref; setTheme(v: ThemePref): void;
   rec(id: string): AlbumRecord | undefined;
   refresh(): Promise<void>;
+  applyRecordMetadata(saved: RecordMetadataSave): void;
   albumEngine: AlbumEngineState;
   twins: TwinIndex;
   twinSyncError: string;

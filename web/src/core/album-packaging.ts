@@ -66,6 +66,15 @@ export function formatPackagingName(version: string, spec?: PackagingSpec | null
   return albumPackaging(version, spec).label || version;
 }
 
+/** 编辑保存的包装必选校验；保留来源原文，未知占位不当作已确认的实物形态。 */
+export function confirmedPackagingName(version: string, spec?: PackagingSpec | null, catalog = ''): string {
+  if (spec?.structure === 'unknown' || version.trim() === '待核对') return '';
+  const known = (text: string) => !/^(?:\[?unknown\]?|待核对|不清楚)$/i.test(text.trim()) && !!text.trim();
+  const physical = formatPackagingName(version, spec).trim();
+  if (known(physical)) return physical;
+  return known(catalog) ? catalog.trim() : '';
+}
+
 export function packagingPreset(version: string, spec?: PackagingSpec | null): string {
   const model = albumPackaging(version, spec);
   if (model.kind === 'unknown') return version || spec?.structure === 'unknown' ? '__custom' : '__none';

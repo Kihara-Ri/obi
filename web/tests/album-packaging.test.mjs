@@ -9,6 +9,18 @@ const {output, source, require} = compiledSources();
 const packaging = require(join(output, 'core/album-packaging.js'));
 const assets = require(join(output, 'core/album-model-assets.js'));
 
+test('保存必选包装：空值和资料库未知占位不能算已确认，已有包装和结构可以沿用', () => {
+  assert.equal(packaging.confirmedPackagingName('', null, ''), '');
+  assert.equal(packaging.confirmedPackagingName('', null, ' [unknown] '), '');
+  assert.equal(packaging.confirmedPackagingName('待核对', {structure: 'unknown'}, ''), '');
+  assert.equal(packaging.confirmedPackagingName('Jewel Case', {structure: 'unknown'}, 'Jewel Case'), '');
+  assert.equal(packaging.confirmedPackagingName('Jewel Case', null, ''), 'Jewel Case');
+  assert.equal(packaging.confirmedPackagingName('', null, 'Cardboard/Paper Sleeve'), 'Cardboard/Paper Sleeve');
+  assert.equal(packaging.confirmedPackagingName('', {structure: 'digibook'}, ''), 'Digibook');
+  assert.equal(packaging.confirmedPackagingName('Keep Case', null, ''), 'Keep Case');
+  assert.equal(packaging.confirmedPackagingName('', null, 'None'), 'None');
+});
+
 test('真实模型按结构和托盘选择，2CD 不使用 Fatbox，未知不使用塑料盒', () => {
   assert.equal(assets.albumModelAsset(packaging.albumPackaging('2CD Jewel Case')), '/models/packaging/jewel-swing-2.glb');
   assert.equal(assets.albumModelAsset(packaging.albumPackaging('Multi-CD Jewel Case')), '/models/packaging/jewel-fat.glb');

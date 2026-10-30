@@ -102,6 +102,9 @@ class RateService:
             try:
                 found = self.fetch(start, day)
             except RateUnavailable:
+                # A failed provider must not be retried for every read/save in the
+                # same outage. Keep missing costs unknown and retry after 5 minutes.
+                self._remember_lookups([day], {})
                 return None
             self._store(found)
             self._remember_lookups([day], found)
@@ -122,7 +125,9 @@ class RateService:
                     self._store(found)
                     self._remember_lookups(chunk, found)
                 except RateUnavailable:
-                    pass
+                    # state() calls get() for each date after warm(); without this
+                    # cooldown one timeout fans out into N more blocking requests.
+                    self._remember_lookups(chunk, {})
 
     def status(self):
         if not self.cache_path:

@@ -20,6 +20,20 @@ from twins import TWIN_KEY, SKILL_VERSION, ID as TWIN_ID, ASSET as TWIN_ASSET, U
 SCHEMA = 4
 # 随 /api/state 下发的设置：前端只读展示分组（core/gallery.ts）。新增前端读取的设置要在这里登记。
 STATE_SETTINGS = ('showcase-groups-v1',)
+
+# Metadata-only editor contract; never accepts purchase/status/derived money.
+RECORD_METADATA_FIELDS = ('title', 'artist', 'cover', 'coverSource', 'version', 'packaging',
+                          'pressing', 'obi', 'note', 'noteAlbum', 'storage', 'releaseInfo')
+
+
+def metadata_update(data):
+    if not isinstance(data, dict) or not data.get('id') or 'revision' not in data:
+        raise ValidationError('编辑专辑需要现有记录与版本号')
+    if set(data) - {'id', 'revision', 'photos', *RECORD_METADATA_FIELDS}:
+        raise ValidationError('编辑专辑仅保存资料和照片；买入信息请在管理中修改')
+    return dict(data)
+
+
 SHIPMENT_STATUSES = ('transit', 'arrived', 'cancelled')
 SALE_STATUSES = ('shipping', 'complete', 'cancelled', 'returned', 'refunded')
 PHOTO_RE = re.compile(r'^data:image/(jpeg|png|webp);base64,')
@@ -504,7 +518,8 @@ class Store:
         (self.covers_dir / (digest + ext)).write_bytes(raw)
         r['cover'] = f'/api/cover/{digest}{ext}'
         return r
-    def save(self, data):
+    def save(self, data, *, metadata_only=False):
+        if metadata_only: data = metadata_update(data)
         items=data.get('items')
         if items is None: items=[data]
         if not items or len(items)>500: raise ValidationError('一次可录入 1–500 张专辑')
@@ -571,6 +586,17 @@ class Store:
             # Editing a copy's title does not rekey an existing album.
             self._album_catalog(db)
         for rid,plan in plans:self.apply_photos(rid,plan)
+        if metadata_only:
+            # Return canonical editor fields (including shared notes), not state():
+            # state() invokes the rate service and derives the entire ledger.
+            with closing(self.connect()) as db:
+                saved = self.get(db, 'records', result[0])
+                affected = [r for r in self.rows(db, 'records') if r['id'] == saved['id'] or
+                            'noteAlbum' in data and (r['title'], r['artist']) == (saved['title'], saved['artist'])]
+                fields = ('id', 'revision', 'photoCount', 'photoRevision', *RECORD_METADATA_FIELDS)
+                records = [{k: r[k] for k in fields if k in r} for r in affected]
+                audit = [dict(r) for r in db.execute('SELECT * FROM audit ORDER BY id DESC LIMIT 100')][::-1]
+            return {'ids': result, 'records': records, 'audit': audit}
         return {'ids':result}
     def save_listing_draft(self, data):
         """草稿只改本副本售卖资料，不触碰上架标记或发行资料。"""

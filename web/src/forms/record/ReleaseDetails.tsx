@@ -1,43 +1,43 @@
-// 发行资料编辑区：「发行资料 · 查看及更正」折叠区（专辑层）；包装结构「待核对」的确认下拉是副本层，单独导出 PackageReview。
+// 发行资料与实物包装分开：缺包装时直接展示必选图标，已知包装可就地更换。
+import {useState} from 'react';
 import {ReleaseMetadataFields} from '../../components/ReleaseMetadataFields';
 import {PackagingPicker} from '../../components/PackagingIcon';
-import {PACKAGING_PRESETS, formatPackagingName} from '../../core/album-packaging';
+import {Details} from '../../components/ui/Details';
+import {PACKAGING_PRESETS, confirmedPackagingName, packagingDisplay} from '../../core/album-packaging';
 import {releaseRegion} from '../../core/release-metadata';
-import type {AlbumRecord} from '../../types';
 import type {FormCtx} from './context';
 
 export function ReleaseDetails({ctx, show, onUnofficial}: {ctx: FormCtx; show: boolean; onUnofficial: (on: boolean) => void}) {
   const {v, set, dirty} = ctx;
   return <>
     {show ? <ReleaseMetadataFields info={v.releaseInfo} oldPressing={v.pressing}
-      omit={['barcode', 'catalogNumber']} onUnofficial={onUnofficial}
-      packagingFallback={v.packaging?.structure === 'unknown' || v.version === '待核对' ? '' : formatPackagingName(v.version, v.packaging)} onChange={(key, value) => {
+      omit={['barcode', 'catalogNumber', 'packaging']} onUnofficial={onUnofficial}
+      onChange={(key, value) => {
       const next = {...v.releaseInfo, [key]: value};
-      const preset = key === 'packaging' ? PACKAGING_PRESETS.find(p => p.label === value) : undefined;
       set({releaseInfo: next,
-        ...(key === 'packaging' ? {version: value,
-          ...(preset ? {packaging: {...v.packaging, ...preset.spec}} : {})} : {}),
         ...(key === 'country' ? {pressing: releaseRegion(value)} : {})});
       dirty();
     }}/> : null}
   </>;
 }
 
-/** 包装结构仍是「待核对」时，让用户确认实际包装（不猜测折叠结构）；属于「这一张」。 */
-export function PackageReview({ctx, record}: {ctx: FormCtx; record?: AlbumRecord}) {
+/** 资料库缺包装与旧记录待核对都走同一必选入口，不从照片或数字发行推断。 */
+export function PackageReview({ctx}: {ctx: FormCtx}) {
   const {v, set, dirty} = ctx;
-  return <>
-    {(v.version === '待核对' || v.packaging?.structure === 'unknown') ? (
-      <div className="form-section field record-package-review">
-        <span className="field-label">包装结构待核对，请点选实际包装 · 原记录：{record?.legacyPackaging || record?.version || '未知'}</span>
-        <PackagingPicker value="" onPick={label => {
-          const preset = PACKAGING_PRESETS.find(p => p.label === label);
-          if (!preset) return;
-          set({version: preset.label, packaging: {...v.packaging, ...preset.spec},
-            releaseInfo: {...v.releaseInfo, packaging: preset.label}});
-          dirty();
-        }}/>
-      </div>
-    ) : null}
-  </>;
+  const [expanded, setExpanded] = useState(false);
+  const name = confirmedPackagingName(v.version, v.packaging, v.releaseInfo.packaging);
+  const picker = <PackagingPicker required value={name} onPick={label => {
+    const preset = PACKAGING_PRESETS.find(p => p.label === label);
+    if (!preset) return;
+    set({version: preset.label, packaging: {...v.packaging, ...preset.spec},
+      releaseInfo: {...v.releaseInfo, packaging: preset.label}});
+    setExpanded(true);
+    dirty();
+  }}/>;
+  return <section id="record-packaging" className="form-section field record-package-review" tabIndex={-1}>
+    {!name ? <><span className="field-label">请选择实物包装 · 必选</span>{picker}</>
+      : <Details summary={<>实物包装 · {packagingDisplay(name).name}</>} open={expanded} onOpenChange={setExpanded}>
+        {picker}
+      </Details>}
+  </section>;
 }

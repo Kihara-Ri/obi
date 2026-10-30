@@ -67,6 +67,21 @@ class SampleLibraryTests(unittest.TestCase):
         self.assertEqual(len(st['sales']), 2)
         self.assertEqual(len(st['shipments']), 1)
 
+    def test_packaging_review_scenario_preserves_roster_and_money(self):
+        with tempfile.TemporaryDirectory() as folder:
+            data = Path(folder)
+            ids = self.seed.seed(data)
+            store = self.seed.open_store(data)
+            before = next(r for r in store.state()['records'] if r['id'] == ids['ex-all-time'])
+            self.seed.seed_packaging_review(data)
+            after = next(r for r in store.state()['records'] if r['id'] == ids['ex-all-time'])
+            self.assertEqual(len(store.state()['records']), 21)
+            self.assertEqual(after['version'], '')
+            self.assertFalse(after.get('packaging'))
+            self.assertFalse(after['releaseInfo']['packaging'])
+            for key in ('price', 'date', 'currency', 'status', 'photoCount'):
+                self.assertEqual(after.get(key), before.get(key), key)
+
     def test_unknown_cost_is_null_not_zero_and_profit_excluded(self):
         self.assertEqual(self.record('minecraft')['cost'], None)
         self.assertEqual(self.record('moon')['cost'], None)

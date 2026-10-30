@@ -504,7 +504,7 @@ class RateServiceTests(unittest.TestCase):
                         'date':'2026-03-02','price':'2000'})
             for _ in range(2):self.assertIsNone(store.state()['records'][0]['cost'])
             self.assertEqual(len(calls),1)
-    def test_failed_warm_can_retry(self):
+    def test_failed_warm_retries_after_cooldown_without_repeating_per_date(self):
         from rates import RateUnavailable
         calls=[]
         def fetch(s,e):
@@ -512,9 +512,31 @@ class RateServiceTests(unittest.TestCase):
             if len(calls)==1:raise RateUnavailable('down')
             return {'2026-03-02':'4.5'}
         svc=RateService(fetch=fetch)
-        svc.warm(['2026-03-02'])
-        svc.warm(['2026-03-02'])
+        with patch('rates.monotonic',return_value=1000):
+            svc.warm(['2026-03-02', '2026-03-03'])
+            self.assertIsNone(svc.get('2026-03-02'))
+            self.assertIsNone(svc.get('2026-03-03'))
+            svc.warm(['2026-03-02', '2026-03-03'])
+        self.assertEqual(len(calls),1)
+        with patch('rates.monotonic',return_value=1301):svc.warm(['2026-03-02'])
         self.assertEqual(svc.get('2026-03-02'),'4.5')
+        self.assertEqual(len(calls),2)
+
+    def test_failed_direct_lookup_has_cooldown_and_can_recover(self):
+        from rates import RateUnavailable
+        calls=[]
+        def fetch(s,e):
+            calls.append((s,e))
+            if len(calls)==1:raise RateUnavailable('down')
+            return {'2026-03-02':'4.5'}
+        svc=RateService(fetch=fetch)
+        with patch('rates.monotonic',return_value=1000):
+            self.assertIsNone(svc.get('2026-03-02'))
+            self.assertIsNone(svc.get('2026-03-02'))
+            svc.warm(['2026-03-02'])
+        self.assertEqual(len(calls),1)
+        with patch('rates.monotonic',return_value=1301):
+            self.assertEqual(svc.get('2026-03-02'),'4.5')
         self.assertEqual(len(calls),2)
     def test_warm_rechecks_today_when_quote_was_not_published(self):
         today=date.today().isoformat()

@@ -36,7 +36,7 @@
 
 | 组件 | 用途 | 备注 |
 | --- | --- | --- |
-| `PackagingIcon` / `PackagingLabel` / `PackagingPicker` | 包装类型示意图（按 `PACKAGING_PRESETS` 的 value，另有 other / 未填写）；`PackagingLabel` 详情里显示「图标 + 中文名 + 原术语小字」；`PackagingPicker` 是表单里的图标选项卡（`OptionCards` 三列），不让手打包装名 | `kind` / `text` / `value` `onPick` |
+| `PackagingIcon` / `PackagingLabel` / `PackagingPicker` | 包装类型示意图（按 `PACKAGING_PRESETS` 的 value，另有 other / 未填写）；`PackagingLabel` 详情里显示「图标 + 中文名 + 原术语小字」；`PackagingPicker` 是表单里的图标选项卡（`OptionCards` 三列），不让手打包装名 | `kind` / `text` / `value` `onPick` `required?`（必选时隐藏「不清楚」） |
 | `ModuleChooser` `ModulePresets` `ModuleTiles` `ModulePhone` `ModuleImpact` `ModuleIcon` | 设置 · 功能与首次设置：使用方式图标卡 → 功能图标开关（点按开关，联动依赖）+ 默认首页 → 迷你手机实时预览底栏与详情管理（新增「+」、收起虚线「−」）；完整变化清单收在「全部变化与说明」 | 预览数据来自 `core/modules` 的 `SURFACE_GROUPS`（含 `icon` 键），与导航及表单的模块判断同步维护；选中/开启用对勾与粗边区分，不只靠颜色 |
 | `Details` | 带展开 / 收起高度动画的 `<details>`：用 Chevron 做箭头，替代所有裸 `<details>`；`Disclosure` 基于它 | `summary` `children` `className?` `open?`+`onOpenChange?` 或 `defaultOpen?` |
 | `GallerySettings` | 展示页「展示设置」抽屉内容：每项一行（左标题、右 `Seg`）——顺序 / 封面大小 / 间距 / 滑动方向，「显示标题与艺术家」用 `Switch`；巡游速度不在这里；抽屉内容是快照，用本地 state 镜像并回写页面偏好 | `mode` `inGroup` `initial` `onChange` |
@@ -77,7 +77,7 @@
 | `Sidebar` `MobileNav`（`AppNav`） | 桌面侧栏与手机底栏；`navCounts` 算两处共用的各页数量 | 仅供 `App` 外壳使用；入口按模块开关过滤 |
 | `forms/fields.tsx` | `Field` `MoneyField` `TextareaField` `DateChipsRow` | 表单字段构造；`MoneyField` 日元只保留整数部分 |
 | `forms/record/*` | 专辑表单的拆分模块：`useReleaseLookup` / `pickRelease`（发行版检索、校验、确认、手动录入）、`releaseCover`（选版后封面匹配：此版本 CAA 正面图优先，其次 iTunes 精确）、`useCoverSearch`、`useRecordHints`、`useCostPreview`；区块 `ReleaseLookupSection` `PhotoEntry` `ReleaseDetails` `CoverPanel` `MoneySection`；`buildPayload` | 仅供 `RecordForm` 组合，行为与拆分前一致；检索逻辑只改 `useReleaseLookup`，不在区块组件里写请求 |
-| `forms/shared.ts` | `useFormSubmit` `useRate` `bulkAction` | 提交流程统一入口 |
+| `forms/shared.ts` | `useFormSubmit` `useRate` `bulkAction` | 提交流程统一入口；元数据确认结果已合并时用 `refresh:false` 跳过财务刷新 |
 
 ## 约定
 

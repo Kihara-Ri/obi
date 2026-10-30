@@ -1,6 +1,7 @@
 // 保存载荷：以打开时的快照合并表单值；隐藏的购买信息沿用原值，改动金额/币种/日期后清空实际成本。
 import {remapPackagingPhotos} from '../../core/album-packaging';
 import {prefs} from '../../core/prefs';
+import {RECORD_METADATA_FIELDS} from '../../core/record-metadata';
 import type {AlbumRecord, Status} from '../../types';
 import type {RecordValues} from './context';
 import type {PhotoSlot} from '../../core/photos';
@@ -26,4 +27,11 @@ export function buildPayload(base: Partial<AlbumRecord>, v: RecordValues, where:
     prefs.set('currency', v.currency);
   }
   return payload;
+}
+
+/** 编辑只提交资料与照片；购买信息不回传，由服务器保留。 */
+export function buildMetadataPayload(base: Partial<AlbumRecord>, v: RecordValues, slots: PhotoSlot[]) {
+  const payload = buildPayload(base, v, null, slots, false);
+  return Object.fromEntries(['id', 'revision', 'photos', ...RECORD_METADATA_FIELDS]
+    .filter(key => key in payload).map(key => [key, payload[key]]));
 }

@@ -23,17 +23,17 @@ export function useFormSubmit() {
   const [saving, setSaving] = useState(false);
   // backOnSave：编辑类表单（编辑专辑、上架资料）保存后回到打开它的那一层并显示更新后的内容；
   // 其余（记录售出、运输、确认类…）保存后专辑状态可能已变，仍关闭整个抽屉。
-  const run = async (app: AppCtx, fn: () => Promise<unknown>, successMsg = '已保存', opts?: {backOnSave?: boolean}) => {
+  const run = async (app: AppCtx, fn: () => Promise<unknown>, successMsg = '已保存', opts?: {backOnSave?: boolean; refresh?: boolean}) => {
     setSaving(true); setError('');
     try {
       await fn();
       app.setSelected(new Set());
       if (opts?.backOnSave) {
-        await app.refresh(); // 先刷新再回上一层，上一层（详情 / 管理页）出现时就是新内容
+        if (opts?.refresh !== false) await app.refresh(); // 元数据已合并确认结果时不触发财务刷新
         app.backDrawer(true);
       } else {
         app.closeDrawer(true);
-        await app.refresh();
+        if (opts?.refresh !== false) await app.refresh();
       }
       app.toast(successMsg);
     } catch (e) {

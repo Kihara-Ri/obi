@@ -55,12 +55,12 @@ export function PackagingLabel({text}: {text: string}) {
 }
 
 /** 表单里的包装选择：只能点选带图标的预设，选中后存预设的英文术语；资料库带来的认不出的原值单独占一张卡保留。 */
-export function PackagingPicker({value, onPick}: {value: string; onPick: (label: string) => void}) {
+export function PackagingPicker({value, onPick, required = false}: {value: string; onPick: (label: string) => void; required?: boolean}) {
   const kind = packagingKind(value);
   const options = [
     ...PACKAGING_PRESETS.map(p => ({value: p.value, label: PACKAGING_ZH[p.value], icon: <PackagingIcon kind={p.value}/>})),
     ...(kind === 'other' ? [{value: 'other', label: packagingDisplay(value).name, icon: <PackagingIcon kind="other"/>}] : []),
-    {value: '', label: '不清楚', icon: <PackagingIcon kind=""/>},
+    ...(required ? [] : [{value: '', label: '不清楚', icon: <PackagingIcon kind=""/>}]),
   ];
   return <OptionCards className="pkg-picker" ariaLabel="包装" columns={3} options={options} value={kind}
     onValue={code => { if (code !== 'other') onPick(PACKAGING_PRESETS.find(p => p.value === code)?.label ?? ''); }}/>;

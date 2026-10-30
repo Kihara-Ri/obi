@@ -254,6 +254,17 @@ def seed(data_dir):
 
 
 
+def seed_packaging_review(data_dir):
+    """缺包装编辑验收：复用 ex-all-time 副本，只清空其形态，不改金额、状态或照片。"""
+    ids = seed(data_dir)
+    store = open_store(data_dir)
+    with closing(store.connect()) as db:
+        record = store.get(db, 'records', ids['ex-all-time'])
+    store.save({'id': record['id'], 'revision': record['revision'], 'version': '',
+                'packaging': None, 'releaseInfo': {**record.get('releaseInfo', {}), 'packaging': ''}})
+    return ids
+
+
 def seed_listing_photos(data_dir):
     """隔离售卖协议测试用：复用合成素材，不代表实拍、版次或品相证据。
 
