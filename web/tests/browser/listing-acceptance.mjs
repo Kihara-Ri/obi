@@ -228,7 +228,7 @@ try {
   assert.equal(shared.names.length, 4); assert.equal(shared.active, true, '系统分享在用户手势内调用');
   await phoneContext.close();
   await page.getByText('生成设置', {exact: true}).click();
-  await page.getByRole('textbox', {name: '本次补充', exact: true}).fill('样本冲突');
+  await page.getByRole('textbox', {name: /^本次补充/u}).fill('样本冲突');
   await generate();
   await page.getByRole('button', {name: '版本有冲突 · 查看核对依据', exact: true}).click();
   await page.getByText('验收：版本标识冲突，争议版本已省略', {exact: true}).waitFor();
