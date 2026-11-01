@@ -29,13 +29,30 @@ for (const engine of engines) {
         const kept = errors.slice(before).filter(text => text !== SCREENSHOT_CSP);
         errors.splice(before, errors.length - before, ...kept);
       };
+      // 抽屉进场（slide/sheet-up）与卡片限高都带过渡：量几何前要求卡片、照片、底栏三块矩形
+      // 连续 200ms 不变且没有动画在跑，否则会量到进场途中（桌面端 x 偏移几 px、手机端照片还在上移）。
+      const settle = async () => {
+        await page.waitForFunction(() => {
+          const now = performance.now();
+          const key = ['.listing-copy', '.listing-photos', '.listing-footer'].map(selector => {
+            const el = document.querySelector(selector);
+            if (!el) return '-';
+            const r = el.getBoundingClientRect();
+            return [r.x, r.y, r.width, r.height].map(value => value.toFixed(2)).join();
+          }).join('|');
+          const idle = document.getAnimations().every(animation => animation.playState !== 'running');
+          const state = window.__listingSettle || (window.__listingSettle = {key, since: now});
+          if (state.key !== key || !idle) {state.key = key; state.since = now;}
+          return now - state.since >= 200;
+        }, null, {polling: 50, timeout: 8000});
+      };
       await page.goto(base + '/#overseas');
       await page.getByRole('button', {name: record.title, exact: true}).click();
       await page.getByRole('button', {name: '管理', exact: true}).click();
       await page.getByRole('button', {name: /编辑上架资料/u}).click();
       const toggle = page.getByRole('button', {name: /^(展开全文|收起全文)$/u});
       await toggle.waitFor();
-      await page.waitForTimeout(450); // 等抽屉进场动画（0.22s）结束
+      await settle();
       const box = selector => page.locator(selector).first().evaluate(el => {
         const r = el.getBoundingClientRect(); return {x: r.x, y: r.y, width: r.width, height: r.height};
       });
@@ -45,7 +62,7 @@ for (const engine of engines) {
       await shot(join(output, `${engine.name()}-${viewport.width}-collapsed.png`));
       // 就地展开：卡片增高、照片被推下，宽度与底栏不变，没有覆盖层。
       await toggle.click();
-      await page.waitForTimeout(400);
+      await settle();
       assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
       assert.equal(await page.locator('.listing-copy-reader').count(), 0);
       const open = {copy: await box('.listing-copy'), photos: await box('.listing-photos'), footer: await box('.listing-footer')};
@@ -61,22 +78,22 @@ for (const engine of engines) {
       await page.locator('.listing-body').evaluate(el => {el.scrollTop = 0;});
       await shot(join(output, `${engine.name()}-${viewport.width}-expanded.png`));
       await toggle.click();
-      await page.waitForTimeout(400);
+      await settle();
       const back = {copy: await box('.listing-copy'), photos: await box('.listing-photos')};
       for (const item of ['copy', 'photos']) for (const key of ['x', 'y', 'width', 'height'])
         assert.ok(Math.abs(back[item][key] - collapsed[item][key]) < 1, `${engine.name()} ${viewport.width} 收起后 ${item}.${key} 复原`);
       // 点正文本身同样展开 / 收起；选中文字时不误触。
       await page.locator('.listing-copy-clip').click({position: {x: 20, y: 20}});
-      await page.waitForTimeout(350);
+      await settle();
       assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
       await page.locator('.listing-copy-clip').click({position: {x: 20, y: 20}});
-      await page.waitForTimeout(350);
+      await settle();
       assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
       // 减少动态效果：直接切换，几何一致。
       await page.emulateMedia({reducedMotion: 'reduce'});
-      await toggle.click(); await page.waitForTimeout(50);
+      await toggle.click(); await settle();
       assert.ok((await box('.listing-copy')).height > collapsed.copy.height + 50);
-      await toggle.click(); await page.waitForTimeout(50);
+      await toggle.click(); await settle();
       assert.ok(Math.abs((await box('.listing-copy')).height - collapsed.copy.height) < 1);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
       assert.deepEqual(errors, []);
