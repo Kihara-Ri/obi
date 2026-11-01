@@ -13,6 +13,7 @@ import threading
 from urllib.parse import parse_qs, urlsplit
 
 from domain import ValidationError, clean_start_page
+from photo_uploads import MAX_BYTES, stage
 from storage import SCHEMA, metadata_update
 from . import archive, export_csv
 from .artists import SourceUnavailableError
@@ -637,8 +638,13 @@ def api_restore_archive(h, svc, path):
     prewarm(svc)
 
 
+def api_stage_photo(h, svc, path):
+    h.send(stage(svc.store.path.parent, path, query(h).get('token')))
+
+
 UPLOAD = {
     '/api/restore-archive': (api_restore_archive, archive.MAX_UPLOAD),
+    '/api/photos/stage': (api_stage_photo, MAX_BYTES),
 }
 
 

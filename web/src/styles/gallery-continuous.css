@@ -80,6 +80,10 @@
   to{transform:translate(-50%,-50%) translate(calc(var(--iso-step)*16 + var(--iso-lane-x) + var(--iso-lane-shift)),calc(var(--iso-step)*16 + var(--iso-lane-y) + var(--iso-lane-shift))) rotateX(30deg) rotateZ(-35deg)}
 }
 .gallery-page.is-immersive .gallery-isometric-shell{--iso-height:100svh}
+/* 沉浸铺满整屏：桌面、胶片与等距舞台的 1px 描边和圆角会直接贴到屏幕边缘，一并去掉（舞台圆角见 gallery-stage.css）。 */
+.gallery-page.is-immersive .gallery-isometric-shell,
+.gallery-page.is-immersive .gallery-stage--table,
+.gallery-page.is-immersive .gallery-film-rail{border:0;border-radius:0}
 @media(max-width:840px){
   .gallery-film-shell{--film-size:min(48vw,220px);--film-gap:8px}
   .gallery-density--small .gallery-film-shell{--film-size:min(36vw,160px)}

@@ -82,7 +82,8 @@
 .gallery-orbit-rail .gallery-orbit-card.is-orbit-outgoing{z-index:14}
 .gallery-orbit-rail .gallery-orbit-card.is-orbit-hidden{pointer-events:none;visibility:hidden}
 .gallery-orbit .gallery-stage-arrow{display:flex;align-items:center;justify-content:center}
-.gallery-page.is-immersive .gallery-orbit-space{height:100svh}
+/* 沉浸铺满整屏：环形展架舞台的 1px 描边与 14px 圆角会贴到屏幕边缘（普通展示保持卡片外观）。 */
+.gallery-page.is-immersive .gallery-orbit-space{height:100svh;border:0;border-radius:0}
 @media(max-width:840px){
   .gallery-orbit-space{--gallery-size:min(49vw,245px);height:340px;min-height:calc(var(--gallery-size) + 159px)}
   .gallery-orbit.gallery-stage--fan .gallery-orbit-space{--gallery-size:min(44vw,220px)}

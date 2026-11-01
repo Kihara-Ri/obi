@@ -10,6 +10,9 @@
 .fi-layer.is-shown .fi-card{transform:none;opacity:1}
 .fi-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-size:13px;color:var(--muted)}
 .fi-row{display:flex;gap:8px}
-.fi-row input{flex:1;min-width:0;font-size:17px;padding:12px 14px}
+.fi-row input,.fi-row textarea{flex:1;min-width:0;font-size:17px;padding:12px 14px}
+/* 多行：文本区随内容长高（上限 8 行后内部滚动），完成按钮贴底对齐 */
+.fi-card.is-multiline .fi-row{align-items:flex-end}
+.fi-row textarea{resize:none;line-height:1.5;min-height:calc(3em + 24px)}
 .fi-row button{flex:none;min-width:64px}
 @media (prefers-reduced-motion:reduce){.fi-layer,.fi-dim,.fi-card{transition:none}}

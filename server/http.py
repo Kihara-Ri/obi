@@ -158,9 +158,10 @@ def make_handler(svc):
             if not self.trusted() or not self.authorized(): return
             # 只收非「简单请求」类型：跨站表单发不出来，和 JSON 接口同一道防线
             if self.headers.get('Content-Type', '').split(';')[0] not in ('application/zip', 'application/octet-stream'):
-                return self.send({'error': '请上传 zip 备份包'}, 415)
+                return self.send({'error': '请使用二进制文件上传'}, 415)
             if not 0 < length <= limit:
-                return self.send({'error': f'文件为空或超过 {limit // 1024 ** 3} GB'}, 413)
+                cap = f'{limit // 1024 ** 3} GB' if limit >= 1024 ** 3 else f'{limit // 1024 ** 2} MB'
+                return self.send({'error': f'文件为空或超过 {cap}'}, 413)
             folder = svc.store.path.parent
             with tempfile.NamedTemporaryFile(prefix='.upload-', suffix='.zip', dir=folder) as f:
                 left = length
@@ -177,7 +178,7 @@ def make_handler(svc):
                     self.send({'error': str(e)}, 400)
                 except Exception:
                     import traceback; traceback.print_exc()
-                    self.send({'error': '恢复失败，当前账本未改动，请重试'}, 500)
+                    self.send({'error': '上传处理失败，请重试；输入内容仍保留'}, 500)
 
         def do_POST(self):
             # 先读完整请求体再分发：keep-alive 连接上未读的 body 字节会被误解析为下一个请求。

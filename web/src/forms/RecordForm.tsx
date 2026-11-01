@@ -111,17 +111,18 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
     if (cover.busy) {setError('封面还在匹配中（通常约 10 秒），稍候再保存；也可以之后在编辑里补封面');return;}
     if (photos.hasPending) { setError('还有照片在处理中，等缩略图就绪后再保存'); return; }
     run(app, async () => {
+      const readyPhotos = await photos.prepare();
       const values = japan ? v : {...v, obi: base.current.obi || ''};
       if (id) app.applyRecordMetadata(await api<RecordMetadataSave>('records/metadata',
-        buildMetadataPayload(base.current, values, photos.slots)));
-      else await api('records', buildPayload(base.current, values, where, photos.slots, modules.acquisition));
+        buildMetadataPayload(base.current, values, readyPhotos)));
+      else await api('records', buildPayload(base.current, values, where, readyPhotos, modules.acquisition));
     }, '已保存', {backOnSave: !!id, refresh: !id});
   };
 
   return (
     <form id="record-form" ref={formRef} onSubmit={submit} noValidate
           data-status={where || r?.status} data-cur={v.currency}>
-      <div className="drawer-body">
+      <div className="drawer-body" inert={saving}>
         <div className="error" role="alert">{error}</div>
         <PhotoEntry ctx={ctx} photos={photos} recordId={r?.id ?? null}/>
         <h3 className="section-title form-group-title">专辑资料</h3>
@@ -175,7 +176,8 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
       <div className="drawer-footer">
         {!id && !identified ? <p className="footer-hint">先查询并确认发行版（或手动录入），才能保存</p> : null}
         <button type="button" onClick={() => app.backDrawer()}>取消</button>
-        <button type="submit" className="primary" aria-busy={saving} disabled={saving || !edited}>{id ? '保存修改' : '保存并入库'}</button>
+        <button type="submit" className="primary" aria-busy={saving} disabled={saving || !edited}>
+          {saving ? photos.uploading ? '上传照片中…' : '正在保存…' : id ? '保存修改' : '保存并入库'}</button>
       </div>
     </form>
   );

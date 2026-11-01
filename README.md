@@ -65,6 +65,7 @@ storage.py           SQLite 事务与持久化（五态 + 包裹 + 销售单）
 rates.py covers.py   历史汇率 · 封面抓取
 security.py          登录、会话与限流
 backups.py           每日一致性快照
+photo_uploads.py     实物照片逐张上传的暂存（保存前不写账本）
 web/                 前端源码：React 19 + TypeScript + Vite
 static/              构建产物与 PWA 资源
 plugins/album-engine/  官方插件 ZIP 与哈希目录

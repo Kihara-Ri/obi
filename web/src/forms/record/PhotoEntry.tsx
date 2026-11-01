@@ -15,13 +15,16 @@ export function PhotoEntry({ctx, photos, recordId}: {
   return (
     <section className="record-photo-entry" onDragOver={e => e.preventDefault()}
       onDrop={e => {e.preventDefault(); add([...e.dataTransfer.files]);}}>
-      <div className="record-photo-head"><strong>实物照片</strong><small>最多 {MAX_PHOTOS} 张</small></div>
+      <div className="record-photo-head"><strong>实物照片</strong><small role="status">
+        {photos.hasPending ? '处理照片中' : photos.uploading ? `上传 ${photos.uploaded}/${photos.newCount}`
+          : photos.failed ? `${photos.failed} 张未上传` : `最多 ${MAX_PHOTOS} 张`}</small></div>
       <PhotoThumbs slots={photos.slots} recordId={recordId} onRemove={i => {
         set({packaging: remapPackagingPhotos(v.packaging, photos.slots.map((_, k) => k).filter(k => k !== i))});
         photos.remove(i); dirty();
       }}/>
       <div className="photo-actions">
         <button type="button" onClick={() => fileInput.current?.click()}>{CamIco}<span>添加照片</span></button>
+        {photos.failed ? <button type="button" onClick={photos.retry}>重试上传</button> : null}
       </div>
       <input ref={fileInput} type="file" accept="image/*,.heic,.heif" multiple hidden
         onChange={e => {const files = [...(e.target.files ?? [])]; e.target.value = ''; add(files);}}/>

@@ -10,7 +10,7 @@ export const source = fileURLToPath(new URL('../../src/', import.meta.url));
 // One compiler program for the test run, using the real source dependency graph.
 const entries = ['core/album-engine-mount.ts', 'core/published-album.ts', 'core/gallery-motion.ts',
   'components/GalleryRoamingControls.tsx', 'components/useGalleryRoaming.ts', 'core/gallery.ts', 'core/digital-twins.ts',
-  'core/album-model-assets.ts', 'core/album-packaging.ts', 'core/record-metadata.ts', 'forms/record/buildPayload.ts', 'components/CopyEditionFields.tsx',
+  'core/album-model-assets.ts', 'core/album-packaging.ts', 'core/record-metadata.ts', 'core/photo-transfer.ts', 'forms/record/buildPayload.ts', 'components/CopyEditionFields.tsx',
   'core/copy-edition.ts', 'components/TwinControls.tsx',
   'core/album-entity.ts', 'core/gallery-zoom.ts', 'core/release-metadata.ts', 'components/Tracklist.tsx',
   'components/ui/index.ts', 'core/listing.ts', 'core/photo-clipboard.ts', 'core/download.ts', 'core/shop-groups.ts', 'core/useSessionState.ts', 'core/lookup.ts', 'core/lookup-text.ts', 'core/state-sync.ts', 'core/whats-new.ts', 'core/backup-file.ts', 'core/modules.ts'];

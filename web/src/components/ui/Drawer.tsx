@@ -6,6 +6,7 @@ import {flushSync} from 'react-dom';
 import type {DrawerSpec} from '../../state/AppContext';
 import {ChevLeftIco} from '../icons';
 import {commitsBack, installEdgeSwipe} from '../../core/edge-swipe';
+import {useFloatingFields} from './FocusInput/useFloatingFields';
 
 const SHEET_QUERY = '(max-width:840px)';
 const TOUCH_QUERY = '(pointer:coarse), (max-width:840px)';
@@ -29,6 +30,8 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
   onClosed: () => void;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
+  // 手机 sheet：抽屉里的文字输入一律转交键盘上方的聚焦输入层，原框不拿焦点，抽屉不为键盘做任何避让
+  const floating = useFloatingFields(panelRef, SHEET_QUERY);
   const sheetRef = useRef<HTMLElement>(null);
   const exitedRef = useRef(false);
   const dragRef = useRef<{startY: number; dy: number; v: number; lastY: number; lastT: number} | null>(null);
@@ -92,19 +95,12 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
     return () => window.clearTimeout(t);
   }, [closing]);
 
-  // iOS 软键盘：WebKit 会把可视视口在布局视口内下移（visualViewport.offsetTop>0），
-  // fixed 面板在屏幕上被整体顶出上缘。把 #panel 整层平移 offsetTop（背板随行，可视
-  // 区域永远被盖住），sheet 在屏幕上保持原位、布局零变化——键盘只是叠在其下半部
-  // 之上的一层（见下 --kb：现在改为把 sheet 抬到键盘上沿，避免键盘盖住输入框）。键盘收起
-  // （offsetTop 归零）即还原。只在手机 sheet 断点生效：桌面捏合缩放也会动 offsetTop，
-  // 不该拖着抽屉跑。
-  // 同期锁定文档滚动（横竖都钉）：sheet 盖不住系统级滚动指示器；聚焦输入还会让
-  // WebKit 滚动文档「露出」输入框，背景一动 Safari 底部地址栏就会重新展开盖住底部。
+  // 手机 sheet 打开期间锁定文档滚动（横竖都钉）：sheet 盖不住系统级滚动指示器；浮层输入聚焦时
+  // WebKit 也可能滚动文档，背景一动 Safari 底部地址栏就会重新展开盖住底部。
   // html overflow:hidden 挡不住 iOS 的这脚程序滚动，需把 scrollY 钉在开抽屉时的值。
+  // 键盘不再需要避让：抽屉里的输入框不弹键盘，打字在 useFloatingFields 的浮层里（2026-10-28 用户定案）。
   useEffect(() => {
-    const vv = window.visualViewport;
-    const panel = panelRef.current;
-    if (!panel || !window.matchMedia(SHEET_QUERY).matches) return;
+    if (!panelRef.current || !window.matchMedia(SHEET_QUERY).matches) return;
     const html = document.documentElement;
     html.style.overflow = 'hidden';
     const lockX = window.scrollX;
@@ -113,58 +109,8 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
       if (window.scrollX !== lockX || window.scrollY !== lockY) window.scrollTo(lockX, lockY);
     };
     window.addEventListener('scroll', onScroll, {passive: true});
-    if (!vv) {
-      return () => {
-        window.removeEventListener('scroll', onScroll);
-        html.style.overflow = '';
-      };
-    }
-    // 键盘占位：布局视口不变、可视视口缩小，差值 = 键盘高度（--kb）。键盘是叠在 sheet 之上的另一层，不压矮 sheet：
-    // 表单抽屉只在 drawer-body 底部补一段等高的滚动余量（drawer.css），确认类 compact 抽屉仍整体抬到键盘上沿。
-    // 捏合缩放时 vv.height 也会变小，scale>1 不算键盘。
-    const KEYBOARD_MIN = 80;
-    const reveal = () => {
-      const el = document.activeElement;
-      const body = panel.querySelector<HTMLElement>('.drawer-body');
-      if (!body || !(el instanceof HTMLElement) || !panel.contains(el)
-        || !['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)
-        || (el as HTMLInputElement).readOnly) return;
-      // 键盘盖在 sheet 之上（不再把 sheet 压矮）：输入框被盖住或在内容区之外时，平滑滚到内容区顶部。
-      // 对齐顶部不依赖 sheet 当时的高度，键盘动画期间测量不准也不会量错；body 底部留了键盘高度的滚动余量。
-      const box = el.getBoundingClientRect();
-      const frame = body.getBoundingClientRect();
-      const visibleBottom = Math.min(frame.bottom, (vv?.offsetTop ?? 0) + (vv?.height ?? window.innerHeight));
-      if (box.bottom <= visibleBottom - 16 && box.top >= frame.top + 8) return;
-      const reduce = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
-      body.scrollTo({top: body.scrollTop + box.top - (frame.top + 16), behavior: reduce ? 'auto' : 'smooth'});
-    };
-    let lastKb = 0;
-    const apply = () => {
-      const raw = vv.scale > 1.01 ? 0 : Math.round(window.innerHeight - vv.height);
-      const kb = raw > KEYBOARD_MIN ? raw : 0;
-      // 只在键盘弹出时跟着平移：Safari 工具栏伸缩 / 橡皮筋 / 缩放也会让 offsetTop 非零，
-      // 那时平移会把 sheet 顶下去一截（上面一块空、底部被切、内容滑不动）
-      panel.style.transform = kb && vv.offsetTop > 1 ? `translateY(${vv.offsetTop}px)` : '';
-      panel.style.setProperty('--kb', kb + 'px');
-      if (kb && kb !== lastKb) revealSoon(0);
-      lastKb = kb;
-    };
-    // sheet 高度随键盘和操作栏收起有过渡，单次测量会量到半途位置：分几次把输入框对到可见区中间（重复对中是幂等的）
-    const revealSoon = (delay: number) => {
-      [delay, delay + 150, delay + 450].forEach(ms => window.setTimeout(() => { if (lastKb) reveal(); }, ms));
-    };
-    const onFocusIn = () => revealSoon(60);
-    apply();
-    vv.addEventListener('resize', apply);
-    vv.addEventListener('scroll', apply);
-    panel.addEventListener('focusin', onFocusIn);
     return () => {
-      vv.removeEventListener('resize', apply);
-      vv.removeEventListener('scroll', apply);
-      panel.removeEventListener('focusin', onFocusIn);
       window.removeEventListener('scroll', onScroll);
-      panel.style.transform = '';
-      panel.style.removeProperty('--kb');
       html.style.overflow = '';
     };
   }, [spec]);
@@ -264,9 +210,8 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
   }, []);
 
   // —— 手机 sheet：竖向手势不许「漏」给文档 ——
-  // 内容不够长（如记录售出，键盘弹出时更是）时 drawer-body 无可滚动，iOS 会把竖向滑动改成滚动
-  // 文档 / 平移可视视口：visualViewport.offsetTop 随之变化，上面的 translateY 与 scrollTo 钉位互相
-  // 拉扯，整个 sheet 抽搐。这里对「起点在抽屉内、最近的可滚动祖先不存在或已到边」的竖向 touchmove
+  // 内容不够长（如记录售出）时 drawer-body 无可滚动，iOS 会把竖向滑动改成滚动文档 / 平移可视视口，
+  // 与上面的 scrollTo 钉位互相拉扯，整个 sheet 抽搐。这里对「起点在抽屉内、最近的可滚动祖先不存在或已到边」的竖向 touchmove
   // 直接 preventDefault；可滚动内容未到边时放行原生滚动，横向手势（封面候选条等）不拦。
   useEffect(() => {
     const panel = panelRef.current;
@@ -415,6 +360,8 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
   const requestClose = () => { if (!closing) onClose(); };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
+    // 浮层输入经 portal 冒泡上来的按键不归抽屉处理（它自己管 Esc / 回车）
+    if (!(e.target instanceof Node) || !panelRef.current?.contains(e.target)) return;
     if (e.key === 'Escape') { e.preventDefault(); requestClose(); return; }
     if (e.key === 'Tab') {
       const panel = panelRef.current;
@@ -498,6 +445,7 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
           })}
         </div>
       </section>
+      {floating}
     </div>
   );
 }

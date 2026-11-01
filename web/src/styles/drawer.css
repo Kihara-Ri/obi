@@ -176,8 +176,8 @@ details.adv:not([open]) > :not(summary){display:none}
      （右缘切断） */
   .form-grid{grid-template-columns:minmax(0,1fr)}
   /* 确认类抽屉：贴底内容高度卡，消除短表单的整屏空白；超长内容仍由 body 滚动。
-     桌面保持全高右抽屉。拖拽关闭、键盘视口逻辑照旧复用 */
-  .drawer.compact{top:auto;max-height:calc(100% - 56px - var(--kb,0px))}
+     桌面保持全高右抽屉。拖拽关闭照旧复用 */
+  .drawer.compact{top:auto;max-height:calc(100% - 56px)}
   /* 页面默认绝对定位叠放（容器没有内容高度）；compact 要按内容撑高，改成同一网格格内叠放 */
   .drawer.compact .drawer-pages{display:grid;flex:0 1 auto}
   .drawer.compact .drawer-pages>.drawer-page{position:relative;inset:auto;grid-area:1/1}
@@ -188,10 +188,6 @@ details.adv:not([open]) > :not(summary){display:none}
     border-left:none;border-top:1px solid var(--border-strong);border-radius:20px 20px 0 0;
     box-shadow:0 -14px 44px var(--shadow-ink);animation:sheet-up .28s cubic-bezier(.2,.8,.3,1)}
   .drawer.wide{width:auto}
-  /* 软键盘是另一层：表单抽屉保持原高度，键盘盖住下半部，body 补等高的滚动余量让下方字段仍能滚上来；
-     内容高度的 compact 抽屉整体抬到键盘上沿 */
-  .drawer.compact{bottom:var(--kb,0px)}
-  .drawer:not(.compact) .drawer-body{padding-bottom:calc(18px + env(safe-area-inset-bottom) + var(--kb,0px))}
   .drawer.closing{animation:sheet-down .24s ease-in forwards}
   @keyframes sheet-up{from{transform:translateY(100%)}to{transform:none}}
   @keyframes sheet-down{to{transform:translateY(100%)}}

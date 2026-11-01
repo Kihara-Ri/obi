@@ -54,3 +54,14 @@ test('编辑载荷只提交元数据与照片，不回传买入信息或派生�
   assert.equal(body.note, '编辑');
   assert.deepEqual(body.photos, [0]);
 });
+
+test('照片已上传时保存只提交引用，浏览器本机模式仍兼容 data URL', () => {
+  const base = {id: 'a', revision: 1};
+  const values = {title: 'A', artist: 'B', packaging: null};
+  const body = buildMetadataPayload(base, values, [
+    {data: 'data:image/jpeg;base64,AAAA', upload: 'a'.repeat(32)}, {existing: 1},
+  ]);
+  assert.deepEqual(body.photos, [{upload: 'a'.repeat(32)}, 1]);
+  const local = buildMetadataPayload(base, values, [{data: 'data:image/jpeg;base64,AAAA'}]);
+  assert.deepEqual(local.photos, ['data:image/jpeg;base64,AAAA']);
+});

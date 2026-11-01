@@ -21,7 +21,7 @@ BUILD_RE = re.compile(VERSION_RE.pattern[:-1] + r'(?:-[0-9]+-g[0-9a-f]+)?(?:-dir
 # tests/test_updates.py 有对账测试防止再次漏加。
 PACKAGE_ROOTS = {'VERSION', 'app.py', 'domain.py', 'domain_listing.py', 'storage.py', 'covers.py',
                  'cjkvariants.py', 'kana.py', 'musicbrainz.py', 'rates.py', 'security.py',
-                 'backups.py', 'twins.py', 'README.md', '使用说明.md', '部署说明.md',
+                 'backups.py', 'twins.py', 'photo_uploads.py', 'README.md', '使用说明.md', '部署说明.md',
                  'CHANGELOG.md', 'deploy.toml', '.ai-kit', 'server', 'static', 'deploy', 'tools',
                  'vendor', 'plugins'}
 

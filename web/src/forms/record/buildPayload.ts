@@ -20,7 +20,10 @@ export function buildPayload(base: Partial<AlbumRecord>, v: RecordValues, where:
       payload[key] = base[key] ?? (key === 'currency' ? 'CNY' : key === 'fees' ? '0' : '');
   }
   const ok = slots.map((_, i) => i).filter(i => !('error' in slots[i]));
-  payload.photos = ok.map(i => 'existing' in slots[i] ? (slots[i] as {existing: number}).existing : (slots[i] as {data: string}).data);
+  payload.photos = ok.map(i => {
+    const p = slots[i];
+    return 'existing' in p ? p.existing : 'data' in p ? (p.upload ? {upload: p.upload} : p.data) : '';
+  });
   payload.packaging = remapPackagingPhotos(v.packaging, ok);
   if (acquisition) {
     prefs.set('location', v.location);

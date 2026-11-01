@@ -15,6 +15,7 @@ from datetime import datetime
 from contextlib import closing
 from domain import ValidationError, ConflictError, clean_record, clean_release_info, clean_modules, clean_start_page, clean_showcase_group, clean_showcase_groups, clean_listing, validate_packaging_photos, MODULE_NAMES, cost, number, money, day, allocate, STATUSES
 from decimal import Decimal
+from photo_uploads import staged_bytes
 from twins import TWIN_KEY, SKILL_VERSION, ID as TWIN_ID, ASSET as TWIN_ASSET, UUID as TWIN_RELEASE_ID, appearance, same_appearance, clean_barcode, clean_registry, image_type, entity_assets
 
 SCHEMA = 4
@@ -490,6 +491,8 @@ class Store:
                 except Exception: raise ValidationError('照片数据损坏，请重新选择图片')
                 if len(raw) > 8 * 1024 * 1024: raise ValidationError('单张照片过大，请重拍或压缩后再上传')
                 plan.append((PHOTO_MIME[m.group(1)], raw))
+            elif isinstance(e, dict) and set(e) == {'upload'}:
+                plan.append(staged_bytes(self.path.parent, e['upload']))
             else: raise ValidationError('照片数据不正确')
         return plan
     def apply_photos(self, rid, plan):

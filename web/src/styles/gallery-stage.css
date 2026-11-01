@@ -56,6 +56,9 @@
 .gallery-stage-arrow:focus-visible{outline-offset:-2px}
 .gallery-stage-position{min-width:56px;text-align:center;font-size:13px;font-weight:500;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
 
+/* 沉浸铺满整屏：舞台容器不再被页面内边距内缩，14px 圆角会把屏幕四角裁成圆弧、露出页面底色
+   （普通展示里同一圈圆角是卡片外观，保持不变）。 */
+.gallery-page.is-immersive .gallery-stage{border-radius:0}
 .gallery-page.is-immersive .gallery-stage--tiles .gallery-wall{gap:calc(5px*var(--wall-gap-k,1))}
 .gallery-page.is-immersive .has-roam-viewport .gallery-waterfall-column{height:100svh}
 @media(max-width:840px){
