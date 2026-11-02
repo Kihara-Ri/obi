@@ -87,6 +87,26 @@ class ConcurrentLookupTests(unittest.TestCase):
         self.assertEqual(sources, {'musicbrainz': 'none', 'deezer': 'none', 'itunes': 'found'})
 
 
+class LookupDeadlineTests(unittest.TestCase):
+    def test_slow_source_is_skipped_after_deadline_and_others_still_answer(self):
+        import threading, time
+        from server.routes import lookup_sources
+        release = threading.Event()
+        def hung():
+            release.wait(5)
+            return [{'id': 'ndl-000000000001', 'source': 'ndl', 'releaseInfo': {'catalogNumber': 'X-1'}}]
+        found = [{'id': 'uuid-1', 'releaseInfo': {'catalogNumber': 'X-1'}}]
+        service = SimpleNamespace(releases=SimpleNamespace(catalog=lambda fields: found,
+            backups=lambda barcode, catno: [('ndl', hung)]))
+        started = time.monotonic()
+        candidates, sources = lookup_sources(service, '', 'X-1', lambda f: f, deadline=0.2)
+        self.assertLess(time.monotonic() - started, 2)
+        release.set()
+        self.assertEqual([c['id'] for c in candidates], ['uuid-1'])
+        self.assertEqual(sources['musicbrainz'], 'found')
+        self.assertIn('没有答复', sources['ndl'])
+
+
 class ConfirmedReleaseArtTests(unittest.TestCase):
     EDITION = '11111111-1111-4111-8111-111111111111'
 

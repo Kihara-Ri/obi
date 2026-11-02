@@ -124,7 +124,7 @@ export function LookupPage() {
         {recent.map(item => <button key={item} type="button" className="chip" onClick={() => void search(item)}>{item}</button>)}
         <button type="button" className="quiet" onClick={() => { setRecent([]); saveRecent([]); }}>清除</button>
       </div> : null}
-      {busy ? <p className="lookup-msg" role="status">查询中 · MusicBrainz / {/^[\d\s-]+$/.test(text.trim()) ? 'Deezer / iTunes' : 'Discogs'}</p> : null}
+      {busy ? <p className="lookup-msg" role="status">查询中 · MusicBrainz / {/^[\d\s-]+$/.test(text.trim()) ? 'Deezer / iTunes' : 'Discogs / 国会图书馆'}</p> : null}
       {!found && !busy && !error ? <PendingReleases onPick={startConfirm}/> : null}
       {found && isText ? <section aria-label="专辑搜索结果" className="lookup-results">
         <h2>{found.albums.length ? `找到 ${found.albums.length} 张专辑，点开看版本` : '没有找到相近的专辑'}</h2>

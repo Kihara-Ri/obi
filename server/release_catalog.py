@@ -42,11 +42,12 @@ def read_json(url, timeout=35):
 
 
 class ReleaseCatalog:
-    def __init__(self, mb=None, discogs=None, deezer=None, itunes=None):
+    def __init__(self, mb=None, discogs=None, deezer=None, itunes=None, ndl=None):
         self.mb = mb
         self.discogs = discogs   # 编号备用来源
         self.deezer = deezer     # 条码来源（日本 CD 的 JAN 与数字版 UPC 同码）
         self.itunes = itunes     # 条码来源（日本动画 / 特摄角色盘常只在 Apple Music）
+        self.ndl = ndl           # 编号来源：国会图书馆缴存的日本实体 CD（无条码）
         self.catalog_lock = threading.Lock(); self.catalog_at = 0; self.catalog_cache = {}
         self.release_cache = {}
 
@@ -121,12 +122,13 @@ class ReleaseCatalog:
     def backups(self, barcode='', catno=''):
         """MusicBrainz 之外要同时查的来源：[(来源名, 无参检索函数)]，由 routes.lookup_sources 并发执行。
         条码查 Deezer、iTunes（Discogs 的搜索接口不索引条码，查了也永远为空）；
-        编号只查 Discogs（Deezer / iTunes 没有编号索引）。未配置的来源不列出。"""
+        编号查 Discogs、NDL（Deezer / iTunes 没有编号索引，NDL 不登记条码）。未配置的来源不列出。"""
         if barcode:
             chain = [('deezer', self.deezer), ('itunes', self.itunes)]
             return [(name, lambda c=client: c.search(barcode=barcode)) for name, client in chain if client]
-        if catno and self.discogs:
-            return [('discogs', lambda: self.discogs.search(catno=catno))]
+        if catno:
+            chain = [('discogs', self.discogs), ('ndl', self.ndl)]
+            return [(name, lambda c=client: c.search(catno=catno)) for name, client in chain if client]
         return []
 
     def release_details(self, ident):
@@ -139,6 +141,9 @@ class ReleaseCatalog:
         if isinstance(ident,str) and ident.startswith('itunes-'):
             if not self.itunes: raise ValidationError('iTunes 发行资料来源未启用')
             return self.itunes.release_details(ident)
+        if isinstance(ident,str) and ident.startswith('ndl-'):
+            if not self.ndl: raise ValidationError('国会图书馆（NDL）发行资料来源未启用')
+            return self.ndl.release_details(ident)
         if not isinstance(ident,str) or not re.fullmatch(r'[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}',ident):
             raise ValidationError('发行版本编号不正确')
         with self.catalog_lock:

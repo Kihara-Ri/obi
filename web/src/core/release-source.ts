@@ -2,10 +2,10 @@
 // 各页面不再写 `source === 'discogs' ? … : MusicBrainz` 的二选一；新增来源只改这里。
 import type {ReleaseCandidate, ReleaseInfo} from '../types';
 
-export type ReleaseSource = 'musicbrainz' | 'discogs' | 'deezer' | 'itunes';
+export type ReleaseSource = 'musicbrainz' | 'discogs' | 'deezer' | 'itunes' | 'ndl';
 
 export const SOURCE_LABEL: Record<ReleaseSource, string> = {
-  musicbrainz: 'MusicBrainz', discogs: 'Discogs', deezer: 'Deezer', itunes: 'iTunes',
+  musicbrainz: 'MusicBrainz', discogs: 'Discogs', deezer: 'Deezer', itunes: 'iTunes', ndl: '国会图书馆',
 };
 
 /** 候选 id 前缀 → 来源（MusicBrainz 用裸 UUID）。 */
@@ -14,11 +14,12 @@ export function sourceOf(candidate: ReleaseCandidate | string): ReleaseSource {
   if (id.startsWith('discogs-')) return 'discogs';
   if (id.startsWith('deezer-')) return 'deezer';
   if (id.startsWith('itunes-')) return 'itunes';
+  if (id.startsWith('ndl-')) return 'ndl';
   return 'musicbrainz';
 }
 
 const NO_IDENTITY: Partial<ReleaseInfo> = {
-  musicBrainzReleaseId: '', discogsReleaseId: '', deezerId: '', itunesId: '', manualRelease: '',
+  musicBrainzReleaseId: '', discogsReleaseId: '', deezerId: '', itunesId: '', ndlBibId: '', manualRelease: '',
 };
 
 /** 候选 → releaseInfo 的身份字段。除此之外的字段（名称 / 曲目 / 封面）不在这里决定。 */
@@ -32,6 +33,7 @@ export function identityFromId(id: string): Partial<ReleaseInfo> {
     case 'discogs': return {...NO_IDENTITY, discogsReleaseId: id.slice('discogs-'.length)};
     case 'deezer': return {...NO_IDENTITY, deezerId: id.slice('deezer-'.length)};
     case 'itunes': return {...NO_IDENTITY, itunesId: id.slice('itunes-'.length)};
+    case 'ndl': return {...NO_IDENTITY, ndlBibId: id.slice('ndl-'.length)};
     default: return {...NO_IDENTITY, musicBrainzReleaseId: id};
   }
 }
@@ -42,7 +44,8 @@ export function identityOf(info?: ReleaseInfo | null): string {
   return info.musicBrainzReleaseId
     || (info.discogsReleaseId ? 'discogs-' + info.discogsReleaseId : '')
     || (info.deezerId ? 'deezer-' + info.deezerId : '')
-    || (info.itunesId ? 'itunes-' + info.itunesId : '');
+    || (info.itunesId ? 'itunes-' + info.itunesId : '')
+    || (info.ndlBibId ? 'ndl-' + info.ndlBibId : '');
 }
 
 /** 已绑定的资料库来源；不含手动录入。 */
@@ -52,6 +55,7 @@ export function boundSource(info?: ReleaseInfo | null): ReleaseSource | null {
   if (info.discogsReleaseId) return 'discogs';
   if (info.deezerId) return 'deezer';
   if (info.itunesId) return 'itunes';
+  if (info.ndlBibId) return 'ndl';
   return null;
 }
 
@@ -68,5 +72,6 @@ export function sourceUrl(info?: ReleaseInfo | null): string {
   if (info.discogsReleaseId) return 'https://www.discogs.com/release/' + info.discogsReleaseId;
   if (info.deezerId) return 'https://www.deezer.com/album/' + info.deezerId;
   if (info.itunesId) return 'https://music.apple.com/album/' + info.itunesId;
+  if (info.ndlBibId) return 'https://ndlsearch.ndl.go.jp/books/R100000002-I' + info.ndlBibId;
   return '';
 }

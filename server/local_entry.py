@@ -89,7 +89,7 @@ def build_local(data_dir):
         listings = ListingAnalysis(store, releases, ListingModel(ChatGPTAuth(data)), inline=True)
         with listings.model.providers.config.locked() as state:
             if state['provider'] in ('openai', 'anthropic'): state['provider'] = 'opencode'
-    # Deezer 不返回 CORS 头，浏览器里的同步 XHR 取不到，本机模式只接 MusicBrainz、Discogs 与 iTunes（iTunes 回 `*`）。
+    # Deezer 不返回 CORS 头，浏览器里的同步 XHR 取不到，本机模式只接 MusicBrainz、Discogs 与 iTunes（iTunes 回 `*`）；国会图书馆（NDL）同样不回 CORS 头，不接。
     return Services(store=store, plugins=plugins, catalog_art=ArtClient(), covers=covers,
                     releases=releases, twins=plugins.facade, listings=listings,
                     artists=artists, rates=rates)

@@ -104,18 +104,18 @@ class Source:
 class BackupSourcesTests(unittest.TestCase):
     def test_barcode_lists_deezer_and_itunes_and_runs_neither_until_called(self):
         deezer, itunes, discogs = Source(), Source(), Source()
-        jobs = ReleaseCatalog(deezer=deezer, itunes=itunes, discogs=discogs).backups(JAN)
+        jobs = ReleaseCatalog(deezer=deezer, itunes=itunes, discogs=discogs, ndl=Source()).backups(JAN)
         self.assertEqual([name for name, _ in jobs], ['deezer', 'itunes'])
         self.assertEqual((deezer.calls, itunes.calls), ([], []))
         [job() for _, job in jobs]
         self.assertEqual((deezer.calls, itunes.calls, discogs.calls), ([(JAN, '')], [(JAN, '')], []))
 
-    def test_catalog_number_only_uses_discogs(self):
-        itunes, discogs = Source(), Source()
-        jobs = ReleaseCatalog(discogs=discogs, itunes=itunes).backups('', 'AVCA-29189')
-        self.assertEqual([name for name, _ in jobs], ['discogs'])
-        jobs[0][1]()
-        self.assertEqual((discogs.calls, itunes.calls), ([('', 'AVCA-29189')], []))
+    def test_catalog_number_uses_discogs_and_ndl_only(self):
+        itunes, discogs, ndl = Source(), Source(), Source()
+        jobs = ReleaseCatalog(discogs=discogs, itunes=itunes, ndl=ndl).backups('', 'AVCA-29189')
+        self.assertEqual([name for name, _ in jobs], ['discogs', 'ndl'])
+        [job() for _, job in jobs]
+        self.assertEqual((discogs.calls, ndl.calls, itunes.calls), ([('', 'AVCA-29189')], [('', 'AVCA-29189')], []))
 
     def test_unconfigured_sources_are_skipped(self):
         self.assertEqual(ReleaseCatalog().backups(JAN), [])

@@ -150,7 +150,7 @@ export interface ReleaseMedium {
 
 export interface ReleaseInfo {
   catalogNumber?: string; barcode?: string; musicBrainzReleaseId?: string; discogsReleaseId?: string;
-  deezerId?: string; itunesId?: string;
+  deezerId?: string; itunesId?: string; ndlBibId?: string;
   manualRelease?: string; unofficial?: string; label?: string; country?: string;
   releaseDate?: string; edition?: string; packaging?: string; format?: string; discCount?: string;
   matrix?: string; extras?: string; observations?: string; tracklist?: string[]; media?: ReleaseMedium[];
@@ -166,7 +166,7 @@ export interface ListingFields {
 export interface ReleaseCandidate {
   id: string; title: string; artist: string; releaseInfo: ReleaseInfo;
   identifierMatch: boolean; url: string;
-  source?: 'musicbrainz' | 'discogs' | 'deezer' | 'itunes';
+  source?: 'musicbrainz' | 'discogs' | 'deezer' | 'itunes' | 'ndl';
   /** Deezer / iTunes 候选自带封面（MusicBrainz 走 Cover Art Archive）；实体版也可能借来同码数字发行的封面 */
   cover?: string; coverSmall?: string;
   /** 并发检索合并时，同一版本（同条码 / 编号）在其他来源的条目 */

@@ -85,6 +85,12 @@ class VerificationTests(unittest.TestCase):
             self.save(self.new_record(barcode=BARCODE, itunesId='1458696389'))
         self.assertFalse(self.source.release_details.called)
 
+    def test_ndl_release_cannot_vouch_for_a_barcode(self):
+        with self.assertRaisesRegex(ValidationError, '不登记条码'):
+            self.save(self.new_record(barcode=BARCODE, ndlBibId='000010099246'))
+        self.save(self.new_record(ndlBibId='000010099246'))   # 没有条码：按编号保存，不做条码核对
+        self.assertFalse(self.source.release_details.called)
+
     def test_manual_release_saves_without_catalog_verification(self):
         self.save(self.new_record(manualRelease='1'))
         self.save(self.new_record(barcode='4582213912173', manualRelease='1'))

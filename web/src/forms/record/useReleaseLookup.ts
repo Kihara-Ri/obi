@@ -80,7 +80,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
     const timer = window.setTimeout(() => controller.abort(), 70000);
     const current = () => seq === sequence.current && !!formRef.current?.isConnected;
     setBusy(true); cover.setBusy(false); setCandidates([]); setNotFound(false);
-    setMessage(kind === 'barcode' ? '查询中 · MusicBrainz / Deezer / iTunes' : '查询中 · MusicBrainz / Discogs');
+    setMessage(kind === 'barcode' ? '查询中 · MusicBrainz / Deezer / iTunes' : '查询中 · MusicBrainz / Discogs / 国会图书馆');
     const what = kind === 'barcode' ? '条码' : '编号';
     const promise = (async () => {
       try {

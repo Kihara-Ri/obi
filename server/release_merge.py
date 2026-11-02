@@ -3,13 +3,15 @@
 - 实体资料库（MusicBrainz、Discogs）在前，数字发行（Deezer、iTunes）在后。
 - Discogs 与 MusicBrainz 编号相同且条码相同（都不为空）视为同一实体版，留 MusicBrainz，Discogs 记入 `alsoIn`。
   同一来源内部不合并：MusicBrainz 同码的多个版次（含私录借用条码）全部保留。
+- 国会图书馆（NDL）不登记条码：与已列出的实体版有相同编号时记入每一条的 `alsoIn`（日本盘発売番号一版一号），
+  否则单列在 MusicBrainz / Discogs 之后。
 - 数字发行与已列出的实体版条码相同（左侧补零不计）：不另列卡片，记入每一条同码实体版的 `alsoIn`；
   只有同码实体版恰好一条且它没有自带封面时才借用这张数字封面（多条时无法确定是哪一版）。
   两条数字发行同码时留资料更全的一条。`alsoIn` 每个来源只记一条。
 - 日本 JAN（45 / 49 开头）只影响顺序：日本区实体版在前，数字发行 iTunes 在 Deezer 前；不决定查不查哪个来源。"""
 import re
 
-PHYSICAL = ('musicbrainz', 'discogs')
+PHYSICAL = ('musicbrainz', 'discogs')   # NDL 也是实体版，但没有条码，单独按编号并入
 DIGITAL = ('deezer', 'itunes')
 
 
@@ -59,6 +61,13 @@ def merge(found, barcode=''):
                          and _same_physical(k, candidate)), None)
             if twin: _attach(twin, candidate)
             else: kept.append(candidate)
+    listed = len(kept)
+    for candidate in found.get('ndl') or []:
+        candidate = dict(candidate)
+        catnos = _catnos((candidate.get('releaseInfo') or {}).get('catalogNumber'))
+        hosts = [k for k in kept[:listed] if catnos & _catnos((k.get('releaseInfo') or {}).get('catalogNumber'))]
+        for host in hosts: _attach(host, candidate, lend=False)
+        if not hosts: kept.append(candidate)
     if jp:   # 稳定排序：只把日本区提前，其余保持来源原有顺序
         kept.sort(key=lambda c: (c.get('releaseInfo') or {}).get('country') != 'JP')
     digital = []

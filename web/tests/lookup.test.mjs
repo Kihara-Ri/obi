@@ -74,6 +74,7 @@ test('待确认发行版：已绑定版本或标过手动的不算，已售出�
   assert.equal(releasePending(r('domestic', {discogsReleaseId: '7'})), false);
   assert.equal(releasePending(r('domestic', {deezerId: '7'})), false);
   assert.equal(releasePending(r('domestic', {itunesId: '1458696389'})), false);
+  assert.equal(releasePending(r('domestic', {ndlBibId: '000010099246'})), false);
   assert.equal(releasePending(r('domestic', {manualRelease: '1'})), false);
   assert.equal(releasePending(r('sold', {})), false);
   assert.equal(releasePending(r('trash', {})), false);
@@ -88,4 +89,14 @@ test('iTunes 来源：候选 id ↔ 身份字段 ↔ 资料库链接', () => {
   assert.equal(identityOf(identity), 'itunes-1458696389');
   assert.equal(sourceName(identity), 'iTunes');
   assert.equal(sourceUrl(identity), 'https://music.apple.com/album/1458696389');
+});
+
+test('国会图书馆来源：候选 id ↔ 身份字段 ↔ 资料库链接', () => {
+  const {sourceOf, identityFromId, identityOf, sourceName, sourceUrl} = require(join(output, 'core/release-source.js'));
+  assert.equal(sourceOf('ndl-000010099246'), 'ndl');
+  const identity = identityFromId('ndl-000010099246');
+  assert.equal(identity.ndlBibId, '000010099246');
+  assert.equal(identityOf(identity), 'ndl-000010099246');
+  assert.equal(sourceName(identity), '国会图书馆');
+  assert.equal(sourceUrl(identity), 'https://ndlsearch.ndl.go.jp/books/R100000002-I000010099246');
 });

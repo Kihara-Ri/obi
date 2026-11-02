@@ -68,6 +68,14 @@ class MergeTests(unittest.TestCase):
                        'musicbrainz': [cand('uuid-1', 'musicbrainz', JAN)]}, JAN)
         self.assertEqual([c['id'] for c in found], ['uuid-1', 'itunes-9'])
 
+    def test_ndl_folds_into_same_catalog_number_or_is_listed_after_physical(self):
+        mb = [cand('uuid-1', 'musicbrainz', JAN, 'AVCA-29189'), cand('uuid-2', 'musicbrainz', JAN, 'AVCA-29189')]
+        same = cand('ndl-000010099246', 'ndl', '', 'avca29189')
+        other = cand('ndl-000000000001', 'ndl', '', 'AVCA-30000')
+        found = merge({'musicbrainz': mb, 'discogs': [cand('discogs-1', 'discogs', '', 'AVCA-30001')], 'ndl': [same, other]})
+        self.assertEqual([c['id'] for c in found], ['uuid-1', 'uuid-2', 'discogs-1', 'ndl-000000000001'])
+        self.assertEqual([[r['source'] for r in c.get('alsoIn', [])] for c in found[:2]], [['ndl'], ['ndl']])
+
     def test_japanese_prefix(self):
         self.assertTrue(japanese(JAN)); self.assertTrue(japanese('4534530000000'))
         self.assertFalse(japanese('0602537000000')); self.assertFalse(japanese('49880642'))

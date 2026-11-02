@@ -356,31 +356,43 @@ def releases(svc):
 def release_identity(info):
     """已绑定的资料库版本，与候选 id 同形（MusicBrainz 为裸 UUID）；与前端 core/release-source.ts 的 identityOf 一致。"""
     if info.get('musicBrainzReleaseId'): return info['musicBrainzReleaseId']
-    for field, prefix in (('discogsReleaseId', 'discogs-'), ('deezerId', 'deezer-'), ('itunesId', 'itunes-')):
+    for field, prefix in (('discogsReleaseId', 'discogs-'), ('deezerId', 'deezer-'), ('itunesId', 'itunes-'), ('ndlBibId', 'ndl-')):
         if info.get(field): return prefix + info[field]
     return ''
 
 
 def api_release(h, svc): h.send({'releaseInfo':releases(svc).release_details(query(h).get('id'))})
-def lookup_sources(svc, barcode, catno, exact):
-    """同时查所有适用来源（条码：MusicBrainz / Deezer / iTunes；编号：MusicBrainz / Discogs），总等待只取最慢的一个。
+LOOKUP_DEADLINE = 20.0   # 秒：并发检索的总时限，到点没答复的来源不再等
+
+
+def lookup_sources(svc, barcode, catno, exact, deadline=LOOKUP_DEADLINE):
+    """同时查所有适用来源（条码：MusicBrainz / Deezer / iTunes；编号：MusicBrainz / Discogs / NDL），总等待只取最慢的一个，
+    且不超过 deadline 秒：到点仍没答复的来源记为超时、先返回已有结果；它的线程在后台跑完，结果进各来源缓存，下次直接命中。
     MusicBrainz 结果经 exact 精确过滤，其余来源本身只做精确匹配；再由 release_merge.merge 按条码 / 编号去重排序
     （日本 JAN 只影响顺序）。sources 如实列出每个来源的结果；全部来源都不可用才报错。"""
-    from concurrent.futures import ThreadPoolExecutor
+    import time
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as Slow
     from .release_merge import merge
     catalog = releases(svc)
     jobs = [('musicbrainz', lambda: exact(catalog.catalog({'title': '', 'artist': '',
             'releaseInfo': {'barcode': barcode, 'catalogNumber': catno}})))] + catalog.backups(barcode, catno)
     sources, found = {}, {}
-    with ThreadPoolExecutor(max_workers=len(jobs)) as pool:
+    pool = ThreadPoolExecutor(max_workers=len(jobs))
+    try:
         futures = [(name, pool.submit(job)) for name, job in jobs]
+        until = time.monotonic() + deadline
         for name, future in futures:
             try:
-                found[name] = future.result()
+                found[name] = future.result(timeout=max(0.0, until - time.monotonic()))
+            except Slow:
+                sources[name] = f'{int(deadline)} 秒内没有答复，已跳过'
+                continue
             except ValidationError as exc:
                 sources[name] = str(exc)
                 continue
             sources[name] = 'found' if found[name] else 'none'
+    finally:
+        pool.shutdown(wait=False)   # 不等超时的来源
     candidates = merge(found, barcode)
     if not candidates and all(v not in ('none', 'found') for v in sources.values()):
         raise ValidationError('发行资料库暂时不可用，请稍后重试（' + '；'.join(sources.values()) + '）')
@@ -403,6 +415,9 @@ def verify_barcode_release(svc, barcode, release_id):
     from twins import clean_barcode, UUID
     barcode = clean_barcode(barcode)
     if not barcode: raise ValidationError('请输入完整的条形码')
+    if isinstance(release_id, str) and release_id.startswith('ndl-'):
+        # 国会图书馆不登记条码：无从核对，不能凭编号条目放行一个条码
+        raise ValidationError('国会图书馆（NDL）不登记条码，无法核对：请用条码重新查询选择版本，或清空条码后按编号保存')
     if isinstance(release_id, str) and release_id.startswith('itunes-'):
         # iTunes 详情不回带条码：按条码重新精确检索，看这一条目在不在结果里。
         catalog = releases(svc).itunes

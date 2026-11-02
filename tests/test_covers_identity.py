@@ -47,6 +47,10 @@ class UnofficialRelease(unittest.TestCase):
         with self.assertRaises(ValidationError):
             clean_release_info({'unofficial': '1', 'itunesId': '1458696389'})
         with self.assertRaises(ValidationError):
+            clean_release_info({'unofficial': '1', 'ndlBibId': '000010099246'})
+        with self.assertRaises(ValidationError):
+            clean_release_info({'ndlBibId': '12'})
+        with self.assertRaises(ValidationError):
             clean_release_info({'itunesId': 'abc'})
         with self.assertRaises(ValidationError):
             clean_release_info({'unofficial': 'x'})
