@@ -4,8 +4,10 @@ apply_delta 是 web/src/core/state-sync.ts 里 applyStateDelta 的逐行对照�
 （前端同一组用例见 web/tests/state-sync.test.mjs）。
 """
 import gzip
+from contextlib import closing
 import http.client
 import json
+import sqlite3
 import tempfile
 import threading
 import unittest
@@ -183,3 +185,56 @@ class StateHttpTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class StateCacheTests(unittest.TestCase):
+    """/api/state 按账本库与汇率指纹复用上一份响应：没写入就不再调用 Store.state()。"""
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.store = Store(Path(self.tmp.name) / 'db.sqlite3', FakeRates({'2026-09-07': '4.8'}))
+        self.svc = Services(store=self.store)
+        state_sync._snapshots.clear()
+        self.calls = 0
+        compute = self.store.state
+        def counted():
+            self.calls += 1
+            return compute()
+        self.store.state = counted
+
+    def tearDown(self): self.tmp.cleanup()
+
+    def pull(self, etag=''):
+        from server import routes
+        h = Exchange(etag)
+        routes.api_state(h, self.svc)
+        return h
+
+    def buy(self, day='2026-09-07'):
+        return self.store.save({'title': 'A', 'artist': '艺人', 'date': day, 'price': '2000', 'currency': 'JPY'})['ids'][0]
+
+    def test_unchanged_ledger_reuses_the_previous_response(self):
+        self.buy()
+        first = self.pull()
+        self.assertEqual(self.pull(first.etag).status, 304)
+        again = self.pull()
+        self.assertEqual((again.etag, again.body), (first.etag, first.body))
+        self.assertEqual(self.calls, 1)
+
+    def test_any_commit_recomputes_including_other_connections(self):
+        rid = self.buy()
+        first = self.pull()
+        with closing(sqlite3.connect(self.store.path)) as db, db:   # 工具脚本或另一进程直接提交（不影响状态的键）
+            db.execute("INSERT INTO meta VALUES('probe', '1')")
+        self.assertEqual(self.pull(first.etag).status, 304)   # 内容没变，ETag 照旧
+        self.assertEqual(self.calls, 2)
+        self.store.save({'id': rid, 'revision': 1, 'note': '改了'})
+        h = self.pull(first.etag)
+        self.assertEqual([r['note'] for r in h.body['records']['put']], ['改了'])
+        self.assertEqual(self.calls, 3)
+
+    def test_state_waiting_for_rates_is_never_cached(self):
+        self.buy('2026-02-01')   # FakeRates 没有这一天：成本未知，下次还要补取汇率
+        first = self.pull()
+        self.assertIsNone(first.body['records'][0]['cost'])
+        self.assertEqual(self.pull(first.etag).status, 304)
+        self.assertEqual(self.calls, 2)

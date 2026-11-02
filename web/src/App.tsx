@@ -23,9 +23,10 @@ import type {ToastAction, ToastKind} from './state/AppContext';
 import {Splash} from './components/ui';
 import {PageVeil} from './components/PageVeil'; import {PeekUnderlay} from './components/PeekUnderlay'; import {WhatsNew} from './components/WhatsNew';
 import {installReplaceNav} from './core/nav';
-import {lazyPage, pagesReady} from './core/lazy-page';
+import {lazyPage} from './core/lazy-page';
+import {useShownPage} from './hooks/useShownPage';
 
-// 每页一个 chunk（core/lazy-page.ts）：首屏等全部到齐再渲染，切页仍是同步的
+// 每页一个 chunk（core/lazy-page.ts）：首屏只等当前页，其余首屏后预取；切页等目标页到齐，仍是同步的
 const ShelfPage = lazyPage(() => import('./pages/ShelfPage').then(m => m.ShelfPage));
 const TransitPage = lazyPage(() => import('./pages/TransitPage').then(m => m.TransitPage));
 const ShippingPage = lazyPage(() => import('./pages/ShippingPage').then(m => m.ShippingPage));
@@ -36,6 +37,12 @@ const SettingsPage = lazyPage(() => import('./pages/SettingsPage').then(m => m.S
 const SetupPage = lazyPage(() => import('./pages/SetupPage').then(m => m.SetupPage));
 const MorePage = lazyPage(() => import('./pages/MorePage').then(m => m.MorePage));
 const GalleryPage = lazyPage(() => import('./pages/GalleryPage').then(m => m.GalleryPage));
+
+/** 与下方 content 的分发一一对应：决定某个页面要等哪个 chunk */
+const PAGE_CHUNKS: Record<string, {load(): Promise<unknown>; readonly loaded: boolean}> = {gallery: GalleryPage,
+  overseas: ShelfPage, domestic: ShelfPage, trash: ShelfPage, transit: TransitPage, shipping: ShippingPage,
+  trades: TradesPage, stats: StatsPage, lookup: LookupPage, more: MorePage};
+const pageModule = (page: string, needsSetup: boolean) => needsSetup ? SetupPage : PAGE_CHUNKS[page] ?? SettingsPage;
 
 export default function App() {
   const route = useHashRoute();
@@ -59,21 +66,24 @@ export default function App() {
   const home = modules ? homePage(state?.modules?.startPage, modules) : 'domestic';
   const target = route === 'ledger' ? 'stats' : route;   // 旧的「账本概览」已并入账本（stats）
   const livePage = !target ? home : modules && !pageEnabled(target, modules) ? 'domestic' : target;
-  const page = useDeferredValue(livePage);   // 内容延后一拍：底栏（livePage）先响应，重渲染随后在后台完成
+  const needsSetup = Boolean(state?.modules?.needsSetup);   // 内容只切到 chunk 已到齐的页面；首屏前失败显示重试界面
+  const shown = useShownPage(state && modules ? pageModule(livePage, needsSetup) : null, livePage, needsSetup, firstShown =>
+    firstShown ? toast('页面文件没有加载完整，请检查网络后重试', 'err') : setFatal('页面文件没有加载完整，请检查网络后重新连接'));
+  const page = useDeferredValue(shown?.page ?? livePage);   // 内容延后一拍：底栏（livePage）先响应，重渲染随后在后台完成
   // 以展示为主（展示是底栏标签）：库存 ↔ 展示按普通换页处理
   const showcaseTab = Boolean(modules?.showcase) && home === 'gallery';
   const albumEngine = useAlbumEngine();
   const twinState = useDigitalTwins(!!modules?.showcase);
 
-  // 首次加载：401 → 登录页；失败 → 重试界面。页面 chunk 与状态并行加载，都到齐才出首屏。
-  const [pagesLoaded, setPagesLoaded] = useState(false);
+  // 首次加载：401 → 登录页；失败 → 重试界面。地址里已有页面时先取它的 chunk，与 /api/state 并行，都到齐才出首屏
   useEffect(() => {
+    if (target) pageModule(target, false).load().catch(() => {});
     refresh().catch(e => {
       if (e instanceof ApiError && e.status === 401) { location.replace('/login'); return; }
       setFatal(e instanceof Error ? e.message : String(e));
     });
-    pagesReady().then(() => setPagesLoaded(true), () => setFatal('页面文件没有加载完整，请检查网络后重新连接'));
-  }, [refresh]);
+  }, [refresh]);   // eslint-disable-line react-hooks/exhaustive-deps -- target 只取首次地址
+  const firstShown = shown !== null;
 
   // 换页重置选择与筛选，并记住手机库存的地区。
   useEffect(() => {
@@ -126,7 +136,7 @@ export default function App() {
 
   const {offline, installEvt, setInstallEvt} = usePwa();
 
-  if (!state || !modules || !pagesLoaded) {
+  if (!state || !modules || !firstShown) {
     if (fatal) {
       return (
         <div className="empty">
@@ -156,7 +166,7 @@ export default function App() {
   };
 
   const counts = navCounts(state, modules);
-  const content = state.modules?.needsSetup ? <SetupPage/>
+  const content = shown.setup ? <SetupPage/>
     : page === 'gallery' ? <GalleryPage/>
     : ['overseas', 'domestic', 'trash'].includes(page) ? <ShelfPage/>
     : page === 'transit' ? <TransitPage/>

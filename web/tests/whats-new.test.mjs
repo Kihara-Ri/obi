@@ -6,7 +6,7 @@ import {join} from 'node:path';
 const {output, require} = compiledSources();
 const store = new Map();
 globalThis.localStorage = {getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v))};
-const {parseChangelog, unseenNotes, markSeen} = require(join(output, 'core/whats-new.js'));
+const {parseChangelog, unseenNotes, markSeen, mayHaveNotes} = require(join(output, 'core/whats-new.js'));
 
 const notes = parseChangelog(`# 更新记录\n\n## 未发布\n\n- 还在改\n\n## v3.8.5（2026-10-24）\n\n- 五\n\n## v3.8.4（2026-10-24）\n\n- 四\n`);
 beforeEach(() => store.clear());
@@ -27,4 +27,12 @@ test('构建号不触发弹窗，打了正式版才弹', () => {
 test('上次看到 v3.8.4，换到新正式版之后的构建仍补看 v3.8.5', () => {
   markSeen('v3.8.4');
   assert.deepEqual(unseenNotes('v3.8.5-1-gabc1234', notes).map(n => n.version), ['v3.8.5']);
+});
+
+test('版本没变就不下载更新日志；首次只记下版本', () => {
+  assert.equal(mayHaveNotes('v3.8.5'), false);
+  assert.equal(store.get('obi-seen-version'), 'v3.8.5');
+  assert.equal(mayHaveNotes('v3.8.5-3-gabc1234'), false);
+  assert.equal(mayHaveNotes('e5a5304'), false);
+  assert.equal(mayHaveNotes('v3.8.6'), true);
 });

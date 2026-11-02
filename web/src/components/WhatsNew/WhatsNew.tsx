@@ -2,7 +2,7 @@
 // 原生 <dialog>：焦点、Esc、背景遮罩由浏览器处理；关闭即记下当前版本。
 import {useContext, useEffect, useRef, useState} from 'react';
 import {AppContext} from '../../state/AppContext';
-import {markSeen, parseChangelog, unseenNotes} from '../../core/whats-new';
+import {markSeen, mayHaveNotes, parseChangelog, unseenNotes} from '../../core/whats-new';
 import type {ReleaseNote} from '../../core/whats-new';
 import './WhatsNew.css';
 
@@ -11,7 +11,7 @@ export function WhatsNew() {
   const [notes, setNotes] = useState<ReleaseNote[]>([]);
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
-    if (!version) return;
+    if (!mayHaveNotes(version)) return;   // 多数启动版本没变：不下载约 80 KB 的更新日志
     let alive = true;
     void import('../../../../CHANGELOG.md?raw').then(m => {
       const found = alive ? unseenNotes(version, parseChangelog(m.default)) : [];

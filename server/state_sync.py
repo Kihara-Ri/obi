@@ -5,6 +5,8 @@
   其余字段照常整份给；前端 web/src/core/state-sync.ts 的 applyStateDelta 拼回完整状态。
   两边的拼法一一对应（见 _table_delta），拼出的结果与整份下发逐字段相同（tests/test_state_sync.py）。
 - 缓存只存每行的摘要，不存内容；进程重启或基线太旧就整份下发，前端无感。
+- StateCache 记住上一份响应及其来源指纹（路由给出）：指纹不变时 304 与整份下发都不再调用
+  Store.state()，省掉全表解析、成本派生、序列化与哈希。
 """
 import hashlib
 import json
@@ -44,12 +46,45 @@ def _table_delta(before, after, rows):
     return out
 
 
-def send_state(h, state):
+class StateCache:
+    """每个服务实例一份：上一份 /api/state 的 (指纹, 已序列化的响应)。
+
+    只缓存调用方认定稳定的状态（汇率都已取到）；否则每次照常重算，缺失的汇率继续按原节奏补取。
+    """
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._entry = None
+
+    def get(self, key):
+        with self._lock:
+            return self._entry[1] if self._entry and self._entry[0] == key else None
+
+    def put(self, key, prepared):
+        with self._lock:
+            self._entry = (key, prepared)
+
+
+def _prepare(state):
     body = _dumps(state).encode()
-    etag = '"' + hashlib.sha256(body).hexdigest()[:32] + '"'
+    return state, body, '"' + hashlib.sha256(body).hexdigest()[:32] + '"', _index(state)
+
+
+def send_state(h, state):
+    _respond(h, *_prepare(state))
+
+
+def send_cached_state(h, cache, key, build, cacheable):
+    """key 必须在 build() 之前取：期间若有写入，缓存里只会是更新的数据，下次指纹不同照样重算。"""
+    prepared = cache.get(key)
+    if prepared is None:
+        prepared = _prepare(build())
+        if cacheable(prepared[0]): cache.put(key, prepared)
+    _respond(h, *prepared)
+
+
+def _respond(h, state, body, etag, index):
     base = h.headers.get('If-None-Match', '')
     if base == etag: return h.not_modified(etag)
-    index = _index(state)
     with _lock:
         before = _snapshots.get(base)
         _snapshots[etag] = index

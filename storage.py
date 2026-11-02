@@ -9,10 +9,10 @@ share of the postage onto each album's fees (part of acquisition cost); it
 can be rolled back at any step while albums haven't moved on.
 Sales start at 'shipping'; only 确认收货 turns them into realized cash ('sold').
 """
-import json, sqlite3, uuid, base64, hashlib, re, shutil, threading, time
+import json, os, sqlite3, uuid, base64, hashlib, re, shutil, threading, time
 from pathlib import Path
 from datetime import datetime
-from contextlib import closing
+from contextlib import closing, contextmanager
 from domain import ValidationError, ConflictError, clean_record, clean_release_info, clean_modules, clean_start_page, clean_showcase_group, clean_showcase_groups, clean_listing, validate_packaging_photos, MODULE_NAMES, cost, number, money, day, allocate, STATUSES
 from decimal import Decimal
 from photo_uploads import staged_bytes
@@ -101,6 +101,14 @@ def dumps(x): return json.dumps(x, ensure_ascii=False)
 
 def default_status(currency): return 'domestic' if currency == 'CNY' else 'overseas'
 
+@contextmanager
+def _discard_staged(staged):
+    """Remove staged photo sets when the surrounding ledger transaction does not commit."""
+    try: yield
+    except BaseException:
+        for _, d in staged: shutil.rmtree(d, ignore_errors=True)
+        raise
+
 class Store:
     def __init__(self, path, rates=None):
         self.path = Path(path); self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -118,6 +126,13 @@ class Store:
         db = sqlite3.connect(self.path, timeout=10)
         db.row_factory = sqlite3.Row
         return db
+    def fingerprint(self):
+        """Changes on every committed write from any connection: SQLite's header change
+        counter (rollback-journal mode, see I-010) plus the file's size and mtime."""
+        with open(self.path, 'rb') as f:
+            f.seek(24); counter = f.read(4)
+        st = self.path.stat()
+        return f'{counter.hex()}-{st.st_size}-{st.st_mtime_ns}'
     def rows(self, db, table): return [json.loads(r['data']) for r in db.execute(f'SELECT data FROM {table}')]
     def get(self, db, table, id):
         row = db.execute(f'SELECT data FROM {table} WHERE id=?',(id,)).fetchone()
@@ -470,9 +485,9 @@ class Store:
                         'beforeRevision': before['revision'], 'afterRevision': after['revision']})
         return {'ok': True, **after}
     def prepare_photos(self, rid, entries):
-        """Validate photo entries against the current set; returns [(ext, bytes)].
+        """Validate photo entries against the current set; returns [(ext, bytes | Path)].
 
-        Entries are indexes into the existing photo set (keep) or data URLs (new).
+        Entries are indexes into the existing photo set (keep, as its Path) or data URLs (new).
         Raises before any filesystem change, so save() can roll back cleanly.
         """
         if not isinstance(entries, list): raise ValidationError('照片数据不正确')
@@ -483,7 +498,7 @@ class Store:
             if len(plan) >= MAX_PHOTOS: raise ValidationError(f'每张专辑最多 {MAX_PHOTOS} 张照片')
             if isinstance(e, int) and not isinstance(e, bool):
                 if not 0 <= e < len(existing): raise ValidationError('照片序号不存在，请刷新页面后重试')
-                plan.append((existing[e].suffix, existing[e].read_bytes()))
+                plan.append((existing[e].suffix, existing[e]))
             elif isinstance(e, str):
                 m = PHOTO_RE.match(e)
                 if not m: raise ValidationError('照片格式不正确，请使用 JPG/PNG/WebP 图片')
@@ -495,12 +510,37 @@ class Store:
                 plan.append(staged_bytes(self.path.parent, e['upload']))
             else: raise ValidationError('照片数据不正确')
         return plan
-    def apply_photos(self, rid, plan):
+    def stage_photos(self, plan):
+        """Write a complete photo set beside the live folders before the ledger commits.
+
+        Kept photos are hard-linked (copied where links are unsupported, e.g. the browser build),
+        so a save never holds the whole set in memory. Leftovers older than a week are pruned;
+        newer ones are kept as evidence should a swap ever be interrupted.
+        """
+        root = self.path.parent / '.photo-swap'
+        root.mkdir(exist_ok=True)
+        for old in root.iterdir():
+            if old.is_dir() and not old.is_symlink() and old.stat().st_mtime < time.time() - 7 * 86400:
+                shutil.rmtree(old, ignore_errors=True)
+        d = root / uuid.uuid4().hex
+        d.mkdir()
+        for i, (ext, src) in enumerate(plan):
+            target = d / f'{i}{ext}'
+            if isinstance(src, Path):
+                try: os.link(src, target)
+                except OSError: shutil.copyfile(src, target)
+            else: target.write_bytes(src)
+        return d
+    def apply_photos(self, rid, staged):
+        """Swap a staged set in with two renames: readers see the old set or the new one, never a partial one."""
         d = self.photos_dir / rid
-        if d.exists(): shutil.rmtree(d)
-        if plan:
-            d.mkdir(parents=True, exist_ok=True)
-            for i, (ext, raw) in enumerate(plan): (d / f'{i}{ext}').write_bytes(raw)
+        old = staged.with_name(staged.name + '.old')
+        if d.exists(): d.rename(old)
+        if any(staged.iterdir()):
+            self.photos_dir.mkdir(parents=True, exist_ok=True)
+            staged.rename(d)
+        else: staged.rmdir()
+        shutil.rmtree(old, ignore_errors=True)
     def stash_cover(self, r):
         """封面 data URL → data/covers/<内容哈希>.<ext>，记录只留 /api/cover/ 引用。
 
@@ -529,7 +569,9 @@ class Store:
         if 'batchFees' in data:
             shares=allocate(number(data['batchFees'],'整批额外费用'), [number(i.get('price'),'买入金额', optional=True) or 1 for i in items] if data.get('allocation')=='price' else [1]*len(items))
             items=[{**i,'fees':f} for i,f in zip(items,shares)]
-        with closing(self.connect()) as db, db:
+        staged=[]
+        # 新照片在提交前完整写进暂存目录；提交后只剩目录改名。事务或暂存失败则丢弃暂存，账本与照片都保持原样
+        with _discard_staged(staged), closing(self.connect()) as db, db:
             result=[];plans=[]
             modules = self.meta_get(db, 'modules-v1')
             for item in items:
@@ -588,7 +630,8 @@ class Store:
             # Persist Album entities alongside newly added/edited copies.
             # Editing a copy's title does not rekey an existing album.
             self._album_catalog(db)
-        for rid,plan in plans:self.apply_photos(rid,plan)
+            for rid,plan in plans: staged.append((rid,self.stage_photos(plan)))
+        for rid,d in staged:self.apply_photos(rid,d)
         if metadata_only:
             # Return canonical editor fields (including shared notes), not state():
             # state() invokes the rate service and derives the entire ledger.

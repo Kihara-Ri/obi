@@ -6,6 +6,7 @@ h 提供 send()/query；svc 是注入的服务集合（见 context.Services）�
 from contextlib import closing
 import datetime
 import hashlib
+import json
 import base64
 import mimetypes
 import re
@@ -17,7 +18,7 @@ from photo_uploads import MAX_BYTES, stage
 from storage import SCHEMA, metadata_update
 from . import archive, export_csv
 from .artists import SourceUnavailableError
-from .state_sync import send_state
+from .state_sync import send_cached_state
 from .version import uptime, version
 from .listing_routes import (api_listing_status, api_listing_analyze, api_listing_job,
     api_listing_draft, api_listing_photos, api_listing_login, api_listing_disconnect,
@@ -54,10 +55,23 @@ def api_health(h, svc):
 
 
 def api_state(h, svc):
-    state = svc.store.state()
-    state['service'] = {'login': bool(svc.auth), 'version': version(),
-                        'backup': svc.backups.status() if svc.backups else {}}
-    send_state(h, state)
+    store = svc.store
+    service = {'login': bool(svc.auth), 'version': version(),
+               'backup': svc.backups.status() if svc.backups else {}}
+    # 状态只由账本库、汇率缓存和服务信息决定：三者都没变就复用上一份响应（见 state_sync.StateCache）
+    key = (store.fingerprint(), _dumps_key(store.rates.status() if store.rates else None), _dumps_key(service))
+    send_cached_state(h, svc.state_cache, key, lambda: {**store.state(), 'service': service},
+                      lambda state: _rates_settled(store, state))
+
+
+def _dumps_key(value):
+    return json.dumps(value, ensure_ascii=False, sort_keys=True)
+
+
+def _rates_settled(store, state):
+    """日元买入都已有汇率（或根本没有汇率服务）时状态才稳定；仍缺的要留给下一次 state() 补取。"""
+    return not store.rates or all(r.get('rate') for r in state['records']
+                                  if r.get('currency') == 'JPY' and r.get('date') and r.get('actual', '') == '')
 
 
 def api_shop_brands(h, svc):
@@ -267,6 +281,8 @@ def api_record_metadata(h, svc, body):
 
 
 def api_records(h, svc, body, *, metadata_only=False):
+    # 路由表不替它加 WRITE_LOCK：发行版核对要联网，放在锁外；只有落库那一步持锁。
+    # 核对用的旧资料若在此期间被改，Store.save 的 revision 复核会拒绝这次保存。
     # Discover only newly recorded purchase channels, after the ledger write commits.
     # The model can only suggest a favicon; it never overwrites the entered location.
     incoming = body.get('items') if isinstance(body, dict) and 'items' in body else [body]
@@ -306,7 +322,8 @@ def api_records(h, svc, body, *, metadata_only=False):
                     raise ValidationError('该发行版在 MusicBrainz 中有条码，不能直接清除；请重新选择发行版')
             elif not new_edition and (old_edition or new_barcode):
                 raise ValidationError('条码或发行版本已修改，请重新查询并确认发行版')
-    h.send(svc.store.save(body, metadata_only=True) if metadata_only else svc.store.save(body))
+    with WRITE_LOCK:
+        h.send(svc.store.save(body, metadata_only=True) if metadata_only else svc.store.save(body))
     if svc.shops and not metadata_only:
         for name in proposed:
             if normalize(name) not in recorded:
@@ -609,8 +626,8 @@ POST = {
     '/api/artists/bind': (api_artists_bind, True, False),
     '/api/artists/work-link': (api_artists_work_link, True, False),
     '/api/artists/work-unlink': (api_artists_work_unlink, True, False),
-    '/api/records': (api_records, True, True),
-    '/api/records/metadata': (api_record_metadata, True, True),
+    '/api/records': (api_records, True, False),            # 自己在落库时持锁（发行版核对在锁外联网）
+    '/api/records/metadata': (api_record_metadata, True, False),
     '/api/album-favorites': (api_album_favorite, True, True),
     '/api/bulk': (api_bulk, True, True),
     '/api/sales': (api_sales, True, True),

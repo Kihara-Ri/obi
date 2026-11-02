@@ -28,6 +28,14 @@ export function parseChangelog(text: string): ReleaseNote[] {
 const read = () => { try { return localStorage.getItem(KEY) || ''; } catch { return ''; } };
 export const markSeen = (v: string) => { try { localStorage.setItem(KEY, v); } catch { /* 无痕等环境：下次再提示也无妨 */ } };
 
+/** 是否可能有要弹的说明：首次（顺手记下当前版本）、版本未变、dev 都不必下载 CHANGELOG */
+export function mayHaveNotes(current: string | undefined): boolean {
+  if (!current || !nums(current).length) return false;
+  const seen = read();
+  if (!seen) { markSeen(current); return false; }
+  return newer(current, seen);
+}
+
 /** 需要弹出的更新说明；无需弹（首次、版本未变、dev）返回 []，首次会顺手记下当前版本 */
 export function unseenNotes(current: string | undefined, notes: ReleaseNote[]): ReleaseNote[] {
   if (!current || !nums(current).length) return [];

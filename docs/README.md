@@ -19,4 +19,5 @@
 | [../.impeccable.md](../.impeccable.md) | 规范 | 设计理念与交互原则（浅深主题、触屏展示、减少误操作） | 设计决策变化时同步 |
 | [../web/src/components/REGISTRY.md](../web/src/components/REGISTRY.md) | 规范 | 组件注册表：新建 UI 前先查、新组件先登记 | 新增组件时同步 |
 | [../web/tests/browser/README.md](../web/tests/browser/README.md) | 运维说明 | 浏览器验收脚本的运行方式 | 脚本变化时同步 |
+| [架构与工程复盘.md](架构与工程复盘.md) | 记录 | 2026-11-02 架构、瓶颈、改动热点、审美与工程体系、可复用资产与经验教训（GPT + Claude 交叉分析的快照） | 不原地追补，需要时整份重做 |
 | [log/](log/) | 记录 | 每次改动的日志（改了什么、问题、解决、新风险） | 每次代码改动新增一份 |

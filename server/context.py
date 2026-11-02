@@ -1,6 +1,8 @@
 """每个服务器实例注入的依赖集合，路由函数只通过它访问业务模块。"""
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Optional
+
+from .state_sync import StateCache
 
 
 @dataclass
@@ -18,3 +20,4 @@ class Services:
     plugins: Optional[Any] = None     # Optional installed Album Engine lifecycle
     catalog_art: Optional[Any] = None # Core exact-edition artwork, independent of engine
     listings: Optional[Any] = None    # Copy-specific sale drafts and photo analysis
+    state_cache: Any = field(default_factory=StateCache)  # 上一份 /api/state，按库与汇率指纹复用
