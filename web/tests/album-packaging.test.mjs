@@ -188,4 +188,8 @@ test('包装显示：预设与资料库包装名映射到图标种类和中文�
   assert.deepEqual(packaging.packagingDisplay('Jewel Case'), {kind: 'jewel', name: '标准塑料盒', term: 'Jewel Case'});
   assert.deepEqual(packaging.packagingDisplay('Keep Case'), {kind: 'other', name: 'DVD 式塑料盒', term: 'Keep Case'});
   assert.deepEqual(packaging.packagingDisplay('奇怪包装'), {kind: 'other', name: '奇怪包装', term: ''});
+  // 「其他」：算已确认、不带结构（3D 保持 2D）
+  assert.equal(packaging.confirmedPackagingName('Other', {}), 'Other');
+  assert.equal(packaging.albumPackaging('Other', {}).kind, 'unknown');
+  assert.deepEqual(packaging.packagingDisplay('Other'), {kind: 'other', name: '其他包装', term: 'Other'});
 });

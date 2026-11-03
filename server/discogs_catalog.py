@@ -34,6 +34,20 @@ def _artist(name):
     return re.sub(r'\s*\(\d+\)$', '', str(name or '').strip())
 
 
+# Discogs 的 CD 格式描述 / 备注 → 前端认得的包装名（与 MusicBrainz 同口径）。只收明确对应的词，认不出就留空让人选。
+PACKAGING_TERMS = (('digibook', 'Digibook'), ('digipak', 'Digipak'), ('digipack', 'Digipak'),
+                   ('slim jewel case', 'Slim Jewel Case'), ('slimline jewel case', 'Slim Jewel Case'),
+                   ('super jewel box', 'Jewel Case'), ('jewel case', 'Jewel Case'),
+                   ('card sleeve', 'Card Sleeve'), ('cardboard sleeve', 'Card Sleeve'), ('paper sleeve', 'Card Sleeve'),
+                   ('gatefold', 'Gatefold Cover'))
+
+
+def _packaging(formats):
+    words = {str(w).strip().lower() for f in formats if isinstance(f, dict)
+             for w in [*(f.get('descriptions') or []), f.get('text') or ''] if isinstance(w, str)}
+    return next((name for term, name in PACKAGING_TERMS if term in words), '')
+
+
 def _seconds(text):
     match = re.fullmatch(r'(\d{1,3}):(\d{2})', str(text or '').strip())
     return (int(match[1]) * 60 + int(match[2])) * 1000 if match else None
@@ -132,6 +146,7 @@ class DiscogsCatalog:
             'country': COUNTRIES.get(str(data.get('country', '')), str(data.get('country', ''))),
             'releaseDate': str(data.get('released') or data.get('year') or ''),
             'edition': ', '.join(d for d in descriptions if d in ('Limited Edition', 'Reissue', 'Remastered', 'Promo')),
+            'packaging': _packaging(data.get('formats', [])),
             'format': 'CD', 'discCount': str(max(quantity, len(discs) or 1)), 'tracklist': tracks,
             'media': [{'position': n, 'format': 'CD', 'title': '', 'tracks': rows} for n, rows in sorted(discs.items())],
             'discogsReleaseId': match[1]})

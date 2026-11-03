@@ -58,6 +58,16 @@ class DiscogsCatalogTests(unittest.TestCase):
         self.assertNotIn('lengthMs', info['media'][0]['tracks'][1])
         with self.assertRaises(ValidationError): service.release_details('discogs-abc')
 
+    def test_release_details_packaging_only_from_known_terms(self):
+        service, _ = catalog(RELEASE)
+        self.assertEqual(service.release_details('discogs-7714607')['packaging'], '')
+        for formats, expected in (([{'name': 'CD', 'descriptions': ['Album', 'Digipak']}], 'Digipak'),
+                                  ([{'name': 'CD', 'text': 'Slimline Jewel Case'}], 'Slim Jewel Case'),
+                                  ([{'name': 'CD', 'descriptions': ['Gatefold', 'Digibook']}], 'Digibook'),
+                                  ([{'name': 'CD', 'text': 'Some odd tin'}], '')):
+            service, _ = catalog(dict(RELEASE, formats=formats))
+            self.assertEqual(service.release_details('discogs-7714607')['packaging'], expected)
+
     def test_non_cd_release_rejected(self):
         service, _ = catalog(dict(RELEASE, formats=[{'name': 'Vinyl'}]))
         with self.assertRaises(ValidationError): service.release_details('discogs-7714607')
