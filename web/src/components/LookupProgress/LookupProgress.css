@@ -1,0 +1,19 @@
+.lookup-progress{display:flex;flex-direction:column;gap:14px;padding:16px 16px 14px;border-radius:var(--radius);background:var(--surface-2);border:1px solid var(--border);animation:lp-in var(--dur-slow) var(--ease-out)}
+.lp-head{display:flex;align-items:center;gap:12px}
+.lp-head strong{flex:1;min-width:0;font-size:15px;font-weight:550}
+.lp-spin{flex:none;width:18px;height:18px;border-radius:50%;border:2px solid var(--border-strong);border-top-color:var(--accent-deep);animation:lp-spin .8s linear infinite}
+.lp-cancel{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border:1px solid var(--border-strong);border-radius:999px;background:transparent;font-size:13px;color:var(--text)}
+.lp-cancel svg{width:12px;height:12px;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;fill:none}
+/* 轨道：已填部分 + 间隙 + 未填部分，末端一个小圆点（同截图的分段进度条） */
+.lp-track{position:relative;height:4px;border-radius:999px;background:var(--surface-3)}
+.lp-track::after{content:"";position:absolute;right:0;top:50%;width:4px;height:4px;margin-top:-2px;border-radius:50%;background:var(--accent-deep)}
+.lp-fill{position:absolute;inset:0 auto 0 0;width:100%;border-radius:999px;background:var(--accent-deep);transform-origin:left;transform:scaleX(.04);animation:lp-fill 14s cubic-bezier(.08,.75,.2,1) forwards}
+.lp-sources{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.lp-sources span{margin-right:auto}
+.lp-src{width:28px;height:28px;border-radius:50%;background:var(--brand-plate);object-fit:cover;box-shadow:0 0 0 1px var(--hairline)}
+/* 图形不是满幅方块的留白，避免边角被圆裁掉 */
+.lp-src.is-musicbrainz,.lp-src.is-deezer,.lp-src.is-ndl{padding:4px;object-fit:contain}
+@keyframes lp-spin{to{transform:rotate(1turn)}}
+@keyframes lp-fill{to{transform:scaleX(.9)}}
+@keyframes lp-in{from{opacity:0;translate:0 6px}}
+@media (prefers-reduced-motion:reduce){.lp-spin{animation-duration:2s}.lookup-progress{animation:none}}

@@ -1,6 +1,6 @@
 // 条码 / 唱片编号查询的纯逻辑：输入识别、条码校验位、本地库命中、最近查询（只存本浏览器）。
 import {prefs} from './prefs';
-import {identityOf} from './release-source';
+import {identityOf, type ReleaseSource} from './release-source';
 import type {AlbumRecord} from '../types';
 
 export type LookupKind = 'barcode' | 'catalog';
@@ -86,3 +86,10 @@ export function releasePending(r: AlbumRecord): boolean {
   if (r.status === 'sold' || r.status === 'trash') return false;
   return !(r.releaseInfo && (identityOf(r.releaseInfo) || r.releaseInfo.manualRelease === '1'));
 }
+
+/** 每种查询会并发查的资料库（与后端 `ReleaseCatalog.backups` / 文字搜索一致，只用于进度展示）。 */
+export const LOOKUP_SOURCES: Record<LookupKind | 'text', ReleaseSource[]> = {
+  barcode: ['musicbrainz', 'deezer', 'itunes'],
+  catalog: ['musicbrainz', 'discogs', 'ndl'],
+  text: ['musicbrainz', 'discogs'],
+};

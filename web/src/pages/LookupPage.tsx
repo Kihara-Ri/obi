@@ -8,16 +8,18 @@ import {api} from '../core/api';
 import {Thumb} from '../components/Cover';
 import {displayReleaseTitle} from '../core/release-metadata';
 import {statusName} from '../core/modules';
-import {classify, isTextQuery, localMatches, loadRecent, pushRecent, saveRecent, type LookupKind} from '../core/lookup';
+import {classify, isTextQuery, LOOKUP_SOURCES, localMatches, loadRecent, pushRecent, saveRecent, type LookupKind} from '../core/lookup';
 import {failedSources} from '../forms/record/pickRelease';
 import {openDetail} from '../forms/DetailDrawer';
 import {openRecordForm} from '../forms/RecordForm';
 import type {AlbumRecord, ReleaseCandidate, ReleaseInfo} from '../types';
+import type {ReleaseSource} from '../core/release-source';
 import {LookupCard} from './LookupCard';
 import {AlbumResults, type AlbumHit} from './AlbumResults';
 import {PendingReleases} from './PendingReleases';
 import {confirmRelease, markHandled} from './confirmRelease';
 import {BarcodeScanner, ScanField} from '../components/BarcodeScanner';
+import {LookupProgress} from '../components/LookupProgress/LookupProgress';
 import './LookupPage.css';
 
 interface Found {kind: LookupKind | 'text'; value: string; candidates: ReleaseCandidate[]; albums: AlbumHit[]; note: string}
@@ -29,6 +31,7 @@ export function LookupPage() {
   const [found, setFound] = useState<Found | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [querying, setQuerying] = useState<ReleaseSource[]>([]);  // 正在查的资料库，只用于进度卡
   const [scanning, setScanning] = useState(false);
   const [recent, setRecent] = useState(loadRecent);
   const [target, setTarget] = useState<AlbumRecord | null>(null);  // 正在为库里这张确认发行版
@@ -45,6 +48,7 @@ export function LookupPage() {
       const opts = {signal: controller.signal};
       let query = parsed.value, kind: Found['kind'] = parsed.kind, note = '', candidates: ReleaseCandidate[] = [], albums: AlbumHit[] = [];
       if (parsed.kind !== 'text') {
+        setQuerying(LOOKUP_SOURCES[parsed.kind]);
         const result = await api<{candidates: ReleaseCandidate[]; sources?: Record<string, string>}>(
           parsed.kind === 'barcode' ? 'catalog/barcode' : 'catalog/number',
           parsed.kind === 'barcode' ? {barcode: parsed.value} : {catalogNumber: parsed.value}, opts);
@@ -55,6 +59,7 @@ export function LookupPage() {
         if (!candidates.length && fallback) { kind = 'text'; query = fallback; }
       }
       if (kind === 'text') {
+        setQuerying(LOOKUP_SOURCES.text);
         const result = await api<{albums: AlbumHit[]; sources?: Record<string, string>}>(
           'catalog/search', {text: query}, opts);
         albums = result.albums; note = failedSources(result.sources);
@@ -71,6 +76,9 @@ export function LookupPage() {
       if (abort.current === controller) setBusy(false);
     }
   };
+
+  /** 取消正在进行的查询：丢掉这次请求，回到查询前的样子。 */
+  const cancel = () => { abort.current?.abort(); abort.current = null; setBusy(false); };
 
   /** 带入新增表单：详情由卡片取好（取不到时只有基本资料）。 */
   const addToLibrary = async (candidate: ReleaseCandidate, info: ReleaseInfo) => {
@@ -105,7 +113,7 @@ export function LookupPage() {
     <div className="lookup-page">
       <form className="lookup-form" onSubmit={e => { e.preventDefault(); void search(); }}>
         <ScanField onScan={() => setScanning(true)}
-          onClear={text ? () => { abort.current?.abort(); setText(''); setError(''); setFound(null); setBusy(false); setTarget(null); } : undefined}>
+          onClear={text ? () => { cancel(); setText(''); setError(''); setFound(null); setTarget(null); } : undefined}>
           <input type="text" inputMode="text" autoComplete="off" enterKeyHint="search" aria-label="条码、唱片编号或专辑名"
             placeholder="条形码、唱片编号，或专辑名 艺人" value={text}
             onChange={e => { setText(e.target.value); setError(''); }}/>
@@ -124,7 +132,7 @@ export function LookupPage() {
         {recent.map(item => <button key={item} type="button" className="chip" onClick={() => void search(item)}>{item}</button>)}
         <button type="button" className="quiet" onClick={() => { setRecent([]); saveRecent([]); }}>清除</button>
       </div> : null}
-      {busy ? <p className="lookup-msg" role="status">查询中 · MusicBrainz / {/^[\d\s-]+$/.test(text.trim()) ? 'Deezer / iTunes' : 'Discogs / 国会图书馆'}</p> : null}
+      {busy ? <LookupProgress sources={querying} onCancel={cancel}/> : null}
       {!found && !busy && !error ? <PendingReleases onPick={startConfirm}/> : null}
       {found && isText ? <section aria-label="专辑搜索结果" className="lookup-results">
         <h2>{found.albums.length ? `找到 ${found.albums.length} 张专辑，点开看版本` : '没有找到相近的专辑'}</h2>

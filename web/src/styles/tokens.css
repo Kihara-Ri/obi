@@ -27,7 +27,7 @@
   --album-tray-black:#151719; --album-tray-white:#f1f0e9; --album-tray-clear:rgba(203,211,218,.16);
   --album-disc-base:#b8bec2; --album-disc-light:#f2f5f4; --album-disc-shade:#858c92; --album-disc-edge:#91989e;
   --radius:14px; --radius-sm:10px;
-  --brand-deepseek:#4d6bfe; --brand-claude:#d97757; /* 第三方品牌色（服务商图标） */
+  --brand-deepseek:#4d6bfe; --brand-claude:#d97757; --brand-plate:#fff; /* 第三方品牌色（服务商图标） */
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
 }
 /* 主题 token：浅色值 = 默认；跟随系统时由 prefers-color-scheme 切深色，设置页显式选择经 data-theme 覆盖。
