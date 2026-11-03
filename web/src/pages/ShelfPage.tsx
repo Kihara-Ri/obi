@@ -8,7 +8,7 @@ import {releasePending} from '../core/lookup';
 import {onShelf} from '../core/modules';
 import type {ModuleFlags} from '../types';
 import {PageHead} from '../components/PageHead';
-import {BulkBar} from '../components/BulkBar';
+import {BulkBar} from './BulkBar';
 import {AlbumCard, CardGrid} from '../components/Cards';
 import {Dropdown} from '../components/ui/Dropdown';
 import {Seg} from '../components/ui/Seg';

@@ -21,7 +21,7 @@ import {Lightbox} from './components/ui/Lightbox';
 import {Toast} from './components/ui/Toast';
 import type {ToastAction, ToastKind} from './state/AppContext';
 import {Splash} from './components/ui';
-import {PageVeil} from './components/PageVeil'; import {PeekUnderlay} from './components/PeekUnderlay'; import {WhatsNew} from './components/WhatsNew';
+import {PageVeil} from './components/PageVeil'; import {PeekUnderlay} from './pages/PeekUnderlay'; import {WhatsNew} from './components/WhatsNew';
 import {installReplaceNav} from './core/nav';
 import {lazyPage} from './core/lazy-page';
 import {useShownPage} from './hooks/useShownPage';

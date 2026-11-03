@@ -32,7 +32,7 @@
 - **本机模式（D-019）**：静态站点上由浏览器里的 Pyodide 运行同一套后端，入口 `server/local_entry.py`，只在 `dist-local/`（`npm --prefix web run build:local`，不进 `static/`、镜像与 git）里启用，靠 `index.html` 的 `obi-local` 标记识别。**业务代码与路由表不得为本机模式分叉**——浏览器与服务器的差别（无线程、无 socket、无 fcntl）只在 `local_entry.py` 抹平；后端新增线程 / 子进程 / 文件锁依赖时，必须同时保证本机模式不会走到（或在该文件里替换），并跑 `tests/test_local_entry.py`。服务器版 `static/sw.js` 不得加入本机转发。安卓外壳另有只监听 `127.0.0.1` 的原生模型中继（D-030）：页面经 `ObiAndroid.modelRelay()` 取得地址并写入 `OPENCODE_RELAY_BASE`，Python 侧只按这个前缀改写 OpenCode 地址；不得把它扩成任意主机代理。浏览器静态站点没有中继，售卖照片识别仍不可用。
 
 ### 前端（`web/`，React 19 + TS strict + Vite）
-- 分层单向依赖：`core/` ← `components/` ← `pages/` 与 `forms/`；**禁止反向 import**。
+- 分层单向依赖：`core/` ← `components/` ← `pages/` 与 `forms/`；**禁止反向 import**（`web/tests/layering.test.mjs` 机检）。要打开表单或挂页面的卡片放 `pages/`。
 - 全局状态只经 `src/state/AppContext.ts`；禁止新增模块级可变全局。
 - 新页面 = `src/pages/` 加模块 + `App.tsx` 加一行 `lazyPage` 声明（每页一个 chunk，见 `core/lazy-page.ts`）并在分发里加一行；新表单 = `src/forms/` 加模块。
 - 既有页面级样式放 `src/styles/<模块>.css` 并在 `main.tsx` 按序 import（**新建/重写的单元组件例外**：`components/ui/<Name>/<Name>.tsx + .css` 同目录，见 docs/DECISIONS.md D-003）（tokens → base → layout → components → 各页面模块）；`@media` 跟随所属模块；文件不超过一个职责。

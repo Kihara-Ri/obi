@@ -9,7 +9,7 @@ import type {AppCtx} from '../state/AppContext';
 import type {Currency} from '../types';
 import {Field, MoneyField, TextareaField} from './fields';
 import {Dropdown} from '../components/ui/Dropdown';
-import {AlbumLine} from '../components/SaleCard';
+import {AlbumLine} from '../components/AlbumLine';
 import {useFormSubmit, useRate} from './shared';
 
 // 日本邮政个人国际邮件全方案（官网服务一览，按速度从快到慢）：

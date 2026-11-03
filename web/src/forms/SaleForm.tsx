@@ -10,7 +10,7 @@ import type {AppCtx} from '../state/AppContext';
 import type {Currency} from '../types';
 import {AmountInput, DateChipsRow, Field, TextareaField} from './fields';
 import {Seg} from '../components/ui/Seg';
-import {AlbumLine} from '../components/SaleCard';
+import {AlbumLine} from '../components/AlbumLine';
 import {useFormSubmit, useRate} from './shared';
 import {Details} from '../components/ui/Details';
 

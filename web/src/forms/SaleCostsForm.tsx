@@ -6,7 +6,7 @@ import {useApp} from '../state/AppContext';
 import type {AppCtx} from '../state/AppContext';
 import type {Sale} from '../types';
 import {AmountInput} from './fields';
-import {AlbumLine} from '../components/SaleCard';
+import {AlbumLine} from '../components/AlbumLine';
 import {useFormSubmit, useRate} from './shared';
 
 export function openSaleCostsForm(app: AppCtx, sale: Sale) {

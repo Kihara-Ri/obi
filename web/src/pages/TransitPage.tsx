@@ -3,7 +3,7 @@ import {openArtistDrawer} from '../forms/ArtistDrawer';
 import {sum, yuan} from '../core/format';
 import {useApp} from '../state/AppContext';
 import {PageHead} from '../components/PageHead';
-import {ShipmentCard} from '../components/ShipmentCard';
+import {ShipmentCard} from './ShipmentCard';
 
 export function TransitPage() {
   const app = useApp();

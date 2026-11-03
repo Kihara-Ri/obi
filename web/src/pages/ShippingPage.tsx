@@ -3,7 +3,7 @@ import {openArtistDrawer} from '../forms/ArtistDrawer';
 import {sum, yuan} from '../core/format';
 import {useApp} from '../state/AppContext';
 import {PageHead} from '../components/PageHead';
-import {SaleCard} from '../components/SaleCard';
+import {SaleCard} from './SaleCard';
 import {openSaleCostsForm} from '../forms/SaleCostsForm';
 
 export function ShippingPage() {

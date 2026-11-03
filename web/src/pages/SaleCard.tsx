@@ -1,11 +1,10 @@
 // 售出中与已交易共用销售单卡片：专辑、金额与操作集中展示。
 import {useApp} from '../state/AppContext';
 import type {AppCtx} from '../state/AppContext';
-import type {AlbumRecord, Sale} from '../types';
-import {SALE_NAMES, labelTags} from '../types';
+import type {Sale} from '../types';
+import {SALE_NAMES} from '../types';
 import {daysSince, shipFeeText, sum, yuan} from '../core/format';
-import {AlbumSummary} from './AlbumSummary';
-import {Cover} from './Cover';
+import {AlbumSummary} from '../components/AlbumSummary';
 import {openDetail} from '../forms/DetailDrawer';
 import {CONFIRM_TITLES, ConfirmForm} from '../forms/ConfirmForm';
 
@@ -82,23 +81,6 @@ export function SaleCard({s, onArtist, onEditCosts}: {s: Sale; onArtist: (artist
         )}
       </div>
     </article>
-  );
-}
-
-// 合单售出表单里展示的专辑行（也用于打包表单）
-export function AlbumLine({r, showCost = true}: {r: AlbumRecord; showCost?: boolean}) {
-  const tags = labelTags(r);
-  return (
-    <div className="sale-album">
-      <div className="thumb"><Cover r={r}/></div>
-      <div>
-        <strong>{r.title}</strong>
-        <div className="a">
-          {r.artist}{tags.length ? ` · ${tags.join(' · ')}` : ''}
-          {showCost ? (r.cost === null ? ' · 成本待补' : ` · 成本 ${yuan(r.cost)}`) : ''}
-        </div>
-      </div>
-    </div>
   );
 }
 

@@ -1,6 +1,7 @@
 # 组件注册表
 
 新建任何 UI 前先读这里。已有相似组件时，**扩展它的 props**，不要新建近似品。新组件先登记再写代码（ai-kit R4）。
+`components/` 不 import `pages/` 与 `forms/`（`web/tests/layering.test.mjs` 机检）：要打开表单或挂页面的卡片放 `pages/`（`BulkBar` `SaleCard` `ShipmentCard` `PeekUnderlay`），表单复用的纯展示行放这里（`AlbumLine`）。
 `ui/` 下的单元组件是通用件：不依赖业务类型，可以整个目录原样复制到其他项目（样式随目录，颜色只用 token）。
 
 ## 单元组件（`components/ui/<Name>/`，组件 + 样式 + 入口同目录）
@@ -46,7 +47,7 @@
 | `GalleryFilmNavigator` | 胶片下方导航：印样条（小封面一排，当前高亮并滚到中间，点击跳转）+ `StageControls` 胶囊；替代原滑杆 |
 | `useGalleryDragScroll` | 桌面鼠标拖动横向滚动容器（只写 scrollLeft、竖向手势让给页面、拖后吞掉误点 click）；胶片使用，新的横向轨道可复用 |
 | `PageVeil` | 库存 ↔ 展示的转场幕布：Splash 转场版合上 → 预加载封面（`core/preload-covers`，上限 48 张、5 秒兜底）→ 打开。仅手机、非历史导航、非减少动态 | `covers: string[]` `onDone` |
-| `PeekUnderlay` | 子页左缘右划返回时垫在内容下面的上一级页面（更多 / 设置），由 `obi-peek` 事件开关，仅手势期间挂载，`inert` | 无（事件驱动） |
+| `PeekUnderlay`（`pages/`，要挂页面） | 子页左缘右划返回时垫在内容下面的上一级页面（更多 / 设置），由 `obi-peek` 事件开关，仅手势期间挂载，`inert` | 无（事件驱动） |
 | `WhatsNew` | 更新后第一次打开的更新说明弹窗：原生 `<dialog>`，列出上次看过的版本之后的 CHANGELOG 条目（最多 4 版），关闭即记下当前版本；首次安装不弹 | 无（读 `state.service.version`） |
 | `ReleaseCandidateCard` `ReleaseSummary` `OriginTag` | 发行版卡片（摘要与角标在同目录 `ReleaseSummary.tsx`）：封面（右下角 `OriginTag` 标来源：此版本 / 同专辑 / iTunes / 上传，样式 `.cover-origin` 与查询页专辑列表共用；封面按 `core/version-cover` 的顺序找）+ 名称 + 来源（艺人下一行小字）→ 关键信息网格 → 可展开的曲目与版本资料（按需取详情，不重复摘要字段）→ 调用方的操作区（render prop）。「查询」页（复制 / 入库）与专辑表单（选用此版本、已确认摘要）共用；头部封面点开放大用 `useArtExpand`（编辑页候选封面行同用）| 候选 `c` `children({info, load, busy})`；`fallbackArt?`；`ReleaseSummary` 另可 `title` `artist` `info` `source?` `url?` `origin?` |
 | `ListingSteps` | 服务商设置步骤与上架资料运行进度（整理资料 / 核对实物 / 生成文案） | `steps[{label,done}]`；当前步 = 第一个未完成 |
@@ -71,7 +72,7 @@
 | `ShopField` | 购买渠道字段：历史店铺归并 + 品牌图标，交互由 `Combobox` 提供 | 样式 `ShopField.css` |
 | `ShowcaseSwitch` | 手机顶栏的「库存｜展示」切换（仅以管理为主的用户显示） | `current` | 基于 `Seg` | 选中段 |
 | `ThemeToggle` | 浅色 / 深色 / 跟随系统 | 基于 `Seg` |
-| `BulkBar` | 库存页底部悬浮的批量操作条；清空选择时先播放退出动画再卸载 | `page` `ids` `isTrash` | role=toolbar | 已选数量 |
+| `BulkBar`（`pages/`，要打开表单） | 库存页底部悬浮的批量操作条；清空选择时先播放退出动画再卸载 | `page` `ids` `isTrash` | role=toolbar | 已选数量 |
 | `Cover` `Thumb` `PriceCell` | 封面、缩略图、价格格 | 卡片 / 详情 / 销售行共用 |
 | `PageHead` `Ledger` | 页头与侧栏账本 | |
 | `Sidebar` `MobileNav`（`AppNav`） | 桌面侧栏与手机底栏；`navCounts` 算两处共用的各页数量 | 仅供 `App` 外壳使用；入口按模块开关过滤 |

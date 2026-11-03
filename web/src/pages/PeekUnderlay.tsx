@@ -3,8 +3,8 @@
 import {useEffect, useState} from 'react';
 import {lazyPage} from '../core/lazy-page';
 
-const MorePage = lazyPage(() => import('../pages/MorePage').then(m => m.MorePage));
-const SettingsPage = lazyPage(() => import('../pages/SettingsPage').then(m => m.SettingsPage));
+const MorePage = lazyPage(() => import('./MorePage').then(m => m.MorePage));
+const SettingsPage = lazyPage(() => import('./SettingsPage').then(m => m.SettingsPage));
 
 export function PeekUnderlay() {
   const [page, setPage] = useState('');

@@ -5,7 +5,7 @@ import {sum, yuan} from '../core/format';
 import {searchScore} from '../core/search';
 import {useApp} from '../state/AppContext';
 import {PageHead} from '../components/PageHead';
-import {SaleCard} from '../components/SaleCard';
+import {SaleCard} from './SaleCard';
 import {Seg} from '../components/ui/Seg';
 import {SearchField} from '../components/ui/SearchField';
 import {openSaleCostsForm} from '../forms/SaleCostsForm';
