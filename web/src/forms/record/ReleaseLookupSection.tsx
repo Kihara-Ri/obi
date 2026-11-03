@@ -1,4 +1,4 @@
-// 发行版检索区块：一个输入框（自动识别条码 / 唱片编号，与「查询」页同一套识别）+ 一条状态行 + 候选卡片 / 已确认摘要。
+// 发行版检索区块：一个输入框（自动识别条码 / 唱片编号，与「查询」页同一套识别）+ 一条状态行（检索中换成与查询页同款的进度卡）+ 候选卡片 / 已确认摘要。
 // 条码与唱片编号只在这里编辑，「发行资料」折叠区不再重复提供；状态一律走 phase，文案保持一行。
 import {useEffect, useRef, useState} from 'react';
 import {barcodeFromPhotos} from '../../core/photo-barcode';
@@ -7,6 +7,8 @@ import {BarcodeScanner, ScanField} from '../../components/BarcodeScanner';
 import {ReleaseCandidateCard, ReleaseSummary, sourceName} from '../../components/ReleaseCandidateCard/ReleaseCandidateCard';
 import type {CoverOrigin} from '../../core/version-cover';
 import {boundSource, sourceUrl} from '../../core/release-source';
+import {LOOKUP_SOURCES} from '../../core/lookup';
+import {LookupProgress} from '../../components/LookupProgress/LookupProgress';
 import {CoverPanel} from './CoverPanel';
 import type {CoverSearch} from './useCoverSearch';
 import type {RecordValues} from './context';
@@ -94,7 +96,8 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, coverOrigin
         <button type="button" className="primary" aria-busy={working} onClick={() => void L.lookup()} disabled={working}>查询</button>
       </div>
       {readMsg ? <p className="lookup-photo-read"><span role="status">{readMsg}</span></p> : null}
-      {status ? <p className={`lookup-status is-${phase}` + (leaving ? ' is-leaving' : '')} role="status">
+      {L.searching ? <LookupProgress sources={LOOKUP_SOURCES[L.searching]} onCancel={L.cancelSearch}/> : null}
+      {status && !L.searching ? <p className={`lookup-status is-${phase}` + (leaving ? ' is-leaving' : '')} role="status">
         {phase === 'busy' ? <span className="lookup-spinner" aria-hidden="true"/> : <b aria-hidden="true">{phase === 'choose' ? L.candidates.length : MARK[phase]}</b>}
         <span>{status}</span>
         {phase === 'miss' && !L.manualRelease ? <span className="lookup-miss-actions">

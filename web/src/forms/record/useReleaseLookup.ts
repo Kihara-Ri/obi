@@ -23,6 +23,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
   const [mode, setModeState] = useState<LookupMode>(initialInfo?.catalogNumber && !initialInfo?.barcode ? 'catalog' : 'barcode');
   const [candidates, setCandidates] = useState<ReleaseCandidate[]>([]);
   const [busy, setBusy] = useState(false);
+  const [searching, setSearching] = useState<LookupMode | null>(null);  // 正在检索候选（不含核对 / 选用），显示进度卡
   const [message, setMessage] = useState('');
   const [notFound, setNotFound] = useState(false);
   const [verification, setVerification] = useState<'verified' | 'pending' | 'failed'>('verified');
@@ -79,8 +80,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
     // 后端两个来源各有超时；这里再兜底，避免连接卡死时界面一直停在“查询中”。
     const timer = window.setTimeout(() => controller.abort(), 70000);
     const current = () => seq === sequence.current && !!formRef.current?.isConnected;
-    setBusy(true); cover.setBusy(false); setCandidates([]); setNotFound(false);
-    setMessage(kind === 'barcode' ? '查询中 · MusicBrainz / Deezer / iTunes' : '查询中 · MusicBrainz / Discogs / 国会图书馆');
+    setBusy(true); setSearching(kind); cover.setBusy(false); setCandidates([]); setNotFound(false); setMessage('');
     const what = kind === 'barcode' ? '条码' : '编号';
     const promise = (async () => {
       try {
@@ -108,13 +108,15 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
       } finally {
         window.clearTimeout(timer);
         if (inflight.current?.key === key) inflight.current = null;
-        if (seq === sequence.current) setBusy(false);
+        if (seq === sequence.current) { setBusy(false); setSearching(null); }
       }
     })();
     inflight.current = {key, promise};
     return promise;
   };
   const lookup = () => search(mode, mode === 'barcode' ? barcode : catalogNumber);
+  /** 取消检索：丢掉这次请求回到查询前；改条码触发的自动检索被取消时按未核对处理。 */
+  const cancelSearch = () => { reset(); setBusy(false); setSearching(null); setMessage(''); setVerification(p => p === 'pending' ? 'failed' : p); };
 
   // 修改条码后：先用原发行版 ID 精确校验（笔误恰好等于原版本时不能悄悄重置版本），
   // 不通过再检索候选；条码不完整时只等待继续输入。
@@ -191,8 +193,8 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
     ctx, cover, sequence, verified, setBusy, setMessage, setBarcode, setCatalogNumber,
     setCandidates, setVerification});
 
-  return {mode, setMode, barcode, catalogNumber, candidates, busy, message, notFound,
-    verification, manualRelease, identified, changeBarcode, changeCatalogNumber, lookup,
+  return {mode, setMode, barcode, catalogNumber, candidates, busy, searching, message, notFound,
+    verification, manualRelease, identified, changeBarcode, changeCatalogNumber, lookup, cancelSearch,
     enterManually: () => markManual(false), leaveManual, setUnofficial, refreshReleaseMetadata, chooseRelease, setCatalogNumber, search};
 }
 export type ReleaseLookup = ReturnType<typeof useReleaseLookup>;

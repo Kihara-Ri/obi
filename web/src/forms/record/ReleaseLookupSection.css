@@ -18,6 +18,7 @@
 .lookup-spinner{flex:none;width:14px;height:14px;border-radius:50%;border:2px solid var(--border-strong);border-top-color:var(--accent-deep);animation:lookup-spin .7s linear infinite}
 @keyframes lookup-spin{to{transform:rotate(1turn)}}
 @media (prefers-reduced-motion:reduce){.lookup-spinner{animation-duration:2s}}
+.record-barcode-entry>.lookup-progress{margin-top:10px}
 .release-candidates{list-style:none;display:flex;flex-direction:column;gap:10px;margin:10px 0 0;padding:0}
 .record-barcode-entry>.rcc.is-confirmed{margin-top:10px}
 .lookup-miss-actions{margin-left:auto;display:flex;gap:6px;flex:none}
