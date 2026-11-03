@@ -122,6 +122,7 @@ class Store:
             CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY, at TEXT, action TEXT, data TEXT);
             CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, data TEXT NOT NULL);''')
         self.migrate()
+        self.finish_photo_swaps()  # 上次进程在照片切换途中退出：按日志补完
     def connect(self):
         db = sqlite3.connect(self.path, timeout=10)
         db.row_factory = sqlite3.Row
@@ -532,15 +533,35 @@ class Store:
             else: target.write_bytes(src)
         return d
     def apply_photos(self, rid, staged):
-        """Swap a staged set in with two renames: readers see the old set or the new one, never a partial one."""
+        """Swap a staged set in with two renames, so a record's folder is never a mix of two sets.
+
+        Idempotent: re-running after an interruption at any step finishes the swap
+        (staged gone = already moved in; only the old set may still need removing).
+        """
         d = self.photos_dir / rid
         old = staged.with_name(staged.name + '.old')
-        if d.exists(): d.rename(old)
-        if any(staged.iterdir()):
-            self.photos_dir.mkdir(parents=True, exist_ok=True)
-            staged.rename(d)
-        else: staged.rmdir()
+        if staged.exists():
+            if d.exists() and not old.exists(): d.rename(old)
+            if any(staged.iterdir()):
+                self.photos_dir.mkdir(parents=True, exist_ok=True)
+                staged.rename(d)
+            else: staged.rmdir()
         shutil.rmtree(old, ignore_errors=True)
+    def finish_photo_swaps(self, keys=None):
+        """Apply photo swaps journaled in committed transactions, then drop their journal rows.
+
+        Each save journals its swaps as meta rows `photo-swap:<staged dir>` inside the ledger
+        transaction, so the commit is the single point where new photos take effect: a crash
+        after it is rolled forward here on the next start. keys=None recovers every row.
+        """
+        root = self.path.parent / '.photo-swap'
+        with closing(self.connect()) as db:
+            if keys is None: keys = [r[0] for r in db.execute("SELECT key FROM meta WHERE key LIKE 'photo-swap:%'")]
+            for key in keys:
+                row = db.execute('SELECT data FROM meta WHERE key=?', (key,)).fetchone()
+                if row: self.apply_photos(json.loads(row[0]), root / key.split(':', 1)[1])
+            if keys:
+                with db: db.executemany('DELETE FROM meta WHERE key=?', [(k,) for k in keys])
     def stash_cover(self, r):
         """封面 data URL → data/covers/<内容哈希>.<ext>，记录只留 /api/cover/ 引用。
 
@@ -570,7 +591,7 @@ class Store:
             shares=allocate(number(data['batchFees'],'整批额外费用'), [number(i.get('price'),'买入金额', optional=True) or 1 for i in items] if data.get('allocation')=='price' else [1]*len(items))
             items=[{**i,'fees':f} for i,f in zip(items,shares)]
         staged=[]
-        # 新照片在提交前完整写进暂存目录；提交后只剩目录改名。事务或暂存失败则丢弃暂存，账本与照片都保持原样
+        # 新照片在提交前完整写进暂存目录，切换日志随账本一起提交；提交后只剩目录改名。事务或暂存失败则丢弃暂存，账本与照片都保持原样
         with _discard_staged(staged), closing(self.connect()) as db, db:
             result=[];plans=[]
             modules = self.meta_get(db, 'modules-v1')
@@ -631,7 +652,9 @@ class Store:
             # Editing a copy's title does not rekey an existing album.
             self._album_catalog(db)
             for rid,plan in plans: staged.append((rid,self.stage_photos(plan)))
-        for rid,d in staged:self.apply_photos(rid,d)
+            # 切换日志与账本同一事务：提交即生效，提交后进程退出也会在下次启动补完（finish_photo_swaps）
+            db.executemany('INSERT INTO meta(key,data) VALUES(?,?)', [('photo-swap:'+d.name, dumps(rid)) for rid,d in staged])
+        if staged: self.finish_photo_swaps(['photo-swap:'+d.name for _,d in staged])
         if metadata_only:
             # Return canonical editor fields (including shared notes), not state():
             # state() invokes the rate service and derives the entire ledger.
