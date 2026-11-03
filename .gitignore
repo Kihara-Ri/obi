@@ -26,7 +26,9 @@ albums.json
 售出的CD交易记录/
 メルカリ出售记录/
 
-# 构建产物与临时
+# 构建产物与临时（前端产物由 npm --prefix web run build 生成，发布时现构建）
+static/assets/
+static/index.html
 dist/
 VERSION
 __pycache__/
@@ -44,6 +46,7 @@ web/node_modules/
 .v2c/
 .zcode/
 .DS_Store
+Icon?
 # ai-kit R12（2026-10-17 同步套件）
 node_modules/
 build/

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "prebuild": "node scripts/clean.mjs && node scripts/gallery-fan.mjs && node scripts/gallery-orbit-keyframes.mjs && node scripts/album-engine-models.mjs",
-    "build": "vite build",
+    "build": "node -e \"require('fs').rmSync('../static/assets',{recursive:true,force:true})\" && vite build",
     "typecheck": "tsc --noEmit",
     "test": "node tests/run.mjs",
     "dev": "vite",

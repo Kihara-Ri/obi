@@ -28,9 +28,15 @@ jobs:
 
   backend:
     name: 后端测试（纯标准库）
+    needs: web
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # 构建产物不进 git：用 web 任务构建的同一份（静态资源与首页测试要读它）
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: static
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -51,6 +57,15 @@ jobs:
       - run: npm --prefix web test
       - run: npm --prefix web run typecheck
       - run: npm --prefix web run build
+      # 全流水线只构建这一次：后端测试与浏览器验收都下载这份产物
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: |
+            static/index.html
+            static/assets/
+          if-no-files-found: error
+          retention-days: 7
 
   docker:
     name: Docker 镜像构建
@@ -85,6 +100,7 @@ jobs:
   # 软件 GL 下 3D 挂载很慢：把浏览器验收拆成三个并行 runner，墙钟取最长的一片。
   sample-browser:
     name: 浏览器验收 · ${{ matrix.suite.name }}
+    needs: web
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -110,7 +126,10 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm --prefix web ci
-      - run: npm --prefix web run build
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: static
       - name: 缓存 Playwright Chromium
         id: playwright-cache
         uses: actions/cache@v4

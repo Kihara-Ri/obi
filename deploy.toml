@@ -25,7 +25,8 @@ test = [
   "npm --prefix web run typecheck",
 ]
 build = ["npm --prefix web run build"]
-artifacts = ["static"]
+# 构建产物不进 git（static/assets、static/index.html），每次发布现构建，不再比对已提交的产物
+artifacts = []
 package = "python3 tools/package_app.py"
 package_path = "dist/album-ledger.tar.gz"
 version_file = "VERSION"

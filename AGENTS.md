@@ -36,7 +36,7 @@
 - 全局状态只经 `src/state/AppContext.ts`；禁止新增模块级可变全局。
 - 新页面 = `src/pages/` 加模块 + `App.tsx` 加一行 `lazyPage` 声明（每页一个 chunk，见 `core/lazy-page.ts`）并在分发里加一行；新表单 = `src/forms/` 加模块。
 - 既有页面级样式放 `src/styles/<模块>.css` 并在 `main.tsx` 按序 import（**新建/重写的单元组件例外**：`components/ui/<Name>/<Name>.tsx + .css` 同目录，见 docs/DECISIONS.md D-003）（tokens → base → layout → components → 各页面模块）；`@media` 跟随所属模块；文件不超过一个职责。
-- **改完必须** `npm --prefix web run typecheck && npm --prefix web run build`——服务端只认 `static/assets/` 构建产物，改源码不构建等于没改。
+- **改完必须** `npm --prefix web run typecheck && npm --prefix web run build`——服务端只认构建产物（`static/assets`、`static/index.html`），改源码不构建等于没改。产物不进 git（D-038），发布与 CI 都现构建。
 - `static/assets` 文件名保持稳定（不哈希）：服务端对构建产物下发 `Cache-Control: no-cache` + ETag（未变即 304），测试断言固定路径。
 
 ## 用户已定案的 UI 偏好（不得回退）

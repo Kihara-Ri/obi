@@ -67,7 +67,7 @@ security.py          登录、会话与限流
 backups.py           每日一致性快照
 photo_uploads.py     实物照片逐张上传的暂存（保存前不写账本）
 web/                 前端源码：React 19 + TypeScript + Vite
-static/              构建产物与 PWA 资源
+static/              PWA 资源；assets/ 与 index.html 是构建产物（不进 git）
 plugins/album-engine/  官方插件 ZIP 与哈希目录
 android/             原生外壳（本机模式）
 deploy/ tools/       systemd / nginx / Litestream 配置 · 发布、打包与样本脚本
@@ -81,7 +81,7 @@ npm --prefix web run typecheck && npm --prefix web run build
 npm --prefix web test                               # 前端单测
 ```
 
-- 改前端必须构建：服务端只认 `static/assets/` 产物。
+- 改前端必须构建：服务端只认 `static/assets/` 产物；产物不进 git，clone 后先 `npm --prefix web ci && npm --prefix web run build`。
 - 首次 clone 先执行 `tools/setup-hooks.sh`：commit / push 前扫描个人数据，CI 再扫全历史，红灯即修复。
 - 涉及专辑场景的测试一律复用固定样本库（`tools/seed_samples.py`，21 个虚构副本）。真实封面与参考模型预览：首次 `python3 tools/preview_samples.py prepare --download`，之后 `python3 tools/preview_samples.py`，见[固定样本真实贴图](docs/固定样本真实贴图.md)。
 - 应用图标源为 `static/favicon.svg`，改后运行 `python3 tools/build_icons.py`（需 ImageMagick）。

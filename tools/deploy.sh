@@ -33,6 +33,31 @@ for arg in "$@"; do
     *) echo "未知参数：${arg}（用法见脚本头部）" >&2; exit 1 ;;
   esac
 done
+# 从本机工作树发布时的两道闸（服务器上的补丁更新器不经过这里）：
+# 1. 远程有本地没有的提交 → 拒绝：否则会把别处已上线的改动悄悄回退。
+# 2. 把这次实际发布的整棵树（含未提交、未跟踪但未被忽略的文件）存成 refs/deploys/<时间>，
+#    --allow-dirty 发出去的版本也能 git checkout 原样重建；只存本地，不推送。
+if [ "$command" = deploy ] && [ -z "${PACKAGE_PATH:-}" ] && [ "${DEPLOY_HOST:-}" != local ]; then
+  if git -C "$ROOT" rev-parse --abbrev-ref '@{u}' >/dev/null 2>&1; then
+    git -C "$ROOT" fetch --quiet || echo "⚠ 拉取远程失败，按上次已知的远程状态检查" >&2
+    behind=$(git -C "$ROOT" rev-list --count 'HEAD..@{u}')
+    if [ "$behind" != 0 ]; then
+      echo "✗ 远程有 ${behind} 个提交本地没有：先 git pull --rebase，否则发布会回退它们" >&2
+      exit 1
+    fi
+  fi
+  index="$(mktemp)"   # 临时索引：不碰真正的暂存区
+  GIT_INDEX_FILE="$index" git -C "$ROOT" read-tree HEAD
+  GIT_INDEX_FILE="$index" git -C "$ROOT" add -A
+  tree=$(GIT_INDEX_FILE="$index" git -C "$ROOT" write-tree)
+  rm -f "$index"
+  if [ "$tree" = "$(git -C "$ROOT" rev-parse 'HEAD^{tree}')" ]; then snap=$(git -C "$ROOT" rev-parse HEAD)
+  else snap=$(git -C "$ROOT" commit-tree "$tree" -p HEAD -m "deploy snapshot (uncommitted changes)"); fi
+  stamp=$(date +%Y%m%d-%H%M%S)
+  git -C "$ROOT" update-ref "refs/deploys/${stamp}" "$snap"
+  echo "发布快照：refs/deploys/${stamp} → ${snap:0:12}（git checkout ${snap:0:12} 可重建这次发布的源码）"
+fi
+
 if [ "$command" = deploy ]; then
   [ -z "${PACKAGE_PATH:-}" ] || flags+=(--package "$PACKAGE_PATH")
   [ -z "${EXPECTED_VERSION:-}" ] || flags+=(--expect-version "$EXPECTED_VERSION")
