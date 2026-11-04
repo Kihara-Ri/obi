@@ -297,6 +297,7 @@ def api_records(h, svc, body, *, metadata_only=False):
     for item in incoming:
         if not isinstance(item, dict): continue
         if metadata_only and 'releaseInfo' not in item: continue
+        if 'releaseInfo' not in item: continue  # 没带发行资料（如只改买入金额）：保存时沿用旧值，无可核对
         info = item.get('releaseInfo') or {}
         if not isinstance(info, dict): continue
         new_barcode = info.get('barcode') or ''

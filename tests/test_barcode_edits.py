@@ -45,6 +45,14 @@ class VerificationTests(unittest.TestCase):
         self.assertEqual(self.h.send.call_args.args[0]['valid'],True)
         self.source.release_details.assert_called_once_with(EDITION)
 
+    def test_purchase_edit_without_release_info_keeps_release_and_saves(self):
+        record = next(r for r in self.store.state()['records'] if r['id']==self.ident)
+        self.save({'id':self.ident,'revision':record['revision'],'price':'880','currency':'JPY'})
+        after = next(r for r in self.store.state()['records'] if r['id']==self.ident)
+        self.assertEqual(float(after['price']), 880)
+        self.assertEqual(after['releaseInfo']['musicBrainzReleaseId'], EDITION)
+        self.assertEqual(after['releaseInfo']['barcode'], BARCODE)
+
     def test_upc_a_registered_release_accepts_zero_padded_ean(self):
         self.source.release_details.return_value = {'barcode': '888837168618'}
         api_verify_barcode(self.h, self.svc, {'barcode': '0888837168618', 'releaseId': EDITION})
