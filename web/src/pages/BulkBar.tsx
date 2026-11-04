@@ -4,6 +4,7 @@ import {useEffect, useRef, useState} from 'react';
 import {useApp} from '../state/AppContext';
 import {openSaleForm} from '../forms/SaleForm';
 import {openShipForm} from '../forms/ShipForm';
+import {openJoinShipment} from '../forms/JoinShipmentForm';
 import {bulkAction} from '../forms/shared';
 import './BulkBar.css';
 
@@ -37,6 +38,8 @@ export function BulkBar({page, ids, isTrash}: {page: string; ids: string[]; isTr
         {page === 'overseas' ? (
           <>
             <button className="primary" onClick={() => openShipForm(app, sel)}>✈ 打包运输</button>
+            {app.state.shipments.some(s => s.status === 'transit')
+              ? <button onClick={() => openJoinShipment(app, sel)}>加入已有包裹</button> : null}
             {modules.trading ? <><button onClick={() => bulkAction(app, 'list', sel, '已标记上架')}>标记上架</button>
             <button onClick={() => bulkAction(app, 'unlist', sel, '已取消上架')}>取消上架</button></> : null}
           </>

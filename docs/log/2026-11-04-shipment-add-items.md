@@ -1,7 +1,7 @@
 # 2026-11-04 · 在途包裹增减专辑
 
 - **作者**：Claude
-- **范围**：`storage.py`（`update_shipment` 增加 `add` / `remove`）、`web/src/forms/ShipForm.tsx`（编辑包裹）、`web/src/styles/shipments.css`、`tests/test_ledger.py`、`CHANGELOG.md`
+- **范围**：`storage.py`（`update_shipment` 增加 `add` / `remove`）、`web/src/forms/ShipmentEditForm.tsx`（编辑包裹，自 ShipForm 拆出）、`shipShared.ts`、`JoinShipmentForm.tsx`、`pages/BulkBar.tsx`、`web/src/styles/shipments.css`、`tests/test_ledger.py`、`CHANGELOG.md`
 
 ## 改了什么
 编辑在途包裹时可移出专辑、从海外库存添加专辑。总运费默认不变，按新张数重新平摊；同时改运费栏则按新运费平摊。
@@ -13,7 +13,7 @@
 - 服务端同一事务内处理增减、状态切换与重新平摊；只增减时沿用包裹已折算的人民币总额与日元原额，不按当日汇率重算。移出按撤销包裹的口径回到海外库存并扣回已分摊运费。
 - 仅「在途」允许；至少保留 1 张；加入的必须是海外库存，移出的必须在包内。
 - 前端只在运费字段被改过时才提交运费，避免仅增减时被汇率重算。放弃的方案：每次新增再单独记一笔运费——与「一趟运输一笔运费」的模型不符，补付运费直接改运费栏即可。
-- 第二步（未做）：库存多选后「加入已有包裹」。
+- 第二步已做：海外库存多选后，批量条在「打包运输」旁出现「加入已有包裹」（仅当存在在途包裹），`forms/JoinShipmentForm.tsx` 选包裹后调同一个 `shipment-update` 的 `add`；只有一个在途包裹时默认选中。
 
 ## 可能带来的新问题
 已有专辑的成本会随平摊变化（预览已提示）。已签收包裹不支持增减。移出与添加没有「撤销」提示条，需再次编辑还原。已验证：后端 589 项、前端测试、typecheck、build、样本库手机视口实操（3→5 张，总运费不变，每张 ¥35.38→¥21.23）。未在真机验证。
