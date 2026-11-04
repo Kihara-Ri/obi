@@ -5,7 +5,7 @@ import {useApp} from '../state/AppContext';
 import {AlbumSummary} from '../components/AlbumSummary';
 import {openDetail} from '../forms/DetailDrawer';
 import {openConfirm} from './SaleCard';
-import {openShipmentEdit} from '../forms/ShipForm';
+import {openShipmentEdit} from '../forms/ShipmentEditForm';
 import {ShipmentStack} from '../components/ShipmentStack/ShipmentStack';
 
 export function ShipmentCard({s, arrived, onArtist}: {s: Shipment; arrived: boolean; onArtist: (artist: string) => void}) {

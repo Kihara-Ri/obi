@@ -18,3 +18,10 @@
   .shipment-head .actions{order:6;flex-basis:100%;margin-top:2px}
   .shipment-head .actions button{flex:1;min-height:42px}
 }
+.ship-items{display:flex;flex-direction:column;gap:10px}
+.ship-item{display:flex;align-items:center;gap:10px}
+.ship-item>.sale-album{flex:1;min-width:0}
+.ship-item.removed .sale-album{opacity:.4;text-decoration:line-through}
+.ship-item.pick{cursor:pointer}
+.ship-item.pick input{flex:none;width:18px;height:18px}
+.ship-add{align-self:flex-start}

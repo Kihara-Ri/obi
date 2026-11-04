@@ -286,6 +286,34 @@ class LedgerTests(unittest.TestCase):
         self.assertEqual(sh['items'][0]['feeOriginal'],'1000.00')
         self.assertEqual(self.record(a)['fees'],'58.00')  # 40 + 48 − 30
         self.assertEqual(self.record(a)['cost'],'154.00')  # 96 折算 + 58 fees
+    def sh(self,sid): return next(s for s in self.store.state()['shipments'] if s['id']==sid)
+    def test_shipment_add_keeps_total_and_resplits(self):
+        a=self.buy();b=self.buy();c=self.buy()
+        sid=self.ship([a,b],currency='JPY',cost='1000')  # ¥48 → 24/张
+        self.store.update_shipment({'id':sid,'add':[c]})
+        sh=self.sh(sid)
+        self.assertEqual(sh['cost'],'48.00');self.assertEqual(sh['costOriginal'],'1000.00')
+        self.assertEqual(sum(Decimal(i['fee']) for i in sh['items']),Decimal('48.00'))
+        self.assertEqual(sum(Decimal(i['feeOriginal']) for i in sh['items']),Decimal('1000.00'))
+        self.assertEqual([self.record(x)['status'] for x in (a,b,c)],['transit']*3)
+        self.assertEqual(self.record(c)['shipmentId'],sid)
+        self.assertEqual(sum(Decimal(self.record(x)['fees']) for x in (a,b,c)),Decimal('30')+Decimal('48'))  # 买入 fees 10×3 + 运费
+    def test_shipment_add_with_new_cost_and_remove(self):
+        a=self.buy();b=self.buy();c=self.buy();sid=self.ship([a,b])  # 30
+        self.store.update_shipment({'id':sid,'add':[c],'cost':'60','currency':'CNY'})
+        self.assertEqual(self.record(c)['fees'],'30.00')  # 10 + 60/3 − 0
+        self.store.update_shipment({'id':sid,'remove':[a]})
+        ra=self.record(a);self.assertEqual(ra['status'],'overseas');self.assertNotIn('shipmentId',ra);self.assertEqual(ra['fees'],'10.00')
+        self.assertEqual(self.record(b)['fees'],'40.00')  # 60/2 + 10
+        self.assertEqual(len(self.sh(sid)['items']),2)
+    def test_shipment_item_edit_rules(self):
+        a=self.buy();b=self.buy();c=self.buy(currency='CNY',price='100',date='2026-09-07');sid=self.ship([a])
+        with self.assertRaises(ValidationError):self.store.update_shipment({'id':sid,'add':[c]})      # 非海外库存
+        with self.assertRaises(ValidationError):self.store.update_shipment({'id':sid,'remove':[a]})   # 不能清空
+        with self.assertRaises(ValidationError):self.store.update_shipment({'id':sid,'remove':[b]})   # 不在包裹里
+        self.store.shipment_action({'id':sid,'action':'arrive','date':'2026-09-18'})
+        with self.assertRaises(ValidationError):self.store.update_shipment({'id':sid,'add':[b]})      # 已签收
+        self.assertEqual(self.record(b)['status'],'overseas')
     def test_arrive_then_rollback(self):
         a=self.buy();sid=self.ship([a])
         self.store.shipment_action({'id':sid,'action':'arrive','date':'2026-09-18'})

@@ -852,11 +852,34 @@ class Store:
                 s['method']=m
             if 'note' in data: s['note']=str(data['note'])
             if 'date' in data: s['date']=day(data['date'],'发货日期')
+            drop=list(dict.fromkeys(data.get('remove') or []));add=list(dict.fromkeys(data.get('add') or []))
+            if (drop or add) and s['status']!='transit': raise ValidationError('只有在途包裹能增减专辑；已签收的请先回滚签收')
+            have={i['recordId'] for i in s['items']}
+            if any(x not in have for x in drop): raise ValidationError('要移出的专辑不在这个包裹里，请刷新页面')
+            if any(x in have for x in add): raise ValidationError('要添加的专辑已在包裹里，请刷新页面')
+            for rid in drop:
+                item=next(i for i in s['items'] if i['recordId']==rid);r=self.get(db,'records',rid)
+                r['fees']=money(max(Decimal(r.get('fees') or 0)-Decimal(item['fee']),Decimal('0')))
+                r['status']='overseas';r.pop('shipmentId',None);r['revision']+=1;self.put(db,'records',r)
+                s['items'].remove(item)
+            for rid in add:
+                r=self.get(db,'records',rid)
+                if r['status']!='overseas': raise ValidationError('只有海外库存的专辑能加入包裹')
+                r['previousStatus']='overseas';r['status']='transit';r['shipmentId']=s['id'];r['revision']+=1;self.put(db,'records',r)
+                s['items'].append({'recordId':rid,'fee':'0.00','feeOriginal':'0.00'})
+            if not s['items']: raise ValidationError('包裹至少留一张专辑；要清空请撤销这个包裹')
+            changed_items=bool(drop or add)
             if 'cost' in data or 'currency' in data:
                 currency=data.get('currency') or s.get('currency') or 'CNY'
                 if currency not in ('CNY','JPY'): raise ValidationError('币种不支持')
                 orig=number(data['cost'],'运费') if 'cost' in data else Decimal(s.get('costOriginal') or s['cost'])
                 new=self.to_cny(orig,currency,s['date'],'运费')
+            elif changed_items:
+                # 只增减专辑：总运费不变（已按原汇率折算），直接重新平摊
+                currency=s.get('currency') or 'CNY';new=Decimal(s['cost'])
+                orig=Decimal(s.get('costOriginal') or s['cost'])
+            else: currency=None
+            if currency:
                 shares=allocate(new,[1]*len(s['items']))
                 orig_shares=allocate(orig,[1]*len(s['items'])) if currency=='JPY' else shares
                 for item,share,o_share in zip(s['items'],shares,orig_shares):
