@@ -134,13 +134,19 @@ class Store:
             f.seek(24); counter = f.read(4)
         st = self.path.stat()
         return f'{counter.hex()}-{st.st_size}-{st.st_mtime_ns}'
-    def rows(self, db, table): return [json.loads(r['data']) for r in db.execute(f'SELECT data FROM {table}')]
+    def rows(self, db, table):
+        # 同日副本沿用既有行顺序；备份也按此顺序写出，恢复后保持相对位置。
+        order = ' ORDER BY rowid' if table == 'records' else ''
+        return [json.loads(r['data']) for r in db.execute(f'SELECT data FROM {table}{order}')]
     def get(self, db, table, id):
         row = db.execute(f'SELECT data FROM {table} WHERE id=?',(id,)).fetchone()
         if not row: raise ValidationError('记录不存在，请刷新页面')
         return json.loads(row['data'])
     def put(self, db, table, r):
-        db.execute(f'INSERT OR REPLACE INTO {table}(id,data) VALUES(?,?)',(r['id'],dumps(r)))
+        # REPLACE 会删除旧行再插入，使同日记录在全量刷新后移到末尾。
+        sql = ('INSERT INTO records(id,data) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data'
+               if table == 'records' else f'INSERT OR REPLACE INTO {table}(id,data) VALUES(?,?)')
+        db.execute(sql,(r['id'],dumps(r)))
     def audit(self, db, action, data):
         db.execute('INSERT INTO audit(at,action,data) VALUES(?,?,?)',(now(),action,dumps(data)))
     def migrate(self):

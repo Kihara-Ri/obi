@@ -28,6 +28,7 @@ function ManageBody({id}: {id: string}) {
   const approx = jpyCost(r);
   const inStock = ['overseas', 'domestic'].includes(r.status);
   return <div className="detail-page">
+    <Rows rows={[{label: '录入时间', value: r.createdAt?.replace('T', ' ') || '未记录'}]}/>
     {modules.acquisition ? <>
       <h3 className="section-title">买入</h3>
       <Rows rows={[
