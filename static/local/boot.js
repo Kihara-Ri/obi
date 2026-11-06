@@ -33,7 +33,7 @@ function relayBase() {
   try { return globalThis.ObiAndroid?.modelRelay?.() || ''; } catch { return ''; }
 }
 
-function startEngine(onStatus, start = 'start') {
+function startEngine(onStatus, start = 'start', rateSession) {
   return new Promise((resolve, reject) => {
     const worker = new Worker('/local/engine-worker.js');
     worker.onmessage = ({ data }) => {
@@ -43,7 +43,7 @@ function startEngine(onStatus, start = 'start') {
       else if (data.error) reject(new Error(data.error));
     };
     worker.onerror = (e) => reject(new Error(e.message || '本机引擎启动失败'));
-    worker.postMessage({start, relay: relayBase()});
+    worker.postMessage({start, relay: relayBase(), rateSession});
   });
 }
 
@@ -53,7 +53,8 @@ export async function startLocalMode(onStatus) {
   await claimByServiceWorker(onStatus);
   // 请求浏览器把数据标为持久，降低被系统清理的概率（是否授予由浏览器决定）
   try { await navigator.storage?.persist?.(); } catch { /* 拿不到也不影响使用 */ }
-  await startEngine(onStatus);
+  const rateSession = crypto.randomUUID();
+  await startEngine(onStatus, 'start', rateSession);
   // 慢的外网查询单独一个引擎，不拖住账本读写；它没起来也不影响账本，只是这类查询不可用
-  startEngine(() => {}, 'start-net').catch(() => {});
+  startEngine(() => {}, 'start-net', rateSession).catch(() => {});
 }

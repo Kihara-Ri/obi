@@ -28,7 +28,10 @@ export function PurchaseForm({id}: {id: string}) {
   const formRef = useRef<HTMLFormElement>(null);
   const dirty = () => app.setDrawerDirty(true);
   const ctx: FormCtx = {v, setV, live, base, dirty, formRef, set: patch => setV(prev => ({...prev, ...patch}))};
-  const preview = useCostPreview(v, true);
+  const opened = base.current;
+  const price0 = opened.currency === 'JPY' && opened.price !== '' ? String(Math.round(Number(opened.price))) : (opened.price || '');
+  const sameMoney = v.price === price0 && v.currency === opened.currency && v.date === opened.date;
+  const preview = useCostPreview(v, true, sameMoney ? opened.actual || '' : '');
   const shipItem = (() => {
     const s = r?.shipmentId ? app.state.shipments.find(x => x.id === r.shipmentId) : undefined;
     return s && s.currency === 'JPY' ? s.items.find(i => i.recordId === id) : undefined;

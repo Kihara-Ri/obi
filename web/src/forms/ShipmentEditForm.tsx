@@ -38,8 +38,12 @@ function ShipmentEditForm({id}: {id: string}) {
   const itemsEdited = removed.length > 0 || added.length > 0;
   const edited = JSON.stringify(v) !== pristine.current || itemsEdited;
   useEffect(() => { app.setDrawerDirty(edited); }, [edited]);
-  const rate = useRate(v.date);
-  const cny = v.cost === '' ? null : v.currency === 'CNY' ? Number(v.cost)
+  const o0 = JSON.parse(pristine.current) as typeof v;
+  const repricing = v.cost !== o0.cost || v.currency !== o0.currency || v.currency === 'JPY' && v.date !== o0.date;
+  const rateInfo = useRate(v.date, v.currency === 'JPY' && repricing && Number(v.cost) !== 0);
+  const basis = repricing ? rateInfo.quote : s?.rateQuote;
+  const rate = basis?.rate == null ? null : Number(basis.rate);
+  const cny = v.cost === '' ? null : Number(v.cost) === 0 ? 0 : v.currency === 'CNY' ? Number(v.cost)
     : rate === null ? null : Number(v.cost) * rate / 100;
   if (!s) return null;
 
@@ -47,8 +51,7 @@ function ShipmentEditForm({id}: {id: string}) {
   const inPack = s.items.map(i => app.rec(i.recordId)).filter((r): r is NonNullable<typeof r> => !!r);
   const candidates = app.state.records.filter(r => r.status === 'overseas');
   const count = s.items.length - removed.length + added.length;
-  const o0 = JSON.parse(pristine.current) as typeof v;
-  const total = v.cost !== o0.cost || v.currency !== o0.currency ? cny : Number(s.cost);
+  const total = repricing ? cny : Number(s.cost);
   const before = Number(s.cost) / s.items.length;
   const after = total === null || count === 0 ? null : total / count;
 
@@ -78,7 +81,7 @@ function ShipmentEditForm({id}: {id: string}) {
             <Field label="发货日期" name="edit-date" type="date" required value={v.date}
                    onChange={e => set({date: e.target.value})}/>
           </div>
-          {v.currency === 'JPY' && <div className="cost-line">{costLineText(v.currency, v.cost, rate, cny)}</div>}
+          {v.currency === 'JPY' && <div className="cost-line">{!repricing && !basis ? `已记录折合成本 ${yuan(s.cost)}` : costLineText(v.currency, v.cost, rate, cny, basis)}</div>}
         </section>
         <TextareaField label="备注" name="edit-note" value={v.note} onChange={val => set({note: val})}/>
         <section className="form-section ship-items">
@@ -110,8 +113,8 @@ function ShipmentEditForm({id}: {id: string}) {
         </section>
         <p className="small-note">
           {itemsEdited && after !== null
-            ? `总运费不变，重新平摊：每张 ${yuan(Number(before.toFixed(2)))} → ${yuan(Number(after.toFixed(2)))}，保存后各张成本随之调整。`
-            : `修改运费会自动调整每张专辑的成本分摊（当前每张 ${yuan(Number(before.toFixed(2)))}）。`}
+            ? `${repricing ? '重算运费后' : '总运费不变，重新平摊'}：每张 ${yuan(Number(before.toFixed(2)))} → ${yuan(Number(after.toFixed(2)))}，保存后各张成本随之调整。`
+            : `修改运费或日元发货日期会重算成本分摊（当前每张 ${yuan(Number(before.toFixed(2)))}）。`}
         </p>
       </div>
       <div className="drawer-footer">

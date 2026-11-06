@@ -28,6 +28,8 @@
 --export-engine-fixtures 只导出这三种合成实体、相同棋盘 PNG 与原始 RGBA 像素，
 不创建数据库或任务；独立引擎和 Studio 使用同一组样本定义。
 
+seed_rate_review 为现有 Dookie 副本提供未缓存的虚构买入日期，验证账本先显示、汇率补取与失败重试；不增加副本或素材。
+
 seed_listing_long_copy 为现有 lift-fists 副本提供固定长文案，供展开/收起验收；
 不新增副本，不改照片、金额或上架状态。
 
@@ -45,6 +47,7 @@ import sqlite3
 import sys
 import zlib
 from decimal import Decimal
+from datetime import date, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -66,7 +69,16 @@ def ean13(prefix12):
 
 
 def fake_fetch(start, end):
-    return dict(FIXED_RATES)
+    # Daily synthetic quotes preserve the existing monthly test amounts while
+    # supplying complete lookup coverage; these are never production FX data.
+    result = {}
+    current, last = date.fromisoformat(start), date.fromisoformat(end)
+    while current <= last:
+        day = current.isoformat()
+        earlier = [d for d in FIXED_RATES if d <= day]
+        if earlier: result[day] = FIXED_RATES[max(earlier)]
+        current += timedelta(days=1)
+    return result
 
 
 def open_store(data_dir):
@@ -248,10 +260,21 @@ def seed(data_dir):
                                   'recordIds': [ids['parachutes'], ids['tasogare'],
                                                 ids['loveless']]})
 
+    store.rates.warm(store.rate_days(store.backup()['records']))
     with closing(store.connect()) as db, db:
         db.execute("INSERT OR REPLACE INTO meta VALUES('sample-seeded','true')")
     return ids
 
+
+
+def seed_rate_review(data_dir):
+    """Existing Dookie copy gets an uncached fictional purchase date for rate recovery tests."""
+    ids = seed(data_dir)
+    store = open_store(data_dir)
+    record = next(r for r in store.backup()['records'] if r['id'] == ids['dookie-jp'])
+    if record['date'] != '2026-10-01':
+        store.save({'id': record['id'], 'revision': record['revision'], 'date': '2026-10-01'})
+    return ids
 
 
 def seed_packaging_review(data_dir):

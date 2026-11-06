@@ -1,22 +1,9 @@
 // 表单共享：提交流程（禁用按钮 → API → 关抽屉或回到上一层 → 刷新 → toast → 错误就地显示）、
 // 汇率获取与批量操作 helper。
-import {useEffect, useState} from 'react';
+import {useState} from 'react';
 import {api} from '../core/api';
-import {today} from '../core/format';
+export {useRate} from '../core/use-rate';
 import type {AppCtx} from '../state/AppContext';
-
-// 当日汇率（每 100 円兑人民币）；无数据返回 null，由调用方提示「暂无当日汇率」。
-export function useRate(date: string) {
-  const [rate, setRate] = useState<number | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    api<{rate: number | null}>('rate?date=' + (date || today()))
-      .then(res => { if (!cancelled) setRate(res.rate); })
-      .catch(() => { if (!cancelled) setRate(null); });
-    return () => { cancelled = true; };
-  }, [date]);
-  return rate;
-}
 
 export function useFormSubmit() {
   const [error, setError] = useState('');

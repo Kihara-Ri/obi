@@ -87,7 +87,18 @@ export interface AlbumCatalog {
   collectedAt: Record<string, string>;
 }
 
+export interface RateQuote {
+  requestedDate: string;
+  quoteDate: string | null;
+  rate: string | null;
+  source: string;
+  status: 'exact' | 'previous' | 'pending' | 'future' | 'invalid' | 'unavailable';
+  checkedAt: number | null;
+  provisional: boolean;
+}
+
 export interface AlbumRecord {
+  rateQuote?: RateQuote;
   /** Viewer-only task assets, never submitted as ledger data. */
   modelSources?: Partial<Record<PackagingPhotoRole, {sourceUrl: string; origin: string}>>;
   modelTextures?: Partial<Record<PackagingPhotoRole, string>>;
@@ -187,6 +198,7 @@ export interface SaleItem {
 }
 
 export interface Sale {
+  rateQuote?: RateQuote;
   id: string;
   date: string;
   status: SaleStatus;
@@ -214,6 +226,7 @@ export interface ShipmentItem {
 }
 
 export interface Shipment {
+  rateQuote?: RateQuote;
   id: string;
   method: string;
   cost: string;
@@ -248,7 +261,7 @@ export interface AppState {
   audit: AuditEntry[];
   settings: Record<string, unknown>;
   modules?: {enabled: ModuleFlags; configured: boolean; needsSetup: boolean; startPage?: StartPage}; // 旧运行进程尚未重启时可能缺失
-  rateService?: { days: number; latest: string | null };
+  rateService?: { days: number; latest: string | null; neededDates?: string[]; retryAt?: number | null; error?: string };
   service?: { login: boolean; version?: string; backup: BackupStatus };
 }
 

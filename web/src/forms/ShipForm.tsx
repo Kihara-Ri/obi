@@ -23,8 +23,9 @@ function ShipForm({ids}: {ids: string[]}) {
   const [v, setV] = useState({method: JP_METHODS[0].value, date: today(), currency: 'CNY' as Currency, cost: '', note: ''});
   const set = (patch: Partial<typeof v>) => { setV(prev => ({...prev, ...patch})); app.setDrawerDirty(true); };
   const rs = ids.map(app.rec).filter((r): r is NonNullable<typeof r> => !!r);
-  const rate = useRate(v.date);
-  const cny = v.cost === '' ? null : v.currency === 'CNY' ? Number(v.cost)
+  const rateInfo = useRate(v.date, v.currency === 'JPY' && Number(v.cost) !== 0);
+  const rate = rateInfo.rate;
+  const cny = v.cost === '' ? null : Number(v.cost) === 0 ? 0 : v.currency === 'CNY' ? Number(v.cost)
     : rate === null ? null : Number(v.cost) * rate / 100;
   const cnyQ = cny === null ? null : Number(cny.toFixed(2));
   const share = cnyQ === null ? null : cnyQ / rs.length;
@@ -53,7 +54,7 @@ function ShipForm({ids}: {ids: string[]}) {
             <Field label="发货日期" name="ship-date" type="date" required value={v.date}
                    onChange={e => set({date: e.target.value})}/>
           </div>
-          {v.currency === 'JPY' && <div className="cost-line">{costLineText(v.currency, v.cost, rate, cny)}</div>}
+          {v.currency === 'JPY' && <div className="cost-line">{costLineText(v.currency, v.cost, rate, cny, rateInfo.quote)}</div>}
         </section>
         <TextareaField label="备注" name="ship-note" value={v.note} onChange={val => set({note: val})}/>
         <div className="preview">

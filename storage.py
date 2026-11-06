@@ -15,6 +15,7 @@ from datetime import datetime
 from contextlib import closing, contextmanager
 from domain import ValidationError, ConflictError, clean_record, clean_release_info, clean_modules, clean_start_page, clean_showcase_group, clean_showcase_groups, clean_listing, validate_packaging_photos, MODULE_NAMES, cost, number, money, day, allocate, STATUSES
 from decimal import Decimal
+import financial_rates
 from photo_uploads import staged_bytes
 from twins import TWIN_KEY, SKILL_VERSION, ID as TWIN_ID, ASSET as TWIN_ASSET, UUID as TWIN_RELEASE_ID, appearance, same_appearance, clean_barcode, clean_registry, image_type, entity_assets
 
@@ -190,13 +191,12 @@ class Store:
         folder=self.path.parent/'backups';folder.mkdir(exist_ok=True)
         name=folder/(datetime.now().strftime('%Y%m%d-%H%M%S-%f')+'.json')
         name.write_text(dumps(self.backup()),encoding='utf-8')
-    def record_rates(self, records):
-        out = {}
-        days = {r['date'] for r in records if r.get('currency')=='JPY' and r.get('date') and r.get('actual','')==''}
-        if self.rates and days:
-            self.rates.warm(sorted(days))
-            out = {d: self.rates.get(d) for d in days}
-        return out
+    def rate_days(self, records):
+        return {r['date'] for r in records if r.get('currency') == 'JPY' and r.get('date')
+                and r.get('price') not in ('', None) and r.get('actual', '') == ''}
+    def record_quotes(self, records):
+        # A ledger read never fetches. Missing quotes are prepared through a separate endpoint.
+        return self.rates.snapshot(self.rate_days(records)) if self.rates else {}
     def state(self):
         """前端的账本状态：三张表、最近 100 条 audit、前端要读的设置（STATE_SETTINGS），加上派生的成本与利润。
 
@@ -219,7 +219,8 @@ class Store:
                         # 新实例只有起步示例时仍需引导（setup-pending 由 server/starter_albums 写入）
                         'needsSetup': enabled is None and (meta.get('setup-pending') is True
                                                            or not any(b[k] for k in ('records', 'sales', 'shipments')))}
-        rates=self.record_rates(b['records'])
+        quotes = self.record_quotes(b['records'])
+        rates = {d: q['rate'] for d, q in quotes.items()}
         for r in b['records']:
             rate = rates.get(r.get('date')) if r.get('currency')=='JPY' and r.get('date') and r.get('actual','')=='' else None
             if rate: r['rate']=str(rate)
@@ -235,7 +236,12 @@ class Store:
                 # Returned stock retains its acquisition cost; sale shows only residual loss.
                 p=net if s['status']=='returned' else (net-c if c is not None else None)
                 item['profit']=money(p) if p is not None else None
-        if self.rates: b['rateService']=self.rates.status()
+        if self.rates:
+            b['rateService'] = self.rates.status()
+            b['rateService']['neededDates'] = sorted(d for d, q in quotes.items() if q['status'] == 'pending')
+            for r in b['records']:
+                if r['currency'] == 'JPY' and r['date'] in quotes and r.get('actual', '') == '':
+                    r['rateQuote'] = quotes[r['date']]
         return b
     @staticmethod
     def album_identity(record):
@@ -784,13 +790,15 @@ class Store:
                 r['revision']+=1;self.put(db,'records',r);self.audit(db,action,{'id':id,'before':old})
         return {'count':len(ids)}
     # ── shipments (打包运输) ──
-    def to_cny(self,amount,currency,date,label='金额'):
-        """折算为人民币；日元按当日每100円汇率。缺汇率时拒绝：金额要立即入账，不能挂起待定。"""
-        if currency=='CNY': return amount
-        rate=self.rates.get(date) if self.rates else None
-        if rate in ('',None): raise ValidationError(f'暂无当日汇率，无法折算日元{label}；可直接填人民币金额')
-        return Decimal(str(amount))*Decimal(str(rate))/100
-    def ship(self,data):
+    def prepare_financial(self, kind, data):
+        return financial_rates.prepare(self, kind, data)
+    def to_cny(self, amount, currency, date, label='金额', quote=None):
+        if currency == 'CNY' or amount == 0: return amount
+        if not financial_rates.valid_basis(quote, date):
+            raise ValidationError(f'暂无可靠汇率，无法折算日元{label}；可直接填人民币金额')
+        return Decimal(str(amount)) * Decimal(quote['rate']) / 100
+    def ship(self,data, *, prepared=None):
+        prepared = prepared or self.prepare_financial('ship', data)
         self.require_module('circulation')
         ids=list(dict.fromkeys(data.get('ids',[])))
         if not ids: raise ValidationError('请选择要运输的专辑')
@@ -800,12 +808,14 @@ class Store:
         method=str(data.get('method','')).strip()
         if not method or len(method)>50: raise ValidationError('请填写运输方式')
         date=day(data.get('date'),'发货日期')
-        cny=self.to_cny(cost_v,currency,date,'运费')
+        cny=self.to_cny(cost_v,currency,date,'运费',prepared['quote'])
         s={'id':uid(),'method':method,'cost':money(cny),'date':date,
             'currency':currency,'costOriginal':money(cost_v) if currency=='JPY' else '',
             'note':str(data.get('note','')),'status':'transit','arrivedDate':'','createdAt':now(),
             'items':[]}
+        if currency == 'JPY' and prepared['quote']: s['rateQuote'] = prepared['quote']
         with closing(self.connect()) as db, db:
+            financial_rates.check(self, prepared)
             rs=[self.get(db,'records',id) for id in ids]
             if any(r['status']!='overseas' for r in rs): raise ValidationError('只有海外库存的专辑能打包运输')
             shares=allocate(cny,[1]*len(rs))
@@ -847,10 +857,12 @@ class Store:
             else: raise ValidationError('不支持的操作')
             self.put(db,'shipments',s);self.audit(db,'运输 '+action,{'before':old,'after':s})
         return {'ok':True}
-    def update_shipment(self,data):
+    def update_shipment(self,data, *, prepared=None):
+        prepared = prepared or self.prepare_financial('update_shipment', data)
         self.require_module('circulation')
         with closing(self.connect()) as db, db:
             s=self.get(db,'shipments',data.get('id'));old=json.loads(dumps(s))
+            financial_rates.check(self, prepared, s)
             if s['status']=='cancelled': raise ValidationError('已撤销的包裹不能修改')
             if 'method' in data:
                 m=str(data['method']).strip()
@@ -875,11 +887,12 @@ class Store:
                 s['items'].append({'recordId':rid,'fee':'0.00','feeOriginal':'0.00'})
             if not s['items']: raise ValidationError('包裹至少留一张专辑；要清空请撤销这个包裹')
             changed_items=bool(drop or add)
-            if 'cost' in data or 'currency' in data:
+            _, _, reprice, _ = financial_rates.shipment_money(old, data)
+            if reprice:
                 currency=data.get('currency') or s.get('currency') or 'CNY'
                 if currency not in ('CNY','JPY'): raise ValidationError('币种不支持')
                 orig=number(data['cost'],'运费') if 'cost' in data else Decimal(s.get('costOriginal') or s['cost'])
-                new=self.to_cny(orig,currency,s['date'],'运费')
+                new=self.to_cny(orig,currency,s['date'],'运费',prepared['quote'])
             elif changed_items:
                 # 只增减专辑：总运费不变（已按原汇率折算），直接重新平摊
                 currency=s.get('currency') or 'CNY';new=Decimal(s['cost'])
@@ -894,12 +907,16 @@ class Store:
                     r['revision']+=1;self.put(db,'records',r)
                     item['fee']=share;item['feeOriginal']=o_share
                 s['cost']=money(new);s['currency']=currency
+                if reprice:
+                    if currency == 'JPY' and prepared['quote']: s['rateQuote'] = prepared['quote']
+                    else: s.pop('rateQuote', None)
                 if currency=='JPY': s['costOriginal']=money(orig)
                 else: s.pop('costOriginal',None)
             self.put(db,'shipments',s);self.audit(db,'修改运输',{'before':old,'after':s})
         return {'ok':True}
     # ── sales ──
-    def sell(self,data):
+    def sell(self,data, *, prepared=None):
+        prepared = prepared or self.prepare_financial('sell', data)
         self.require_module('trading')
         ids=list(dict.fromkeys(data.get('ids',[])))
         if not ids: raise ValidationError('请选择要出售的专辑')
@@ -913,8 +930,9 @@ class Store:
         address=str(data.get('address','')).strip()
         if len(address)>500: raise ValidationError('地址过长')
         # 日元按售出日汇率折算人民币入账，原币金额与分摊留存（同运费口径）
-        gross_cny=self.to_cny(gross,currency,date);fees_cny=self.to_cny(fees,currency,date);postage_cny=self.to_cny(postage,currency,date)
+        gross_cny=self.to_cny(gross,currency,date,quote=prepared['quote']);fees_cny=self.to_cny(fees,currency,date,quote=prepared['quote']);postage_cny=self.to_cny(postage,currency,date,quote=prepared['quote'])
         with closing(self.connect()) as db, db:
+            financial_rates.check(self, prepared)
             rs=[self.get(db,'records',id) for id in ids]
             if any(r['status'] not in ('overseas','domestic') for r in rs): raise ValidationError('其中有专辑不能出售，请刷新列表')
             gs=allocate(gross_cny,[1]*len(rs));fs=allocate(fees_cny,[1]*len(rs));ps=allocate(postage_cny,[1]*len(rs))
@@ -929,12 +947,14 @@ class Store:
                 'items':[{'recordId':r['id'],'gross':g,'fees':f,'postage':p,'refund':'0.00',
                           **({'grossOriginal':g0,'feesOriginal':f0,'postageOriginal':p0} if currency=='JPY' else {})}
                          for r,g,f,p,g0,f0,p0 in zip(rs,gs,fs,ps,og,of,op)]}
+            if currency == 'JPY' and prepared['quote']: s['rateQuote'] = prepared['quote']
             for r in rs:
                 r['previousStatus']=r['status'];r['status']='shipping';r['saleId']=s['id'];r['revision']+=1;self.put(db,'records',r)
             self.put(db,'sales',s);self.audit(db,'记录售出',s)
         return {'id':s['id']}
-    def update_sale(self,data):
+    def update_sale(self,data, *, prepared=None):
         """补录/修正费用，不改变成交价、币种、到账日期或生命周期。"""
+        prepared = prepared or self.prepare_financial('update_sale', data)
         self.require_module('trading')
         with closing(self.connect()) as db, db:
             before=self.get(db,'sales',data.get('id'))
@@ -948,9 +968,10 @@ class Store:
             previous=before.get(key+'Original') if currency=='JPY' else before.get(key,'0')
             if previous is not None and orig==Decimal(previous): continue
             # 汇率查询在数据库事务之外；沿用售出日折算口径。
-            changes[key]=(orig,self.to_cny(orig,currency,before['date'],label))
+            changes[key]=(orig,self.to_cny(orig,currency,before['date'],label,prepared['quote']))
         with closing(self.connect()) as db, db:
             s=self.get(db,'sales',data.get('id'));old=json.loads(dumps(s))
+            financial_rates.check(self, prepared, s)
             if s!=before: raise ValidationError('销售单已变化，请刷新后重试')
             for key,(orig,cny) in changes.items():
                 s[key]=money(cny)
@@ -960,6 +981,7 @@ class Store:
                 for item,share,original in zip(s['items'],shares,originals):
                     item[key]=share
                     if currency=='JPY': item[key+'Original']=original
+            if changes and currency == 'JPY' and prepared['quote']: s['rateQuote'] = prepared['quote']
             self.put(db,'sales',s);self.audit(db,'修改销售费用',{'before':old,'after':s})
         return {'ok':True}
     def sale_action(self,data):

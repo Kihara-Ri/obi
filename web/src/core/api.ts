@@ -19,7 +19,7 @@ async function request(url: string, init: RequestInit, message: string) {
 }
 
 export async function api<T = unknown>(path: string, data?: unknown,
-                                       opts?: {signal?: AbortSignal}): Promise<T> {
+                                       opts?: {signal?: AbortSignal; readOnly?: boolean}): Promise<T> {
   if (data !== undefined && serverOffline()) {
     throw new ApiError('网络已断开，输入仍保留，请联网后再保存');
   }
@@ -28,19 +28,19 @@ export async function api<T = unknown>(path: string, data?: unknown,
     headers: data === undefined ? {} : {'Content-Type': 'application/json'},
     body: data === undefined ? undefined : JSON.stringify(data),
     signal: opts?.signal,   // 迟到的响应由调用方丢弃，不影响既有调用（不传即不中断）
-  }, data === undefined ? '网络连接中断，请检查网络后重试'
+  }, data === undefined || opts?.readOnly ? '网络连接中断，请检查网络后重试'
     : '连接中断，保存结果尚未确认；请保留当前页面，恢复网络后核对');
   let x: { error?: string } | undefined;
   try { x = await r.json(); } catch { /* 非 JSON 响应按通用错误处理 */ }
   if (!r.ok) throw new ApiError(x?.error || '操作失败，请重试', r.status);
-  if (x === undefined) throw new ApiError(data === undefined ? '服务器响应不完整，请重试'
+  if (x === undefined) throw new ApiError(data === undefined || opts?.readOnly ? '服务器响应不完整，请重试'
     : '服务器响应不完整，保存结果尚未确认；请保留当前页面并核对');
   return x as T;
 }
 
 /** 整文件上传（服务端 routes.UPLOAD）：请求体就是文件本身，不经 JSON / base64，几百 MB 的备份包也不翻倍占内存 */
 export async function apiUpload<T = unknown>(path: string, file: Blob, type = 'application/zip',
-                                             opts?: {signal?: AbortSignal}): Promise<T> {
+                                             opts?: {signal?: AbortSignal; readOnly?: boolean}): Promise<T> {
   if (serverOffline()) throw new ApiError('网络已断开，请联网后再试');
   const r = await request('/api/' + path, {method: 'POST', headers: {'Content-Type': type}, body: file,
     signal: opts?.signal}, '上传连接中断，文件仍保留，可重试上传');

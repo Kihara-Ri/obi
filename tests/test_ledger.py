@@ -11,6 +11,16 @@ class FakeRates:
     """Deterministic per-100 rate for tests; unknown dates → None."""
     def __init__(self, table): self.table=dict(table)
     def get(self, day): return self.table.get(str(day)[:10])
+    peek = get
+    def resolve(self, day):
+        value = self.get(day)
+        return {'requestedDate': day, 'quoteDate': day if value else None, 'rate': value,
+                'status': 'exact' if value else 'unavailable', 'source': 'fixture',
+                'checkedAt': None, 'provisional': False}
+    quote = resolve
+    def snapshot(self, days): return {d: self.quote(d) for d in days}
+    def cache_key(self): return tuple(sorted(self.table.items()))
+    def needed_dates(self, days): return [d for d in days if d not in self.table]
     def warm(self, days): pass
     def status(self): return {'days': len(self.table), 'latest': max(self.table) if self.table else None}
 
@@ -201,6 +211,9 @@ class LedgerTests(unittest.TestCase):
         with self.assertRaises(ValidationError):self.store.update_sale({'id':sid,'fees':'1'})
     def test_update_sale_costs_missing_rate_does_not_change_sale(self):
         sid=self.sell([self.buy()],currency='JPY',gross='1000',fees='100',postage='50')
+        legacy=self.store.backup()
+        for sale in legacy['sales']: sale.pop('rateQuote', None)
+        self.store.restore_backup(legacy)
         before=self.store.backup();self.store.rates=FakeRates({})
         with self.assertRaises(ValidationError):self.store.update_sale({'id':sid,'fees':'109'})
         self.assertEqual(self.store.backup(),before)
@@ -530,6 +543,7 @@ class RateServiceTests(unittest.TestCase):
             store=Store(Path(folder)/'albums.sqlite3',svc)
             store.save({'title':'测试专辑','artist':'艺人','currency':'JPY',
                         'date':'2026-03-02','price':'2000'})
+            svc.warm(['2026-03-02'])
             for _ in range(2):self.assertIsNone(store.state()['records'][0]['cost'])
             self.assertEqual(len(calls),1)
     def test_failed_warm_retries_after_cooldown_without_repeating_per_date(self):
@@ -540,13 +554,13 @@ class RateServiceTests(unittest.TestCase):
             if len(calls)==1:raise RateUnavailable('down')
             return {'2026-03-02':'4.5'}
         svc=RateService(fetch=fetch)
-        with patch('rates.monotonic',return_value=1000):
+        with patch('rates.time',return_value=1000):
             svc.warm(['2026-03-02', '2026-03-03'])
             self.assertIsNone(svc.get('2026-03-02'))
             self.assertIsNone(svc.get('2026-03-03'))
             svc.warm(['2026-03-02', '2026-03-03'])
         self.assertEqual(len(calls),1)
-        with patch('rates.monotonic',return_value=1301):svc.warm(['2026-03-02'])
+        with patch('rates.time',return_value=1301):svc.warm(['2026-03-02'])
         self.assertEqual(svc.get('2026-03-02'),'4.5')
         self.assertEqual(len(calls),2)
 
@@ -558,12 +572,12 @@ class RateServiceTests(unittest.TestCase):
             if len(calls)==1:raise RateUnavailable('down')
             return {'2026-03-02':'4.5'}
         svc=RateService(fetch=fetch)
-        with patch('rates.monotonic',return_value=1000):
+        with patch('rates.time',return_value=1000):
             self.assertIsNone(svc.get('2026-03-02'))
             self.assertIsNone(svc.get('2026-03-02'))
             svc.warm(['2026-03-02'])
         self.assertEqual(len(calls),1)
-        with patch('rates.monotonic',return_value=1301):
+        with patch('rates.time',return_value=1301):
             self.assertEqual(svc.get('2026-03-02'),'4.5')
         self.assertEqual(len(calls),2)
     def test_warm_rechecks_today_when_quote_was_not_published(self):
@@ -574,23 +588,24 @@ class RateServiceTests(unittest.TestCase):
             calls.append((s,e))
             return {yesterday:'4.5'} if len(calls)==1 else {today:'4.6'}
         svc=RateService(fetch=fetch)
-        with patch('rates.monotonic',return_value=1000):
+        with patch('rates.time',return_value=1000):
             svc.warm([today])
             self.assertEqual(svc.get(today),'4.5')
-        with patch('rates.monotonic',return_value=1299):svc.warm([today])
+        with patch('rates.time',return_value=1299):svc.warm([today])
         self.assertEqual(len(calls),1)
-        with patch('rates.monotonic',return_value=1301):svc.warm([today])
-        self.assertEqual(svc.get(today),'4.6')
+        with patch('rates.time',return_value=1301):svc.warm([today])
+        with patch('rates.time',return_value=1301):
+            self.assertEqual(svc.get(today),'4.6')
         self.assertEqual(len(calls),2)
     def test_empty_lookup_can_retry_after_cooldown(self):
         calls=[]
         def fetch(s,e):
             calls.append((s,e));return {} if len(calls)==1 else {'2026-03-02':'4.5'}
         svc=RateService(fetch=fetch)
-        with patch('rates.monotonic',return_value=1000):
+        with patch('rates.time',return_value=1000):
             svc.warm(['2026-03-02'])
             self.assertIsNone(svc.get('2026-03-02'))
-        with patch('rates.monotonic',return_value=1301):svc.warm(['2026-03-02'])
+        with patch('rates.time',return_value=1301):svc.warm(['2026-03-02'])
         self.assertEqual(svc.get('2026-03-02'),'4.5')
         self.assertEqual(len(calls),2)
 

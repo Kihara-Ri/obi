@@ -59,19 +59,14 @@ def api_state(h, svc):
     service = {'login': bool(svc.auth), 'version': version(),
                'backup': svc.backups.status() if svc.backups else {}}
     # 状态只由账本库、汇率缓存和服务信息决定：三者都没变就复用上一份响应（见 state_sync.StateCache）
-    key = (store.fingerprint(), _dumps_key(store.rates.status() if store.rates else None), _dumps_key(service))
+    rate_key = store.rates.cache_key() if store.rates else None
+    key = (store.fingerprint(), _dumps_key(rate_key), _dumps_key(service))
     send_cached_state(h, svc.state_cache, key, lambda: {**store.state(), 'service': service},
-                      lambda state: _rates_settled(store, state))
+                      lambda state: True)
 
 
 def _dumps_key(value):
     return json.dumps(value, ensure_ascii=False, sort_keys=True)
-
-
-def _rates_settled(store, state):
-    """日元买入都已有汇率（或根本没有汇率服务）时状态才稳定；仍缺的要留给下一次 state() 补取。"""
-    return not store.rates or all(r.get('rate') for r in state['records']
-                                  if r.get('currency') == 'JPY' and r.get('date') and r.get('actual', '') == '')
 
 
 def api_shop_brands(h, svc):
@@ -98,7 +93,23 @@ def api_shop_brand_icon(h, svc):
 
 def api_rate(h, svc):
     d = query(h).get('date', '')
-    h.send({'date': d, 'rate': svc.rates.get(d) if svc.rates else None})
+    quote = svc.rates.resolve(d) if svc.rates else {'rate': None, 'status': 'unavailable'}
+    h.send({'date': d, **quote})
+
+
+def api_prepare_rates(h, svc, body):
+    days = body.get('dates')
+    if not isinstance(days, list) or len(days) > 500 or any(not isinstance(d, str) for d in days):
+        raise ValidationError('汇率日期列表无效')
+    if not svc.rates: return h.send({'quotes': []})
+    svc.rates.warm(days, max_windows=1)
+    h.send({'quotes': [svc.rates.quote(d) for d in days], 'status': svc.rates.status(days)})
+
+
+def financial_command(h, svc, body, kind):
+    prepared = svc.store.prepare_financial(kind, body)
+    with WRITE_LOCK:
+        h.send(getattr(svc.store, kind)(body, prepared=prepared))
 
 
 def api_photo(h, svc):
@@ -334,12 +345,12 @@ def api_records(h, svc, body, *, metadata_only=False):
 def api_bulk(h, svc, body):
     h.send(svc.store.bulk(body))
     prewarm(svc)
-def api_sales(h, svc, body): h.send(svc.store.sell(body))
+def api_sales(h, svc, body): financial_command(h, svc, body, 'sell')
 def api_sale_action(h, svc, body): h.send(svc.store.sale_action(body))
-def api_sale_update(h, svc, body): h.send(svc.store.update_sale(body))
-def api_shipments(h, svc, body): h.send(svc.store.ship(body))
+def api_sale_update(h, svc, body): financial_command(h, svc, body, 'update_sale')
+def api_shipments(h, svc, body): financial_command(h, svc, body, 'ship')
 def api_shipment_action(h, svc, body): h.send(svc.store.shipment_action(body))
-def api_shipment_update(h, svc, body): h.send(svc.store.update_shipment(body))
+def api_shipment_update(h, svc, body): financial_command(h, svc, body, 'update_shipment')
 def api_restore(h, svc, body):
     h.send(svc.store.restore_backup(body))
     prewarm(svc)
@@ -616,6 +627,7 @@ GET.update({'/api/listing/status': api_listing_status, '/api/listing/job': api_l
             '/api/listing/preferences': api_listing_preferences})
 POST = {
     # path: (处理函数, 需要登录, 需要 WRITE_LOCK)
+    '/api/rates/prepare': (api_prepare_rates, True, False),
     '/api/login': (api_login, False, False),
     '/api/logout': (api_logout, True, False),
     '/api/password': (api_password, True, True),
@@ -646,12 +658,12 @@ POST = {
     '/api/records/metadata': (api_record_metadata, True, False),
     '/api/album-favorites': (api_album_favorite, True, True),
     '/api/bulk': (api_bulk, True, True),
-    '/api/sales': (api_sales, True, True),
+    '/api/sales': (api_sales, True, False),
     '/api/sale-action': (api_sale_action, True, True),
-    '/api/sale-update': (api_sale_update, True, True),
-    '/api/shipments': (api_shipments, True, True),
+    '/api/sale-update': (api_sale_update, True, False),
+    '/api/shipments': (api_shipments, True, False),
     '/api/shipment-action': (api_shipment_action, True, True),
-    '/api/shipment-update': (api_shipment_update, True, True),
+    '/api/shipment-update': (api_shipment_update, True, False),
     '/api/restore': (api_restore, True, True),
     '/api/modules': (api_modules, True, True),
     '/api/showcase/groups': (api_showcase_groups, True, True),

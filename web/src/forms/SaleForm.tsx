@@ -1,3 +1,4 @@
+import {quoteText} from '../core/rates';
 // 记录售出 / 合单售出表单：分组列表行（手机友好，label 左、值右）+ 实时预览到手
 // 与预估利润，多张按张数均摊。日期用「今天/昨天/选日期」快捷块，渠道用历史渠道块；
 // 日本平台渠道（メルカリ等）自动切日元，按售出日汇率折算人民币入账（同运费口径）。
@@ -56,9 +57,10 @@ function SaleForm({ids}: {ids: string[]}) {
   const unknown = rs.some(r => r.cost === null);
   const csum = sum(rs, 'cost');
   const unit = v.currency === 'JPY' ? '円' : '元';
-  const rate = useRate(v.date);
+  const rateInfo = useRate(v.date, v.currency === 'JPY' && [v.gross, v.fees, v.postage].some(x => Number(x || 0) !== 0));
+  const rate = rateInfo.rate;
   const toCny = (x: string): number | null =>
-    v.currency === 'CNY' ? Number(x) : rate === null ? null : Number(x) * Number(rate) / 100;
+    Number(x || 0) === 0 ? 0 : v.currency === 'CNY' ? Number(x) : rate === null ? null : Number(x) * Number(rate) / 100;
   const gc = v.gross === '' ? null : toCny(v.gross);
   const fc = toCny(v.fees || '0');
   const pc = toCny(v.postage || '0');
@@ -67,10 +69,11 @@ function SaleForm({ids}: {ids: string[]}) {
   const hist = saleChannels(app.state.sales.map(s => s.channel));
   const channels = v.channel && !hist.includes(v.channel) ? [v.channel, ...hist] : hist;
   const profit = net === null ? null : Number((net - csum).toFixed(2));
-  const curLine = rate === null
-    ? '暂无当日汇率，无法折算；可直接填人民币或稍后再试'
-    : gc === null ? `100 円 = ¥${Number(rate).toFixed(2)}`
-      : `折合 ${yuan(Number(gc.toFixed(2)))} · 100 円 = ¥${Number(rate).toFixed(2)}`;
+  const zero = [v.gross, v.fees, v.postage].every(x => Number(x || 0) === 0);
+  const curLine = v.gross === '' ? '—' : zero ? '折合 ¥0.00' : rate === null
+    ? quoteText(rateInfo.quote)
+    : gc === null ? quoteText(rateInfo.quote)
+      : `折合 ${yuan(Number(gc.toFixed(2)))} · ${quoteText(rateInfo.quote)}`;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();

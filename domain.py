@@ -197,6 +197,7 @@ def day(value, name='日期', optional=False):
 
 def clean_record(data):
     r = dict(data)
+    r.pop('rateQuote', None)  # Read-only derived purchase quote, never accepted from an editor.
     for k in ('title','artist'):
         r[k] = str(r.get(k,'')).strip()
         if not r[k]: raise ValidationError(f'请填写{"专辑名" if k == "title" else "艺人"}')

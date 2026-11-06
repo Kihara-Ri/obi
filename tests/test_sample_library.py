@@ -82,6 +82,19 @@ class SampleLibraryTests(unittest.TestCase):
             for key in ('price', 'date', 'currency', 'status', 'photoCount'):
                 self.assertEqual(after.get(key), before.get(key), key)
 
+    def test_rate_review_uses_existing_copy_and_explicitly_prepares_missing_quote(self):
+        with tempfile.TemporaryDirectory() as folder:
+            ids = self.seed.seed_rate_review(folder)
+            store = self.seed.open_store(folder)
+            record = next(r for r in store.state()['records'] if r['id'] == ids['dookie-jp'])
+            self.assertEqual(record['date'], '2026-10-01')
+            self.assertIsNone(record['cost'])
+            self.assertEqual(len(store.state()['records']), 21)
+            store.rates.warm([record['date']])
+            after = next(r for r in store.state()['records'] if r['id'] == ids['dookie-jp'])
+            self.assertEqual(after['cost'], '10.34')
+            self.assertEqual(after['price'], '220.00')
+
     def test_unknown_cost_is_null_not_zero_and_profit_excluded(self):
         self.assertEqual(self.record('minecraft')['cost'], None)
         self.assertEqual(self.record('moon')['cost'], None)

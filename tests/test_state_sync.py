@@ -232,9 +232,13 @@ class StateCacheTests(unittest.TestCase):
         self.assertEqual([r['note'] for r in h.body['records']['put']], ['改了'])
         self.assertEqual(self.calls, 3)
 
-    def test_state_waiting_for_rates_is_never_cached(self):
-        self.buy('2026-02-01')   # FakeRates 没有这一天：成本未知，下次还要补取汇率
+    def test_missing_rate_state_is_cached_until_quote_version_changes(self):
+        self.buy('2026-02-01')   # Missing state is cheap; explicit preparation changes the quote version.
         first = self.pull()
         self.assertIsNone(first.body['records'][0]['cost'])
         self.assertEqual(self.pull(first.etag).status, 304)
+        self.assertEqual(self.calls, 1)
+        self.store.rates.table['2026-02-01'] = '4.5'
+        ready = self.pull(first.etag)
         self.assertEqual(self.calls, 2)
+        self.assertNotEqual(ready.etag, first.etag)

@@ -23,7 +23,9 @@ function SaleCostsForm({sale}: {sale: Sale}) {
     v == null || v === '' ? '' : String(Math.round(Number(v)));
   const [fees, setFees] = useState(jpy ? intStr(sale.feesOriginal) : sale.fees);
   const [postage, setPostage] = useState(jpy ? intStr(sale.postageOriginal) : sale.postage || '0');
-  const rate = useRate(sale.date);
+  const changed = Number(fees) !== Number(sale.feesOriginal) || Number(postage) !== Number(sale.postageOriginal);
+  const rateInfo = useRate(sale.date, jpy && changed && !sale.rateQuote);
+  const rate = sale.rateQuote?.rate ? Number(sale.rateQuote.rate) : rateInfo.rate;
   const rs = sale.items.map(i => app.rec(i.recordId)).filter(r => !!r);
   const unknown = sale.items.some(i => i.profit === null);
   const convert = (value: string, original: string | undefined, cny: string) => {

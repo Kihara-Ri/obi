@@ -102,6 +102,14 @@ class Engine:
             from server.starter_albums import seed_starter
             seed_starter(self.svc.store)
 
+    def accept_rate_quotes(self, raw):
+        # Worker-only adapter; never exposed as an HTTP financial-write endpoint.
+        quotes = json.loads(raw)
+        if not isinstance(quotes, list) or len(quotes) > 500:
+            raise ValidationError('报价同步内容无效')
+        self.svc.rates.accept_quotes(quotes)
+        return json.dumps([self.svc.rates.quote(q.get('requestedDate')) for q in quotes])
+
     def dispatch(self, method, target, headers, body):
         h = LocalHandler(method, target, headers)
         path = urlsplit(target).path
