@@ -1,4 +1,5 @@
 """JPY→CNY quote authority: cache-only reads, explicit preparation, no ledger writes."""
+import math
 import threading
 from datetime import date, timedelta
 from time import time
@@ -33,11 +34,13 @@ class RateService:
             recent = (date.fromisoformat(self.today()) - date.fromisoformat(day)).days <= 2
             if day in self.mem and not recent and not (check or {}).get('provisional'):
                 return {**q, 'quoteDate': day, 'rate': self.mem[day], 'status': 'exact',
-                        'checkedAt': (check or {}).get('checkedAt')}
+                        'checkedAt': (check or {}).get('checkedAt'),
+                        'valueCheckedAt': self.cache.versions.get(day)}
             if self._fresh(day, check):
                 quote_day = check.get('quoteDate')
                 if quote_day and quote_day in self.mem and 0 <= (date.fromisoformat(day) - date.fromisoformat(quote_day)).days <= 14:
-                    return {**q, **check, 'requestedDate': day, 'rate': self.mem[quote_day]}
+                    return {**q, **check, 'requestedDate': day, 'rate': self.mem[quote_day],
+                            'valueCheckedAt': self.cache.versions.get(quote_day)}
                 return {**q, **check, 'requestedDate': day, 'rate': None}
             if self.retry_at > self.now():
                 return {**q, 'status': 'unavailable', 'checkedAt': self.retry_at - TTL,
@@ -85,7 +88,7 @@ class RateService:
                                        'provisional': (date.fromisoformat(self.today()) - date.fromisoformat(day)).days <= 2,
                                        'checkedOn': self.today()}
                     with self.lock:
-                        self.cache.save(found, checks)
+                        self.cache.save(found, checks, {d: checked for d in found})
                         self.retry_at, self.error = 0, ''
                 except RateUnavailable as exc:
                     with self.lock:
@@ -109,7 +112,7 @@ class RateService:
     def accept_quotes(self, quotes):
         """Local Worker adapter only; no HTTP route accepts client-supplied financial rates."""
         with self.lock:
-            values, checks = {}, {}
+            values, checks, versions = {}, {}, {}
             for q in quotes:
                 day, quote_day = q.get('requestedDate'), q.get('quoteDate')
                 if not clean_day(day) or day > self.today() or q.get('source') != SOURCE: continue
@@ -117,16 +120,24 @@ class RateService:
                 checked = original_checked
                 stable = day < self.today() and not q.get('provisional') and q.get('status') in ('exact', 'previous')
                 if stable and checked is None: checked = 0
-                if not isinstance(checked, (int, float)): continue
+                if not isinstance(checked, (int, float)) or not math.isfinite(checked): continue
                 if not stable and not 0 <= self.now() - checked <= TTL: continue
                 if checked > self.now(): continue
-                old = self.cache.checks.get(day, {})
+                old = checks.get(day, self.cache.checks.get(day, {}))
                 if (old.get('checkedAt') or 0) > checked: continue
                 if q.get('status') in ('exact', 'previous') and clean_day(quote_day) and quote_day <= day:
                     if (date.fromisoformat(day) - date.fromisoformat(quote_day)).days > 14: continue
-                    values.update(clean_values({quote_day: q.get('rate')}, quote_day, day))
+                    clean = clean_values({quote_day: q.get('rate')}, quote_day, day)
+                    if not clean: continue
+                    stamp = q.get('valueCheckedAt')
+                    if stamp is None: stamp = checked
+                    if not isinstance(stamp, (int, float)) or not math.isfinite(stamp) or not 0 <= stamp <= self.now(): continue
+                    # Different requested days can share one quote day, including in the same batch.
+                    if stamp >= versions.get(quote_day, self.cache.versions.get(quote_day, 0)):
+                        values.update(clean)
+                        versions[quote_day] = stamp
                 elif q.get('status') != 'unavailable': continue
                 checks[day] = {k: q[k] for k in ('quoteDate', 'status', 'provisional')}
                 checks[day]['checkedAt'] = original_checked
                 checks[day]['checkedOn'] = q.get('checkedOn', self.today())
-            self.cache.save(values, checks)
+            self.cache.save(values, checks, versions)
