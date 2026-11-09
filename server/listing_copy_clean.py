@@ -12,6 +12,12 @@ SOFT = re.compile('可能|或许|大概|也许')
 SENTENCE = re.compile(r'[^。！？!?；;]+[。！？!?；;]?')
 SYSTEM_PREFIXES = re.compile(r'(?:资料标注|系统记录|数据显示|本副本记录为)\s*')
 COPY_WORD = re.compile(r'本副本')
+VISION_JARGON = re.compile(
+    r'(?:(?:套面|盒面|盘面)有轻微(?:褶皱[和与及]?)?反光[；，。、\s]*)|'
+    r'(?:(?:盘面|碟面)印有[^\n；。，]{1,30}(?:图像|图案)[；，。、\s]*)|'
+    r'(?:封面[、和与及]?封底图案完整[；，。、\s]*)'
+)
+JEWEL_CASE_STITCH = re.compile(r'Jewel\s*Case\s*(?:胶盒)?', re.IGNORECASE)
 
 
 def clean_title(value):
@@ -25,8 +31,18 @@ def clean_system_jargon(text):
     for line in text.split('\n'):
         line = SYSTEM_PREFIXES.sub('', line)
         line = COPY_WORD.sub('实物', line)
+        line = JEWEL_CASE_STITCH.sub('胶盒', line)
+        line = VISION_JARGON.sub('', line)
+        line = re.sub(r'^品相[：:]\s*', '', line)
+        line = re.sub(r'[，；、]{2,}', '，', line)
+        line = re.sub(r'^[，；、。]+', '', line)
+        line = line.strip()
         lines.append(line)
-    return '\n'.join(lines)
+    out = []
+    for l in lines:
+        if l and out and out[-1] == l: continue
+        out.append(l)
+    return '\n'.join(out)
 
 
 def hedge_hits(*parts):
