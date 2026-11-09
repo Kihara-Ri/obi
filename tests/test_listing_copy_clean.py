@@ -21,8 +21,8 @@ class CleanTests(unittest.TestCase):
         self.assertEqual(strip_hedges('盘面可能有划痕。'), '盘面可能有划痕。')
 
     def test_strip_system_jargon(self):
-        text = '资料标注 2015 年美国发行，条码 123456。\n版本为Jewel Case胶盒。\n品相：套面有轻微褶皱和反光；盘面印有鹿角图像，盒面干净。'
-        self.assertEqual(strip_hedges(text), '2015 年美国发行，条码 123456。\n版本为胶盒。\n盒面干净。')
+        text = '资料标注 2015 年美国发行，条码 123456。\n版本为Jewel Case胶盒。\n品相：套面有轻微褶皱和反光；盘面印有鹿角图像，盒面干净。\n含透明胶盒外层塑料套。 个人闲置转让，二手物品还请看好成色细节。'
+        self.assertEqual(strip_hedges(text), '2015 年美国发行，条码 123456。\n版本为胶盒。\n盒面干净。\n个人闲置转让，二手物品还请看好成色细节。')
 
     def test_extract_partial_copy_handles_incomplete_json_stream(self):
         from server.listing_copy_clean import extract_partial_copy

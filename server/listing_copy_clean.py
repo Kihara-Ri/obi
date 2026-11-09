@@ -18,6 +18,9 @@ VISION_JARGON = re.compile(
     r'(?:封面[、和与及]?封底图案完整[；，。、\s]*)'
 )
 JEWEL_CASE_STITCH = re.compile(r'Jewel\s*Case\s*(?:胶盒)?', re.IGNORECASE)
+TRAIL_ATTACHMENT_PREFIX = re.compile(
+    r'含(?:[^\n。！？!?；;]{1,40}?(?:塑料套|自封套|保护套|胶盒|包装))[。！？!?；;\s]+(?=个人闲置|二手物品|感谢|有任何问题)'
+)
 
 
 def clean_title(value):
@@ -33,6 +36,7 @@ def clean_system_jargon(text):
         line = COPY_WORD.sub('实物', line)
         line = JEWEL_CASE_STITCH.sub('胶盒', line)
         line = VISION_JARGON.sub('', line)
+        line = TRAIL_ATTACHMENT_PREFIX.sub('', line)
         line = re.sub(r'^品相[：:]\s*', '', line)
         line = re.sub(r'[，；、]{2,}', '，', line)
         line = re.sub(r'^[，；、。]+', '', line)
