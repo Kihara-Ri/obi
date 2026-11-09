@@ -48,3 +48,28 @@ def responses_text(response):
                                if item.get('type') == 'message' for part in item.get('content', [])
                                if part.get('type') == 'output_text')
     raise ValidationError('模型连接中断，分析未完成，请重试')
+
+
+def stream_chat_text(response, on_chunk=None):
+    """解析 OpenAI / DeepSeek 标准 chat/completions SSE 流式响应，收集完整结果并在接收时逐 chunk 回调。"""
+    parts, total = [], 0
+    with response:
+        for line in response:
+            total += len(line)
+            if total > 2 * 1024 * 1024: raise ValidationError('模型响应过大')
+            if not line.startswith(b'data:'): continue
+            raw = line[5:].strip()
+            if not raw: continue
+            if raw == b'[DONE]': break
+            try: event = json.loads(raw)
+            except (ValueError, UnicodeError): continue
+            choices = event.get('choices') or []
+            if not choices: continue
+            delta = choices[0].get('delta') or {}
+            content = delta.get('content') or ''
+            if content:
+                parts.append(content)
+                if on_chunk: on_chunk(content, ''.join(parts))
+    full = ''.join(parts)
+    if not full: raise ValidationError('模型未返回有效文案，请重试')
+    return full

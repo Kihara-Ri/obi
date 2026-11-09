@@ -118,6 +118,7 @@ class Engine:
             h.send({'error': '浏览器本机模式不支持售卖照片识别；请用安卓安装包（OpenCode / DeepSeek）或服务器版'}, 400)
             return h
         try:
+            routes.recover(self.svc)
             if method == 'GET':
                 fn = routes.resolve_get(path)
                 if not fn: h.send({'error': '接口不存在'}, 404)

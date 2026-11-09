@@ -77,8 +77,11 @@ class ListingGeneration:
             if not record.get('photoCount') and not record.get('condition') and not supplement:
                 analysis['conditionText'] = '实物品相尚未核实'
             self._check_generation(record)
-            self._update_generation(ident, phase='writing', analysis=analysis)
-            result = self.model.write_copy(analysis, preset, bool(record.get('photoCount')), selection, record)
+            self._update_generation(ident, phase='writing', analysis=analysis, stream={'title': '', 'description': ''})
+            from .listing_copy_clean import extract_partial_copy
+            def on_stream(chunk, full):
+                self._update_generation(ident, stream=extract_partial_copy(full))
+            result = self.model.write_copy(analysis, preset, bool(record.get('photoCount')), selection, record, on_stream)
             draft = clean_draft({**result, 'analysis': analysis, 'versionText': analysis['versionText'],
                 'conditionText': analysis['conditionText'], 'versionConfirmed': False, 'conditionConfirmed': False,
                 'photoRevision': record.get('photoRevision', 0), 'photoOrder': self._photo_order(record),

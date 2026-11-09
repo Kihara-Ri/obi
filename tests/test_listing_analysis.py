@@ -64,4 +64,7 @@ class ListingAnalysisTests(unittest.TestCase):
         status = service.status(job['id'])
         self.assertEqual(status['status'], 'failed')
         self.assertEqual(status['error'], '模型不可用')
+        by_record = service.status(record_id=rid)
+        self.assertEqual(by_record['id'], job['id'])
+        self.assertEqual(service.status(record_id='nonexistent'), {'status': 'idle'})
         self.assertEqual(self.store.backup()['records'], before['records'])

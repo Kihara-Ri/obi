@@ -29,6 +29,12 @@ from .listing_routes import (api_listing_status, api_listing_analyze, api_listin
 WRITE_LOCK = threading.Lock()
 
 
+def recover(svc):
+    """A failed committed restore must finish before another request can use its files."""
+    with WRITE_LOCK:
+        svc.store.finish_archive_restore()
+
+
 def query(h):
     """URL 查询串 → 首值字典。浏览器 fetch 总是百分号编码；裸 UTF-8（如 curl 直连）按原字节recover。"""
     out = {}

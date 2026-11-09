@@ -7,15 +7,19 @@ import {ChevDownIco} from '../icons';
 import './ListingCopy.css';
 
 type Props = {draft: ListingDraft; saved: boolean; candidate: boolean; busy: boolean; ready: boolean;
-  editing: boolean; generating?: string; onEditing: (value: boolean) => void;
+  editing: boolean; generating?: string; streaming?: {title?: string; description?: string};
+  onEditing: (value: boolean) => void;
   onChange: (value: ListingDraft) => void; onGenerate: () => void};
-export function ListingCopy({draft, saved, candidate, busy, ready, editing, generating, onEditing, onChange, onGenerate}: Props) {
+export function ListingCopy({draft, saved, candidate, busy, ready, editing, generating, streaming, onEditing, onChange, onGenerate}: Props) {
   const clip = useRef<HTMLDivElement>(null);
   const text = useRef<HTMLDivElement>(null);
   const [long, setLong] = useState(false);
   const [open, setOpen] = useState(false);
   const [full, setFull] = useState(0);
-  const hasText = !!draft.description.trim();
+  const isStreaming = !!(streaming && (streaming.title || streaming.description));
+  const activeTitle = isStreaming ? (streaming.title || '正在构思标题…') : draft.title;
+  const activeDescription = isStreaming ? streaming.description : draft.description;
+  const hasText = isStreaming || !!draft.description.trim();
   useLayoutEffect(() => {
     const element = text.current, box = clip.current;
     if (!element || !box) {setLong(false); setOpen(false); return;}
@@ -28,31 +32,34 @@ export function ListingCopy({draft, saved, candidate, busy, ready, editing, gene
     check();
     const observer = new ResizeObserver(check); observer.observe(element);
     return () => observer.disconnect();
-  }, [draft.title, draft.description, editing, candidate, hasText]);
+  }, [activeTitle, activeDescription, editing, candidate, hasText]);
   const toggle = () => {
     if (!long || window.getSelection()?.toString().trim()) return;
     setOpen(value => !value);
   };
-  const badge = editing ? '编辑中' : candidate ? '新文案' : hasText ? (saved ? '已保存' : '未保存') : '';
-  const showText = hasText && (!editing || candidate);
+  const badge = isStreaming ? '生成中' : editing ? '编辑中' : candidate ? '新文案' : hasText ? (saved ? '已保存' : '未保存') : '';
+  const showText = hasText && (!editing || candidate || isStreaming);
   return <section className={`listing-copy${open ? ' is-open' : ''}`} aria-label={candidate ? '新文案候选' : '售卖文案'}>
     <header className="listing-copy-head">
-      <h4>售卖文案{badge ? <span className={`listing-copy-badge${badge === '未保存' || badge === '编辑中' ? ' is-pending' : ''}`}> · {badge}</span> : null}</h4>
+      <h4>售卖文案{badge ? <span className={`listing-copy-badge${badge === '未保存' || badge === '编辑中' || isStreaming ? ' is-pending' : ''}`}> · {badge}</span> : null}</h4>
       <div className="listing-copy-tools">
-        {hasText ? <button type="button" disabled={busy || !ready} onClick={onGenerate}>重新生成</button> : null}
-        {!candidate && !editing && hasText ? <button type="button" className="listing-copy-edit" disabled={busy} onClick={() => onEditing(true)}>
+        {hasText && !isStreaming ? <button type="button" disabled={busy || !ready} onClick={onGenerate}>重新生成</button> : null}
+        {!candidate && !editing && hasText && !isStreaming ? <button type="button" className="listing-copy-edit" disabled={busy} onClick={() => onEditing(true)}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg>编辑</button> : null}
       </div>
     </header>
-    {candidate ? <p className="listing-copy-status">新文案 · 原稿已保留，采用后才会替换</p> : null}
-    {editing && !candidate ? <div className="listing-copy-editor">
+    {candidate && !isStreaming ? <p className="listing-copy-status">新文案 · 原稿已保留，采用后才会替换</p> : null}
+    {editing && !candidate && !isStreaming ? <div className="listing-copy-editor">
       <label>售卖标题<input aria-label="售卖标题" value={draft.title} maxLength={500} disabled={busy}
         onChange={e => onChange({...draft, title: e.target.value})}/></label>
       <label>售卖正文<AutoTextarea aria-label="售卖正文" value={draft.description} maxLength={50000} disabled={busy}
         onChange={e => onChange({...draft, description: e.target.value})}/></label>
     </div> : showText ? <div className={`listing-copy-preview${long ? ' is-long' : ''}`}>
       <div className="listing-copy-clip" ref={clip} style={open ? {maxHeight: `${full}px`} : undefined} onClick={toggle}>
-        <div className="listing-copy-text" ref={text}><h3>{draft.title}</h3><p>{draft.description}</p></div>
+        <div className="listing-copy-text" ref={text}>
+          <h3>{activeTitle}</h3>
+          <p>{activeDescription}{isStreaming ? <span className="listing-cursor">▍</span> : null}</p>
+        </div>
       </div>
       {long ? <button type="button" className="listing-copy-toggle" aria-expanded={open} onClick={() => setOpen(value => !value)}>
         {open ? '收起全文' : '展开全文'}<span className="listing-copy-chev" aria-hidden="true">{ChevDownIco}</span></button> : null}

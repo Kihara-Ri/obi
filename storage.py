@@ -116,6 +116,7 @@ class Store:
         self.photos_dir = self.path.parent / 'photos'
         self.covers_dir = self.path.parent / 'covers'
         self.rates = rates
+        self._archive_pending = True
         with closing(self.connect()) as db, db:
             db.executescript('''CREATE TABLE IF NOT EXISTS records(id TEXT PRIMARY KEY, data TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS sales(id TEXT PRIMARY KEY, data TEXT NOT NULL);
@@ -123,6 +124,7 @@ class Store:
             CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY, at TEXT, action TEXT, data TEXT);
             CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, data TEXT NOT NULL);''')
         self.migrate()
+        self.finish_archive_restore()
         self.finish_photo_swaps()  # 上次进程在照片切换途中退出：按日志补完
     def connect(self):
         db = sqlite3.connect(self.path, timeout=10)
@@ -1011,11 +1013,52 @@ class Store:
             else: raise ValidationError('不支持的操作')
             self.put(db,'sales',s);self.audit(db,'销售 '+action,{'before':old,'after':s})
         return {'ok':True}
-    def restore_backup(self,b):
+    def finish_archive_restore(self):
+        """Roll forward a committed full restore before accepting more requests (D-040)."""
+        if not self._archive_pending: return
+        with closing(self.connect()) as db:
+            name = self.meta_get(db, 'archive-restore-v1')
+        if name is None:
+            self._archive_pending = False
+            return
+        if not isinstance(name, str) or not re.fullmatch(r'\.archive-restore-[0-9a-f]{32}', name):
+            raise ValidationError('备份恢复日志无效，请保留数据目录并检查')
+        staged = self.path.parent / name
+        if not staged.is_dir() or staged.is_symlink():
+            raise ValidationError('备份恢复暂存目录缺失，请保留数据目录并检查')
+        previous = staged / 'previous'
+        for folder in ('photos', 'covers', 'digital-twins', 'engine-models'):
+            source, target = staged / folder, self.path.parent / folder
+            if source.exists():
+                if target.exists():
+                    previous.mkdir(exist_ok=True)
+                    target.rename(previous / folder)
+                source.rename(target)
+        # An empty previous directory also records a restore into an empty instance.
+        if previous.exists():
+            keep = self.path.parent / 'backups' / 'pre-restore'
+            if keep.exists(): shutil.rmtree(keep)
+            keep.parent.mkdir(exist_ok=True)
+            previous.rename(keep)
+        with closing(self.connect()) as db, db:
+            db.execute("DELETE FROM meta WHERE key='archive-restore-v1'")
+        self._archive_pending = False
+        shutil.rmtree(staged, ignore_errors=True)
+
+    def restore_backup(self,b, *, archive_stage=None):
+        self.finish_archive_restore()
         if not isinstance(b,dict) or b.get('format')!='album-ledger': raise ValidationError('不是兼容的完整备份文件')
         if not isinstance(b.get('records'),list) or not isinstance(b.get('sales'),list): raise ValidationError('备份内容不完整')
         if not isinstance(b.get('settings', {}), dict): raise ValidationError('备份的设置无效')
         settings = dict(b.get('settings', {}))
+        # Recovery instructions are local, never imported from an untrusted backup.
+        settings = {k: v for k, v in settings.items()
+                    if k != 'archive-restore-v1' and not k.startswith('photo-swap:')}
+        if archive_stage is not None:
+            staged = Path(archive_stage)
+            if (staged.parent != self.path.parent or staged.is_symlink() or not staged.is_dir()
+                    or not re.fullmatch(r'\.archive-restore-[0-9a-f]{32}', staged.name)):
+                raise ValidationError('备份恢复暂存目录无效')
         if 'modules-v1' in settings: settings['modules-v1'] = clean_modules(settings['modules-v1'])
         if 'start-page-v1' in settings: settings['start-page-v1'] = clean_start_page(settings['start-page-v1'])
         if 'listing-preferences-v1' in settings:
@@ -1130,6 +1173,9 @@ class Store:
                 if k!='schema': db.execute('INSERT INTO meta VALUES(?,?)',(k,dumps(v)))
             db.execute("INSERT OR REPLACE INTO meta VALUES('schema',?)",(dumps(SCHEMA),))
             self.audit(db,'恢复完整备份',{'from':b.get('createdAt')})
+            if archive_stage is not None:
+                db.execute("INSERT INTO meta VALUES('archive-restore-v1',?)", (dumps(staged.name),))
+                self._archive_pending = True
         return {'ok':True}
 
     # ── 通用 meta 读取：模块开关与艺人绑定/作品关联等都走这里 ──

@@ -20,6 +20,20 @@ class CleanTests(unittest.TestCase):
         self.assertEqual(hedge_hits('盘面可能有划痕'), ['可能'])
         self.assertEqual(strip_hedges('盘面可能有划痕。'), '盘面可能有划痕。')
 
+    def test_strip_system_jargon(self):
+        text = '资料标注 2015 年美国发行，条码 123456。\n本副本记录为 Jewel Case 外版。\n本副本保存良好。'
+        self.assertEqual(strip_hedges(text), '2015 年美国发行，条码 123456。\nJewel Case 外版。\n实物保存良好。')
+
+    def test_extract_partial_copy_handles_incomplete_json_stream(self):
+        from server.listing_copy_clean import extract_partial_copy
+        self.assertEqual(extract_partial_copy(''), {'title': '', 'description': ''})
+        step1 = '{\n  "title": "Kendrick Lamar '
+        self.assertEqual(extract_partial_copy(step1), {'title': 'Kendrick Lamar', 'description': ''})
+        step2 = '{\n  "title": "Kendrick Lamar CD",\n  "description": "2015 美版\\n自用'
+        self.assertEqual(extract_partial_copy(step2), {'title': 'Kendrick Lamar CD', 'description': '2015 美版\n自用'})
+        step3 = '{\n  "title": "Kendrick Lamar CD",\n  "description": "2015 美版\\n本副本保存良好"\n}'
+        self.assertEqual(extract_partial_copy(step3), {'title': 'Kendrick Lamar CD', 'description': '2015 美版\n实物保存良好'})
+
 
 class WriteCopyTests(unittest.TestCase):
     def setUp(self):
@@ -61,6 +75,20 @@ class WriteCopyTests(unittest.TestCase):
         self.write(condition='盒面有轻微使用痕迹')
         self.assertEqual(len(self.calls), 1)
         self.assertEqual(json.loads(self.calls[0][0]['text'])['facts']['conditionText'], '盒面有轻微使用痕迹')
+
+    def test_metadata_details_forwarded_to_writer(self):
+        self.replies = [{'title': 'Green Day Dookie 日版', 'description': '日版 CD'}]
+        analysis = {'versionText': '日版', 'conditionText': '', 'saleTerms': '', 'pending': [], 'conflicts': []}
+        record = {'artist': 'Green Day', 'title': 'Dookie', 'pressing': '东芝EMI', 'obi': '带侧标',
+                  'releaseInfo': {'catalogNumber': 'WPCR-1234', 'barcode': '4988014000000', 'matrix': 'WPCR-1234 1', 'edition': '首版'}}
+        self.model.write_copy(analysis, {'instructions': '简洁'}, False, {'provider': 'api'}, record)
+        sent = json.loads(self.calls[0][0]['text'])
+        details = sent['facts']['details']
+        self.assertEqual(details['pressing'], '东芝EMI')
+        self.assertEqual(details['obi'], '带侧标')
+        self.assertEqual(details['catalogNumber'], 'WPCR-1234')
+        self.assertEqual(details['matrix'], 'WPCR-1234 1')
+        self.assertEqual(details['edition'], '首版')
 
 
 if __name__ == '__main__':

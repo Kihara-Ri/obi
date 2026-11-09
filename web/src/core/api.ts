@@ -1,6 +1,7 @@
 // /api/* 统一封装：断网预检、JSON 序列化、错误携带状态码（401 → 登录跳转）。
 
 import {serverOffline} from './backend';
+import {localWrite} from './local-write';
 
 export class ApiError extends Error {
   status?: number;
@@ -11,7 +12,7 @@ export class ApiError extends Error {
 }
 
 async function request(url: string, init: RequestInit, message: string) {
-  try { return await fetch(url, init); }
+  try { return await localWrite(url, init); }
   catch (error) {
     if (error instanceof Error && error.name === 'AbortError') throw error;
     throw new ApiError(message);

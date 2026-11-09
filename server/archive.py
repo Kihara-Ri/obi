@@ -8,7 +8,7 @@
   ledger.json     Store.backup() 的完整账本（与旧的 .json 完整备份同格式）
   photos/… covers/… digital-twins/… engine-models/…
 
-恢复：先整包校验并解到数据目录内的暂存目录，账本恢复成功后才替换文件夹；被替换的旧文件夹
+恢复：先整包校验并持久暂存，账本与切换日志一起提交，目录切换可在启动时补完；被替换的旧文件夹
 移到 backups/pre-restore/（只留最近一次），与账本恢复前的自动快照一起，构成「恢复前先保存当前状态」。
 """
 import hashlib
@@ -16,6 +16,8 @@ import json
 import shutil
 import tempfile
 import zipfile
+import uuid
+from contextlib import closing
 from datetime import datetime
 from pathlib import Path, PurePosixPath
 
@@ -84,43 +86,49 @@ def _read_json(z, name, limit):
 
 
 def restore(store, source):
-    """从 zip 恢复账本与文件。source 为本地 zip 路径；失败时当前账本与文件都不动。"""
+    """校验失败不改账本；提交后失败保留暂存与日志，下次请求/启动前滚（D-040）。"""
     root = Path(store.path).parent
     try: z = zipfile.ZipFile(source)
     except (zipfile.BadZipFile, OSError): raise ValidationError('不是有效的备份包（zip 已损坏或不完整）')
-    with z, tempfile.TemporaryDirectory(prefix='.restore-', dir=root) as temp:
-        manifest = _read_json(z, 'manifest.json', 64 * 1024 * 1024)
-        if not isinstance(manifest, dict) or manifest.get('format') != FORMAT:
-            raise ValidationError('不是 Obi 的完整备份包')
-        if not isinstance(manifest.get('version'), int) or manifest['version'] > VERSION:
-            raise ValidationError('备份包来自更新版本的 Obi，请先更新应用再恢复')
-        listed = manifest.get('files')
-        if not isinstance(listed, dict) or len(listed) > MAX_FILES:
-            raise ValidationError('备份包的文件清单无效')
-        infos = {i.filename: i for i in z.infolist() if not i.is_dir()}
-        names = set(infos) - {'manifest.json', 'ledger.json'}
-        if names != set(listed): raise ValidationError('备份包内容与清单不符，可能下载不完整')
-        if sum(i.file_size for i in infos.values()) > MAX_TOTAL: raise ValidationError('备份包过大')
-        ledger = _read_json(z, 'ledger.json', 512 * 1024 * 1024)
-        staged = Path(temp)
-        for name in sorted(names):
-            _check_name(name)
-            meta = listed[name]
-            if not isinstance(meta, dict) or infos[name].file_size != meta.get('size'):
-                raise ValidationError(f'备份包文件大小不符：{name[:80]}')
-            target = staged / name
-            target.parent.mkdir(parents=True, exist_ok=True)
-            h = hashlib.sha256()
-            with z.open(infos[name]) as src, open(target, 'wb') as dst:
-                for block in iter(lambda: src.read(CHUNK), b''): h.update(block); dst.write(block)
-            if h.hexdigest() != meta.get('sha256'): raise ValidationError(f'备份包文件已损坏：{name[:80]}')
-        # 账本先恢复（内部会先存一份当前账本快照，校验不过则抛错、文件不动）
-        result = store.restore_backup(ledger)
-        keep = root / 'backups' / 'pre-restore'
-        if keep.exists(): shutil.rmtree(keep)
-        keep.mkdir(parents=True)
-        for folder in FOLDERS:
-            if (root / folder).exists(): shutil.move(str(root / folder), str(keep / folder))
-            if (staged / folder).exists(): shutil.move(str(staged / folder), str(root / folder))
-    return {**(result or {}), 'files': len(names)}
+    staged = root / ('.archive-restore-' + uuid.uuid4().hex)
+    staged.mkdir()
+    try:
+        with z:
+            return _restore(store, z, staged)
+    finally:
+        with closing(store.connect()) as db:
+            pending = store.meta_get(db, 'archive-restore-v1')
+        if pending != staged.name: shutil.rmtree(staged, ignore_errors=True)
 
+
+def _restore(store, z, staged):
+    manifest = _read_json(z, 'manifest.json', 64 * 1024 * 1024)
+    if not isinstance(manifest, dict) or manifest.get('format') != FORMAT:
+        raise ValidationError('不是 Obi 的完整备份包')
+    if not isinstance(manifest.get('version'), int) or manifest['version'] > VERSION:
+        raise ValidationError('备份包来自更新版本的 Obi，请先更新应用再恢复')
+    listed = manifest.get('files')
+    if not isinstance(listed, dict) or len(listed) > MAX_FILES:
+        raise ValidationError('备份包的文件清单无效')
+    infos = {i.filename: i for i in z.infolist() if not i.is_dir()}
+    names = set(infos) - {'manifest.json', 'ledger.json'}
+    if names != set(listed): raise ValidationError('备份包内容与清单不符，可能下载不完整')
+    if sum(i.file_size for i in infos.values()) > MAX_TOTAL: raise ValidationError('备份包过大')
+    ledger = _read_json(z, 'ledger.json', 512 * 1024 * 1024)
+    for name in sorted(names):
+        _check_name(name)
+        meta = listed[name]
+        if not isinstance(meta, dict) or infos[name].file_size != meta.get('size'):
+            raise ValidationError(f'备份包文件大小不符：{name[:80]}')
+        target = staged / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        h = hashlib.sha256()
+        with z.open(infos[name]) as src, open(target, 'wb') as dst:
+            for block in iter(lambda: src.read(CHUNK), b''): h.update(block); dst.write(block)
+        if h.hexdigest() != meta.get('sha256'): raise ValidationError(f'备份包文件已损坏：{name[:80]}')
+    # Every folder exists even when empty: absence after commit means its rename completed.
+    for folder in FOLDERS: (staged / folder).mkdir(exist_ok=True)
+    (staged / 'previous').mkdir()
+    result = store.restore_backup(ledger, archive_stage=staged)
+    store.finish_archive_restore()
+    return {**(result or {}), 'files': len(names)}

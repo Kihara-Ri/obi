@@ -68,3 +68,6 @@ listing-providers.tmp
 listing-providers.lock
 listing-anthropic/
 dist-local/
+
+# Local analysis and verification artifacts
+.tmp/

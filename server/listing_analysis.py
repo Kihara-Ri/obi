@@ -71,9 +71,17 @@ class ListingAnalysis(ListingGeneration):
         except Exception: update = {'status': 'failed', 'error': '照片分析失败，请重试'}
         with self.lock: self.jobs[ident].update(update)
 
-    def status(self, ident):
+    def status(self, ident='', record_id=''):
         self.store.require_module('trading')
         with self.lock:
-            job = self.jobs.get(ident)
-            if not job: raise ValidationError('任务不存在或服务已重启，请重新分析')
-            return copy.deepcopy(job)
+            if ident:
+                job = self.jobs.get(ident)
+                if not job: raise ValidationError('任务不存在或服务已重启，请重新分析')
+                return copy.deepcopy(job)
+            if record_id:
+                matched = [job for job in self.jobs.values() if job.get('recordId') == record_id]
+                if matched:
+                    running = next((j for j in reversed(matched) if j.get('status') == 'running'), None)
+                    return copy.deepcopy(running or matched[-1])
+                return {'status': 'idle'}
+            raise ValidationError('缺少任务标识')

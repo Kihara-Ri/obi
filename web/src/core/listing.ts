@@ -36,9 +36,10 @@ export interface ListingPreferences {
   revision: number; defaultPreset: string; customPresets: ListingPreset[]; builtins: ListingPreset[];
 }
 export interface ListingJob {
-  id: string; status: 'running' | 'succeeded' | 'failed';
+  id?: string; status: 'idle' | 'running' | 'succeeded' | 'failed';
   phase?: 'preparing' | 'analyzing' | 'writing' | 'saving' | 'done';
   error?: string; analysis?: ListingAnalysis; draft?: ListingDraft; autoSaved?: boolean; savedRevision?: number;
+  stream?: {title: string; description: string};
 }
 
 function canonical(value: unknown): string {

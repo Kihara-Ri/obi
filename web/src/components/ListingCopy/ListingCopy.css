@@ -26,4 +26,9 @@
 .listing-copy-editor{display:grid;gap:var(--listing-gap)}
 .listing-copy-editor label{display:grid;gap:var(--listing-gap-sm);font-size:var(--listing-small-size);color:var(--muted)}
 .listing-copy-editor textarea{font-size:var(--listing-copy-size);line-height:var(--listing-copy-line)}
+.listing-cursor{display:inline-block;color:var(--accent);margin-left:2px;font-weight:700}
+@media (prefers-reduced-motion:no-preference){
+  .listing-cursor{animation:listing-cursor-blink .8s infinite steps(1)}
+  @keyframes listing-cursor-blink{0%,100%{opacity:1}50%{opacity:0}}
+}
 @media (prefers-reduced-motion:reduce){.listing-copy-clip,.listing-copy-chev{transition:none}}

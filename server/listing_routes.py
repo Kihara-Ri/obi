@@ -33,7 +33,8 @@ def api_listing_save_preferences(h, svc, body):
 
 def api_listing_job(h, svc):
     from .routes import query
-    h.send(service(svc).status(query(h).get('id', '')))
+    q = query(h)
+    h.send(service(svc).status(ident=q.get('id', ''), record_id=q.get('recordId', '')))
 
 
 def api_listing_draft(h, svc, body):

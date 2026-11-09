@@ -73,8 +73,9 @@ function ListingForm({id}: {id: string}) {
       api<ListingProvider>('listing/status', undefined, {signal: abort.signal}).then(setProvider),
       api<Preferences>('listing/preferences', undefined, {signal: abort.signal}).then(setPreferences),
     ]).catch(e => {if (!abort.signal.aborted) setError(e.message);});
+    void task.attach(id);
     return () => abort.abort();
-  }, []);
+  }, [id]);
   const stale = current.revision !== revision;
   const busy = task.busy || saving || settingsBusy;
   const ready = r.photoCount ? provider?.ready : provider?.textReady;
@@ -107,10 +108,12 @@ function ListingForm({id}: {id: string}) {
     '售卖草稿已保存', {backOnSave: true});};
   const phaseText = progress === 'writing' ? '正在生成文案…' : progress === 'saving' ? '正在保存草稿…'
     : r.photoCount ? '正在核对资料与照片…' : '正在整理已有资料…';
+  const streaming = task.busy && progress === 'writing' ? task.job?.stream : undefined;
   return <form onSubmit={e => e.preventDefault()}>
     <div className="drawer-body listing-body">
       <ListingCopy draft={shown} saved={saved && !dirty} candidate={!!candidate} busy={busy || stale}
         ready={!!ready && !!preferences && !stale} editing={editing} generating={task.busy ? phaseText : undefined}
+        streaming={streaming}
         onEditing={setEditing} onGenerate={() => generate()} onChange={change}/>
       {candidate ? <div className="listing-candidate-actions" aria-label="候选操作">
         <button type="button" disabled={stale || busy} onClick={async () => {
@@ -122,7 +125,10 @@ function ListingForm({id}: {id: string}) {
           } catch (e) {setError(e instanceof Error ? e.message : '保存失败');}
           finally {setSettingsBusy(false);}
         }}>采用并保存</button>
-        <button type="button" disabled={busy} onClick={() => {setCandidate(undefined); app.setDrawerDirty(dirty);}}>保留原稿</button>
+        <button type="button" disabled={busy} onClick={() => {
+          if (task.job?.id) task.dismiss(task.job.id);
+          setCandidate(undefined); app.setDrawerDirty(dirty);
+        }}>保留原稿</button>
       </div> : null}
       {conflicts.length ? <button type="button" className="listing-conflict" onClick={() => setReviewOpen(true)}>
         版本有冲突 · 查看核对依据</button> : null}

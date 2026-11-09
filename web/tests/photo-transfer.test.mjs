@@ -54,6 +54,8 @@ test('关闭表单取消在途与排队上传，不再发出新请求', async ()
 
 test('网络失败不把 Safari 的 Load failed 原样暴露，保存结果不伪报成功', async () => {
   const fetchBefore = globalThis.fetch;
+  const docBefore = globalThis.document;
+  globalThis.document = {querySelector: () => null};
   const navBefore = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
   Object.defineProperty(globalThis, 'navigator', {value: {onLine: true}, configurable: true});
   globalThis.fetch = async () => {throw new TypeError('Load failed');};
@@ -64,6 +66,7 @@ test('网络失败不把 Safari 的 Load failed 原样暴露，保存结果不�
     await assert.rejects(api('records/metadata', {}), /响应不完整/);
   } finally {
     globalThis.fetch = fetchBefore;
+    if (docBefore) globalThis.document = docBefore; else delete globalThis.document;
     if (navBefore) Object.defineProperty(globalThis, 'navigator', navBefore);
     else delete globalThis.navigator;
   }

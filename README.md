@@ -53,7 +53,7 @@ docker compose up -d --build  # 打开 http://127.0.0.1:8765，数据落在 ./da
 
 **裸 Python（零依赖，3.10+）：** `python3 app.py`；Mac 上也可双击 `启动 Obi.command`。Releases 里的 `album-ledger.tar.gz` 无需 git，裸机可开启[补丁自动更新](部署说明.md#补丁自动更新可选)。
 
-**没有服务器：** 安卓在 [Releases](https://github.com/Kihara-Ri/obi/releases) 下载 `Obi-<版本>.apk` 直接安装；或把 `build:local` 的静态站点放到任意托管，同一套后端在手机浏览器（Pyodide）里运行，数据存本机，可断网使用，与服务器版用完整备份互通。见[部署说明](部署说明.md#方案三没有服务器本机模式主要给手机)。
+**没有服务器：** 安卓在 [Releases](https://github.com/Kihara-Ri/obi/releases) 下载 `Obi-<版本>.apk` 直接安装；或把 `build:local` 的静态站点放到任意托管，同一套后端在手机浏览器（Pyodide）里运行，数据存本机，可断网使用，与服务器版用完整备份互通。本机保存等待 IndexedDB 写入确认；失败时保留页面重试原操作。完整备份恢复若在文件切换途中中断，下一次启动会继续完成。见[部署说明](部署说明.md#方案三没有服务器本机模式主要给手机)。
 
 公网部署（HTTPS 反代 + 登录密码 + 异地备份）见[部署说明](部署说明.md)。
 

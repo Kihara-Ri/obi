@@ -39,12 +39,16 @@ done
 #    --allow-dirty 发出去的版本也能 git checkout 原样重建；只存本地，不推送。
 if [ "$command" = deploy ] && [ -z "${PACKAGE_PATH:-}" ] && [ "${DEPLOY_HOST:-}" != local ]; then
   if git -C "$ROOT" rev-parse --abbrev-ref '@{u}' >/dev/null 2>&1; then
-    git -C "$ROOT" fetch --quiet || echo "⚠ 拉取远程失败，按上次已知的远程状态检查" >&2
+    git -C "$ROOT" fetch --quiet || { echo "无法更新远程状态，已中止发布" >&2; exit 1; }
     behind=$(git -C "$ROOT" rev-list --count 'HEAD..@{u}')
     if [ "$behind" != 0 ]; then
       echo "✗ 远程有 ${behind} 个提交本地没有：先 git pull --rebase，否则发布会回退它们" >&2
       exit 1
     fi
+  fi
+  if [ -n "$(git -C "$ROOT" status --porcelain)" ] && [[ " ${flags[*]-} " != *" --allow-dirty "* ]]; then
+    echo "工作树有未提交改动：请先提交，或显式使用 --allow-dirty" >&2
+    exit 1
   fi
   index="$(mktemp)"   # 临时索引：不碰真正的暂存区
   GIT_INDEX_FILE="$index" git -C "$ROOT" read-tree HEAD
@@ -55,7 +59,8 @@ if [ "$command" = deploy ] && [ -z "${PACKAGE_PATH:-}" ] && [ "${DEPLOY_HOST:-}"
   else snap=$(git -C "$ROOT" commit-tree "$tree" -p HEAD -m "deploy snapshot (uncommitted changes)"); fi
   stamp=$(date +%Y%m%d-%H%M%S)
   git -C "$ROOT" update-ref "refs/deploys/${stamp}" "$snap"
-  echo "发布快照：refs/deploys/${stamp} → ${snap:0:12}（git checkout ${snap:0:12} 可重建这次发布的源码）"
+  echo "发布快照：refs/deploys/${stamp} → ${snap:0:12}（构建使用此快照的独立工作树）"
+  exec python3 "$ROOT/tools/deploy_snapshot.py" "$ROOT" "$snap" ${flags[@]+"${flags[@]}"}
 fi
 
 if [ "$command" = deploy ]; then

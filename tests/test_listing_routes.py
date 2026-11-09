@@ -21,7 +21,8 @@ class ListingRouteTests(unittest.TestCase):
         self.auth = Auth(Path(self.tmp.name) / 'auth.sqlite3')
         self.auth.set_password('listing-test-password')
         self.token = self.auth.login('listing-test-password', '127.0.0.1')
-        self.server = ThreadingHTTPServer(('127.0.0.1', 0), make_handler(Services(store=self.store, auth=self.auth)))
+        self.services = Services(store=self.store, auth=self.auth)
+        self.server = ThreadingHTTPServer(('127.0.0.1', 0), make_handler(self.services))
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
 
     def tearDown(self):
@@ -78,3 +79,13 @@ class ListingRouteTests(unittest.TestCase):
         self.assertEqual(self.request(path + f"?photoRevision={r['photoRevision'] + 1}")[0], 400)
         self.assertEqual(self.request(path + '?photoRevision=invalid')[0], 400)
         self.assertEqual(self.request(path)[0], 200)
+
+    def test_listing_job_query_by_record_id(self):
+        from unittest.mock import MagicMock
+        mock_listings = MagicMock()
+        mock_listings.status.return_value = {'status': 'idle'}
+        self.services.listings = mock_listings
+        status, raw = self.request('/api/listing/job?recordId=r1')
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(raw), {'status': 'idle'})
+        mock_listings.status.assert_called_once_with(ident='', record_id='r1')

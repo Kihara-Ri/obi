@@ -4,7 +4,7 @@
 // Web Lock 保证同一时刻只有一个窗口持有引擎：两个窗口同时写同一份库会互相覆盖。
 // 同步 XHR 会占住整个 Worker，所以起两个：main 管账本，net 专管慢的外网查询（条码/封面/汇率），
 // 互不阻塞。net 只服务不碰账本的接口（NET_ROUTES），用自己的 /netdata 存缓存；艺人资料要写账本，留在 main。
-importScripts('/local/pyodide/pyodide.js', '/local/rate-sync.js');
+importScripts('/local/pyodide/pyodide.js', '/local/rate-sync.js', '/local/write-journal.js');
 
 const channel = new BroadcastChannel('obi-api');
 const say = (m) => postMessage(m);
@@ -34,7 +34,8 @@ globalThis.obiXhr = (method, url, headersJson, body, timeout) => {
 };
 
 const persist = () => {
-  syncing = syncing.then(() => new Promise((resolve) => pyodide.FS.syncfs(false, () => resolve())));
+  syncing = syncing.catch(() => {}).then(() => new Promise((resolve, reject) =>
+    pyodide.FS.syncfs(false, (err) => err ? reject(err) : resolve())));
   return syncing;
 };
 
@@ -75,12 +76,15 @@ function run(m) {
   return { status, headers: JSON.parse(headers), body: raw };
 }
 
+const journal = new ObiWriteJournal(run, persist);
+let requests = Promise.resolve();
+
 async function serve(m) {
   let reply;
-  try { reply = run(m); } catch (err) {
+  const rateQuery = /^\/api\/rates?(?:\/|$)/.test(m.target.split('?')[0]);
+  try { clearTimeout(syncTimer); reply = rateQuery ? run(m) : await journal.execute(m); } catch (err) {
     reply = { status: 500, headers: { 'Content-Type': 'application/json' }, body: new TextEncoder().encode(JSON.stringify({ error: '本机引擎出错：' + err })) };
   }
-  const rateQuery = /^\/api\/rates?(?:\/|$)/.test(m.target.split('?')[0]);
   if (rateQuery) {
     try {await rateSync.transfer(reply);} catch (err) {
       reply = {status: 503, headers: {'Content-Type': 'application/json'},
@@ -88,11 +92,14 @@ async function serve(m) {
     }
   }
   // 写请求先落盘再回复：回复到达页面时数据已进 IndexedDB；读请求顺带产生的缓存稍后合并写入
-  if (m.method !== 'GET' && !rateQuery) { clearTimeout(syncTimer); await persist(); }
-  else { clearTimeout(syncTimer); syncTimer = setTimeout(persist, 1500); }
+  if (m.method === 'GET' || rateQuery) syncTimer = setTimeout(() => {
+    persist().catch(() => say({ persistenceError: '本机缓存尚未写入磁盘' }));
+  }, 1500);
   const body = reply.body instanceof Uint8Array ? reply.body : new Uint8Array(reply.body);
   channel.postMessage({ t: 'res', id: m.id, status: reply.status, headers: reply.headers, body: body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) });
 }
+
+const enqueue = (m) => { requests = requests.then(() => serve(m)).catch(err => say({error: String(err)})); };
 
 const wanted = (m) => NET_ROUTES.test(m.target.split('?')[0]) === (role === 'net');
 
@@ -111,14 +118,14 @@ onmessage = (event) => {
       channel.onmessage = (e) => {
         if (!e.data || rateSync?.handle(e.data)) return;
         if (e.data.t !== 'req' || !wanted(e.data)) return;
-        if (ready) serve(e.data);
+        if (ready) enqueue(e.data);
         else if (queued.length < 32) queued.push(e.data);
       };
       await boot();
       rateSync = ObiRateSync.create({role, session: data.rateSession, channel,
         adopt: quotes => JSON.parse(String(engine.accept_rate_quotes(JSON.stringify(quotes))))});
       ready = true;
-      for (const request of queued) serve(request);
+      for (const request of queued) enqueue(request);
       say({ ready: true });
     } catch (err) {
       say({ error: String(err && err.message || err) });

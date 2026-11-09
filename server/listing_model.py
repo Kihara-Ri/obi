@@ -64,15 +64,25 @@ class ListingModel:
         raw = self.complete(PROMPT, image_content(record, images, supplement), settings)
         return parse_analysis(raw, [index for index, _, _ in images])
 
-    def write_copy(self, analysis, preset, has_photos, selection, record):
+    def write_copy(self, analysis, preset, has_photos, selection, record, on_chunk=None):
         from domain_listing import text
         from .listing_copy_clean import clean_title, hedge_hits, strip_hedges
         condition = analysis['conditionText']
         # 内部「尚未核实」标记与待核实/冲突清单不交给写作模型，否则它会照着写进买家可见的文案。
         if hedge_hits(condition): condition = ''
+        release = record.get('releaseInfo') or {}
+        packaging = record.get('packaging') or {}
+        details = {k: release[k] for k in ('country', 'catalogNumber', 'barcode', 'label', 'releaseDate',
+                                           'edition', 'format', 'discCount', 'matrix', 'extras') if release.get(k)}
+        for k in ('version', 'pressing', 'obi'):
+            if record.get(k): details[k] = record[k]
+        if packaging:
+            phys = {k: v for k, v in packaging.items() if v}
+            if phys: details['physicalPackaging'] = phys
         payload = {
             'facts': {'album': {key: record[key] for key in ('artist', 'title')},
-                      'versionText': analysis['versionText'], 'conditionText': condition, 'saleTerms': analysis['saleTerms'],
+                      'versionText': analysis['versionText'], 'details': details,
+                      'conditionText': condition, 'saleTerms': analysis['saleTerms'],
                       'tracklist': (record.get('releaseInfo') or {}).get('tracklist', []),
                       'media': (record.get('releaseInfo') or {}).get('media', [])},
             'versionConflict': bool(analysis['conflicts']),
@@ -81,7 +91,10 @@ class ListingModel:
 
         def write(extra=None):
             parts = content + ([{'type': 'text', 'text': json.dumps(extra, ensure_ascii=False)}] if extra else [])
-            value = structured_json(self.complete(COPY_PROMPT, parts, selection))
+            kwargs = {'on_chunk': on_chunk} if on_chunk and extra is None else {}
+            try: raw_json = self.complete(COPY_PROMPT, parts, selection, **kwargs)
+            except TypeError: raw_json = self.complete(COPY_PROMPT, parts, selection)
+            value = structured_json(raw_json)
             if not isinstance(value, dict): raise ValidationError('模型文案格式无效')
             return {key: text(value.get(key), limit) for key, limit in (('title', 500), ('description', 50000))}
         result = write()
@@ -95,7 +108,7 @@ class ListingModel:
         if not result['description']: raise ValidationError('模型返回了空文案，请重试')
         return result
 
-    def complete(self, prompt, content, settings):
+    def complete(self, prompt, content, settings, on_chunk=None):
         provider, model, effort = (settings[key] for key in ('provider', 'model', 'effort'))
         if provider == 'anthropic':
             return self.providers.claude.complete(prompt, content, model, effort, account=settings['account'])
@@ -129,7 +142,18 @@ class ListingModel:
                         if effort != 'none': payload['reasoning_effort'] = effort
                     else: payload['reasoning_effort'] = effort
             extra = {'forbidden': OPENCODE_FORBIDDEN} if provider == 'opencode' else {}
-            result = request(url, json.dumps(payload).encode(), headers, **extra)
-            try: raw = result['choices'][0]['message']['content']
-            except (KeyError, IndexError, TypeError): raise ValidationError('模型返回结构无效，请重试') from None
+            if on_chunk:
+                payload['stream'] = True
+                response = request(url, json.dumps(payload).encode(), headers, stream=True, **extra)
+                if isinstance(response, dict):
+                    try: raw = response['choices'][0]['message']['content']
+                    except (KeyError, IndexError, TypeError): raise ValidationError('模型返回结构无效，请重试') from None
+                    if on_chunk: on_chunk(raw, raw)
+                else:
+                    from .listing_transport import stream_chat_text
+                    raw = stream_chat_text(response, on_chunk=on_chunk)
+            else:
+                result = request(url, json.dumps(payload).encode(), headers, **extra)
+                try: raw = result['choices'][0]['message']['content']
+                except (KeyError, IndexError, TypeError): raise ValidationError('模型返回结构无效，请重试') from None
         return raw

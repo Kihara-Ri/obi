@@ -139,6 +139,7 @@ def make_handler(svc):
                 fn = routes.resolve_get(path)
                 if not fn: return self.send({'error': '接口不存在'}, 404)
                 try:
+                    routes.recover(svc)
                     return fn(self, svc)
                 except ConflictError as e:
                     return self.send({'error': str(e)}, 409)
@@ -171,6 +172,7 @@ def make_handler(svc):
                     f.write(block); left -= len(block)
                 f.flush()
                 try:
+                    routes.recover(svc)
                     with routes.WRITE_LOCK: fn(self, svc, f.name)
                 except ConflictError as e:
                     self.send({'error': str(e)}, 409)
@@ -204,6 +206,7 @@ def make_handler(svc):
                 if not found: return self.send({'error': '接口不存在'}, 404)
                 fn, needs_auth, needs_lock = found
                 if needs_auth and not self.authorized(): return
+                routes.recover(svc)
                 if needs_lock:
                     with routes.WRITE_LOCK: fn(self, svc, body)
                 else: fn(self, svc, body)
