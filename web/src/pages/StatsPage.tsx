@@ -1,13 +1,12 @@
-// 账本页：年份切换 → 利润卡 → 钱压在哪（当前库存成本分段）→ 每月收支图 → 月度表。
+// 账本页：利润卡（全部时间） → 钱压在哪（当前库存成本分段）→ 每月收支图 → 月度表。
 // 计算全在 core/ledger.ts；本文件只负责按启用的模块取舍与排版。
-import {useMemo, useState} from 'react';
+import {useMemo} from 'react';
 import {sum, yuan} from '../core/format';
-import {avgTransitDays, ledgerMonths, ledgerSummary, ledgerYears, signedYuan, stockBucket} from '../core/ledger';
+import {avgTransitDays, ledgerMonths, ledgerSummary, signedYuan, stockBucket} from '../core/ledger';
 import type {StockBucket} from '../core/ledger';
 import {useApp} from '../state/AppContext';
 import {PageHead} from '../components/PageHead';
 import {DownloadButton} from '../components/DownloadButton';
-import {Seg} from '../components/ui';
 import {LedgerChart} from './LedgerChart';
 import {LedgerTable} from './LedgerTable';
 import './StatsPage.css';
@@ -24,12 +23,7 @@ export function StatsPage() {
   const {state, modules} = useApp();
   const {trading, acquisition: acq, circulation} = modules;
   const months = useMemo(() => ledgerMonths(state.records, state.sales), [state.records, state.sales]);
-  const years = ledgerYears(months);
-  const thisYear = String(new Date().getFullYear());
-  const [pick, setPick] = useState<string | null>(null);
-  const year = pick ?? (years.includes(thisYear) ? thisYear : years[0] ?? 'all');
-  const scoped = year === 'all' ? months : months.filter(m => m.key.startsWith(year));
-  const t = ledgerSummary(scoped, state.sales, year === 'all' ? undefined : year);
+  const t = ledgerSummary(months, state.sales);
   const shipping = state.sales.filter(s => s.status === 'shipping');
   const owed = sum(shipping.flatMap(s => s.items), 'net');
 
@@ -44,17 +38,14 @@ export function StatsPage() {
   const total = buckets.reduce((a, x) => ({count: a.count + x.b.count, cost: a.cost + x.b.cost}), {count: 0, cost: 0});
   const weight = (x: Bucket) => acq ? x.b.cost : x.b.count;
   const whole = buckets.reduce((a, x) => a + weight(x), 0);
-  const label = year === 'all' ? '全部' : year;
 
   return (
     <>
       <PageHead title="账本" desc={acq ? '人民币统一口径：日元按买入当天汇率折算。' : '按到账月份统计售出金额。'} label="IN NUMBERS"
                 actions={<DownloadButton path="export" fileName="albums.csv" className="link-button head-text" ariaLabel="导出库存 CSV"><span className="btn-long">导出库存 CSV</span><span className="btn-short" aria-hidden="true">导出</span></DownloadButton>}/>
-      {years.length > 1 ? <Seg className="ledger-years" ariaLabel="统计年份" persistKey="ledger-year" value={year} onValue={setPick}
-                               options={[{value: 'all', label: '全部'}, ...years.map(y => ({value: y, label: y}))]}/> : null}
       <div className="ledger-top">
         {trading ? <section className="ledger-card ledger-hero">
-          <span className="ledger-label">{acq ? '已实现利润' : '售出到手'} · {label}</span>
+          <span className="ledger-label">{acq ? '已实现利润' : '售出到手'}</span>
           <strong className={'ledger-big' + (acq ? t.profit < 0 ? ' negative' : ' positive' : '')}>{yuan(acq ? t.profit : t.net)}</strong>
           <div className="ledger-row">
             {acq ? <div><span className="ledger-label">售出到手</span><b>{yuan(t.net)}</b></div>
@@ -88,10 +79,10 @@ export function StatsPage() {
           {acq ? <Note parts={['按成本计，日元按买入当天汇率']}/> : null}
         </section>
       </div>
-      {scoped.length ? <>
+      {months.length ? <>
         <h3 className="section-title">每月收支</h3>
-        <LedgerChart months={scoped} buy={acq} sell={trading} profit={acq && trading} showYear={year === 'all'}/>
-        <LedgerTable months={scoped} total={t} buy={acq} sell={trading} profit={acq && trading} showYear={year === 'all'}/>
+        <LedgerChart months={months} buy={acq} sell={trading} profit={acq && trading} showYear/>
+        <LedgerTable months={months} total={t} buy={acq} sell={trading} profit={acq && trading} showYear/>
       </> : <p className="help">还没有买入或售出记录。</p>}
     </>
   );

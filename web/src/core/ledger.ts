@@ -67,12 +67,12 @@ export function ledgerMonths(records: AlbumRecord[], sales: Sale[]): LedgerMonth
     .sort((a, b) => b.key.localeCompare(a.key));
 }
 
-/** 汇总一组月份；利润率另需成本已知那部分的到手，所以直接从 sales 算 */
-export function ledgerSummary(months: LedgerMonth[], sales: Sale[], year?: string): LedgerSummary {
+/** 汇总月份；利润率另需成本已知那部分的到手，所以直接从 sales 算 */
+export function ledgerSummary(months: LedgerMonth[], sales: Sale[]): LedgerSummary {
   let knownNet = 0, knownProfit = 0, loss = 0;
   for (const s of sales) {
     const w = saleMonth(s);
-    if (!w || (year && !w.key.startsWith(year))) continue;
+    if (!w) continue;
     for (const i of s.items) {
       if (w.kind === 'returned') { loss += n(i.profit); continue; }
       if (i.profit !== null) { knownNet += n(i.net); knownProfit += n(i.profit); }
@@ -84,10 +84,6 @@ export function ledgerSummary(months: LedgerMonth[], sales: Sale[], year?: strin
   return {net: r2(t.net), sold: t.sold, profit: r2(t.profit), returned: t.returned, unknown: t.unknown, buy: r2(t.buy),
     loss: r2(loss), margin: knownNet > 0 ? knownProfit / knownNet : null};
 }
-
-/** 有数据的年份，新的在前 */
-export const ledgerYears = (months: LedgerMonth[]): string[] =>
-  [...new Set(months.map(m => m.key.slice(0, 4)))].sort().reverse();
 
 export interface StockBucket { count: number; cost: number; unknown: number; listed: number }
 

@@ -4,7 +4,7 @@ import {test} from 'node:test';
 import {join} from 'node:path';
 
 const {output, require} = compiledSources();
-const {ledgerMonths, ledgerSummary, ledgerYears, stockBucket, avgTransitDays} = require(join(output, 'core/ledger.js'));
+const {ledgerMonths, ledgerSummary, stockBucket, avgTransitDays} = require(join(output, 'core/ledger.js'));
 
 const rec = (id, date, cost, extra = {}) => ({id, date, cost, status: 'domestic', ...extra});
 const item = (recordId, net, profit) => ({recordId, net, profit});
@@ -30,14 +30,13 @@ test('每月收支：买入按买入日、售出按收货日、退货按退款�
   assert.equal(ms[1].buy, 100); assert.equal(ms[1].buyUnknown, 1); assert.equal(ms[1].net, 0);
 });
 
-test('汇总：按年份筛，利润率只看成本已知的部分，退货损失单列且已计入利润', () => {
+test('汇总：利润率只看成本已知的部分，退货损失单列且已计入利润', () => {
   const ms = ledgerMonths(records, sales);
-  const y = ledgerSummary(ms.filter(m => m.key.startsWith('2026')), sales, '2026');
-  assert.equal(y.profit, 83); assert.equal(y.net, 285); assert.equal(y.loss, -12);
+  const y = ledgerSummary(ms, sales);
+  assert.equal(y.profit, 83); assert.equal(y.net, 285); assert.equal(y.buy, 180); assert.equal(y.loss, -12);
   assert.equal(y.sold, 3); assert.equal(y.unknown, 1);
   assert.ok(Math.abs(y.margin - 95 / 225) < 1e-9);
-  assert.deepEqual(ledgerYears(ms), ['2026', '2025']);
-  assert.equal(ledgerSummary([], [], '2024').margin, null);
+  assert.equal(ledgerSummary([], []).margin, null);
 });
 
 test('库存分桶与平均在途天数', () => {
