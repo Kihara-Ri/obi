@@ -12,6 +12,7 @@ import type {Currency} from '../types';
 import {AmountInput, DateChipsRow, Field, TextareaField} from './fields';
 import {Seg} from '../components/ui/Seg';
 import {AlbumLine} from '../components/AlbumLine';
+import {FormMessage, useFormFeedback} from './form-feedback';
 import {useFormSubmit, useRate} from './shared';
 import {Details} from '../components/ui/Details';
 
@@ -37,6 +38,7 @@ function saleChannels(channels: string[]): string[] {
 function SaleForm({ids}: {ids: string[]}) {
   const app = useApp();
   const {error, saving, run} = useFormSubmit();
+  const feedback = useFormFeedback();
   const savedChannel = prefs.get('saleChannel', '闲鱼');
   const [v, setV] = useState({
     gross: '', date: today(), fees: '0', postage: '0',
@@ -87,9 +89,9 @@ function SaleForm({ids}: {ids: string[]}) {
   const step = v.currency === 'JPY' ? 'any' : '0.01';
 
   return (
-    <form id="sale-form" onSubmit={submit}>
+    <form id="sale-form" onSubmit={submit} noValidate onSubmitCapture={feedback.onSubmitCapture}>
       <div className="drawer-body">
-        <div className="error" role="alert">{error}</div>
+        {feedback.feedback}
         {rs.map(r => r && <AlbumLine key={r.id} r={r} showCost={app.modules.acquisition}/>)}
         <div className="row-group">
           <div className="row amount-row">
@@ -165,6 +167,7 @@ function SaleForm({ids}: {ids: string[]}) {
         </Details>
       </div>
       <div className="drawer-footer">
+        <FormMessage error={error}/>
         <button type="button" onClick={() => app.backDrawer()}>取消</button>
         <button type="submit" className="primary" aria-busy={saving} disabled={saving}>确认售出</button>
       </div>

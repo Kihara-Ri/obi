@@ -12,23 +12,35 @@ import {AlbumSummary} from './AlbumSummary';
 import {CamIco} from './icons';
 import {Cover, PriceCell} from './Cover';
 import {useApp} from '../state/AppContext';
+import {SwipeRow} from './ui/SwipeRow';
+import type {SwipeAction} from './ui/SwipeRow';
 import './Cards.css';
 
-export function AlbumCard({r, page, checked, onSelect, onDetail, onArtist, actions}: {
+export function AlbumCard({r, page, checked, onSelect, onDetail, onArtist, actions, swipeActions, selecting, swipeHint, onSwipeHint}: {
   r: AlbumRecord; page: string; checked: boolean;
+  /** 手机列表行左滑露出的操作（有它时手机上行内操作按钮收起） */
+  swipeActions?: SwipeAction[];
+  /** 选择模式中：停用左滑 */
+  selecting?: boolean;
+  /** 首次进入时在这一行演示左滑 */
+  swipeHint?: boolean;
+  onSwipeHint?: () => void;
   onSelect?: (id: string, on: boolean) => void;
   onDetail: (id: string) => void;
   onArtist?: (artist: string) => void;
   actions: ReactNode;
 }) {
   const {modules, shelfView} = useApp();
+  const listed = modules.trading && r.listed && page !== 'trash';
   const tags = [copyEditionLabel(r.pressing, r.obi), r.version].filter(Boolean);
   const badges = <>
-    {modules.trading && r.listed && page !== 'trash' ? <span className="badge listed">已上架</span> : null}
+    {listed ? <span className="badge listed">已上架</span> : null}
     {!modules.circulation && r.status === 'transit' ? <span className="badge transit">历史在途</span> : null}
     {r.cover ? null : <span className="badge nocover">待抓取</span>}
   </>;
-  if (shelfView === 'list') return <article className="card album-list-card" data-id={r.id}>
+  const swipe = swipeActions?.length ? swipeActions : [];
+  if (shelfView === 'list') return <SwipeRow as="article" className={'card album-list-card' + (swipe.length ? ' has-swipe' : '')}
+      data-id={r.id} actions={swipe} disabled={selecting} hint={swipeHint} onHintShown={onSwipeHint}>
     {/* 手机：行首圆形选择钮（不压在封面上）；桌面仍用封面右上角的 card-check */}
     {page !== 'trash' && onSelect ? <label className="select-lead">
       <input type="checkbox" checked={checked} aria-label={`选择 ${r.title}`}
@@ -42,13 +54,15 @@ export function AlbumCard({r, page, checked, onSelect, onDetail, onArtist, actio
             onChange={e => onSelect(r.id, e.target.checked)}/>
         </label> : null}
         {r.photoCount ? <span className="photo-flag" title={`有 ${r.photoCount} 张实物照片`}>{CamIco}{r.photoCount}</span> : null}
+        {/* 手机：已上架收成封面右上角的绿勾（桌面仍是行内「已上架」徽标） */}
+        {listed ? <span className="listed-mark" role="img" aria-label="已上架" title="已上架"/> : null}
       </>}
       metadata={<>
         <div className="list-badges">{badges}</div>
       </>}
       money={modules.acquisition ? <><small>买入</small><div className="album-purchase"><PriceCell r={r}/></div></> : undefined}
       actions={<div className="card-actions">{actions}</div>}/>
-  </article>;
+  </SwipeRow>;
   return (
     <article className="card" data-id={r.id}>
       <div className="cover-wrap">

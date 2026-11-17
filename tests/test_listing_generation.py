@@ -3,6 +3,7 @@ import copy
 import json
 import tempfile
 import threading
+import time
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -52,9 +53,12 @@ class GenerationTests(unittest.TestCase):
         r = self.record(key)
         job = self.service.generate({'id': r['id'], 'revision': r['revision'],
                                      'photoRevision': r.get('photoRevision', 0), **extra})
-        # 排队一个屏障，等待这次任务完成，仍允许同服务后续重试。
-        self.service.executor.submit(lambda: None).result(timeout=5)
-        return self.service.status(job['id'])
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            result = self.service.status(job['id'])
+            if result['status'] != 'running': return result
+            time.sleep(0.01)
+        self.fail('生成任务未完成')
 
     def test_no_photos_generates_saves_and_omits_private_fields(self):
         before = self.record('dookie-jp')

@@ -3,7 +3,7 @@ import type {ReactNode} from 'react';
 import {useApp} from '../state/AppContext';
 import {sum, yuan} from '../core/format';
 import {ThemeToggle} from './ThemeToggle';
-import {useHashRoute} from '../hooks/useHashRoute';
+import {useShownRoute} from '../hooks/useHashRoute';
 import {BACK_TARGET} from '../core/page-back';
 
 const BackIco = (
@@ -15,12 +15,12 @@ const BackIco = (
 export function PageHead({title, desc, actions, label}: {
   title: ReactNode; desc?: ReactNode; actions?: ReactNode; label?: string;
 }) {
-  const back = BACK_TARGET[useHashRoute()];
+  const back = BACK_TARGET[useShownRoute()];
   return (
     <header className="page-head">
       <div>
-        {/* 手机顶栏的返回：只在「更多」的子页出现，桌面有侧栏不显示 */}
-        {back ? <a className="head-back" href={back.href} aria-label={`返回${back.label}`}>{BackIco}</a> : null}
+        {/* 手机顶栏的返回：只在「更多」的子页出现，按样稿是「‹ 上一级名」的文字钮；桌面有侧栏不显示 */}
+        {back ? <a className="head-back" href={back.href} aria-label={`返回${back.label}`}>{BackIco}<span aria-hidden="true">{back.label}</span></a> : null}
         {label ? <div className="eyebrow">{label}</div> : null}
         <h1>{title}</h1>
         {desc ? <p>{desc}</p> : null}

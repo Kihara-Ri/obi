@@ -75,13 +75,15 @@ test('Combobox：输入框 combobox 语义、关联浮层、选项带 id 且默�
   assert.match(html, /<i>ico<\/i>/);
 });
 
-test('Toast：错误用 alert，其余 status；按级别设定环绕时长', () => {
+test('Toast：错误用 alert，其余 status；按级别设定停留时长并带级别图标', () => {
   const err = render(ui.Toast, {kind: 'err', text: '失败', onDone: () => {}});
   assert.match(err, /role="alert" aria-live="assertive"/);
-  assert.match(err, /--toast-ms:6000ms/);
+  assert.match(err, /data-ms="6000"/);
+  assert.match(err, /class="toast-ico"/);
   const ok = render(ui.Toast, {kind: 'ok', text: '已保存', onDone: () => {}});
   assert.match(ok, /role="status" aria-live="polite"/);
-  assert.match(ok, /--toast-ms:2000ms/);
+  assert.match(ok, /data-ms="2000"/);
+  assert.match(ok, /<span class="toast-text">已保存<\/span>/);
 });
 
 test('NavRow：链接 / 按钮 / 静态三种形态，右侧数值与箭头', () => {

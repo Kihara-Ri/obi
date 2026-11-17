@@ -124,12 +124,14 @@
 @media (max-width:840px){
   .desktop-shelf-title{display:none}
   .mobile-shelf-title{display:inline}
-  .shelf-location{display:flex;gap:24px;margin:0 0 14px;border-bottom:1px solid var(--border);position:relative}
-  .shelf-location a{display:flex;align-items:center;gap:8px;min-height:44px;color:var(--muted);text-decoration:none;border-bottom:2px solid transparent;font-size:14px;transition:color .2s ease}
+  /* 国内 / 海外：分段控件样式（2026-11-17 按动效样稿），选中项是一块独立滑动的浮起滑块（同 Seg / 底栏胶囊惯用法） */
+  .shelf-location{display:flex;margin:0 0 14px;padding:3px;border-radius:12px;background:var(--surface-2);position:relative}
+  .shelf-location a{position:relative;z-index:1;flex:1;display:flex;align-items:center;justify-content:center;gap:6px;min-height:38px;border-radius:9px;
+    color:var(--muted);text-decoration:none;font-size:14px;font-weight:600;transition:color .2s ease;-webkit-tap-highlight-color:transparent}
   .shelf-location a[aria-current=page]{color:var(--text)}
-  .shelf-location b{font-size:12px;color:var(--faint);font-weight:500}
-  /* 选中下划线是一枚独立滑动的短条（同底栏胶囊 / Seg 惯用法），各标签自身不自绘 */
-  .shelf-tab-thumb{position:absolute;left:0;bottom:0;height:2px;width:0;background:var(--accent-deep);pointer-events:none;
+  .shelf-location b{font-size:14px;color:inherit;font-weight:600;font-variant-numeric:tabular-nums}
+  .shelf-tab-thumb{position:absolute;left:0;top:3px;bottom:3px;width:0;border-radius:9px;background:var(--seg-thumb);
+    box-shadow:inset 0 0 0 1px var(--hairline),0 2px 6px var(--shadow-ink);pointer-events:none;
     transition:transform var(--slide-ms) var(--slide-ease),width var(--slide-ms) var(--slide-ease);will-change:transform,width}
   .shelf-page .toolbar{gap:8px}
   .shelf-page .toolbar .search{order:-1;flex-basis:100%}

@@ -1,20 +1,28 @@
-/* 手机页面切换过渡：顶栏留在原地，只有下面的内容换，且都是柔和的淡入淡出。
-   旧页由 hooks/usePageTransition.ts 抓的 DOM 快照（.page-ghost，含旧顶栏）原位淡出；
-   新页的顶栏组件与内容随后淡入，内容再顺着导航方向（--soft-dx）带一点位移。两页同位置，不整幅滑动。
-   桌面不执行切换动画（usePageTransition 里按宽度跳过）。 */
+/* 手机页面切换。两页之间的关系（core/page-motion.ts）决定动画，动画本身是 core/page-transition-play.ts 的 Web Animations：
+   - 底栏之间：「景深平移」，顶栏不动（.page-head-layer 里两份顶栏原位交叉淡化），内容里旧页缩小后退淡出、新页从侧后方推近，方向按底栏图标的左右位置；
+   - 「更多」里进一层：底下的页面先往里凹（缩小、圆角、压暗），子页从右侧盖上来；退一层整段倒放。
+   旧页是 hooks/usePageTransition.ts 抓的 DOM 快照（.page-ghost）。桌面不执行切换动画；减少动态效果只交叉淡化（.page-ghost-fade）。 */
 @media (max-width:840px){
   /* 动画期间锁住纵向滚动，快照偏移与真实滚动不致脱节 */
   .page-anim-lock{overflow:hidden}
   /* 旧页快照：固定在视口上，不接收点击 */
   .page-ghost{position:fixed;inset:0;overflow:hidden;pointer-events:none}
   .page-ghost main{min-height:100svh}
-  .page-ghost-over{z-index:25}
-  .page-ghost main.page-out-soft{animation:soft-out 150ms ease-out forwards}
-  @keyframes soft-out{to{opacity:0}}
-  #main.page-in-soft .page-layer>*>:not(.page-head){animation:soft-in 320ms var(--ease-out) 90ms both}
-  #main.page-in-soft .page-layer>*>.page-head :is(h1,.head-back,.head-actions){animation:soft-fade 260ms ease-out 70ms both}
-  @keyframes soft-in{from{opacity:0;transform:translateX(var(--soft-dx,0))}}
-  @keyframes soft-fade{from{opacity:0}}
+  /* 横向切换：快照垫在 #shell 下面缩小后退（圆角常驻，满屏时落在屏幕圆角里看不出），新页从侧后方推近 */
+  .page-ghost-tab{z-index:0;background:var(--bg);transform-origin:50% 45%;border-radius:22px}
+  /* 推入：快照垫在 #shell（z-index 1）下面往里凹；弹出：快照盖在上面往右滑走 */
+  .page-ghost-push{z-index:0;background:var(--bg);transform-origin:50% 45%;border-radius:22px}
+  /* 横向切换时钉在视口原位的两份顶栏（在快照与新页之上、底栏之下） */
+  .page-head-layer{position:fixed;inset:0;z-index:24;pointer-events:none}
+  .page-ghost-fade{z-index:25;background:var(--bg)}
+  .page-ghost-pop{z-index:25;background:var(--bg);box-shadow:-10px 0 30px var(--shadow-ink)}
+  .page-recess-bg{position:fixed;inset:0;z-index:0;background:var(--recess-bg);pointer-events:none}
+  .page-recess-scrim{position:absolute;inset:0;z-index:1;background:var(--scrim);opacity:0;pointer-events:none}
+  .page-recess-scrim.is-over-main{position:fixed;z-index:2;transform-origin:50% 45%;opacity:1}
+  /* 盖上来的子页 / 从凹下恢复的上一级：要有自己的底色，才挡得住下面那一层 */
+  #main.page-tabbing{background:var(--bg)}
+  #main.page-pushing{background:var(--bg);box-shadow:-10px 0 30px var(--shadow-ink)}
+  #main.page-popping{background:var(--bg)}
   /* 库存 ↔ 展示：顶栏不动，页面根下除顶栏外的内容淡入并轻微上浮 */
   #main.page-in-fade .page-layer>*>:not(.page-head){animation:page-fade-in var(--slide-ms) var(--slide-ease) both}
   @keyframes page-fade-in{from{opacity:0;transform:translateY(8px)}}
@@ -28,6 +36,12 @@
   #main.is-swiping.is-swipe-settle .page-layer>:has(>.page-head)>:not(.page-head),
   #main.is-swiping.is-swipe-settle .page-layer>:not(.page-head):not(:has(>.page-head)),
   #main.is-swiping.is-swipe-settle .page-layer::before{transition:translate 220ms var(--ease-out)}
-  .swipe-underlay{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;background:var(--bg)}
+  /* 垫底的上一级页面：和推入后的状态一致，先凹着，随手指右移（--swipe-p 0→1）逐渐恢复原大、去掉压暗 */
+  .swipe-underlay{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;background:var(--recess-bg)}
+  .swipe-underlay>main{height:100svh;overflow:hidden;background:var(--bg);transform-origin:50% 45%;
+    transform:scale(calc(.92 + .08 * var(--swipe-p,0)));border-radius:calc(22px * (1 - var(--swipe-p,0)))}
+  .swipe-underlay::after{content:"";position:absolute;inset:0;background:var(--scrim);opacity:calc(1 - var(--swipe-p,0))}
+  html:has(#main.is-swipe-settle) .swipe-underlay>main{transition:transform 220ms var(--ease-out),border-radius 220ms var(--ease-out)}
+  html:has(#main.is-swipe-settle) .swipe-underlay::after{transition:opacity 220ms var(--ease-out)}
   .swipe-underlay .page-head{visibility:hidden}
 }

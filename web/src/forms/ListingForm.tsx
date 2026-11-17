@@ -8,6 +8,7 @@ import {useApp} from '../state/AppContext';
 import type {AppCtx} from '../state/AppContext';
 import {Field} from './fields';
 import {useFormSubmit} from './shared';
+import {FormMessage} from './form-feedback';
 import {useListingTask} from './useListingTask';
 import {ListingReview} from '../components/ListingReview';
 import {ListingOptions} from './ListingOptions';
@@ -59,12 +60,17 @@ function ListingForm({id}: {id: string}) {
   const [preferences, setPreferences] = useState<Preferences>();
   const [settingsBusy, setSettingsBusy] = useState(false);
   const {error, saving, run, setError} = useFormSubmit();
-  const task = useListingTask(async result => {
+  const task = useListingTask(async (result, attached) => {
     if (!result.draft) throw new Error('模型没有返回完整草稿，请重试');
+    // 重新打开时接回的已完成结果：只认比当前记录更新（或同一版本）的，旧结果不得回滚版本号和文案。
+    if (attached && (result.autoSaved ? (result.savedRevision ?? 0) < r.revision : result.revision !== r.revision)) {
+      task.dismiss(result.id); return;
+    }
     if (result.autoSaved && result.savedRevision) {
+      task.dismiss(result.id);
       setDraft(result.draft); setRevision(result.savedRevision); setCandidate(undefined);
       setDirty(false); localEdits.current = false; setSaved(true); app.setDrawerDirty(false);
-      await app.refresh(); app.toast('上架资料已生成并保存');
+      await app.refresh(); if (!attached || result.savedRevision > r.revision) app.toast('上架资料已生成并保存');
     } else {setCandidate(result.draft); app.setDrawerDirty(true);}
   });
   useEffect(() => {
@@ -120,21 +126,20 @@ function ListingForm({id}: {id: string}) {
           setSettingsBusy(true); setError('');
           try {
             const result = await api<{revision: number}>('listing/draft', {id, revision, draft: candidate, listing: {channel, url}});
+            task.dismiss(task.job?.id);
             setDraft(candidate); setRevision(result.revision); setCandidate(undefined); setDirty(false); localEdits.current = false; setSaved(true);
             app.setDrawerDirty(false); await app.refresh(); app.toast('已采用并保存新文案');
           } catch (e) {setError(e instanceof Error ? e.message : '保存失败');}
           finally {setSettingsBusy(false);}
         }}>采用并保存</button>
         <button type="button" disabled={busy} onClick={() => {
-          if (task.job?.id) task.dismiss(task.job.id);
+          task.dismiss(task.job?.id);
           setCandidate(undefined); app.setDrawerDirty(dirty);
         }}>保留原稿</button>
       </div> : null}
       {conflicts.length ? <button type="button" className="listing-conflict" onClick={() => setReviewOpen(true)}>
         版本有冲突 · 查看核对依据</button> : null}
-      <div className="error" role="alert">{error || task.error}</div>
-      {stale ? <p className="listing-note is-warn" role="alert">记录已在其他位置更新，请重新打开。当前文案仍可复制。</p> : null}
-      {r.listingDraft && (r.listingDraft.photoRevision !== (r.photoRevision ?? 0) || listingContextChanged(r))
+      {!candidate && current.listingDraft && (current.listingDraft.photoRevision !== (current.photoRevision ?? 0) || listingContextChanged(current))
         ? <p className="listing-note is-warn">资料或照片已变更，旧文案已保留，请重新生成。</p> : null}
       {task.busy ? <div role="status" aria-live="polite">
         <ListingSteps steps={[{label: '整理资料', done: progress !== 'preparing'},
@@ -168,6 +173,7 @@ function ListingForm({id}: {id: string}) {
       </Details>
     </div>
     <div className="drawer-footer listing-footer">
+      <FormMessage error={error || task.error || (stale ? '记录已在其他位置更新，请重新打开。当前文案仍可复制。' : '')}/>
       {editing && !candidate ? <>
         <button type="button" onClick={() => setEditing(false)}>完成</button>
         <button type="button" className="primary" aria-busy={saving} disabled={busy || stale} onClick={saveDraft}>保存草稿</button>

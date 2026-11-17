@@ -87,7 +87,7 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, coverOrigin
   return (
     <section className="record-barcode-entry form-section">
       <label className="lookup-label" htmlFor="record-lookup">发行版</label>
-      <div className="record-barcode-row">
+      <div className="record-barcode-row" data-error-anchor>
         <ScanField onScan={() => setScanning(true)}>
           <button type="button" id="record-lookup" className={'lookup-field' + (text ? '' : ' is-empty')} onClick={() => setEditing(true)}>
             {text || '条形码，或唱片编号如 AMCY-2434'}

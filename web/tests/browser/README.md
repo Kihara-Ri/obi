@@ -1,3 +1,5 @@
+表单提示验收使用独立固定样本预览：`OBI_FORM_URL=http://127.0.0.1:<空闲端口> node web/tests/browser/form-feedback-acceptance.mjs`。手机与桌面分别验证发行版、必填项、包装、侧标、金额和保存失败提示；保存失败由模拟响应触发，不写入账本。
+
 包装灯箱生命周期回归页只读取固定样本库，不创建或修改记录。先在空的临时目录运行 `tools/seed_samples.py --with-models --data-dir <目录>`，再用 `app.py --no-seed --data-dir <目录> --port <空闲端口>` 启动。
 
 在仓库根目录编译回归页：

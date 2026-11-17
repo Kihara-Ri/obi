@@ -363,3 +363,5 @@ details.adv:not([open]) > :not(summary){display:none}
 .detail-summary .record-detail.is-big .big img,.detail-summary .record-detail.is-big .big .cover-fallback{display:block;width:100%;height:auto;aspect-ratio:1}
 
 .cover-pick .cover-src{display:inline-block;margin-left:6px;padding:0 6px;border-radius:999px;background:var(--surface-3);color:var(--muted);font-style:normal;font-size:11px;line-height:16px}
+/* 退款抽屉：场景二选一（还没发货 · 退款 / 已发货 · 退货）与下方说明留出间距 */
+.refund-mode{margin-bottom:10px}

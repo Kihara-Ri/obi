@@ -5,7 +5,7 @@ import {useLedgerState} from './state/useLedgerState';
 import {homePage, LEGACY_MODULES, normalizeModules, pageEnabled, PRESETS} from './core/modules';
 import {applyThemePref, themePref} from './core/theme';
 import type {ThemePref} from './core/theme';
-import {useHashRoute} from './hooks/useHashRoute';
+import {ShownPage, useHashRoute} from './hooks/useHashRoute';
 import {usePageTransition} from './hooks/usePageTransition';
 import {usePwa} from './hooks/usePwa';
 import {AppContext} from './state/AppContext';
@@ -132,7 +132,7 @@ export default function App() {
     openDrawer, closeDrawer, backDrawer, closeDrawerAndGo, setDrawerDirty} = useDrawerStack();
 
   useEffect(() => installReplaceNav(), []);
-  const {mainRef, veil, setVeil} = usePageTransition(page, showcaseTab, state?.records);
+  const {mainRef, veil, setVeil} = usePageTransition(page, showcaseTab, state?.records, modules);
 
   const {offline, installEvt, setInstallEvt} = usePwa();
 
@@ -184,7 +184,7 @@ export default function App() {
       <div id="shell" className={page === 'gallery' ? 'showcase-shell' : undefined}>
         <Sidebar page={livePage} home={home} modules={modules} counts={counts}
                  installEvt={installEvt} onInstalled={() => setInstallEvt(null)}/>
-        <main id="main" className={page === 'gallery' ? 'showcase-main' : undefined} tabIndex={-1} ref={mainRef}><div className="page-layer">{content}</div></main>
+        <main id="main" className={page === 'gallery' ? 'showcase-main' : undefined} tabIndex={-1} ref={mainRef}><div className="page-layer"><ShownPage.Provider value={page}>{content}</ShownPage.Provider></div></main>
       </div>
       {offline ? <div id="connection-status" role="status">网络已断开，保存前请恢复连接。</div> : null}
       <MobileNav page={livePage} modules={modules} counts={counts} showcaseTab={showcaseTab} inventoryPage={inventoryPage}/>

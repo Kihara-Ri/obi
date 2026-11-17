@@ -1,6 +1,7 @@
 import {openArtistDrawer} from '../forms/ArtistDrawer';
 // 海外在途页：在途包裹 + 最近签收（可回滚）。
 import {sum, yuan} from '../core/format';
+import {oldestFirst} from '../core/queue-order';
 import {useApp} from '../state/AppContext';
 import {PageHead} from '../components/PageHead';
 import {ShipmentCard} from './ShipmentCard';
@@ -8,7 +9,8 @@ import {ShipmentCard} from './ShipmentCard';
 export function TransitPage() {
   const app = useApp();
   const {state} = app;
-  const shs = state.shipments.filter(s => s.status === 'transit');
+  // 在途是待办：发出最早的在最上面（发出日期从旧到新，同日按记录先后）；下面的「最近签收」是历史，新的在上
+  const shs = oldestFirst(state.shipments.filter(s => s.status === 'transit'));
   const arrived = state.shipments.filter(s => s.status === 'arrived')
     .sort((a, b) => (b.arrivedDate || '').localeCompare(a.arrivedDate || ''))
     .slice(0, 6);

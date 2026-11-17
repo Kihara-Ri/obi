@@ -17,6 +17,7 @@ import {ShopField} from '../components/ShopField';
 import {TextareaField} from './fields';
 import {usePhotoSlots} from './PhotoSlots';
 import {useFormSubmit} from './shared';
+import {FormMessage, useFormFeedback} from './form-feedback';
 import {buildMetadataPayload, buildPayload} from './record/buildPayload';
 import {initialValues, seedFields, type FormCtx, type RecordValues} from './record/context';
 import {applyCover} from './record/pickRelease';
@@ -42,6 +43,7 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
   const {modules} = app;
   const r = id ? app.rec(id) : undefined;
   const {error, saving, run, setError} = useFormSubmit();
+  const feedback = useFormFeedback();
   const formRef = useRef<HTMLFormElement>(null);
   const base = useRef<Partial<AlbumRecord>>(r ? {...r} : {
     title: '', artist: '', price: '', date: modules.acquisition ? today() : '',
@@ -56,7 +58,6 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
   const ctx: FormCtx = {v, setV, live, base, dirty, formRef,
     set: patch => setV(prev => ({...prev, ...patch}))};
   const {set} = ctx;
-
   const cover = useCoverSearch(ctx, !!r?.cover);
   const lookup = useReleaseLookup(ctx, cover, r);
   // 从查询页带入的版本：和「选用此版本」一样自动配封面（此版本自己的 → 同一张专辑的 → iTunes 数字封面）
@@ -75,7 +76,6 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
     const s = r?.shipmentId ? app.state.shipments.find(x => x.id === r.shipmentId) : undefined;
     return s && s.currency === 'JPY' ? s.items.find(i => i.recordId === id) : undefined;
   })();
-
   // 是否有实际改动：与打开表单时的快照逐字比对，改回原值会自动回到「未修改」态。
   // 照片槽只记序号/长度（data URL 太长），失败槽与保存口径一致地忽略。
   const sign = () => JSON.stringify([v, base.current.cover || '',
@@ -83,31 +83,47 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
   const pristine = useRef(sign());
   const edited = sign() !== pristine.current;
   useEffect(() => { app.setDrawerDirty(edited); }, [edited]);
-
   const {manualRelease, identified} = lookup;
   const mbId = v.releaseInfo.musicBrainzReleaseId;
   // 侧标只属于日版：确认是日版才出现且必填；其它版本不出现，保存时沿用打开时的原值（新增为空），不改历史数据
   const japan = (identified || !!id) && releaseRegion(v.releaseInfo.country, v.pressing) === '日版';
+  useEffect(() => {
+    const control = feedback.issue?.control;
+    if (!control) return;
+    if ((control.id === 'f-title' && v.title.trim()) || (control.id === 'f-artist' && v.artist.trim())
+        || (control.closest('#record-packaging') && confirmedPackagingName(v.version, v.packaging, v.releaseInfo.packaging))
+        || (control.closest('.record-copy-edition') && (!japan || v.obi === '带侧标' || v.obi === '无侧标'))
+        || (control.id === 'record-lookup' && identified && lookup.verification === 'verified'
+          && lookup.barcode === (v.releaseInfo.barcode || '')
+          && (!(r?.releaseInfo?.musicBrainzReleaseId || '') || mbId || manualRelease))) feedback.clear();
+  }, [v, japan, identified, lookup.verification, lookup.barcode, feedback.issue]);
+  useEffect(() => {
+    if ((error === '正在检索发行资料，请稍候' && !lookup.busy)
+        || (error.startsWith('封面还在匹配中') && !cover.busy)
+        || (error === '还有照片在处理中，等缩略图就绪后再保存' && !photos.hasPending)) setError('');
+  }, [error, lookup.busy, cover.busy, photos.hasPending]);
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    feedback.clear(); setError('');
+    const fieldError = (selector: string, message: string) => {
+      const field = formRef.current?.querySelector<HTMLElement>(selector);
+      if (field) feedback.show(field, message); else setError(message);
+    };
     const miss = ([['title', '专辑名'], ['artist', '艺人']] as const).filter(([k]) => !v[k].trim());
-    if (miss.length) { setError(id || manualRelease ? '请先补全：' + miss.map(([, n]) => n).join('、') : '请先通过条码或唱片编号匹配发行版'); return; }
-    if (!id && !identified) {setError('请先确认发行版本；资料库都查不到时可选择手动录入');return;}
+    if (miss.length) { fieldError(id || manualRelease ? `#f-${miss[0][0]}` : '#record-lookup', id || manualRelease ? `请填写${miss[0][1]}` : '请先通过条码或唱片编号匹配发行版'); return; }
+    if (!id && !identified) {fieldError('#record-lookup', '请先确认发行版本；资料库都查不到时可选择手动录入');return;}
     if (lookup.verification !== 'verified' || lookup.barcode !== (v.releaseInfo.barcode || '')) {
-      setError('条码尚未通过资料库校验，请确认对应发行版本后保存');return;
+      fieldError('#record-lookup', '条码尚未通过资料库校验，请确认对应发行版本后保存');return;
     }
     if ((r?.releaseInfo?.musicBrainzReleaseId || '') && !mbId && !manualRelease) {
-      setError('发行版本已改变，请重新查询并选择 MusicBrainz 发行版');return;
+      fieldError('#record-lookup', '发行版本已改变，请重新查询并选择 MusicBrainz 发行版');return;
     }
     if (lookup.busy) {setError('正在检索发行资料，请稍候');return;}
     if (!confirmedPackagingName(v.version, v.packaging, v.releaseInfo.packaging)) {
-      setError('请选择这张专辑的实物包装后保存');
-      const field = formRef.current?.querySelector<HTMLElement>('#record-packaging');
-      field?.scrollIntoView({block: 'center'});
-      field?.querySelector<HTMLButtonElement>('button')?.focus({preventScroll: true});
+      fieldError('#record-packaging [role="radiogroup"]', '请选择这张专辑的实物包装后保存');
       return;
     }
-    if (japan && v.obi !== '带侧标' && v.obi !== '无侧标') { setError('日版请选择这张副本是带侧标还是无侧标'); return; }
+    if (japan && v.obi !== '带侧标' && v.obi !== '无侧标') { fieldError('.record-copy-edition [role="group"]', '日版请选择这张副本是带侧标还是无侧标'); return; }
     if (cover.busy) {setError('封面还在匹配中（通常约 10 秒），稍候再保存；也可以之后在编辑里补封面');return;}
     if (photos.hasPending) { setError('还有照片在处理中，等缩略图就绪后再保存'); return; }
     run(app, async () => {
@@ -118,12 +134,11 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
       else await api('records', buildPayload(base.current, values, where, readyPhotos, modules.acquisition));
     }, '已保存', {backOnSave: !!id, refresh: !id});
   };
-
   return (
     <form id="record-form" ref={formRef} onSubmit={submit} noValidate
           data-status={where || r?.status} data-cur={v.currency}>
       <div className="drawer-body" inert={saving}>
-        <div className="error" role="alert">{error}</div>
+        {feedback.feedback}
         <PhotoEntry ctx={ctx} photos={photos} recordId={r?.id ?? null}/>
         <h3 className="section-title form-group-title">专辑资料</h3>
         <ReleaseLookupSection canLeaveManual={!id} v={v} lookup={lookup} cover={cover} coverSrc={base.current.cover || ''} coverOrigin={originOf(base.current.coverSource)}
@@ -174,6 +189,7 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
         </div>
       </div>
       <div className="drawer-footer">
+        <FormMessage error={error}/>
         {!id && !identified ? <p className="footer-hint">先查询并确认发行版（或手动录入），才能保存</p> : null}
         <button type="button" onClick={() => app.backDrawer()}>取消</button>
         <button type="submit" className="primary" aria-busy={saving} disabled={saving || !edited}>

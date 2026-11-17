@@ -31,14 +31,31 @@ def catalogue_candidates(catalogue, analysis):
 class ListingAnalysis(ListingGeneration):
     def __init__(self, store, catalogue, model, inline=False):
         self.store, self.catalogue, self.model = store, catalogue, model
-        # 本机模式（Pyodide）不能起线程：inline=True 时在请求里直接跑完；服务器仍用单线程队列。
-        self.executor = None if inline else ThreadPoolExecutor(max_workers=1, thread_name_prefix='listing-analysis')
+        # 本机模式不能起线程；服务器限制同时运行的任务数，避免大量照片耗尽资源。
+        self.executor = None if inline else ThreadPoolExecutor(max_workers=4, thread_name_prefix='listing-analysis')
         self.lock = threading.Lock()
         self.jobs = {}
 
     def close(self):
         if self.executor: self.executor.shutdown(wait=True, cancel_futures=True)
         if hasattr(self.model, 'close'): self.model.close()
+
+    def _reserve_job(self, job):
+        # 调用者持锁：活动任务不能被清理，否则后台线程更新时会丢失任务。
+        if any(j['status'] == 'running' and j['recordId'] == job['recordId'] for j in self.jobs.values()):
+            raise ValidationError('这张副本已有任务正在生成，请完成后再试')
+        while len(self.jobs) >= 20:
+            finished = next((key for key, value in self.jobs.items() if value['status'] != 'running'), None)
+            if finished is None: raise ValidationError('任务太多，请等待已有任务完成后再试')
+            del self.jobs[finished]
+        self.jobs[job['id']] = job
+
+    def dismiss(self, ident):
+        self.store.require_module('trading')
+        with self.lock:
+            job = self.jobs.get(ident)
+            if job and job.get('status') != 'running': job['dismissed'] = True
+        return {'ok': True}
 
     def start(self, data):
         record = listing_record(self.store, data.get('id'))
@@ -47,12 +64,9 @@ class ListingAnalysis(ListingGeneration):
         record, images = read_photos(self.store, record['id'], list(range(record.get('photoCount', 0))), data.get('photoRevision'))
         selection = self.model.snapshot() if hasattr(self.model, 'snapshot') else None
         with self.lock:
-            if any(job['status'] == 'running' for job in self.jobs.values()):
-                raise ValidationError('已有照片正在分析，请完成后再试')
-            while len(self.jobs) >= 20: del self.jobs[next(iter(self.jobs))]
             ident = uuid.uuid4().hex
             job = {'id': ident, 'recordId': record['id'], 'status': 'running', 'photoRevision': revision}
-            self.jobs[ident] = job
+            self._reserve_job(job)
         if self.executor: self.executor.submit(self._run, ident, record, images, revision, selection)
         else: self._run(ident, record, images, revision, selection)
         return dict(job)
@@ -79,7 +93,9 @@ class ListingAnalysis(ListingGeneration):
                 if not job: raise ValidationError('任务不存在或服务已重启，请重新分析')
                 return copy.deepcopy(job)
             if record_id:
-                matched = [job for job in self.jobs.values() if job.get('recordId') == record_id]
+                # 已被页面接收（采用、保留原稿或自动保存后已展示）的结果不再交给下次打开，免得旧结果回滚版本号。
+                matched = [job for job in self.jobs.values() if job.get('recordId') == record_id
+                           and (job.get('status') == 'running' or not job.get('dismissed'))]
                 if matched:
                     running = next((j for j in reversed(matched) if j.get('status') == 'running'), None)
                     return copy.deepcopy(running or matched[-1])

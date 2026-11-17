@@ -1,10 +1,13 @@
-/* 「更多」独立页面。 */
+/* 「更多」独立页面：分组小标题 + 圆角卡片列表（2026-11-17 按动效样稿）。行本身是 NavRow，这里只改它在卡片里的样子。 */
 .more-page{max-width:680px}
-.more-page section+section{margin-top:28px}
-.more-page h2{font-size:12px;font-weight:550;color:var(--faint);margin-bottom:8px}
-.more-page nav{display:flex;flex-direction:column}
-.more-page nav+section{margin-top:28px}
+.more-page section+section{margin-top:22px}
+.more-page h2{font-size:12px;font-weight:550;color:var(--muted);margin:0 4px 8px}
+.more-page nav{display:flex;flex-direction:column;background:var(--surface);border-radius:14px;overflow:hidden}
+.more-page .nav-row,.more-page a.nav-row:hover,.more-page button.nav-row:hover{min-height:56px;padding:10px 14px;gap:14px;border-bottom:0;font-weight:500}
+.more-page .nav-row+.nav-row{border-top:1px solid var(--border)}
+/* 图标放进一枚小圆角方块 */
+.more-page .nav-row-icon{width:30px;height:30px;border-radius:9px;background:var(--surface-2);color:var(--text);font-size:16px}
 /* 外观行：交互在三段滑块上 */
 .more-page .nav-row .theme-seg{flex:none}
 .more-page .nav-row .theme-seg button{padding:8px 11px}
-.more-page .local-note{padding:24px 0 0}
+.more-page .local-note{padding:24px 4px 0}

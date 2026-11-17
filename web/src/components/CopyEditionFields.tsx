@@ -5,7 +5,7 @@ export function CopyEditionFields({obi, onChange}: {
   obi: string;
   onChange: (change: {obi: string}) => void;
 }) {
-  return <section className="record-copy-edition form-section" aria-label="实物侧标">
+  return <section className="record-copy-edition form-section" data-error-anchor aria-label="实物侧标">
     <div className="record-copy-edition-head">
       <strong>侧标（OBI）</strong>
       <span>日版必填</span>

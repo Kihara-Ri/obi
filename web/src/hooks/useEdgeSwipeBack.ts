@@ -14,9 +14,14 @@ export function useEdgeSwipeBack(page: string) {
     let mobile = false;
     try { mobile = matchMedia('(max-width:840px)').matches; } catch { /* 无 matchMedia */ }
     if (!mobile) return;
-    const set = (v: number) => el().style.setProperty('--swipe-dx', v + 'px');
+    // --swipe-p：手势进度（0→1），垫底的上一级页面按它从凹下恢复
+    const set = (v: number) => {
+      el().style.setProperty('--swipe-dx', v + 'px');
+      document.documentElement.style.setProperty('--swipe-p', String(Math.min(1, Math.max(0, v / innerWidth))));
+    };
     const peek = (p: string) => window.dispatchEvent(new CustomEvent('obi-peek', {detail: p}));
-    const clear = () => { el()?.classList.remove('is-swiping', 'is-swipe-settle'); el()?.style.removeProperty('--swipe-dx'); peek(''); };
+    const clear = () => { el()?.classList.remove('is-swiping', 'is-swipe-settle'); el()?.style.removeProperty('--swipe-dx');
+      document.documentElement.style.removeProperty('--swipe-p'); peek(''); };
     const settle = (to: number, then?: () => void) => {
       el().classList.add('is-swipe-settle');
       set(to);

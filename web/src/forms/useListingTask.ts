@@ -3,7 +3,7 @@ import {useEffect, useRef, useState} from 'react';
 import {api} from '../core/api';
 import type {ListingJob} from '../core/listing';
 
-export function useListingTask(onResult: (job: ListingJob) => Promise<void>) {
+export function useListingTask(onResult: (job: ListingJob, attached: boolean) => Promise<void>) {
   const [job, setJob] = useState<ListingJob>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -26,7 +26,7 @@ export function useListingTask(onResult: (job: ListingJob) => Promise<void>) {
         return;
       }
       if (result.status === 'failed') throw new Error(result.error || '生成失败，请重试');
-      await onResult(result);
+      await onResult(result, false);
       if (!abort.signal.aborted) setBusy(false);
     } catch (e) {
       if (!abort.signal.aborted) {
@@ -72,15 +72,18 @@ export function useListingTask(onResult: (job: ListingJob) => Promise<void>) {
         await poll(current.id, abort);
       } else if (current.status === 'succeeded' && current.draft && (!current.id || !dismissed.current.has(current.id))) {
         setJob(current);
-        await onResult(current);
+        await onResult(current, true);
       }
     } catch {
       // 静默处理，不影响正常打开查看
     }
   };
 
+  // 结果已被页面接收：服务端也标记，下次打开不再重放旧结果。
   const dismiss = (jobId?: string) => {
-    if (jobId) dismissed.current.add(jobId);
+    if (!jobId) return;
+    dismissed.current.add(jobId);
+    void api('listing/job/dismiss', {id: jobId}).catch(() => undefined);
   };
 
   return {job, busy, error, start, attach, dismiss};

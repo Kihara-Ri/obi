@@ -8,6 +8,7 @@ import {useApp} from '../state/AppContext';
 import type {AlbumRecord} from '../types';
 import type {AppCtx} from '../state/AppContext';
 import {ShopField} from '../components/ShopField';
+import {FormMessage} from './form-feedback';
 import {useFormSubmit} from './shared';
 import {initialValues, type FormCtx, type RecordValues} from './record/context';
 import {MoneySection} from './record/MoneySection';
@@ -62,7 +63,6 @@ export function PurchaseForm({id}: {id: string}) {
   return (
     <form id="purchase-form" ref={formRef} onSubmit={submit} noValidate>
       <div className="drawer-body">
-        <div className="error" role="alert">{error}</div>
         <h3 className="section-title form-group-title">{r.title}</h3>
         <div className="row-group">
           <MoneySection ctx={ctx} preview={preview} shipItem={shipItem}/>
@@ -71,6 +71,7 @@ export function PurchaseForm({id}: {id: string}) {
         </div>
       </div>
       <div className="drawer-footer">
+        <FormMessage error={error}/>
         <button type="button" onClick={() => { setError(''); app.backDrawer(); }}>取消</button>
         <button type="submit" className="primary" aria-busy={saving} disabled={saving || !edited}>保存</button>
       </div>

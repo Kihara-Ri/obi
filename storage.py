@@ -236,7 +236,7 @@ class Store:
                 net=Decimal(item['gross'])-Decimal(item['fees'])-Decimal(item.get('postage','0'))-Decimal(item.get('refund','0'))
                 item['net']=money(net)
                 # Returned stock retains its acquisition cost; sale shows only residual loss.
-                p=net if s['status']=='returned' else (net-c if c is not None else None)
+                p=net if s['status']=='returned' or s.get('unshipped') else (net-c if c is not None else None)
                 item['profit']=money(p) if p is not None else None
         if self.rates:
             b['rateService'] = self.rates.status()
@@ -990,6 +990,23 @@ class Store:
         self.require_module('trading')
         with closing(self.connect()) as db, db:
             s=self.get(db,'sales',data.get('id'));old=json.loads(dumps(s));action=data.get('action')
+            if action=='undo_refund':
+                # 撤销退款 / 退货：纠正误操作，交易回到「售出中」，可重新选退款、退货、收货或撤销；审计保留前后。
+                if s['status'] not in ('refunded','returned'): raise ValidationError('只有已退款或已退货的交易能撤销退款')
+                if s['status']=='returned' or s.get('unshipped'):
+                    recs=[self.get(db,'records',item['recordId']) for item in s['items']]
+                    if any(r['status'] not in ('overseas','domestic') or r.get('saleId') for r in recs):
+                        raise ValidationError('退回的专辑已再次售出、移动或删除，不能撤销')
+                    for r in recs: r['status']='shipping';r['saleId']=s['id'];r['revision']+=1;self.put(db,'records',r)
+                # 未发货退款清零过的平台扣费、寄出运费原样恢复
+                kept=s.pop('refundKeptCosts',None)
+                if kept:
+                    for k,v in kept['sale'].items(): s[k]=v
+                    for item,costs in zip(s['items'],kept['items']): item.update(costs)
+                s['status']='shipping';s.pop('refundDate',None);s.pop('unshipped',None)
+                for item in s['items']: item.pop('refund',None)
+                self.put(db,'sales',s);self.audit(db,'销售 undo_refund',{'before':old,'after':s})
+                return {'ok':True}
             if s['status']=='complete': raise ValidationError('已确认收货，只能修改销售费用，不能重复收货、撤销或退款')
             if s['status'] not in ('shipping',): raise ValidationError('这笔交易已处理，不能重复操作')
             if action=='receive':
@@ -1004,12 +1021,23 @@ class Store:
                 refund=number(data.get('refund'),'退款总额')
                 if refund>Decimal(s['gross']): raise ValidationError('退款不能超过买家支付总额')
                 shares=allocate(refund,[Decimal(i['gross']) for i in s['items']])
-                returned=data.get('returned') is True
+                # 两种场景：unshipped = 还没发货就退款（专辑没离手，回到售出前的位置，平台扣费与运费没发生、清零，撤销时恢复）；
+                # returned = 已发货、买家退回（专辑回国内库存，平台扣费与寄出运费记为损失）。两者都不传是旧版「仅退款，买家留着专辑」
+                unshipped=data.get('unshipped') is True;returned=data.get('returned') is True and not unshipped
                 s['status']='returned' if returned else 'refunded';s['refundDate']=day(data.get('date'),'退款日期')
+                if unshipped:
+                    keys=('fees','postage','feesOriginal','postageOriginal')
+                    s['unshipped']=True
+                    s['refundKeptCosts']={'sale':{k:s[k] for k in keys if k in s},'items':[{k:i[k] for k in keys if k in i} for i in s['items']]}
+                    for obj in (s,*s['items']):
+                        for k in keys:
+                            if k in obj: obj[k]='0.00'
                 for item,share in zip(s['items'],shares):
                     item['refund']=share
-                    if returned:
-                        r=self.get(db,'records',item['recordId']);r['status']='domestic';r.pop('saleId',None);r['revision']+=1;self.put(db,'records',r)
+                    if returned or unshipped:
+                        r=self.get(db,'records',item['recordId'])
+                        r['status']=r.get('previousStatus') if unshipped and r.get('previousStatus') in ('overseas','domestic') else 'domestic'
+                        r.pop('saleId',None);r['revision']+=1;self.put(db,'records',r)
             else: raise ValidationError('不支持的操作')
             self.put(db,'sales',s);self.audit(db,'销售 '+action,{'before':old,'after':s})
         return {'ok':True}

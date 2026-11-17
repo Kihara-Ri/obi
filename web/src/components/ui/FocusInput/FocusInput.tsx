@@ -34,8 +34,9 @@ export function FocusInput(p: FocusInputProps) {
     if (!p.open) return;
     const el = ref.current;
     el?.focus({preventScroll: true});
-    // 光标放到末尾（多行长文直接接着写）
-    if (el && el.type !== 'number') { try { el.setSelectionRange(el.value.length, el.value.length); } catch { /* 部分类型不支持选区 */ } }
+    // 数字（金额 / 数量）：整段选中，直接输入就替换旧值，不用先按退格删掉「0」；文字：光标放到末尾（多行长文直接接着写）
+    const numeric = p.inputMode === 'decimal' || p.inputMode === 'numeric';
+    if (el && el.type !== 'number') { try { el.setSelectionRange(numeric ? 0 : el.value.length, el.value.length); } catch { /* 部分类型不支持选区 */ } }
   }, [p.open]);
   useEffect(() => {
     if (!p.open) {setShown(false); return;}

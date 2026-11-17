@@ -8,6 +8,7 @@ import type {Currency} from '../types';
 import {Field, MoneyField, TextareaField} from './fields';
 import {Dropdown} from '../components/ui/Dropdown';
 import {AlbumLine} from '../components/AlbumLine';
+import {FormMessage, useFormFeedback} from './form-feedback';
 import {useFormSubmit, useRate} from './shared';
 import {methodOptions, costLineText} from './shipShared';
 
@@ -19,6 +20,7 @@ function ShipmentEditForm({id}: {id: string}) {
   const app = useApp();
   const s = app.state.shipments.find(x => x.id === id);
   const {error, saving, run} = useFormSubmit();
+  const feedback = useFormFeedback();
   const [v, setV] = useState(() => s ? {
       method: s.method, date: s.date,
       currency: (s.currency || 'CNY') as Currency,
@@ -65,9 +67,9 @@ function ShipmentEditForm({id}: {id: string}) {
   };
 
   return (
-    <form id="ship-edit-form" onSubmit={submit}>
+    <form id="ship-edit-form" onSubmit={submit} noValidate onSubmitCapture={feedback.onSubmitCapture}>
       <div className="drawer-body">
-        <div className="error" role="alert">{error}</div>
+        {feedback.feedback}
         <div className="field">
           <span className="field-label"><label>运输方式</label></span>
           <Dropdown id="edit-method" label="运输方式" value={v.method}
@@ -118,6 +120,7 @@ function ShipmentEditForm({id}: {id: string}) {
         </p>
       </div>
       <div className="drawer-footer">
+        <FormMessage error={error}/>
         <button type="button" onClick={() => app.backDrawer()}>取消</button>
         <button type="submit" className="primary" aria-busy={saving} disabled={saving || !edited || count === 0}>保存修改</button>
       </div>

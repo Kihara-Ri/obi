@@ -3,6 +3,20 @@
 .sale-top{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
 .sale-top .when{color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums}
 .sale-top .spacer{flex:1}
+/* 售出平台图标：放在日期前，与一行文字同高 */
+.sale-channel{display:inline-flex;vertical-align:-3px;margin-right:6px}
+.sale-channel img,.sale-channel .shop-letter{width:16px;height:16px;border-radius:4px}
+/* 售出中统计卡片：两个大数字并排，下面一行笔数与待处理提示 */
+.summary.sale-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;padding:14px 18px}
+.sale-metric{display:flex;flex-direction:column;gap:2px;min-width:0}
+.sale-metric span{font-size:12px;color:var(--muted)}
+.sale-metric strong{font-size:22px;font-weight:700;letter-spacing:-.01em;line-height:1.2}
+.sale-metric strong.positive{color:var(--green)}
+.sale-metric strong.negative{color:var(--red)}
+.sale-summary-note{grid-column:1/-1;margin:0;padding-top:10px;border-top:1px solid var(--border);font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:2px 0}
+.sale-summary-note span{white-space:nowrap}
+.sale-summary-note span+span::before{content:"·";margin:0 7px;color:var(--faint)}
+.sale-summary-note .is-long{color:var(--orange);font-weight:600}
 .sale-items{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
 .sale-album{display:flex;gap:12px;align-items:center}
 /* 中间列（标题/艺人）必须可收缩：长标题否则把行撑出卡片 */
@@ -18,13 +32,26 @@
 .sale-foot .cell b{font-size:14px;font-variant-numeric:tabular-nums}
 .sale-foot .spacer{display:none}
 .sale-foot .actions{display:flex;gap:7px;flex-wrap:wrap;margin-left:auto;justify-content:flex-end}
+/* 费用明细一行（成交 − 扣费 − 运费），小字；窄屏放不下时按项折行，不在金额中间断开 */
+.sale-fees{margin:0;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;line-height:1.5}
+.sale-fees span{white-space:nowrap}
+/* 售出中：等待天数徽标；久等（> 7 天）变提醒色 */
+.pill.wait-days{background:var(--surface-3);color:var(--muted);border:1px solid var(--border);font-variant-numeric:tabular-nums}
+.pill.wait-days.is-long{background:color-mix(in srgb,var(--orange) 12%,transparent);color:var(--orange);border-color:color-mix(in srgb,var(--orange) 30%,transparent)}
+/* 「⋯」更多操作：方形图标钮；面板里两项整宽排列 */
+.sale-foot .actions .sale-more-btn{width:42px;padding:0;display:inline-flex;align-items:center;justify-content:center}
+.sale-more{display:flex;flex-direction:column;gap:8px;padding-bottom:12px}
+.sale-more button{width:100%;min-height:46px}
 
 @media (max-width:840px){
   .sale-card{padding:13px 14px}
-  /* 首行：状态 + 张数；日期、平台、单号整行放在下面，不再和张数挤着折行 */
-  .sale-top{gap:4px 8px;margin-bottom:10px}
+  /* 首行：天数 / 状态徽标 + 平台图标 + 日期同一行（信息长时在自己这一格里折行）；张数与备注（合单、有备注时才有）放到下一行 */
+  .sale-top{gap:4px 8px;margin-bottom:10px;align-items:center}
   .sale-top .when{font-size:12px}
-  .sale-top .info{order:3;flex-basis:100%;line-height:1.5}
+  .sale-top .info{flex:1 1 0;min-width:0;line-height:1.5}
+  .sale-top .info .nowrap{white-space:nowrap}
+  .sale-top .spacer{display:none}
+  .sale-top .count{order:3;flex-basis:100%}
   .sale-items{margin-bottom:10px}
   /* 每张专辑的金额收成三行且保持窄列：到手金额在最上（不再单列「到手」二字，页顶与合计已说明），其下成本、利润 */
   .sale-card .album-money-main{display:contents}
@@ -35,6 +62,7 @@
   .sale-foot .cell{display:contents}
   .sale-foot .cell span{font-size:12px;color:var(--muted)}
   .sale-foot .cell b{font-size:13.5px;font-weight:550;text-align:right;padding-left:12px}
+  .sale-foot .sale-fees{grid-column:1/-1}
   .sale-foot .cell.total span{color:var(--text);font-weight:600}
   .sale-foot .cell.total b{font-weight:700}
   .sale-foot .cell:not(.total)+.cell.total span,.sale-foot .cell:not(.total)+.cell.total b{border-top:1px dashed var(--border);padding-top:7px;margin-top:2px}

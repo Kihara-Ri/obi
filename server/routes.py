@@ -20,7 +20,7 @@ from . import archive, export_csv
 from .artists import SourceUnavailableError
 from .state_sync import send_cached_state
 from .version import uptime, version
-from .listing_routes import (api_listing_status, api_listing_analyze, api_listing_job,
+from .listing_routes import (api_listing_status, api_listing_analyze, api_listing_job, api_listing_dismiss,
     api_listing_draft, api_listing_photos, api_listing_login, api_listing_disconnect,
     api_listing_provider, api_listing_models, api_listing_connection, api_listing_auth_code, api_listing_test,
     api_listing_generate, api_listing_preferences, api_listing_save_preferences)
@@ -641,6 +641,7 @@ POST = {
     '/api/listing/generate': (api_listing_generate, True, False),
     '/api/listing/preferences': (api_listing_save_preferences, True, True),
     '/api/listing/draft': (api_listing_draft, True, True),
+    '/api/listing/job/dismiss': (api_listing_dismiss, True, False),
     '/api/listing/login': (api_listing_login, True, False),
     '/api/listing/disconnect': (api_listing_disconnect, True, False),
     '/api/listing/provider': (api_listing_provider, True, False),

@@ -1,30 +1,40 @@
 import {openArtistDrawer} from '../forms/ArtistDrawer';
 // 售出中页：按销售单合并展示专辑、金额与整单操作。
-import {sum, yuan} from '../core/format';
+import {daysSince, sum, yuan} from '../core/format';
+import {oldestFirst} from '../core/queue-order';
 import {useApp} from '../state/AppContext';
 import {PageHead} from '../components/PageHead';
-import {SaleCard} from './SaleCard';
+import {LONG_WAIT_DAYS, SaleCard} from './SaleCard';
 import {openSaleCostsForm} from '../forms/SaleCostsForm';
 
 export function ShippingPage() {
   const app = useApp();
   const {state, modules} = app;
   const rs = state.records.filter(r => r.status === 'shipping');
-  const sales = state.sales.filter(s => s.status === 'shipping');
+  // 待办队列：等得最久的在最上面（售出日期从旧到新，同日按记录先后）；历史类列表（交易记录）才是新的在上
+  const sales = oldestFirst(state.sales.filter(s => s.status === 'shipping'));
   const items = sales.flatMap(s => s.items);
   const ks = items.filter(i => i.profit !== null);
+  const longWait = sales.filter(s => daysSince(s.date) > LONG_WAIT_DAYS).length;
 
   return (
     <div className="align-list">
       <PageHead title="售出中" label="SELLING"/>
-      <div className="summary">
-        <span><strong>{rs.length}</strong> 张专辑</span>
-        <span><strong>{sales.length}</strong> 个销售单</span>
-        <span>预计到手 <strong>{yuan(sum(items, 'net'))}</strong></span>
-        {modules.acquisition ? <span>预估利润 <strong className={sum(ks, 'profit') < 0 ? 'negative' : 'positive'}>
-          {ks.length ? yuan(sum(ks, 'profit')) : '—'}
-        </strong></span> : null}
-        {modules.acquisition && items.length - ks.length ? <span className="hint">{items.length - ks.length} 条成本待补</span> : null}
+      {/* 统计卡片：两个大数字（预计到手、预估利润），下面一行说明笔数与需要处理的事（久等、成本待补） */}
+      <div className="summary sale-summary">
+        <div className="sale-metric">
+          <span>预计到手</span>
+          <strong>{yuan(sum(items, 'net'))}</strong>
+        </div>
+        {modules.acquisition ? <div className="sale-metric">
+          <span>预估利润</span>
+          <strong className={ks.length ? (sum(ks, 'profit') < 0 ? 'negative' : 'positive') : ''}>{ks.length ? yuan(sum(ks, 'profit')) : '—'}</strong>
+        </div> : null}
+        <p className="sale-summary-note">
+          <span>{sales.length} 笔待确认收货{rs.length !== sales.length ? ` · 共 ${rs.length} 张` : ''}</span>
+          {longWait ? <span className="is-long">{longWait} 笔已超过 {LONG_WAIT_DAYS} 天</span> : null}
+          {modules.acquisition && items.length - ks.length ? <span>{items.length - ks.length} 张成本待补</span> : null}
+        </p>
       </div>
       {sales.length ? (
         <div id="sales-list">

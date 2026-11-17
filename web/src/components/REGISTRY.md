@@ -13,6 +13,7 @@
 | `Seg` | 分段控件（互斥选择），滑块动画 | `options[{value,label,ariaLabel?,title?,disabled?}]` `value` `onValue` `ariaLabel?` `disabled?` `persistKey?`（页面切换重挂后仍从上次位置滑过去） | role=group + 每段 aria-pressed；←→↑↓ Home End 移动焦点 | 选中段加粗 + 滑块 |
 | `TabPanel` | 标签页内容区：切换时按方向滑入并淡入，首次不播 | `value` `order[]` `children` | role=tabpanel；与 `Seg` 配合 | 方向性滑入 |
 | `OptionCards` | 带图标的互斥选项卡（图标上、文字下，选中强调描边 + 淡底），适合选项能画出来的设置 | `options[{value,label,icon}]` `value` `onValue` `ariaLabel` `columns?`(每行张数，默认一行) | role=radiogroup / radio；←→↑↓ 移动并选中 | 选中描边 |
+| `SwipeRow` | 左滑露出操作的列表行（手机库存列表：上架 / 下架、记录售出）：拖过一半松手停在展开位，同时只展开一行 | `actions[{label,onClick,tone?,ariaLabel?}]` `disabled?`（选择模式） `as?`（div / article / li） `hint?` + `onHintShown?`（手势演示：稍后自动滑开 60% 再收回，减少动画偏好下不播） + 原生属性透传 | 只接管触摸，竖向滚动交给浏览器；点行外 / 点内容层收回，展开时内容层的点按不触发；收起时操作按钮 tabIndex=-1 | 内容层位移露出按钮；主操作主色实底 |
 | `Switch` | 开关 | `on` `onToggle` `label?` `disabled?` | role=switch + aria-checked；命中区向外扩 | 旋钮位置 |
 | `NavRow` | 导航列表行：图标 + 标题 + 右侧数值/控件 + 箭头，一行一件事，没有副标题 | `icon` `title` `value?` `trailing?` `href?`｜`onClick?` | 链接 / 按钮 / 静态三种形态 | 右侧数值与箭头 |
 | `Collapse` | 内容区平滑展开 / 收起（高度 + 淡入），收起时内容 inert 但保持挂载 | `open` `children` `id?` | 触发按钮自行设 aria-expanded / aria-controls | 展开动画 |
@@ -23,8 +24,9 @@
 | `Splash` | 启动加载画面 + 进入主界面的转场：唱片转动 → 沿中线裂成上下两半 → 主界面从中心圆形扩散露出；极快就绪不显示，显示后至少停留 500ms | `ready` | role=status、aria-label「加载中」；`prefers-reduced-motion` 只淡出 | 唱片转动与退场形变 |
 | `SearchField` | 搜索框：放大镜 + 清除按钮，Esc 清空 | `value` `onChange` `ariaLabel` `placeholder?` `inputMode?`（金额用 decimal / numeric） | 清除后焦点回到输入框 | 有内容时出现清除按钮 |
 | `BarcodeScanner` / `ScanField` | 相机扫码层；`ScanField` 把扫码图标（可选「×」清空）嵌进输入框右端：全屏后置摄像头取景，识别到校验位正确的 EAN / UPC 条码即回调并关闭（portal 到 body） | `onDetect(code)` `onClose`；ScanField `onScan` `onClear` | 无权限 / 无 HTTPS / 无摄像头给一句原因并可返回；关闭即停相机 | 相机请求 1080p 并开连续对焦，点按取景重新对焦；识别器见 `core/barcode-detector`（原生优先，iPhone 用 zxing-wasm） |
-| `FocusInput` | 聚焦输入层：点表单输入框后在键盘正上方升起独立输入面板（portal 到 body，背后页面不动） | `open` `title` `value` `submitLabel` `onChange` `onSubmit` `onClose` `placeholder?` `inputMode?`（金额用 decimal / numeric） `type?`（password 保持遮挡） `multiline?`（文本区，回车换行、最高 8 行） `maxLength?` `onEnter?`（单行回车） | 打开即在 layout effect 里同步聚焦（须在点按手势内打开，iOS 才弹键盘）；金额框（AmountInput）与专辑名 / 艺人（forms/FocusField）手机端用它；`useFloatingFields(rootRef, media)` 让抽屉里的其余文字框统一走它；Esc / 遮罩 / 取消关闭 | 动画进场，减少动画偏好下无动画 |
-| `Toast` | 全局消息：边框环绕一周后淡出；可带一个操作按钮（如「撤销」，停留 8 秒） | `kind('ok'｜'warn'｜'err')` `text` `action?` `onDone` | 错误 role=alert，其余 status；悬停/聚焦暂停；点击关闭；错误停留 6 秒，警告 3.5 秒，成功 2 秒 | 环绕路径的颜色按级别区分，另有文字 |
+| `FocusInput` | 聚焦输入层：点表单输入框后在键盘正上方升起独立输入面板（portal 到 body，背后页面不动） | `open` `title` `value` `submitLabel` `onChange` `onSubmit` `onClose` `placeholder?` `inputMode?`（金额用 decimal / numeric） `type?`（password 保持遮挡） `multiline?`（文本区，回车换行、最高 8 行） `maxLength?` `onEnter?`（单行回车） | 打开即在 layout effect 里同步聚焦（须在点按手势内打开，iOS 才弹键盘）；数字键盘（decimal / numeric）打开时整段选中旧值，直接输入即替换，文字框光标放末尾；金额框（AmountInput）与专辑名 / 艺人（forms/FocusField）手机端用它；`useFloatingFields(rootRef, media)` 让抽屉里的其余文字框统一走它；Esc / 遮罩 / 取消关闭 | 动画进场，减少动画偏好下无动画 |
+| `Toast` | 全局消息：顶部毛玻璃胶囊（与底部导航同一浮层语言），左侧实心圆点 + ✓ / ! / × 标级别，到点淡出；可带一个操作按钮（如「撤销」，停留 8 秒） | `kind('ok'｜'warn'｜'err')` `text` `action?` `onDone` | 错误 role=alert，其余 status；悬停/聚焦暂停；点击关闭；错误停留 6 秒，警告 3.5 秒，成功 2 秒 | 圆点颜色与符号按级别区分，另有文字 |
+| `useFormFeedback` / `FormMessage` | 抽屉表单字段错误定位与固定底栏错误；不聚焦文字框 | `show` / `clear` / `onSubmitCapture` / `feedback`；`error` | 字段错误与底栏错误使用文字和 role=alert，字段关联 aria 描述 | 适用于需要滚动的表单；原生校验需配合 noValidate |
 | `AutoTextarea` | 随内容长高的多行输入 | `value` `maxRows?` + textarea 原生属性 | 宽度变化时重算高度；支持 ref | — |
 
 > **滑块类控件统一用 `useSlidingThumb`**（`ui/SlidingThumb`）：`Seg` 的滑块、库存页国内/海外的下划线共用它，时长与缓动统一取 tokens 的 `--slide-ms` / `--slide-ease`（底栏胶囊也用同一组）。新做带滑块的控件不要再自己测量位置。
@@ -88,6 +90,6 @@
 - 上下文里的尺寸 / 外观覆盖（如 `.gallery-setting .seg button`）留在使用处所属的页面样式里，组件自己的 CSS 只放通用外观。
 - 动效：时长与缓动用 `tokens.css` 的 `--dur-fast/--dur/--dur-slow`、`--ease-out`（进场减速）、`--ease-soft`（状态过渡）；滑块仍用 `--slide-ms/--slide-ease`。`prefers-reduced-motion` 下 `base.css` 全局关闭动画与过渡。按钮没有全局按下位移（见 AGENTS.md）。
 
-- `ListingCopy`：文案卡片，空态（就地生成 / 手动编写）、阅读（长文限高渐隐，就地展开，sticky 收起条）、编辑（输入框，完成/保存在表单底栏）；复用 AutoTextarea。
+- `ListingCopy`：文案卡片，空态（就地生成 / 手动编写）、阅读（长文限高渐隐，就地展开，sticky 收起条）、编辑（输入框就地编辑，带 `data-native-input` 不走聚焦输入层；完成/保存在表单底栏）；复用 AutoTextarea。
 - `ListingPhotos`：本副本自适应缩略图（加载骨架/失败态）、右下角图标复制单张；复用 PhotoDownload 保存全部，不混入资料库封面。
 - `ListingOptions`（forms）：默认折叠的风格、本次补充与生成选项；复用 ListingPreferences。

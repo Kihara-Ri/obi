@@ -1,0 +1,16 @@
+/* 抽屉的错误提示：字段旁显示校验原因，底栏显示无法定位的错误；每次保存失败轻抖一下，确认按钮有反应。 */
+.drawer-footer{flex-wrap:wrap}
+.form-footer-error{flex:1 0 100%;min-width:0;margin:0}
+.form-footer-error:empty{display:none}
+.form-field-error{margin:0;flex:1 0 100%}
+.row-group .row.has-form-error{flex-wrap:wrap}
+.record-barcode-row.has-form-error{flex-wrap:wrap}
+.record-package-review>.form-field-error{order:-1}
+.form-field-error,.form-footer-error.is-nudged{animation:form-error-nudge .36s ease-out}
+@keyframes form-error-nudge{
+  0%{translate:0;opacity:.4}20%{translate:-6px;opacity:1}40%{translate:5px}60%{translate:-3px}80%{translate:2px}100%{translate:0}
+}
+@media (prefers-reduced-motion:reduce){
+  .form-field-error,.form-footer-error.is-nudged{animation:form-error-flash .3s ease-out}
+  @keyframes form-error-flash{from{opacity:.25}to{opacity:1}}
+}

@@ -36,13 +36,10 @@ class ListingGeneration:
         if record['revision'] != data.get('revision'): raise ValidationError('资料已变更，请重新打开')
         selection = self.model.providers.snapshot(require_images=bool(images))
         with self.lock:
-            if any(job['status'] == 'running' for job in self.jobs.values()):
-                raise ValidationError('已有售卖资料正在生成，请完成后再试')
-            while len(self.jobs) >= 20: del self.jobs[next(iter(self.jobs))]
             ident = uuid.uuid4().hex
             job = {'id': ident, 'recordId': record['id'], 'status': 'running', 'phase': 'preparing',
-                   'photoRevision': revision, 'contextHash': context_hash}
-            self.jobs[ident] = job
+                   'revision': record['revision'], 'photoRevision': revision, 'contextHash': context_hash}
+            self._reserve_job(job)
             initial = copy.deepcopy(job)
         if self.executor: self.executor.submit(self._generate, ident, record, images, selection, preset, supplement,
                                                auto_save, analysis, context_hash)

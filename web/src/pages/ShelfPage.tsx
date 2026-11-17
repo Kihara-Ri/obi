@@ -12,9 +12,11 @@ import {BulkBar} from './BulkBar';
 import {AlbumCard, CardGrid} from '../components/Cards';
 import {Dropdown} from '../components/ui/Dropdown';
 import {Seg} from '../components/ui/Seg';
+import type {SwipeAction} from '../components/ui/SwipeRow';
 import {TabPanel} from '../components/ui/TabPanel';
 import {useShelfFlip} from './useShelfFlip';
 import {useListFlip} from './useListFlip';
+import {useSwipeHint} from './useSwipeHint';
 import {SearchField} from '../components/ui/SearchField';
 import {ShowcaseSwitch, useShowcaseSwitch} from '../components/ShowcaseSwitch';
 import {useSlidingThumb} from '../components/ui/SlidingThumb';
@@ -107,12 +109,24 @@ export function ShelfPage() {
     );
   };
 
+  // 手机列表行左滑：上架 / 下架 + 记录售出（行内按钮在手机上随之收起）
+  const swipeActions = (r: AlbumRecord): SwipeAction[] => page === 'trash' || !modules.trading || r.status === 'transit' ? [] : [
+    {label: r.listed ? '下架' : '上架', ariaLabel: `${r.listed ? '取消上架' : '标记上架'}：${r.title}`,
+     onClick: () => bulkAction(app, r.listed ? 'unlist' : 'list', [r.id], r.listed ? '已取消上架' : '已标记上架')},
+    {label: '记录售出', tone: 'primary', ariaLabel: `记录售出：${r.title}`, onClick: () => openSaleForm(app, [r.id])},
+  ];
+
+  const swipeHint = useSwipeHint();
+  const selecting = app.mobileSelecting || curSelected.size > 0;
+  const firstSwipe = app.shelfView === 'list' && !selecting ? rs.find(r => swipeActions(r).length)?.id : undefined;
+
   const renderCard = (r: AlbumRecord) => (
     <AlbumCard key={r.id} r={r} page={page} checked={curSelected.has(r.id)}
                onSelect={isTrash || r.status === 'transit' ? undefined : toggleSelect}
                onDetail={id => openDetail(app, id)}
                onArtist={page === 'trash' ? undefined : name => openArtistDrawer(app, name)}
-               actions={cardActions(r)}/>
+               actions={cardActions(r)} swipeActions={swipeActions(r)}
+               selecting={selecting} swipeHint={swipeHint.isHint(r.id, firstSwipe)} onSwipeHint={swipeHint.shown}/>
   );
 
   let body: React.ReactNode;

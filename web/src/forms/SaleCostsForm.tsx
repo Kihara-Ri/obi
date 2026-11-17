@@ -7,6 +7,7 @@ import type {AppCtx} from '../state/AppContext';
 import type {Sale} from '../types';
 import {AmountInput} from './fields';
 import {AlbumLine} from '../components/AlbumLine';
+import {FormMessage, useFormFeedback} from './form-feedback';
 import {useFormSubmit, useRate} from './shared';
 
 export function openSaleCostsForm(app: AppCtx, sale: Sale) {
@@ -16,6 +17,7 @@ export function openSaleCostsForm(app: AppCtx, sale: Sale) {
 function SaleCostsForm({sale}: {sale: Sale}) {
   const app = useApp();
   const {error, saving, run} = useFormSubmit();
+  const feedback = useFormFeedback();
   const jpy = sale.currency === 'JPY';
   // 日元费用只接受整数：库里存的是两位小数格式（108.00），编辑界面取整回显，
   // 输入时过滤掉小数点（与买入金额切日元取整同一口径）
@@ -48,9 +50,9 @@ function SaleCostsForm({sale}: {sale: Sale}) {
     e.preventDefault();
     run(app, () => api('sale-update', {id: sale.id, fees, postage}), '销售费用已更新');
   };
-  return <form onSubmit={submit}>
+  return <form onSubmit={submit} noValidate onSubmitCapture={feedback.onSubmitCapture}>
     <div className="drawer-body">
-      <div className="error" role="alert">{error}</div>
+      {feedback.feedback}
       {rs.map(r => <AlbumLine key={r.id} r={r} showCost={app.modules.acquisition}/>)}
       <p className="small-note">{sale.date} 售出 · {sale.channel} · 成交价 {shipFeeText(sale.currency, sale.grossOriginal, sale.gross)}</p>
       <div className="form-grid form-section">
@@ -80,6 +82,7 @@ function SaleCostsForm({sale}: {sale: Sale}) {
       </div>
     </div>
     <div className="drawer-footer">
+        <FormMessage error={error}/>
       <button type="button" onClick={() => app.backDrawer()}>取消</button>
       <button type="submit" className="primary" aria-busy={saving} disabled={saving}>保存费用</button>
     </div>

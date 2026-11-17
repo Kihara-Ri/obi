@@ -1,4 +1,5 @@
 // 文案是上架页主内容，一张卡片三种状态：空态（就地生成）、阅读（限高渐隐，就地展开/收起）、编辑（输入框，完成/保存在底栏）。
+// 编辑就地进行（data-native-input）：长文要对照上下文改，不走手机抽屉的聚焦输入层。
 // 展开只增高卡片本身，下方内容顺势推下；收起条吸附在可视区底部，长文读到哪都能收。
 import {useLayoutEffect, useRef, useState} from 'react';
 import type {ListingDraft} from '../../core/listing';
@@ -49,7 +50,7 @@ export function ListingCopy({draft, saved, candidate, busy, ready, editing, gene
       </div>
     </header>
     {candidate && !isStreaming ? <p className="listing-copy-status">新文案 · 原稿已保留，采用后才会替换</p> : null}
-    {editing && !candidate && !isStreaming ? <div className="listing-copy-editor">
+    {editing && !candidate && !isStreaming ? <div className="listing-copy-editor" data-native-input>
       <label>售卖标题<input aria-label="售卖标题" value={draft.title} maxLength={500} disabled={busy}
         onChange={e => onChange({...draft, title: e.target.value})}/></label>
       <label>售卖正文<AutoTextarea aria-label="售卖正文" value={draft.description} maxLength={50000} disabled={busy}

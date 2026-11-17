@@ -8,6 +8,7 @@ import {InstallNavItem} from './InstallNavItem';
 import {GearIcon} from './ui/GearIcon';
 import {NavIcon} from './navIcons';
 import {isLocalSite} from '../core/backend';
+import {mobileTabs} from '../core/page-motion';
 
 const NAV = [
   {hash: 'gallery', ico: '▦', label: '收藏展示'},
@@ -20,16 +21,7 @@ const NAV = [
   {hash: 'lookup', ico: '⌕', label: '查询'},
 ];
 
-// 手机把国内 / 海外收进库存页；低频入口通过独立「更多」页访问。
-const MOBILE_TABS = [
-  {hash: 'domestic', ico: '▤', label: '库存', count: 'inventory'},
-  {hash: 'transit', ico: '✈', label: '在途', count: 'transit'},
-  {hash: 'shipping', ico: '◨', label: '售出中', count: 'shipping'},
-] as const;
-// 以展示为主的用户（默认首页是收藏展示）：「展示」是底栏第一个标签；
-// 以管理为主的用户不占标签，改用库存页 / 展示页顶栏的「库存｜展示」切换（ShowcaseSwitch）。
-const GALLERY_TAB = {hash: 'gallery', ico: '▦', label: '展示', count: ''} as const;
-
+// 手机把国内 / 海外收进库存页；低频入口通过独立「更多」页访问。底栏顺序见 core/page-motion.ts（切页方向也按它算）。
 const ACTIVE_WEIGHT = 2.3;
 const MORE_HASHES = new Set(['more', 'lookup', 'trades', 'stats', 'settings', 'trash']);
 
@@ -88,17 +80,15 @@ interface MobileNavProps {
 }
 
 export function MobileNav({page, modules, counts, showcaseTab, inventoryPage}: MobileNavProps) {
-  const mobileTabs = [...(showcaseTab ? [GALLERY_TAB] : []), ...MOBILE_TABS].filter(n => pageEnabled(n.hash, modules)).map(n => ({...n,
-    label: n.hash === 'domestic' && !modules.circulation ? '收藏' : n.label,
-  }));
+  const tabs = mobileTabs(modules, showcaseTab);
   // 库存标签同时代表海外库存；以管理为主时，展示页也算库存标签下的页面
   const tabActive = (hash: string) => page === hash
     || (hash === 'domestic' && (page === 'overseas' || (page === 'gallery' && !showcaseTab)));
   // 底栏：激活的标签展开成「图标 + 文字」胶囊，其余只留图标；胶囊随激活槽位滑动并变宽。
   // 槽位按权重分宽（激活 2.4、其余 1）；导航列宽与胶囊位置用同一套权重、同一过渡，二者始终对齐。
-  const activeTab = mobileTabs.findIndex(t => tabActive(t.hash));
-  const slots = mobileTabs.length + 1;
-  const pillIndex = activeTab >= 0 ? activeTab : mobileTabs.length;
+  const activeTab = tabs.findIndex(t => tabActive(t.hash));
+  const slots = tabs.length + 1;
+  const pillIndex = activeTab >= 0 ? activeTab : tabs.length;
   const weights = Array.from({length: slots}, (_, i) => i === pillIndex ? ACTIVE_WEIGHT : 1);
   const total = weights.reduce((a, b) => a + b, 0);
   const before = weights.slice(0, pillIndex).reduce((a, b) => a + b, 0);
@@ -118,7 +108,7 @@ export function MobileNav({page, modules, counts, showcaseTab, inventoryPage}: M
         width: `calc((100% - 12px) * ${weights[pillIndex] / total})`,
         transform: `translateX(${before / weights[pillIndex] * 100}%)`,
       }}/>
-      {mobileTabs.map(t => (
+      {tabs.map(t => (
         <a key={t.hash} href={`#${t.hash === 'domestic' && modules.circulation ? inventoryPage : t.hash}`}
            className={(tabActive(t.hash) ? 'active' : '') + (counts[t.count] ? ' has-badge' : '')}
            aria-current={tabActive(t.hash) ? 'page' : 'false'}>

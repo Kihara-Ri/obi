@@ -38,7 +38,7 @@ export interface ListingPreferences {
 export interface ListingJob {
   id?: string; status: 'idle' | 'running' | 'succeeded' | 'failed';
   phase?: 'preparing' | 'analyzing' | 'writing' | 'saving' | 'done';
-  error?: string; analysis?: ListingAnalysis; draft?: ListingDraft; autoSaved?: boolean; savedRevision?: number;
+  error?: string; analysis?: ListingAnalysis; draft?: ListingDraft; autoSaved?: boolean; savedRevision?: number; revision?: number;
   stream?: {title: string; description: string};
 }
 

@@ -5,6 +5,7 @@ import {yuan} from '../core/format';
 import {useApp} from '../state/AppContext';
 import type {AppCtx} from '../state/AppContext';
 import {AlbumLine} from '../components/AlbumLine';
+import {FormMessage} from './form-feedback';
 import {useFormSubmit} from './shared';
 
 export function openJoinShipment(app: AppCtx, ids: string[]) {
@@ -28,7 +29,6 @@ function JoinShipmentForm({ids}: {ids: string[]}) {
   return (
     <form id="ship-join-form" onSubmit={submit}>
       <div className="drawer-body">
-        <div className="error" role="alert">{error}</div>
         <p className="help">这 {rs.length} 张专辑并入所选在途包裹，状态变为「海外在途」。</p>
         {rs.map(r => <AlbumLine key={r.id} r={r} showCost={false}/>)}
         <div className="field form-section">
@@ -47,6 +47,7 @@ function JoinShipmentForm({ids}: {ids: string[]}) {
         </p> : null}
       </div>
       <div className="drawer-footer">
+        <FormMessage error={error}/>
         <button type="button" onClick={() => app.backDrawer()}>取消</button>
         <button type="submit" className="primary" aria-busy={saving} disabled={saving || !chosen}>加入包裹</button>
       </div>

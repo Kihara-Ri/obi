@@ -13,10 +13,14 @@
 .select-lead input:checked + .select-mark::after{opacity:1;transform:rotate(45deg) scale(1)}
 .select-lead input:focus-visible + .select-mark{outline:2px solid var(--accent-deep);outline-offset:2px}
 
+/* 已上架绿勾（封面右上角）：只在手机列表显示 */
+.listed-mark{display:none}
 @media (max-width:840px){
   /* 行首选择钮取代封面上的勾选框 */
-  .shelf-list .album-list-card{display:flex;flex-direction:row;align-items:flex-start;gap:6px;--cover-s:76px}
-  .shelf-list .album-list-card > .album-row{flex:1;min-width:0}
+  /* 行外层是 SwipeRow（左滑操作垫在下面），行距放进内容层，操作按钮才能铺满整行高 */
+  .shelf-list .album-list-card{padding:0;--cover-s:76px}
+  .shelf-list .album-list-card > .swipe-content{display:flex;flex-direction:row;align-items:flex-start;gap:6px;padding:10px 0}
+  .shelf-list .album-list-card .album-row{flex:1;min-width:0}
   .shelf-list .album-cover .card-check{display:none}
   /* 进入/退出选择模式：选择钮从左侧展开 / 收起（宽度 + 淡入），行内容随之平滑让位 */
   .shelf-list .select-lead{display:flex;overflow:hidden;width:28px;height:var(--cover-s);min-height:0;
@@ -28,29 +32,30 @@
   .shelf-page:not(.is-selecting) .card-check{display:block;opacity:0;transform:scale(.7);visibility:hidden;pointer-events:none;
     transition:opacity var(--dur) var(--ease-soft),transform var(--dur) var(--ease-out),visibility 0s linear var(--dur)}
 
-  /* 方形封面（完整、不裁切）与右侧文字块等高：行高固定为封面边长，
-     标题贴顶、版次贴底、艺人居中，封面上下边与文字块上下边平齐；
-     右侧一列：金额（两行）贴顶，「记录售出」等操作按钮贴底，也在这一行高之内。
-     标题限 2 行、艺人限 1 行、版次与徽标同排，保证文字放得进封面高度。 */
+  /* 2026-11-17 方案 B：封面左、文字中、金额右上。文字块（标题 ≤2 行、艺人 1 行、元信息可折两行）紧挨着排，
+     整体与封面垂直居中——上下两条 1fr 空行平分余量，信息短时上下留白匀称，信息长时空行归零、行随内容长高。
+     元信息占满金额下方的宽度；包装形式保留图标；已上架改成封面右上角绿勾；操作改为左滑露出。 */
   .shelf-list .album-summary,.shelf-list .album-summary.has-actions{
     grid-template-columns:var(--cover-s) minmax(0,1fr) max-content;
-    grid-template-areas:"cover title aside" "cover artist aside" "cover meta aside";
-    grid-template-rows:auto 1fr auto;height:var(--cover-s);align-items:stretch}
-  .shelf-list .album-cover{width:var(--cover-s);height:var(--cover-s);align-self:start}
-  .shelf-list .album-title{align-self:start}
-  .shelf-list .album-artist{align-self:center;overflow:hidden}
+    grid-template-rows:minmax(0,1fr) auto auto auto minmax(0,1fr);
+    grid-template-areas:"cover . ." "cover title aside" "cover artist aside" "cover meta meta" "cover . .";
+    min-height:var(--cover-s);row-gap:0;align-items:start}
+  .shelf-list .album-cover{width:var(--cover-s);height:var(--cover-s);grid-row:1 / -1;align-self:center}
+  .shelf-list .album-title{align-self:start;line-height:1.3;font-size:14px}
+  .shelf-list .album-artist{align-self:start;overflow:hidden;margin-top:2px}
   .shelf-list .album-artist .artist-button>span:first-child{-webkit-line-clamp:1}
-  /* 三行紧凑：标题/艺人/版次各自收紧行高，行间只留 76px 行高里剩下的空隙 */
-  .shelf-list .album-title{line-height:1.25}
-  /* 艺人按钮：去掉上下内边距和过大的箭头行高，否则一行艺人就撑到 31px，文字块超出封面高度 */
-  .shelf-list .album-artist .artist-button{min-height:0;padding:0;line-height:1.25;font-size:12.5px}
+  /* 艺人按钮：去掉上下内边距和过大的箭头行高（否则一行艺人就撑到 31px） */
+  .shelf-list .album-artist .artist-button{min-height:0;padding:0;line-height:1.3;font-size:12.5px}
+  .shelf-list .album-meta{display:flex;flex-wrap:wrap;align-items:center;gap:2px 6px;min-width:0;margin-top:4px;font-size:11.5px;line-height:1.4}
+  .shelf-list .album-version{white-space:normal;overflow:visible}
+  /* 每项（地区 / 侧标 / 包装）整体不断开，只在项与项之间折行 */
+  .shelf-list .album-version>*{white-space:nowrap}
+  .shelf-list .album-meta .list-badges{margin-top:0}
   .shelf-list .album-meta .list-badges .badge{line-height:1.2;padding:0 6px}
-  .shelf-list .album-meta{align-self:end;display:flex;align-items:center;gap:6px;min-width:0;margin-top:0}
-  .shelf-list .album-version{flex:0 1 auto;min-width:0}
-  .shelf-list .album-meta .list-badges{flex:none;margin-top:0;flex-wrap:nowrap}
-  .shelf-list .album-aside{gap:0;align-items:flex-end;justify-content:flex-start}
-  .shelf-list .album-actions{margin-top:auto}
-  /* 盖过 shelf.css 手机端的 44px 触控高度：按钮高 38px 才能与金额一起放进 76px 行高 */
+  .shelf-list .list-badges .badge.listed{display:none}
+  .shelf-list .album-aside{gap:6px;align-items:flex-end;justify-content:flex-start;align-self:start}
+  /* 有左滑操作时行内按钮收起（回收站的「恢复」等没有左滑的仍显示） */
+  .shelf-list .has-swipe .album-actions{display:none}
   .shelf-list .album-actions .card-actions button{min-height:38px;padding:6px 10px}
   /* 金额两行：「买入 650円」同一行，≈¥ 在下一行；按钮紧跟其后 */
   .shelf-list .album-money{display:grid;grid-template-columns:auto auto;column-gap:4px;align-items:baseline;justify-items:end}
@@ -59,6 +64,9 @@
   .shelf-list .album-purchase{display:contents}
   .shelf-list .album-purchase .p{grid-row:1;grid-column:2}
   .shelf-list .album-purchase .rmb{grid-row:2;grid-column:1 / -1}
+  .shelf-list .listed-mark{display:block;position:absolute;top:-5px;right:-5px;z-index:2;width:20px;height:20px;box-sizing:border-box;
+    border-radius:50%;background:var(--green);border:2px solid var(--bg)}
+  .shelf-list .listed-mark::after{content:"";position:absolute;left:5px;top:2px;width:4px;height:8px;border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(45deg)}
 }
 
 /* 触屏按下反馈：只改背景，没有位移 */

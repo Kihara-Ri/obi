@@ -7,6 +7,7 @@ import type {ShowcaseGroup, ShowcaseGroups} from '../core/gallery';
 import {labelTags} from '../types';
 import {GalleryArtwork} from '../components/GalleryMedia';
 import {Chevron} from '../components/ui/Chevron';
+import {useFormFeedback} from './form-feedback';
 
 export function ShowcaseGroupForm({group, store, onSaved, onDeleted}: {
   group?: ShowcaseGroup; store: ShowcaseGroups; onSaved(id: string): void; onDeleted(id: string): void;
@@ -16,6 +17,7 @@ export function ShowcaseGroupForm({group, store, onSaved, onDeleted}: {
   const [ids, setIds] = useState(group?.recordIds ?? []);
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
+  const feedback = useFormFeedback();
   const [saving, setSaving] = useState(false);
   const byId = useMemo(() => new Map(app.state.records.map(r => [r.id, r])), [app.state.records]);
   const available = useMemo(() => app.state.records.filter(isCollectedRecord).sort((a, b) =>
@@ -61,7 +63,8 @@ export function ShowcaseGroupForm({group, store, onSaved, onDeleted}: {
     } catch (err) {setError(err instanceof Error ? err.message : String(err));}
     finally {setSaving(false);}
   };
-  return <form className="showcase-group-form" onSubmit={save}>
+  return <form className="showcase-group-form" onSubmit={save} noValidate onSubmitCapture={feedback.onSubmitCapture}>
+    {feedback.feedback}
     <label className="field"><span>展示组名称</span>
       <input value={name} required maxLength={100} placeholder="例如：夜晚的唱片" disabled={saving}
              onChange={event => {setName(event.target.value); app.setDrawerDirty(true);}}/>

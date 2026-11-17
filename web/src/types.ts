@@ -204,6 +204,8 @@ export interface Sale {
   status: SaleStatus;
   receivedDate: string;
   refundDate?: string;
+  /** 还没发货就退款：专辑回到售出前的库存，平台扣费与运费已清零 */
+  unshipped?: boolean;
   gross: string;
   fees: string;
   postage: string;

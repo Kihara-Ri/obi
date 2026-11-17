@@ -37,6 +37,9 @@ def api_listing_job(h, svc):
     h.send(service(svc).status(ident=q.get('id', ''), record_id=q.get('recordId', '')))
 
 
+def api_listing_dismiss(h, svc, body): h.send(service(svc).dismiss(str(body.get('id', ''))))
+
+
 def api_listing_draft(h, svc, body):
     svc.store.require_module('trading')
     h.send(svc.store.save_listing_draft(body))

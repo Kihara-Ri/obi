@@ -65,6 +65,7 @@
   --chrome-line:rgba(205,211,221,.7);
   --hairline:rgba(23,32,58,.08);
   --scrim:rgba(21,28,45,.35);
+  --recess-bg:#c8cdd7; /* 页面往里凹下时露出的底色（切页推入 / 弹出） */
   --grabber:rgba(28,35,54,.18);
   --inset:rgba(23,32,58,.025);
   --seg-thumb:#ffffff;
@@ -107,6 +108,7 @@
     --chrome-line:rgba(38,44,56,.6);
     --hairline:rgba(255,255,255,.09);
     --scrim:rgba(6,8,12,.6);
+    --recess-bg:#020305;
     --grabber:rgba(255,255,255,.16);
     --inset:rgba(255,255,255,.015);
     --seg-thumb:#3d4658;
@@ -150,6 +152,7 @@
   --chrome-line:rgba(38,44,56,.6);
   --hairline:rgba(255,255,255,.09);
   --scrim:rgba(6,8,12,.6);
+  --recess-bg:#020305;
   --grabber:rgba(255,255,255,.16);
   --inset:rgba(255,255,255,.015);
   --seg-thumb:#3d4658;

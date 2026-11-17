@@ -10,6 +10,7 @@ import type {Currency} from '../types';
 import {Field, MoneyField, TextareaField} from './fields';
 import {Dropdown} from '../components/ui/Dropdown';
 import {AlbumLine} from '../components/AlbumLine';
+import {FormMessage, useFormFeedback} from './form-feedback';
 import {useFormSubmit, useRate} from './shared';
 import {JP_METHODS, methodOptions, costLineText} from './shipShared';
 
@@ -20,6 +21,7 @@ export function openShipForm(app: AppCtx, ids: string[]) {
 function ShipForm({ids}: {ids: string[]}) {
   const app = useApp();
   const {error, saving, run} = useFormSubmit();
+  const feedback = useFormFeedback();
   const [v, setV] = useState({method: JP_METHODS[0].value, date: today(), currency: 'CNY' as Currency, cost: '', note: ''});
   const set = (patch: Partial<typeof v>) => { setV(prev => ({...prev, ...patch})); app.setDrawerDirty(true); };
   const rs = ids.map(app.rec).filter((r): r is NonNullable<typeof r> => !!r);
@@ -36,9 +38,9 @@ function ShipForm({ids}: {ids: string[]}) {
   };
 
   return (
-    <form id="ship-form" onSubmit={submit}>
+    <form id="ship-form" onSubmit={submit} noValidate onSubmitCapture={feedback.onSubmitCapture}>
       <div className="drawer-body">
-        <div className="error" role="alert">{error}</div>
+        {feedback.feedback}
         <p className="help">这 {rs.length} 张专辑打包为一趟运输，状态变为「海外在途」，约 11 天后签收。</p>
         {rs.map(r => <AlbumLine key={r.id} r={r} showCost={false}/>)}
         <div className="field form-section">
@@ -64,6 +66,7 @@ function ShipForm({ids}: {ids: string[]}) {
         </div>
       </div>
       <div className="drawer-footer">
+        <FormMessage error={error}/>
         <button type="button" onClick={() => app.backDrawer()}>取消</button>
         <button type="submit" className="primary" aria-busy={saving} disabled={saving}>创建运输</button>
       </div>

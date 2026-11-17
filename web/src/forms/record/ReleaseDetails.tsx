@@ -37,7 +37,7 @@ export function PackageReview({ctx}: {ctx: FormCtx}) {
     setExpanded(true);
     dirty();
   }}/>;
-  return <section id="record-packaging" className="form-section field record-package-review" tabIndex={-1}>
+  return <section id="record-packaging" className="form-section field record-package-review" data-error-anchor tabIndex={-1}>
     {/* 始终同一棵树：自由描述输入时 name 由空变非空，不能换分支，否则输入框失焦 */}
     <Details summary={name ? <>实物包装 · {packagingDisplay(name).name}</> : <span className="field-label">请选择实物包装 · 必选</span>}
       open={!name || expanded} onOpenChange={setExpanded}>

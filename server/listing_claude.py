@@ -14,13 +14,19 @@ class ClaudeProvider:
     def __init__(self, data):
         self.directory = data / 'credentials' / 'listing-anthropic'
         self.operation = threading.RLock()
+        self.active_sessions = 0
+        self.auth_changing = False
         self.login = ClaudeLogin(self)
         self.cached = None
         self.checked_at = 0
 
     @contextmanager
     def session(self, account=None, allow_login=False):
-        if not self.operation.acquire(blocking=False): raise ValidationError('Claude 正在处理请求，请稍后再改授权')
+        with self.operation:
+            if self.auth_changing or (allow_login and self.active_sessions):
+                raise ValidationError('Claude 正在处理请求，请稍后再改授权')
+            if allow_login: self.auth_changing = True
+            else: self.active_sessions += 1
         try:
             if not allow_login and self.login.status()['loginPending']:
                 raise ValidationError('Claude 正在登录，请完成授权后重试')
@@ -29,7 +35,10 @@ class ClaudeProvider:
                 if not status['connected'] or (status.get('accountId') or status.get('label')) != account:
                     raise ValidationError('Claude 授权身份已变更，请重新读取模型并分析')
             yield
-        finally: self.operation.release()
+        finally:
+            with self.operation:
+                if allow_login: self.auth_changing = False
+                else: self.active_sessions -= 1
 
     def environment(self):
         self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)

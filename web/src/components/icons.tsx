@@ -67,3 +67,10 @@ export const SlidersIco = (
     <path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>
   </svg>
 );
+
+// 「⋯」更多操作（实心圆点，与底栏「更多」同形）
+export const MoreIco = (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true" focusable="false">
+    <circle cx="5.5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="18.5" cy="12" r="1.7"/>
+  </svg>
+);

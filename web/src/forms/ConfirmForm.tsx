@@ -1,15 +1,17 @@
-// 确认表单族：签收 / 回滚 / 撤销运输 / 确认收货 / 撤销售出 / 退款退货 / 恢复备份。
+// 确认表单族：签收 / 回滚 / 撤销运输 / 确认收货 / 撤销售出 / 退款退货 / 撤销退款 / 恢复备份。
 // 提交时路由到对应 API。日期一律用「今天/昨天/选日期」快捷行；确认收货先给
 // 金额摘要（到手 / 利润 / 成交价口径），不可逆后果独立成警示行。
 import {useState} from 'react';
+import {Seg} from '../components/ui/Seg';
 import {api, apiUpload} from '../core/api';
 import {shipFeeText, sum, today, yuan} from '../core/format';
 import {useApp} from '../state/AppContext';
 import type {BackupFile, Sale} from '../types';
 import {AmountInput, DateChipsRow} from './fields';
+import {FormMessage, useFormFeedback} from './form-feedback';
 import {useFormSubmit} from './shared';
 
-export type ConfirmKind = 'arrive' | 'undo_arrive' | 'cancel_shipment' | 'receive' | 'cancel' | 'refund' | 'restore';
+export type ConfirmKind = 'arrive' | 'undo_arrive' | 'cancel_shipment' | 'receive' | 'cancel' | 'refund' | 'undo_refund' | 'restore';
 
 export const CONFIRM_TITLES: Record<ConfirmKind, string> = {
   arrive: '确认签收',
@@ -18,6 +20,7 @@ export const CONFIRM_TITLES: Record<ConfirmKind, string> = {
   receive: '确认收货',
   cancel: '撤销售出',
   refund: '退款 / 退货',
+  undo_refund: '撤销退款',
   restore: '恢复完整备份',
 };
 
@@ -56,9 +59,11 @@ export function ConfirmForm({kind, id, arriveCount, sale, restoreData, restoreFi
 }) {
   const app = useApp();
   const {error, saving, run} = useFormSubmit();
+  const feedback = useFormFeedback();
   const [date, setDate] = useState(today());
   const [refund, setRefund] = useState(sale ? sale.gross : '');
-  const [returned, setReturned] = useState(false);
+  // 退款场景：还没发货（unshipped）/ 已发货买家退回（returned）。默认不选，避免点错
+  const [mode, setMode] = useState<'' | 'unshipped' | 'returned'>('');
   const [ack, setAck] = useState(false);
 
   const submit = (e: React.FormEvent) => {
@@ -68,14 +73,18 @@ export function ConfirmForm({kind, id, arriveCount, sale, restoreData, restoreFi
       if (kind === 'arrive') return api('shipment-action', {id, action: 'arrive', date});
       if (kind === 'undo_arrive') return api('shipment-action', {id, action: 'undo_arrive'});
       if (kind === 'cancel_shipment') return api('shipment-action', {id, action: 'cancel'});
-      return api('sale-action', {id, action: kind, ...(kind === 'refund' ? {refund} : {}), date, returned});
+      if (kind === 'refund') {
+        if (!mode) throw new Error('请先选择：还没发货，还是买家已退回');
+        return api('sale-action', {id, action: kind, refund, date, unshipped: mode === 'unshipped', returned: mode === 'returned'});
+      }
+      return api('sale-action', {id, action: kind, date});
     });
   };
 
   return (
-    <form id="simple-form" onSubmit={submit}>
+    <form id="simple-form" onSubmit={submit} noValidate onSubmitCapture={feedback.onSubmitCapture}>
       <div className="drawer-body">
-        <div className="error" role="alert">{error}</div>
+        {feedback.feedback}
         {kind === 'arrive' && (
           <>
             <p>整包 {arriveCount ?? ''} 张专辑转入国内库存。</p>
@@ -98,9 +107,17 @@ export function ConfirmForm({kind, id, arriveCount, sale, restoreData, restoreFi
           </>
         )}
         {kind === 'cancel' && <p>用于纠正误记或未成交，专辑回到原状态，交易保留撤销历史。</p>}
+        {kind === 'undo_refund' && <p>用于纠正点错的退款 / 退货：交易回到「售出中」，退款金额清空{sale?.status === 'returned' || sale?.unshipped
+          ? '，退回库存的专辑重新挂回这笔交易（专辑已再次售出或移动时不能撤销）' : ''}{sale?.unshipped ? '，清零的平台扣费与寄出运费恢复' : ''}。之后可重新选退款、退货或确认收货。</p>}
         {kind === 'refund' && (
           <>
-            <p className="help">仅限「售出中」的交易；销售费用保留为损失；勾选退货则专辑回到{app.modules.circulation ? '国内库存' : '我的收藏'}。</p>
+            <Seg className="refund-mode" ariaLabel="退款场景" value={mode} onValue={v => setMode(v as typeof mode)}
+                 options={[{value: 'unshipped', label: '还没发货 · 退款'}, {value: 'returned', label: '已发货 · 退货'}]}/>
+            <p className="help">{mode === 'unshipped'
+              ? '专辑没离手，回到售出前的库存；平台扣费与寄出运费清零，不计损失。'
+              : mode === 'returned'
+                ? <>买家收到后退回，专辑回到{app.modules.circulation ? '国内库存' : '我的收藏'}；平台扣费与寄出运费记为损失。</>
+                : '先选场景：还没发货就退款，还是买家收到后退货。'}</p>
             <div className="row-group">
               <div className="row amount-row">
                 <label htmlFor="f-refund">退款总额</label>
@@ -113,10 +130,6 @@ export function ConfirmForm({kind, id, arriveCount, sale, restoreData, restoreFi
               </div>
               <DateChipsRow label="处理日期" value={date} onChange={setDate}/>
             </div>
-            <label className="check-line">
-              <input name="returned" type="checkbox" checked={returned} onChange={e => setReturned(e.target.checked)}/>
-              已收到退回专辑，恢复库存
-            </label>
           </>
         )}
         {kind === 'restore' && (
@@ -135,9 +148,10 @@ export function ConfirmForm({kind, id, arriveCount, sale, restoreData, restoreFi
         )}
       </div>
       <div className="drawer-footer">
+        <FormMessage error={error}/>
         <button type="button" onClick={() => app.backDrawer()}>取消</button>
-        <button type="submit" className="primary" aria-busy={saving} disabled={saving}>
-          {kind === 'receive' ? '确认收货' : kind === 'refund' ? '确认退款' : '确认'}
+        <button type="submit" className="primary" aria-busy={saving} disabled={saving || (kind === 'refund' && !mode)}>
+          {kind === 'receive' ? '确认收货' : kind === 'refund' ? (mode === 'returned' ? '确认退货' : '确认退款') : '确认'}
         </button>
       </div>
     </form>

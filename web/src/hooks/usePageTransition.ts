@@ -1,19 +1,12 @@
-// 手机页面切换动画（样式见 styles/pagetransition.css）与库存 ↔ 展示的幕布（PageVeil）。
-// 返回挂到 #main 的 ref 与幕布要预加载的封面；桌面与 prefers-reduced-motion 不做切换动画。
+// 手机页面切换动画与库存 ↔ 展示的幕布（PageVeil）。两页之间是什么关系由 core/page-motion.ts 判定，
+// 动画本身在 core/page-transition-play.ts（样式见 styles/pagetransition.css）。
+// 返回挂到 #main 的 ref 与幕布要预加载的封面；桌面不做切换动画，prefers-reduced-motion 只做 120ms 交叉淡化。
 import {useEffect, useLayoutEffect, useRef, useState} from 'react';
-import type {AppState} from '../types';
+import type {AppState, ModuleFlags} from '../types';
 import {useEdgeSwipeBack} from './useEdgeSwipeBack';
-
-// 空间方向：rank 是页面在横向层级里的位置（底栏从左到右，
-// 「更多」的子页比「更多」更深，回收站从设置进入）。进入更深的页面从右侧推入，
-// 向左返回时当前页向右滑出。
-const PAGE_RANK: Record<string, number> = {
-  domestic: 0, overseas: .5, gallery: 1, transit: 2, shipping: 3,
-  more: 4, lookup: 4.1, trades: 4.2, stats: 4.3, settings: 4.4, trash: 4.5,
-};
-
-// 以展示为主时底栏是「展示 · 收藏 · 更多」，展示在收藏左边，方向要跟着底栏走
-const rankOf = (p: string, showcaseTab: boolean) => p === 'gallery' && showcaseTab ? -1 : PAGE_RANK[p] ?? 3.5;
+import {mobileTabOrder, pageMotion} from '../core/page-motion';
+import {playFade, playPop, playPush, playTab} from '../core/page-transition-play';
+import {freezeImages} from '../core/ghost-images';
 
 const isShelf = (p: string) => p === 'domestic' || p === 'overseas';
 
@@ -37,13 +30,15 @@ function pruneOffscreen(src: Element, clone: Element) {
   });
 }
 
-/** showcaseTab：以展示为主（展示是底栏标签），库存 ↔ 展示按普通换页处理 */
-export function usePageTransition(page: string, showcaseTab: boolean, records: AppState['records'] | undefined) {
+/** showcaseTab：以展示为主（展示是底栏标签），库存 ↔ 展示按普通换页处理；modules：决定底栏有哪些标签（切页方向按底栏顺序算） */
+export function usePageTransition(page: string, showcaseTab: boolean, records: AppState['records'] | undefined, modules: ModuleFlags | undefined) {
   // 旧页面以 DOM 快照参与滑出，组件不重复挂载。hashchange/popstate 在 React 重渲染前同步到达，
   // 监听里抢先抓整个 #main 的克隆（连内边距一起保住几何）；等 effect 跑起来时旧内容已被换掉，只能用这份快照。
   useEdgeSwipeBack(page);   // 子页左缘右划返回：同属页面切换，随这个 hook 一起挂
   const mainRef = useRef<HTMLElement | null>(null);
   const prevPageRef = useRef(page);
+  const orderRef = useRef<string[]>([]);
+  orderRef.current = modules ? mobileTabOrder(modules, showcaseTab) : [];
   const ghostSnapRef = useRef<{el: HTMLElement; els: HTMLElement[]; y: number;
     scroll: {index: number; left: number; top: number}[];
     poses: {index: number; name: string; time: number}[]} | null>(null);
@@ -57,6 +52,8 @@ export function usePageTransition(page: string, showcaseTab: boolean, records: A
       const el = source?.cloneNode(true) as HTMLElement | undefined;
       // 先记下克隆里每个节点的引用（与 source 的 querySelectorAll('*') 同序），再裁剪：下面的滚动 / 动画姿态按这个序号回填
       const els = el ? Array.from(el.querySelectorAll<HTMLElement>('*')) : [];
+      // 视口里的封面换成从原图画好的 canvas（见 core/ghost-images.ts），否则第一帧是空白——旧页封面闪一下
+      if (source && el) freezeImages(Array.from(source.querySelectorAll('*')), els);
       if (source && el) pruneOffscreen(source, el);
       ghostSnapRef.current = source && el ? {
         el, els, y: window.scrollY,
@@ -116,18 +113,14 @@ export function usePageTransition(page: string, showcaseTab: boolean, records: A
     prevPageRef.current = page;
     const main = mainRef.current;
     if (prev === page || !main) { ghostSnapRef.current = null; return; }
-    // 国内 / 海外是同一张库存页里的两个子标签（.shelf-location），切换不算换页：
-    // 不播整页过渡，只有列表内容替换与地区下划线滑动。
-    if (isShelf(prev) && isShelf(page)) {
-      ghostSnapRef.current = null;
-      return;
-    }
+    const motion = pageMotion(prev, page, orderRef.current, showcaseTab);
+    // 国内 / 海外是同一张库存页里的两个子标签（.shelf-location），切换不算换页：只有列表内容替换与地区下划线滑动。
+    if (motion.kind === 'none') { ghostSnapRef.current = null; return; }
     const snap = ghostSnapRef.current;
     ghostSnapRef.current = null;
-    // 历史驱动的换页（边缘右滑/后退键）交给系统过渡，自己不再播动画
-    const swiped = document.documentElement.dataset.swipeBack;   // 左缘右划返回：垫底页已经露出来了，不再播淡入
+    const swiped = document.documentElement.dataset.swipeBack;   // 左缘右划返回：垫底页已经露出来了，不再播
     delete document.documentElement.dataset.swipeBack;
-    const fromHistory = historyNavRef.current || !!swiped;
+    const fromHistory = historyNavRef.current;
     historyNavRef.current = false;
     let mobile = false;
     let animate = true;
@@ -136,33 +129,34 @@ export function usePageTransition(page: string, showcaseTab: boolean, records: A
       animate = !matchMedia('(prefers-reduced-motion: reduce)').matches;
     } catch { animate = false; }
     if (veilStartedRef.current) return;   // 已由 PageVeil 接管整场转场
-    // 库存 ↔ 展示（以管理为主的用户用顶栏切换进入）：不播整页左右滑动，顶栏留在原地，
-    // 只让下方内容柔和淡入（切换控件的滑块自己滑过去）
-    if (mobile && animate && !fromHistory && !showcaseTab
-        && ((prev === 'gallery' && isShelf(page)) || (page === 'gallery' && isShelf(prev)))) {
+    // 库存 ↔ 展示（以管理为主的用户用顶栏切换进入）：顶栏留在原地，只让下方内容柔和淡入（切换控件的滑块自己滑过去）
+    if (motion.kind === 'switch') {
+      if (!mobile || !animate || fromHistory || swiped) return;
       main.classList.add('page-in-fade');
       const t = window.setTimeout(() => main.classList.remove('page-in-fade'), 400);
       return () => { window.clearTimeout(t); main.classList.remove('page-in-fade'); };
     }
-    if (!snap || !mobile || !animate || fromHistory) return;
-    // 两页之间：顶栏留在原地，只有下面的内容换——旧页（含旧顶栏）快照先淡出，新页顶栏与内容稍后淡入，
-    // 内容带一点顺着导航方向的位移；全程同位置叠放，没有整幅滑动，所以不会「整页切掉」。
-    const dir: 1 | -1 = rankOf(page, showcaseTab) >= rankOf(prev, showcaseTab) ? 1 : -1;
-    snap.el.classList.remove('page-in-soft', 'page-in-fade');
-    snap.el.classList.add('page-out-soft');
-    // 快照不随窗口滚动：按抓取时的滚动偏移还原，吸顶页头停在用户此刻看到的位置
-    snap.el.querySelectorAll<HTMLElement>('.page-head').forEach(h => {
-      h.style.transform = `translateY(${snap.y}px)`;
-    });
+    if (!snap || !mobile || swiped) return;
+    // 浏览器历史遍历（后退 / 前进键）多半自带过渡，不再自播；只有退回上一层要播：
+    // 安卓返回键没有系统动画，iOS 子页不压历史（core/nav.ts），不会走到这里。
+    if (fromHistory && motion.kind !== 'pop') return;
     const ghost = document.createElement('div');
-    ghost.className = 'page-ghost page-ghost-over page-ghost-soft';
+    ghost.className = `page-ghost page-ghost-${animate ? motion.kind : 'fade'}`;
     ghost.setAttribute('aria-hidden', 'true');
     const shifter = document.createElement('div');
     shifter.className = 'page-ghost-shift';
     shifter.style.transform = `translateY(${-snap.y}px)`;
+    // 快照不随窗口滚动：按抓取时的滚动偏移还原，吸顶页头停在用户此刻看到的位置
+    snap.el.querySelectorAll<HTMLElement>('.page-head').forEach(h => { h.style.transform = `translateY(${snap.y}px)`; });
     shifter.appendChild(snap.el);
     ghost.appendChild(shifter);
+    // 推入 / 弹出：页面凹下时露出的底色；三种都有压暗层（横向切换与推入在快照里，弹出盖在 #main 上）
+    const extras: HTMLElement[] = [];
+    const extra = (cls: string) => { const e = document.createElement('div'); e.className = cls; e.setAttribute('aria-hidden', 'true'); extras.push(e); return e; };
+    if (animate && motion.kind !== 'tab') document.body.appendChild(extra('page-recess-bg'));
     document.body.appendChild(ghost);
+    const scrim = animate && motion.kind === 'pop' ? document.body.insertBefore(extra('page-recess-scrim is-over-main'), ghost)
+      : ghost.appendChild(extra('page-recess-scrim'));
     const clonedElements = snap.els;
     snap.scroll.forEach(({index, left, top}) => {
       clonedElements[index].scrollLeft = left;
@@ -173,24 +167,25 @@ export function usePageTransition(page: string, showcaseTab: boolean, records: A
         if ('animationName' in animation && (animation as CSSAnimation).animationName === name) animation.currentTime = time;
       });
     });
-    main.style.setProperty('--soft-dx', `${dir * 22}px`);
-    main.classList.add('page-in-soft');
+    const moving = animate ? {tab: 'page-tabbing', push: 'page-pushing', pop: 'page-popping'}[motion.kind] : 'page-fading';
+    main.classList.add(moving);
     document.documentElement.classList.add('page-anim-lock');
-    let ghostGone = false;
-    const dropGhost = () => {if (!ghostGone) {ghostGone = true; ghost.remove();}};
+    const play = !animate ? playFade(ghost, main) : motion.kind === 'tab' ? playTab(ghost, scrim, main, motion.dir)
+      : motion.kind === 'push' ? playPush(ghost, scrim, main) : playPop(ghost, scrim, main);
+    let done = false;
     const finish = () => {
-      dropGhost();
-      main.classList.remove('page-in-soft');
-      main.style.removeProperty('--soft-dx');
+      if (done) return;
+      done = true;
+      play.list.forEach(a => a.cancel());
+      play.cleanup();
+      ghost.remove();
+      extras.forEach(e => e.remove());
+      main.classList.remove(moving);
       document.documentElement.classList.remove('page-anim-lock');
     };
-    snap.el.addEventListener('animationend', dropGhost);
-    const ghostTimer = window.setTimeout(dropGhost, 400);
-    const timer = window.setTimeout(finish, 620); // 兜底：收不到 animationend（如中途关动画）时也收尾
-    return () => {
-      window.clearTimeout(timer); window.clearTimeout(ghostTimer);
-      finish(); // 快速连切：立刻收掉上一场过渡
-    };
+    Promise.all(play.list.map(a => a.finished)).then(finish, () => {});
+    const timer = window.setTimeout(finish, 1200);   // 兜底：收不到结束事件（如页面转入后台）也收尾
+    return () => { window.clearTimeout(timer); finish(); };   // 快速连切：立刻收掉上一场过渡
   }, [page]);
 
   return {mainRef, veil, setVeil};

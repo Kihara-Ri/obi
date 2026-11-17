@@ -1,0 +1,14 @@
+/* 左滑操作行：操作按钮垫在内容层下面靠右，内容层左移露出。只用 token。 */
+.swipe-row{position:relative;--swipe-btn:76px}
+/* 收起时不裁切（外部 FLIP 动画会把行内封面移出行框）；滑开后才裁切 */
+.swipe-row.is-swiped{overflow:hidden}
+.swipe-actions{position:absolute;top:0;right:0;bottom:0;display:flex;visibility:hidden}
+.swipe-row.is-swiped .swipe-actions{visibility:visible}
+.swipe-action{width:var(--swipe-btn);min-height:0;margin:0;padding:0 6px;border:0;border-radius:0;
+  font-size:13px;font-weight:650;line-height:1.3;white-space:normal}
+.swipe-action.tone-plain{background:var(--surface-3);color:var(--text)}
+.swipe-action.tone-primary{background:var(--accent);color:var(--accent-ink)}
+.swipe-content{position:relative;background:var(--bg);touch-action:pan-y;
+  transition:transform var(--dur-slow) var(--ease-out)}
+.swipe-row.is-dragging .swipe-content{transition:none}
+@media (prefers-reduced-motion:reduce){.swipe-content{transition:none}}
