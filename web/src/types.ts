@@ -290,7 +290,7 @@ export const SALE_NAMES: Record<SaleStatus, string> = {
 };
 
 // 实物版次和侧标独立于 MusicBrainz 发行资料；未填写不代表无侧标。
-export function labelTags(r: AlbumRecord): string[] {
+export function labelTags(r: Pick<AlbumRecord, 'releaseInfo' | 'pressing' | 'obi' | 'version' | 'packaging'>): string[] {
   const p = copyEditionLabel(displayRegion(r.releaseInfo?.country, r.pressing), r.obi);
   return [p, packagingText(formatPackagingName(r.version, r.packaging))].filter(Boolean);
 }

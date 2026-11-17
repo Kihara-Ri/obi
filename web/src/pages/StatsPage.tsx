@@ -41,7 +41,7 @@ export function StatsPage() {
 
   return (
     <>
-      <PageHead title="账本" desc={acq ? '人民币统一口径：日元按买入当天汇率折算。' : '按到账月份统计售出金额。'} label="IN NUMBERS"
+      <PageHead title="账本" desc={acq ? '人民币统一口径：日元按买入当天汇率折算。' : '按到账月份统计售出到手金额。'} label="IN NUMBERS"
                 actions={<DownloadButton path="export" fileName="albums.csv" className="link-button head-text" ariaLabel="导出库存 CSV"><span className="btn-long">导出库存 CSV</span><span className="btn-short" aria-hidden="true">导出</span></DownloadButton>}/>
       <div className="ledger-top">
         {trading ? <section className="ledger-card ledger-hero">

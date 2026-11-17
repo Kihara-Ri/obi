@@ -68,7 +68,7 @@ export function Sidebar({page, home, modules, counts, installEvt, onInstalled}: 
            className={page === 'settings' ? 'active' : ''}>
           <span className="nav-ico" aria-hidden="true"><GearIcon size={14}/></span>设置与备份
         </a>
-        <div className="local-note"><i/> {isLocalSite() ? '数据只保存在这台设备上' : '数据保存在服务设备'}</div>
+        <div className="local-note"><i/> {isLocalSite() ? '数据只保存在这台设备上' : '数据保存在你的服务器'}</div>
       </div>
     </aside>
   );

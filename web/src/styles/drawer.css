@@ -58,6 +58,7 @@
 .field label{font-size:12px;color:var(--muted);font-weight:550}
 .field small{color:var(--faint)}
 .form-section{margin-top:14px}
+.form-section+.field{margin-top:14px}   /* 区块后紧跟单个字段（如编辑包裹的备注）不贴着上面的提示框 */
 .error{color:var(--red);font-size:13px;margin-bottom:10px}
 .error:empty{display:none}
 

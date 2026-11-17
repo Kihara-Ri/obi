@@ -2,7 +2,7 @@
 .ledger-chart{padding-bottom:14px}
 .ledger-chart-scroll{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .ledger-chart-scroll::-webkit-scrollbar{display:none}
-.ledger-chart-plot{display:flex;gap:10px;min-width:100%;padding-bottom:13px}
+.ledger-chart-plot{display:flex;gap:10px;min-width:100%;padding-bottom:13px;justify-content:safe center}   /* 月份少时居中，不在宽屏上挤在左边留大片空白 */
 .ledger-chart-col{flex:0 0 calc((100% - 50px) / 6);min-width:44px;max-width:88px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
 .ledger-chart-pv{font-size:10.5px;font-weight:650;margin-bottom:3px;font-variant-numeric:tabular-nums;color:var(--muted)}
 .ledger-chart-pv.positive{color:var(--green)}.ledger-chart-pv.negative{color:var(--red)}

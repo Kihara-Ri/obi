@@ -14,8 +14,8 @@ export function PendingReleases({onPick}: {onPick: (r: AlbumRecord) => void}) {
   const rows = state.records.filter(releasePending)
     .sort((a, b) => (ORDER.indexOf(a.status) >>> 0) - (ORDER.indexOf(b.status) >>> 0));
   if (!rows.length) return null;
-  return <section aria-label="待确认发行版" className="lookup-local lookup-pending">
-    <h2>待确认发行版 · {rows.length} 张</h2>
+  return <section aria-label="待确认版本" className="lookup-local lookup-pending">
+    <h2>待确认版本 · {rows.length} 张</h2>
     <ul>{rows.map(r => <li key={r.id}>
       <button type="button" onClick={() => onPick(r)}>
         <Thumb r={r}/>

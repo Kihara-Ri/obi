@@ -12,8 +12,7 @@ import type {
   ProfileResponse, ResolveResult, SourceState, WorkLinkInfo,
 } from '../core/artists';
 import {statusName} from '../core/modules';
-import {copyEditionLabel} from '../core/copy-edition';
-import type {ModuleFlags} from '../types';
+import {labelTags, type ModuleFlags} from '../types';
 import {Details} from './ui/Details';
 
 export interface WorkLinkRow {
@@ -412,9 +411,7 @@ export function ArtistProfile(props: ArtistProfileProps) {
                                 <span className="copy-info">
                                   <b>{record.title}</b>
                                   <small>
-                                    {statusName(record.status, modules)}
-                                    {[copyEditionLabel(record.pressing, record.obi),
-                                      record.version].filter(Boolean).join(' · ')}
+                                    {[statusName(record.status, modules), ...labelTags(record)].join(' · ')}
                                   </small>
                                 </span>
                                 <span className="copy-actions">

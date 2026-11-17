@@ -54,7 +54,7 @@ export function LedgerChart({months, buy, sell, profit, showYear}: Props) {
       <div className="ledger-chart-key">
         {buy ? <span><i className="is-buy"/>买入支出</span> : null}
         {sell ? <span><i className="is-net"/>售出到手</span> : null}
-        {profit ? <span className="positive">+N 当月利润</span> : null}
+        {profit ? <span>柱顶数字：当月利润</span> : null}
       </div>
     </section>
   );

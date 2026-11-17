@@ -115,7 +115,7 @@ export function LookupPage() {
         <ScanField onScan={() => setScanning(true)}
           onClear={text ? () => { cancel(); setText(''); setError(''); setFound(null); setTarget(null); } : undefined}>
           <input type="text" inputMode="text" autoComplete="off" enterKeyHint="search" aria-label="条码、唱片编号或专辑名"
-            placeholder="条形码、唱片编号，或专辑名 艺人" value={text}
+            placeholder="条码、编号或专辑名" value={text}
             onChange={e => { setText(e.target.value); setError(''); }}/>
         </ScanField>
         <button type="submit" className="primary" aria-busy={busy} disabled={busy}>{busy ? '查询中…' : '查询'}</button>

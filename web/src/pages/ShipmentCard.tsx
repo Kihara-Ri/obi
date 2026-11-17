@@ -21,7 +21,8 @@ export function ShipmentCard({s, arrived, onArtist}: {s: Shipment; arrived: bool
           ? <span className="pill domestic">已签收 {s.arrivedDate}</span>
           : <span className="pill transit">在途 {days} 天</span>}
         <span className="meta">
-          {s.date} 发货 · {s.items.length} 张 · 运费 {shipFeeText(s.currency, s.costOriginal, s.cost)}{s.note ? ` · ${s.note}` : ''}
+          {s.date} 发货 · {s.items.length} 张 · 运费 {shipFeeText(s.currency, s.costOriginal, s.cost)}
+          {s.note ? <><br/>{s.note}</> : null}   {/* 备注单独一行，不在运费后面折成半句 */}
         </span>
         <span className="spacer"/>
         <div className="actions">
@@ -31,7 +32,7 @@ export function ShipmentCard({s, arrived, onArtist}: {s: Shipment; arrived: bool
             <>
               <button className="primary" onClick={() => openConfirm(app, 'arrive', {id: s.id, arriveCount: s.items.length})}>确认签收</button>
               <button onClick={() => openShipmentEdit(app, s.id)}>编辑</button>
-              <button className="quiet" onClick={() => openConfirm(app, 'cancel_shipment', {id: s.id})}>撤销</button>
+              <button className="quiet" onClick={() => openConfirm(app, 'cancel_shipment', {id: s.id})}>撤销运输</button>
             </>
           )}
         </div>

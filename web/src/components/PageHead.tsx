@@ -55,7 +55,7 @@ export function Ledger() {
         </b>
       </div> : null}
       {modules.trading ? <div className="sl-row">
-        <span>售出金额</span>
+        <span>售出到手</span>
         <b>{yuan(sold)}</b>
       </div> : null}
       {modules.trading && modules.acquisition ? <div className="sl-row">

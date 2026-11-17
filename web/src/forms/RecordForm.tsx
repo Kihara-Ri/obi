@@ -159,8 +159,7 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
           ))}
         </div> : null}
         {id && !mbId && dupHint ? <p className="dup-hint">{dupHint}</p> : null}
-        <h3 className="section-title form-group-title">这一张</h3>
-        {id || identified ? <PackageReview ctx={ctx}/> : null}
+        {id || identified ? <><h3 className="section-title form-group-title">这一张</h3><PackageReview ctx={ctx}/></> : null}
         {japan ? <CopyEditionFields obi={v.obi} onChange={change => { set(change); dirty(); }}/> : null}
         {/* 编辑已有专辑时不含买入信息：钱的部分在「管理」里编辑（PurchaseForm） */}
         {!id && (modules.acquisition || modules.circulation) ? <>

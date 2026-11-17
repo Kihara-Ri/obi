@@ -1,5 +1,5 @@
 // 功能选择（设置 · 功能 与首次设置共用）：顶部图标卡选一套使用方式 → 下方图标开关逐项微调、选默认首页，
-// 旁边迷你手机实时演示底栏与详情管理的变化 → 保存。完整变化清单与说明收在「全部变化与说明」里。
+// 旁边迷你手机实时演示底栏与详情管理的变化 → 保存（紧跟在开关下面）。完整变化清单与说明收在「全部变化与说明」里。
 import {useEffect, useState} from 'react';
 import {api} from '../core/api';
 import {homePage, PRESETS, sameModules} from '../core/modules';
@@ -71,6 +71,13 @@ export function ModuleChooser({initial = false}: {initial?: boolean}) {
                 ...(enabled.showcase ? [{value: 'gallery', label: homeLabel('grid', '展示')}] : [])]}
               onValue={v => { if (!saving) setStartPage(v as StartPage); }}/>
           </div>
+          {error ? <p className="error" role="alert">{error}</p> : null}
+          <div className="module-save">
+            <button type="button" className="primary" disabled={saving || unchanged} onClick={save}>
+              {saving ? '保存中…' : initial ? '开始使用' : '保存'}</button>
+            {added || removed ? <span className="module-save-diff" aria-label={`新增 ${added} 处，收起 ${removed} 处`}>
+              <b className="is-add">+{added}</b><b className="is-del">−{removed}</b></span> : null}
+          </div>
         </div>
         <ModulePhone {...impact}/>
       </div>
@@ -81,13 +88,6 @@ export function ModuleChooser({initial = false}: {initial?: boolean}) {
           ? <p className="small-note">展示已关闭，将进入收藏管理；重新开启后恢复展示首页。</p> : null}
       </Disclosure>
 
-      {error ? <p className="error" role="alert">{error}</p> : null}
-      <div className="module-save">
-        <button type="button" className="primary" disabled={saving || unchanged} onClick={save}>
-          {saving ? '保存中…' : initial ? '开始使用' : '保存'}</button>
-        {added || removed ? <span className="module-save-diff" aria-label={`新增 ${added} 处，收起 ${removed} 处`}>
-          <b className="is-add">+{added}</b><b className="is-del">−{removed}</b></span> : null}
-      </div>
     </div>
   );
 }

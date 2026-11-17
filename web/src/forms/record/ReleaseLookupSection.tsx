@@ -90,7 +90,7 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, coverOrigin
       <div className="record-barcode-row" data-error-anchor>
         <ScanField onScan={() => setScanning(true)}>
           <button type="button" id="record-lookup" className={'lookup-field' + (text ? '' : ' is-empty')} onClick={() => setEditing(true)}>
-            {text || '条形码，或唱片编号如 AMCY-2434'}
+            {text || '条码或唱片编号'}
           </button>
         </ScanField>
         <button type="button" className="primary" aria-busy={working} onClick={() => void L.lookup()} disabled={working}>查询</button>
@@ -123,7 +123,7 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, coverOrigin
           url={confirmed ? link : undefined}/>
         <CoverPanel cover={cover} src={coverSrc} busy={cover.busy} inline/>
       </div> : null}
-          <FocusInput open={editing} title="查询发行版" value={text} placeholder="条形码，或唱片编号如 AMCY-2434"
+          <FocusInput open={editing} title="查询发行版" value={text} placeholder="条码或唱片编号"
         submitLabel="查询" onChange={change} onSubmit={submit} onClose={() => setEditing(false)}/>
     {scanning ? <BarcodeScanner onDetect={scanned} onClose={() => setScanning(false)}/> : null}
     </section>

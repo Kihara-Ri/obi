@@ -19,12 +19,16 @@ test('Release country maps to the historical Japan/overseas labels, never invent
   assert.equal(releaseRegion(''), '');
 });
 
-test('列表与详情显示地区名；国家未知才退回日版 / 外版；表外代码原样显示', () => {
+test('地区名用于详情；列表统一写成「X版」，国家未知才退回日版 / 外版', () => {
   assert.equal(regionName('US'), '美国');
   assert.equal(regionName('jp'), '日本');
   assert.equal(regionName('XE'), '欧洲');
   assert.equal(regionName('ZZ'), 'ZZ');
-  assert.equal(displayRegion('GB', '外版'), '英国');
+  assert.equal(displayRegion('GB', '外版'), '英版');
+  assert.equal(displayRegion('jp'), '日版');
+  assert.equal(displayRegion('SE'), '瑞典版');
+  assert.equal(displayRegion('ZZ'), '外版');
+  assert.equal(displayRegion('XW'), '外版');
   assert.equal(displayRegion('', '日版'), '日版');
   assert.equal(displayRegion(undefined, ''), '');
   // 存储口径不变：releaseRegion 仍是日版 / 外版（pressing 字段的语义不得改）

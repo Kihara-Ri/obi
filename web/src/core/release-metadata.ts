@@ -24,9 +24,16 @@ export function regionName(country?: string): string {
   const code = (country || '').trim().toUpperCase();
   return REGION_NAMES[code] ?? code;
 }
-/** 列表 / 标签里的地区：已经由发行版确定国家的显示地区名（美国、日本…），否则退回旧的日版 / 外版。 */
+// 列表里统一写成「X版」：常见地区用习惯简称，其余「地区名 + 版」；全球 / 未知 / 表外地区退回外版。
+const EDITION_NAMES: Record<string, string> = {
+  JP: '日版', US: '美版', GB: '英版', UK: '英版', DE: '德版', FR: '法版', KR: '韩版', CN: '内地版',
+  HK: '港版', TW: '台版', XE: '欧版', AU: '澳版', XW: '外版', XU: '外版',
+};
+/** 列表 / 标签里的地区：有发行国家时写成日版 / 美版 / 德版…，否则退回旧的日版 / 外版。 */
 export function displayRegion(country?: string, oldPressing?: string): string {
-  return regionName(country) || releaseRegion(undefined, oldPressing);
+  const code = (country || '').trim().toUpperCase();
+  if (!code) return releaseRegion(undefined, oldPressing);
+  return EDITION_NAMES[code] ?? (REGION_NAMES[code] ? REGION_NAMES[code] + '版' : '外版');   // 表外代码不拼成「ZZ版」
 }
 
 

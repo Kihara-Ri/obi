@@ -8,6 +8,8 @@
 .artist-button:hover>span:first-child{text-decoration-style:solid;text-decoration-color:var(--accent-deep)}
 .card .card-artist{min-height:0;overflow:visible;-webkit-line-clamp:unset;display:block}
 .card .card-artist .artist-entry{padding-top:8px;border-top:1px solid var(--border)}
+/* 卡片视图不放「艺人」小标签：名字下的虚线已表明可点，省一行纵向空间 */
+.card .card-artist .artist-entry-label{display:none}
 .sale-album .artist-entry{margin-top:6px}
 .record-detail .artist-entry{margin:12px 0}
 .record-detail .artist-button{font-size:15px;min-height:44px}
@@ -16,7 +18,5 @@
   .artist-button{min-width:44px;min-height:24px;font-size:13px}
   .artist-entry{gap:0;margin:2px 0 0}
   .card .card-artist .artist-entry{padding-top:6px}
-  /* 卡片视图砍掉「艺人」小标签，省一行纵向空间（摘要行窄容器下本就不显示） */
-  .card .card-artist .artist-entry-label{display:none}
   .sale-album .artist-button{font-size:12px}
 }

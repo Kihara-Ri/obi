@@ -4,9 +4,8 @@ import {displayReleaseTitle} from '../core/release-metadata';
 // 分组横滑行（flex，见 shelf.css）没有列轨道，副本组改用 --n 定宽。
 import {useLayoutEffect, useMemo, useRef} from 'react';
 import type {ReactNode} from 'react';
-import type {AlbumRecord} from '../types';
+import {labelTags, type AlbumRecord} from '../types';
 import {norm} from '../core/search';
-import {copyEditionLabel} from '../core/copy-edition';
 import {ArtistButton} from './ArtistButton';
 import {AlbumSummary} from './AlbumSummary';
 import {CamIco} from './icons';
@@ -32,7 +31,7 @@ export function AlbumCard({r, page, checked, onSelect, onDetail, onArtist, actio
 }) {
   const {modules, shelfView} = useApp();
   const listed = modules.trading && r.listed && page !== 'trash';
-  const tags = [copyEditionLabel(r.pressing, r.obi), r.version].filter(Boolean);
+  const tags = labelTags(r);   // 与手机列表同一套：地区写成「X版」，包装用中文名
   const badges = <>
     {listed ? <span className="badge listed">已上架</span> : null}
     {!modules.circulation && r.status === 'transit' ? <span className="badge transit">历史在途</span> : null}

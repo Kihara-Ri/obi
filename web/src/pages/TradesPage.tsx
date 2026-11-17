@@ -37,7 +37,7 @@ export function TradesPage() {
   return (
     <div className="align-list">
       <PageHead title="交易记录" label="CASHED IN"
-                actions={<DownloadButton path="export?scope=sales" fileName="sales.csv" className="head-text">导出 CSV</DownloadButton>}/>
+                actions={<DownloadButton path="export?scope=sales" fileName="sales.csv" className="link-button head-text" ariaLabel="导出交易 CSV"><span className="btn-long">导出交易 CSV</span><span className="btn-short" aria-hidden="true">导出</span></DownloadButton>}/>
       <div className="summary">
         <span>已完成 <strong>{all.length}</strong> 笔</span>
         <span>到手 <strong>{yuan(sum(items, 'net'))}</strong></span>

@@ -19,6 +19,8 @@ export function ModulePresets({value, disabled, onPick}: {value: ModuleFlags; di
         </button>;
       })}
     </div>
-    <p className="module-presets-who" aria-live="polite">{comboWho(value)}</p>
+    {/* 说明加前缀：选中预设写「适合…」，自定义组合写「自定义组合 · 调侃」，不再像一行孤立的标签 */}
+    <p className="module-presets-who" aria-live="polite">{hit ? '适合：' + comboWho(value)
+      : comboWho(value) === '自定义组合' ? '自定义组合' : '自定义组合 · ' + comboWho(value)}</p>
   </div>;
 }

@@ -19,6 +19,7 @@
 .sale-summary-note .is-long{color:var(--orange);font-weight:600}
 .sale-items{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
 .sale-album{display:flex;gap:12px;align-items:center}
+.sale-album+.sale-album{margin-top:8px}   /* 抽屉里多张专辑连排时封面不贴在一起 */
 /* 中间列（标题/艺人）必须可收缩：长标题否则把行撑出卡片 */
 .sale-album>div:not(.thumb):not(.sa-price){flex:1;min-width:0}
 .sale-album .thumb{width:46px;height:46px;border-radius:9px;overflow:hidden;flex:none;background:var(--surface-2)}
