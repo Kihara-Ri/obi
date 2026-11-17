@@ -102,13 +102,30 @@ class Source:
 
 
 class BackupSourcesTests(unittest.TestCase):
-    def test_barcode_lists_deezer_and_itunes_and_runs_neither_until_called(self):
+    def test_barcode_lists_discogs_deezer_itunes_and_runs_none_until_called(self):
         deezer, itunes, discogs = Source(), Source(), Source()
         jobs = ReleaseCatalog(deezer=deezer, itunes=itunes, discogs=discogs, ndl=Source()).backups(JAN)
-        self.assertEqual([name for name, _ in jobs], ['deezer', 'itunes'])
-        self.assertEqual((deezer.calls, itunes.calls), ([], []))
+        self.assertEqual([name for name, _ in jobs], ['discogs', 'deezer', 'itunes'])
+        self.assertEqual((discogs.calls, deezer.calls, itunes.calls), ([], [], []))
         [job() for _, job in jobs]
-        self.assertEqual((deezer.calls, itunes.calls, discogs.calls), ([(JAN, '')], [(JAN, '')], []))
+        self.assertEqual((discogs.calls, deezer.calls, itunes.calls), ([(JAN, '')], [(JAN, '')], [(JAN, '')]))
+
+    def test_scanned_ean13_with_leading_zero_retries_as_upc_a(self):
+        # Pink Floyd「Meddle」美国盘：Discogs 只登记 12 位 603497914999，手机扫出的是 0603497914999
+        class Exact(Source):
+            def search(self, barcode='', catno=''):
+                self.calls.append((barcode, catno))
+                return [{'id': 'discogs-1'}] if barcode == '603497914999' else []
+        discogs = Exact()
+        [(name, job)] = ReleaseCatalog(discogs=discogs).backups('0603497914999')
+        self.assertEqual(job(), [{'id': 'discogs-1'}])
+        self.assertEqual(discogs.calls, [('0603497914999', ''), ('603497914999', '')])
+
+    def test_hit_on_first_form_does_not_query_twin(self):
+        discogs = Source(result=[{'id': 'discogs-1'}])
+        [(_, job)] = ReleaseCatalog(discogs=discogs).backups('603497914999')
+        job()
+        self.assertEqual(discogs.calls, [('603497914999', '')])
 
     def test_catalog_number_uses_discogs_and_ndl_only(self):
         itunes, discogs, ndl = Source(), Source(), Source()

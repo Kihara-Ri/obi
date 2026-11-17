@@ -12,6 +12,13 @@ from urllib.request import Request, build_opener, HTTPRedirectHandler
 from domain import ValidationError, clean_release_info
 
 
+def barcode_twin(digits):
+    """同一个码的另一种写法：13 位且首位是 0 → 去掉 0 的 12 位 UPC-A；12 位 → 补 0 的 13 位 EAN；其余没有。"""
+    if len(digits) == 13 and digits[0] == '0': return digits[1:]
+    if len(digits) == 12: return '0' + digits
+    return ''
+
+
 def display_release_title(value):
     """MusicBrainz uses square brackets for editorially supplied release titles."""
     title = str(value or '').strip()
@@ -105,7 +112,7 @@ class ReleaseCatalog:
         if barcode:
             # MusicBrainz 按登记原样索引：美国盘常登记为 12 位 UPC-A，扫到的却是补零的 13 位 EAN（反之亦然），两种写法都查
             digits = re.sub(r'\D', '', barcode)
-            twin = digits[1:] if len(digits) == 13 and digits[0] == '0' else '0' + digits if len(digits) == 12 else ''
+            twin = barcode_twin(digits)
             query = 'barcode:' + (f'({quote(digits)} OR {quote(twin)})' if twin else quote(barcode))
         elif catno: query = 'catno:' + quote(catno)
         elif fields['title'] and fields['artist']: query = 'release:' + quote(fields['title']) + ' AND artist:' + quote(fields['artist'])
@@ -121,11 +128,18 @@ class ReleaseCatalog:
 
     def backups(self, barcode='', catno=''):
         """MusicBrainz 之外要同时查的来源：[(来源名, 无参检索函数)]，由 routes.lookup_sources 并发执行。
-        条码查 Deezer、iTunes（Discogs 的搜索接口不索引条码，查了也永远为空）；
+        条码查 Discogs、Deezer、iTunes：它们都按登记原样精确索引，12 位 UPC-A 与补零的 13 位 EAN 查不到对方，
+        所以原样查不到时再用另一种写法查一次（扫码枪 / 手机常把美国盘的 UPC-A 读成补零的 EAN-13）。
         编号查 Discogs、NDL（Deezer / iTunes 没有编号索引，NDL 不登记条码）。未配置的来源不列出。"""
         if barcode:
-            chain = [('deezer', self.deezer), ('itunes', self.itunes)]
-            return [(name, lambda c=client: c.search(barcode=barcode)) for name, client in chain if client]
+            forms = [f for f in (barcode, barcode_twin(re.sub(r'\D', '', barcode))) if f]
+            def first_hit(client):
+                for form in forms:
+                    found = client.search(barcode=form)
+                    if found: return found
+                return []
+            chain = [('discogs', self.discogs), ('deezer', self.deezer), ('itunes', self.itunes)]
+            return [(name, lambda c=client: first_hit(c)) for name, client in chain if client]
         if catno:
             chain = [('discogs', self.discogs), ('ndl', self.ndl)]
             return [(name, lambda c=client: c.search(catno=catno)) for name, client in chain if client]

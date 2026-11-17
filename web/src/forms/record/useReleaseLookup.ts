@@ -42,9 +42,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
     const next = raw.replace(/[^0-9]/g, '');
     reset(); setBarcode(next); setCandidates([]); setNotFound(false);
     if (manualRelease) {
-      set({releaseInfo: {...live.current.releaseInfo, barcode: next}});
-      dirty();
-      return;
+      set({releaseInfo: {...live.current.releaseInfo, barcode: next}}); dirty(); return;
     }
     setVerification('pending');
     setMessage(next ? '校验中…' : '');
@@ -62,7 +60,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
   };
 
   /** 统一的检索入口（按钮、回车、输入完整条码后的自动校验共用）；相同查询进行中时复用同一次请求。 */
-  const search = (kind: LookupMode, raw: string, auto = false): Promise<void> => {
+  const search = (kind: LookupMode, raw: string): Promise<void> => {
     const value = raw.trim();
     const key = kind + ':' + value;
     if (inflight.current?.key === key) return inflight.current.promise;
@@ -82,6 +80,8 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
     const current = () => seq === sequence.current && !!formRef.current?.isConnected;
     setBusy(true); setSearching(kind); cover.setBusy(false); setCandidates([]); setNotFound(false); setMessage('');
     const what = kind === 'barcode' ? '条码' : '编号';
+    // 条码查完（有无结果）即结束「校验中」：扫码后的自动检索与这次同键复用请求，否则转圈会挂到选定版本
+    const settle = () => { if (kind === 'barcode') setVerification(p => p === 'pending' ? 'failed' : p); };
     const promise = (async () => {
       try {
         const result = await api<LookupResult>(kind === 'barcode' ? 'catalog/barcode' : 'catalog/number',
@@ -89,20 +89,18 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
         if (!current()) return;
         const note = failedSources(result.sources);
         setCandidates(result.candidates);
-        if (auto) setVerification('failed');
+        settle();
         if (result.candidates.length) {
           const backupOnly = result.candidates.every(c => sourceOf(c) !== 'musicbrainz');
           setMessage(`${backupOnly ? SOURCE_LABEL[sourceOf(result.candidates[0])] + ' 找到' : '找到'} ${result.candidates.length} 个版本，请选择`);
         } else {
           setNotFound(true);
-          setMessage(note
-            ? `未找到，${note} 暂不可用，结果可能不全`
-            : `各资料库都没有这个${what}`);
+          setMessage(note ? `未找到，${note} 暂不可用，结果可能不全` : `各资料库都没有这个${what}`);
         }
       } catch (err) {
         if (!current()) return;
         setNotFound(true);
-        if (auto) setVerification('failed');
+        settle();
         setMessage(controller.signal.aborted ? '查询超时，可重试或手动录入' : !navigator.onLine ? '当前没有网络，暂时无法查询，可手动录入'
           : err instanceof Error ? err.message : String(err));
       } finally {
@@ -148,7 +146,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
         setVerification('failed'); setMessage(VALID_BARCODE.test(number) ? '条码校验位不对，请核对是否输错了一位' : '请输入完整条码（8、12、13 或 14 位）');
         return;
       }
-      void search('barcode', number, true);
+      void search('barcode', number);
     }, 550);
     return () => window.clearTimeout(timer);
   }, [barcode, verification]);
@@ -161,8 +159,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
     set({releaseInfo: {...v.releaseInfo, barcode: barcode.trim(), catalogNumber: catalogNumber.trim(),
       ...identityFromId(''), manualRelease: '1', unofficial: unofficial ? '1' : ''},
       ...(manualRelease ? {} : {packaging: null})});
-    setMessage(unofficial ? '非官方发行 · 请填写专辑名、艺人，版本说明里写明来源'
-      : '手动录入 · 请填专辑名、艺人');
+    setMessage(unofficial ? '非官方发行 · 请填写专辑名、艺人，版本说明里写明来源' : '手动录入 · 请填专辑名、艺人');
     dirty();
   };
   const setUnofficial = (on: boolean) => {

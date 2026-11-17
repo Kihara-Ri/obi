@@ -4,11 +4,11 @@ import {useApp} from '../state/AppContext';
 import type {AlbumRecord, SortMode} from '../types';
 import {fmtMonth, sum, yuan} from '../core/format';
 import {searchScore} from '../core/search';
-import {releasePending} from '../core/lookup';
 import {onShelf} from '../core/modules';
 import type {ModuleFlags} from '../types';
 import {PageHead} from '../components/PageHead';
 import {BulkBar} from './BulkBar';
+import {ShelfSummary} from './ShelfSummary';
 import {AlbumCard, CardGrid} from '../components/Cards';
 import {Dropdown} from '../components/ui/Dropdown';
 import {Seg} from '../components/ui/Seg';
@@ -25,6 +25,7 @@ import {openSaleForm} from '../forms/SaleForm';
 import {openDetail} from '../forms/DetailDrawer';
 import {openArtistDrawer} from '../forms/ArtistDrawer';
 import {bulkAction} from '../forms/shared';
+import {queueLookup} from '../core/lookup-handoff';
 
 const SORTS = [
   {value: 'new', label: '最近买入'},
@@ -60,9 +61,6 @@ export function ShelfPage() {
   const {state, modules, page, query, sort, flip, selected, shelfFilter} = app;
   const isTrash = page === 'trash';
   const all = state.records.filter(r => onShelf(r.status, page, modules));
-  const known = all.filter(r => r.cost !== null);
-  const pendingCount = state.records.filter(releasePending).length;
-  const listedCount = all.filter(r => r.listed).length;
   const rs = shelfRecords(state.records, page, query, sort, shelfFilter, modules);
   const selectable = rs.filter(r => r.status !== 'transit');
   const searching = query.trim() !== '';
@@ -216,18 +214,7 @@ export function ShelfPage() {
           ))}
         </nav>
       ) : null}
-      <div className="summary">
-        <span><strong>{all.length}</strong> 张专辑</span>
-        {!isTrash && (
-          <>
-            {modules.acquisition ? <span>总成本 <strong>{known.length ? yuan(sum(known, 'cost')) : '—'}</strong></span> : null}
-            {modules.acquisition && all.length - known.length ? <span className="hint">{all.length - known.length} 张成本待补</span> : null}
-            {pendingCount ? <a className="hint hint-link" href="#lookup">{pendingCount} 张待确认版本 ›</a> : null}
-            {modules.trading ? <span className="hint">已上架 {listedCount} 张</span> : null}
-            {page === 'overseas' ? <span className="hint">✈ 勾选多张可打包为一趟运输</span> : null}
-          </>
-        )}
-      </div>
+      <ShelfSummary all={all} modules={modules} page={page}/>
       <div className="toolbar">
         {!isTrash && (
           <label className="select-all" title="全选当前结果">
@@ -261,6 +248,9 @@ export function ShelfPage() {
           }}>{app.mobileSelecting || curSelected.size ? '取消选择' : '选择'}</button> : null}
       </div>
       <BulkBar page={page} ids={[...curSelected]} isTrash={isTrash}/>
+      {/* 库存里搜不到或想看别的版本：同一个词直接带去「查询」页查资料库（条码、编号、专辑名都行） */}
+      {searching && !isTrash ? <a className="shelf-lookup-row" href="#lookup" onClick={() => queueLookup(query.trim())}>
+        <span>在资料库查「<b>{query.trim()}</b>」</span><i aria-hidden="true">›</i></a> : null}
       <TabPanel value={page} order={['domestic', 'overseas']}>
         {body}
       </TabPanel>

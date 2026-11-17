@@ -384,7 +384,7 @@ LOOKUP_DEADLINE = 20.0   # 秒：并发检索的总时限，到点没答复的�
 
 
 def lookup_sources(svc, barcode, catno, exact, deadline=LOOKUP_DEADLINE):
-    """同时查所有适用来源（条码：MusicBrainz / Deezer / iTunes；编号：MusicBrainz / Discogs / NDL），总等待只取最慢的一个，
+    """同时查所有适用来源（条码：MusicBrainz / Discogs / Deezer / iTunes；编号：MusicBrainz / Discogs / NDL），总等待只取最慢的一个，
     且不超过 deadline 秒：到点仍没答复的来源记为超时、先返回已有结果；它的线程在后台跑完，结果进各来源缓存，下次直接命中。
     MusicBrainz 结果经 exact 精确过滤，其余来源本身只做精确匹配；再由 release_merge.merge 按条码 / 编号去重排序
     （日本 JAN 只影响顺序）。sources 如实列出每个来源的结果；全部来源都不可用才报错。"""
@@ -418,7 +418,7 @@ def lookup_sources(svc, barcode, catno, exact, deadline=LOOKUP_DEADLINE):
 
 
 def api_barcode_lookup(h, svc, body):
-    """精确条形码检索 CD 发行版（MusicBrainz / Deezer / iTunes 并发，合并去重），复用各来源的节流与缓存。"""
+    """精确条形码检索 CD 发行版（MusicBrainz / Discogs / Deezer / iTunes 并发，合并去重），复用各来源的节流与缓存。"""
     barcode = body.get('barcode', '')
     from twins import clean_barcode
     barcode = clean_barcode(barcode)
@@ -492,9 +492,11 @@ def api_album_search(h, svc, body):
 
 
 def api_album_versions(h, svc, body):
-    """展开一张专辑：列出它的 CD 版本（与条码检索同形的候选）。"""
+    """展开一张专辑：列出它的 CD 版本（与条码检索同形的候选）；带上专辑名 / 艺人时并入 Discogs 同一张专辑的版本。"""
     from server.text_search import group_versions
-    h.send({'candidates': group_versions(releases(svc), body.get('id', ''))})
+    title, artist = body.get('title', ''), body.get('artist', '')
+    if not isinstance(title, str) or not isinstance(artist, str) or len(title) > 200 or len(artist) > 200: title = artist = ''
+    h.send({'candidates': group_versions(releases(svc), body.get('id', ''), title.strip(), artist.strip())})
 
 
 def catalog_art(svc):

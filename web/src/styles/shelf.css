@@ -220,3 +220,11 @@
 /* 列表 ↔ 卡片的共享封面转场（pages/useShelfFlip.ts）：飞行期间卡片不裁切封面 */
 .shelf-page.is-flipping .card,.shelf-page.is-flipping .copy-group{overflow:visible}
 .shelf-page.is-flipping .cover-wrap,.shelf-page.is-flipping .album-cover{position:relative;will-change:transform}
+
+/* 搜索时在结果上方：把同一个词带去「查询」页查资料库 */
+.shelf-lookup-row{display:flex;align-items:center;justify-content:space-between;gap:10px;max-width:var(--list-w);min-height:44px;margin:0 0 14px;padding:0 14px;
+  background:var(--surface);border:1px dashed var(--border-strong);border-radius:var(--radius);font-size:13.5px;color:var(--muted);text-decoration:none}
+.shelf-lookup-row span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.shelf-lookup-row b{color:var(--text);font-weight:650}
+.shelf-lookup-row i{font-style:normal;font-weight:600;color:var(--accent-deep)}
+.shelf-lookup-row:hover{border-style:solid;color:var(--text)}

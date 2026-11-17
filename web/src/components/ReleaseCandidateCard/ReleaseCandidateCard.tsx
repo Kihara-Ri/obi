@@ -3,11 +3,12 @@
 import {useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode} from 'react';
 import {api} from '../../core/api';
 import {dedupeCatalog, regionName} from '../../core/release-metadata';
-import {OriginTag, ReleaseSummary, sourceName} from './ReleaseSummary';
+import {OriginTag, ReleaseSummary, SourceTags, sourceName} from './ReleaseSummary';
+import {candidateSources, SOURCE_LABEL, sourceOf} from '../../core/release-source';
 import type {ReleaseCandidate, ReleaseInfo} from '../../types';
 import {Tracklist} from '../Tracklist';
 import {useArtExpand} from './useArtExpand';
-import {burnReveal} from '../../core/burn-reveal';
+import {coverReveal} from '../../core/cover-reveal';
 import {BORROWED_NOTE, borrowedCover, ownCoverBase, type BorrowedCover, type CoverOrigin} from '../../core/version-cover';
 import './ReleaseCandidateCard.css';
 
@@ -82,7 +83,7 @@ export function ReleaseCandidateCard({c, fold, tag, fallbackArt, children}: {c: 
     const t = window.setTimeout(() => { if (tries < 3) setTries(tries + 1); else next(); }, 8000);
     return () => window.clearTimeout(t);
   }, [artState, tries, cur?.small]);
-  // 燃烧显现要稳定：动画不跟「加载完成」的瞬间走，而是「已加载 + 至少露出占位 450ms + 头部已在可视范围内」才开始，
+  // 显现要稳定：动画不跟「加载完成」的瞬间走，而是「已加载 + 至少露出占位 450ms + 头部已在可视范围内」才开始，
   // 缓存命中的图、还没滚进视野或正在展开的卡片也都能完整看到；每个 <img>（key = 地址 + 重试次数）只显现一次。
   const [loaded, setLoaded] = useState(false);
   const mountedAt = useRef(0);
@@ -104,9 +105,9 @@ export function ReleaseCandidateCard({c, fold, tag, fallbackArt, children}: {c: 
   useLayoutEffect(() => {
     const el = expand.art.current;
     if (artState !== 'ok' || !el || !cur) return;
-    if (cachedAtMount.current) el.dataset.burned = '1';
+    if (cachedAtMount.current) el.dataset.revealed = '1';
     else rememberArt(cur.small);
-    burnReveal(el);
+    coverReveal(el);
   }, [artState]);
   const art = artState === 'ok' && cur ? cur.small : '';
   const origin: CoverOrigin | null = cur ? (/mzstatic\.com/.test(cur.small) ? 'digital' : cur.kind) : null;
@@ -136,7 +137,7 @@ export function ReleaseCandidateCard({c, fold, tag, fallbackArt, children}: {c: 
 
   const i0 = c.releaseInfo;
   const body = <>
-    <ReleaseSummary title={c.title} artist={c.artist} info={c.releaseInfo} source={sourceName(c.releaseInfo)} url={c.url} alsoIn={c.alsoIn} art={art} origin={artState === 'ok' ? origin : null} headless={fold}/>
+    <ReleaseSummary title={c.title} artist={c.artist} info={c.releaseInfo} source={SOURCE_LABEL[sourceOf(c)]} url={c.url} alsoIn={c.alsoIn} art={art} origin={artState === 'ok' ? origin : null} headless={fold}/>
     <button type="button" className="rcc-more" aria-expanded={open} onClick={toggle}>
       <span>曲目与版本资料</span><i aria-hidden="true">{open ? '−' : '+'}</i>
     </button>
@@ -167,6 +168,7 @@ export function ReleaseCandidateCard({c, fold, tag, fallbackArt, children}: {c: 
         <strong>{dedupeCatalog(i0.catalogNumber) || c.title}{tag ? <em className="rcc-tag">{tag}</em> : null}</strong>
         <span>{[regionName(i0.country), i0.releaseDate, i0.label].filter(Boolean).join(' · ')}</span>
         {i0.barcode ? <span className="num">{i0.barcode}</span> : null}
+        <SourceTags names={candidateSources(c)}/>
       </span>
       <i className="rcc-toggle" aria-hidden="true"/>
     </button>

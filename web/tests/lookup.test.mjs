@@ -100,3 +100,11 @@ test('国会图书馆来源：候选 id ↔ 身份字段 ↔ 资料库链接', (
   assert.equal(sourceName(identity), '国会图书馆');
   assert.equal(sourceUrl(identity), 'https://ndlsearch.ndl.go.jp/books/R100000002-I000010099246');
 });
+
+test('查询结果标注资料库名：主来源在前，合并来源随后并去重', () => {
+  const {candidateSources} = require(join(output, 'core/release-source.js'));
+  assert.deepEqual(candidateSources({id: 'b1f0c0de-0000-4000-8000-000000000000'}), ['MusicBrainz']);
+  assert.deepEqual(candidateSources({id: 'discogs-1', alsoIn: [{id: 'itunes-2', source: 'itunes', url: ''}, {id: 'deezer-3', source: 'deezer', url: ''}]}),
+    ['Discogs', 'iTunes', 'Deezer']);
+  assert.deepEqual(candidateSources({id: 'ndl-9', alsoIn: [{id: 'ndl-10', source: 'ndl', url: ''}]}), ['国会图书馆']);
+});

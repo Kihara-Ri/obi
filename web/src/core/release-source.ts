@@ -75,3 +75,9 @@ export function sourceUrl(info?: ReleaseInfo | null): string {
   if (info.ndlBibId) return 'https://ndlsearch.ndl.go.jp/books/R100000002-I' + info.ndlBibId;
   return '';
 }
+
+/** 候选卡片上要标的资料库名：主来源在前，合并进来的同一版本（alsoIn）随后，去重。 */
+export function candidateSources(c: Pick<ReleaseCandidate, 'id' | 'alsoIn'>): string[] {
+  const names = [SOURCE_LABEL[sourceOf(c.id)], ...(c.alsoIn ?? []).map(r => SOURCE_LABEL[r.source as ReleaseSource] ?? r.source)];
+  return [...new Set(names.filter(Boolean))];
+}

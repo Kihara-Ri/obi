@@ -1,4 +1,5 @@
 // 查询页：库里还没确认发行版的专辑（已售出不算）。点一行 = 带着它去查，找到后直接绑定到这张。
+// 按所在位置排：国内、海外、在途、售出中，和库存页统计卡的「N 张待确认版本」对得上。
 import {useApp} from '../state/AppContext';
 import {Thumb} from '../components/Cover';
 import {displayReleaseTitle} from '../core/release-metadata';
@@ -6,9 +7,12 @@ import {statusName} from '../core/modules';
 import {releasePending} from '../core/lookup';
 import type {AlbumRecord} from '../types';
 
+const ORDER: string[] = ['domestic', 'overseas', 'transit', 'shipping'];
+
 export function PendingReleases({onPick}: {onPick: (r: AlbumRecord) => void}) {
   const {state, modules} = useApp();
-  const rows = state.records.filter(releasePending);
+  const rows = state.records.filter(releasePending)
+    .sort((a, b) => (ORDER.indexOf(a.status) >>> 0) - (ORDER.indexOf(b.status) >>> 0));
   if (!rows.length) return null;
   return <section aria-label="待确认发行版" className="lookup-local lookup-pending">
     <h2>待确认发行版 · {rows.length} 张</h2>

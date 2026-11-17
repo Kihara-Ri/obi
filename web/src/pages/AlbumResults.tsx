@@ -7,16 +7,18 @@ import {normalizeCatno, ownedAlbums} from '../core/lookup';
 import {statusName} from '../core/modules';
 import {openDetail} from '../forms/DetailDrawer';
 import type {AlbumRecord, ReleaseCandidate, ReleaseInfo} from '../types';
-import {burnReveal} from '../core/burn-reveal';
+import {coverReveal} from '../core/cover-reveal';
 import {LookupCard} from './LookupCard';
+import {SourceTags} from '../components/ReleaseCandidateCard/ReleaseSummary';
+import {SOURCE_LABEL, type ReleaseSource} from '../core/release-source';
 
 export interface AlbumHit {id: string; title: string; artist: string; year: string; kind: string; source: string; cover: string; coverSource?: 'itunes' | 'caa' | ''}
 const KIND: Record<string, string> = {album: '专辑', ep: 'EP', single: '单曲', other: ''};
 const SHOWN = 5;
-// 本次运行里已经「烧」出来过的专辑封面：折叠 / 重新渲染后直接显示，不重播
+// 本次运行里已经显现过的专辑封面：折叠 / 重新渲染后直接显示，不重播
 const revealed = new Set<string>();
 function reveal(img: HTMLImageElement) {
-  if (!revealed.has(img.src)) {revealed.add(img.src); burnReveal(img);}
+  if (!revealed.has(img.src)) {revealed.add(img.src); coverReveal(img);}
   img.style.opacity = '1';
 }
 
@@ -40,7 +42,7 @@ function Album({hit, owned, confirming, onAdd}: {hit: AlbumHit; owned: AlbumReco
   const toggle = () => {
     setOpen(!open);
     if (open || versions) return;
-    api<{candidates: ReleaseCandidate[]}>('catalog/versions', {id: hit.id})
+    api<{candidates: ReleaseCandidate[]}>('catalog/versions', {id: hit.id, title: hit.title, artist: hit.artist})
       .then(r => setVersions(r.candidates)).catch(err => setError(err instanceof Error ? err.message : String(err)));
   };
   const note = owned.length ? `已有 ${owned.length} 张（${owned.map(r => statusName(r.status, app.modules)).join('、')}）` : '还没有';
@@ -55,7 +57,8 @@ function Album({hit, owned, confirming, onAdd}: {hit: AlbumHit; owned: AlbumReco
         <span className="ah-art">{src ? <img key={src} src={src} alt="" loading="lazy" style={{opacity: 0}} onLoad={e => {setShown(true); reveal(e.currentTarget);}} onError={fail}/> : <span className="ah-none" aria-hidden="true">♪</span>}
           {src && shown && label ? <i className="cover-origin" title={`封面来源：${label}`}>{label}</i> : null}</span>
         <span className="ll-text"><strong>{hit.title}</strong><span>{hit.artist}</span>
-          <span>{[hit.year, KIND[hit.kind]].filter(Boolean).join(' · ')}</span></span>
+          <span>{[hit.year, KIND[hit.kind]].filter(Boolean).join(' · ')}</span>
+          <SourceTags names={[SOURCE_LABEL[hit.source as ReleaseSource] ?? hit.source]}/></span>
       </button>
       {owned.length ? <button type="button" className="ah-owned" onClick={() => openDetail(app, owned[0].id)}>库里已有</button> : null}
     </div>

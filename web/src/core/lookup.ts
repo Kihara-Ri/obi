@@ -89,7 +89,7 @@ export function releasePending(r: AlbumRecord): boolean {
 
 /** 每种查询会并发查的资料库（与后端 `ReleaseCatalog.backups` / 文字搜索一致，只用于进度展示）。 */
 export const LOOKUP_SOURCES: Record<LookupKind | 'text', ReleaseSource[]> = {
-  barcode: ['musicbrainz', 'deezer', 'itunes'],
+  barcode: ['musicbrainz', 'discogs', 'deezer', 'itunes'],
   catalog: ['musicbrainz', 'discogs', 'ndl'],
   text: ['musicbrainz', 'discogs'],
 };

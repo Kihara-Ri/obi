@@ -30,7 +30,7 @@ export function MorePage({installEvt, onInstalled}: {installEvt: Event | null; o
       <section aria-labelledby="more-tools">
         <h2 id="more-tools">工具</h2>
         <nav aria-label="工具">
-          <NavRow href="#lookup" icon={<Ico d={SEARCH}/>} title="编号查询"/>
+          <NavRow href="#lookup" icon={<Ico d={SEARCH}/>} title="查询" value="条码 · 编号 · 专辑名"/>
           {hasLedger ? <NavRow href="#stats" icon={<Ico d={BOOK}/>} title="账本" value={`${inStock} 张`}/> : null}
         </nav>
       </section>

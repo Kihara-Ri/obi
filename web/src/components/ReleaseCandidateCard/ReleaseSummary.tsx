@@ -13,6 +13,12 @@ export {sourceName};
 export const OriginTag = ({origin}: {origin?: CoverOrigin | null}) =>
   origin ? <i className="cover-origin" title={'封面来源：' + ORIGIN_LABEL[origin]}>{ORIGIN_LABEL[origin]}</i> : null;
 
+/** 资料来源小标签（库名）：主来源在前，合并进来的同一版本（alsoIn）跟在后面；查询结果的折叠卡片与专辑行共用 */
+export const SourceTags = ({names}: {names: string[]}) => {
+  const list = names;
+  return list.length ? <span className="src-tags" title={'资料来源：' + list.join('、')}>{list.map(n => <i key={n}>{n}</i>)}</span> : null;
+};
+
 /** 头部（封面、名称、艺人，来源作为艺人下的一行小字链接）+ 关键信息网格；表单里已确认的版本直接用它。 */
 export function ReleaseSummary({title, artist, info, source, url, art, origin, headless, alsoIn}: {
   title: string; artist: string; info: ReleaseInfo; source?: string; url?: string; art?: string;
@@ -38,7 +44,7 @@ export function ReleaseSummary({title, artist, info, source, url, art, origin, h
           aria-label={`在 ${source} 查看`}>{source} ↗</a> : <small className="rcc-source">{source}</small> : null}
         {also ? <small className="rcc-source rcc-also">另见 {also}</small> : null}</div>
     </header>}
-    {headless && also ? <p className="rcc-also rcc-also-line">资料来源 {link(source || '', url)} · 另见 {also}</p> : null}
+    {headless && source ? <p className="rcc-also rcc-also-line">资料来源 {link(source, url)}{also ? <> · 另见 {also}</> : null}</p> : null}
     <dl className="rcc-facts">
       {facts.filter(([, v]) => v).map(([k, v]) => <div key={k}><dt>{k}</dt><dd className="num">{v}</dd></div>)}
     </dl>

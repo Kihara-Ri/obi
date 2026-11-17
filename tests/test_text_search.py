@@ -58,6 +58,58 @@ class TextSearchTests(unittest.TestCase):
         self.assertEqual(sources, {'musicbrainz': 'none', 'discogs': 'found'})
 
 
+class FakeDiscogs:
+    """master 搜索 → versions 两步；记录调用，模拟失败。"""
+    def __init__(self, masters, versions, fail=False):
+        self.masters, self.versions, self.fail, self.calls, self.cache = masters, versions, fail, [], {}
+
+    def _get(self, path, params=None):
+        self.calls.append(path)
+        if self.fail: raise ValidationError('Discogs 暂时不可用')
+        return {'results': self.masters} if path == 'database/search' else {'versions': self.versions}
+
+
+class DiscogsVersionMergeTests(unittest.TestCase):
+    MB = {'releases': [release('33333333-3333-3333-3333-333333333333', 'JP', '4988000000000', '2006')]}
+
+    def run_merge(self, dc, title='Illinois', artist='Sufjan Stevens'):
+        with patch('server.release_catalog.read_json', return_value=self.MB):
+            return group_versions(ReleaseCatalog(discogs=dc), GID, title, artist)
+
+    def test_same_catalog_number_joins_also_in_and_new_one_listed(self):
+        dc = FakeDiscogs([{'id': 9, 'title': 'Sufjan Stevens (2) - Illinois'}],
+                         [{'id': 1, 'catno': 'Z-9, X 1', 'country': 'Japan', 'released': '2006'},
+                          {'id': 2, 'catno': 'Y-2', 'country': 'Japan', 'released': '2007'}])
+        found = self.run_merge(dc)
+        self.assertEqual([c['id'][:10] for c in found], ['33333333-3', 'discogs-2'])
+        self.assertEqual(found[0]['alsoIn'], [{'id': 'discogs-1', 'source': 'discogs', 'url': 'https://www.discogs.com/release/1'}])
+        self.assertEqual(found[1]['releaseInfo']['catalogNumber'], 'Y-2')
+
+    def test_discogs_catalog_numbers_split_and_deduped(self):
+        from server.text_search import _catno_list
+        self.assertEqual(_catno_list('TOCP-8254, TOCP 8254, CDP 8297492'), 'TOCP-8254 / CDP 8297492')
+        self.assertEqual(_catno_list('none'), '')
+
+    def test_different_album_or_artist_not_merged(self):
+        dc = FakeDiscogs([{'id': 9, 'title': 'Sufjan Stevens - Illinoise (Live)'}, {'id': 10, 'title': 'Other - Illinois'}],
+                         [{'id': 2, 'catno': 'Y-2'}])
+        found = self.run_merge(dc)
+        self.assertEqual(len(found), 1)
+        self.assertNotIn('alsoIn', found[0])
+        self.assertEqual(dc.calls, ['database/search'])
+
+    def test_discogs_failure_keeps_musicbrainz_versions(self):
+        found = self.run_merge(FakeDiscogs([], [], fail=True))
+        self.assertEqual(len(found), 1)
+
+    def test_without_title_discogs_not_asked_and_lookup_is_cached(self):
+        dc = FakeDiscogs([{'id': 9, 'title': 'Sufjan Stevens - Illinois'}], [{'id': 2, 'catno': 'Y-2'}])
+        self.run_merge(dc, title='', artist='')
+        self.assertEqual(dc.calls, [])
+        self.run_merge(dc); self.run_merge(dc)
+        self.assertEqual(dc.calls, ['database/search', 'masters/9/versions'])
+
+
 if __name__ == '__main__':
     unittest.main()
 

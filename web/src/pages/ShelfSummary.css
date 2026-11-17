@@ -1,0 +1,18 @@
+/* 库存页统计卡：左主数字（总成本），右张数 / 已上架，下面是待处理的事。只用 token。 */
+.summary.shelf-summary{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:0 16px;padding:14px 18px}
+.shelf-sum-main{display:flex;flex-direction:column;gap:2px;min-width:0}
+.shelf-sum-main span{font-size:12px;color:var(--muted)}
+.shelf-sum-main strong{font-size:24px;font-weight:700;letter-spacing:-.01em;line-height:1.2}
+.shelf-sum-side{display:flex;gap:14px;font-size:12.5px;color:var(--muted);white-space:nowrap;padding-bottom:3px}
+.shelf-sum-side b{color:var(--text);font-weight:650;font-variant-numeric:tabular-nums}
+.shelf-sum-main small{font-size:11.5px;color:var(--faint)}
+.shelf-sum-todo{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:40px;margin:12px -8px -6px;padding:4px 8px 0;border-top:1px solid var(--border);border-radius:0 0 9px 9px;font-size:13px;color:var(--text);text-decoration:none}
+.shelf-sum-todo:hover{background:var(--surface-2)}
+.shelf-sum-todo>span::before{content:"";display:inline-block;width:7px;height:7px;margin-right:8px;border-radius:50%;background:var(--orange);vertical-align:1px}
+.shelf-sum-todo b{font-weight:650;font-variant-numeric:tabular-nums}
+.shelf-sum-todo i{font-style:normal;font-size:12.5px;font-weight:600;color:var(--accent-deep)}
+.shelf-sum-tip{grid-column:1/-1;margin:10px 0 0;font-size:12px;color:var(--faint)}
+@media (max-width:840px){
+  .shelf-page .summary.shelf-summary{padding:12px 14px;font-size:13px}
+  .shelf-sum-main strong{font-size:22px}
+}
