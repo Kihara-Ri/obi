@@ -16,7 +16,8 @@
 .photo-strip{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 .photo-strip a{display:block;width:86px;height:86px;border-radius:10px;overflow:hidden;border:1px solid var(--border);background:var(--surface-2);cursor:zoom-in}
 .photo-strip img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .15s}
-.photo-strip a:hover img{transform:scale(1.04)}
+/* 只给鼠标：触屏点完 :hover 会粘住，缩略图停在放大状态 */
+@media (hover:hover) and (pointer:fine){.photo-strip a:hover img{transform:scale(1.04)}}
 .batch-photos{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}
 
 /* 灯箱：背景点按关闭；照片排在滑动轨道上（邻张预挂载），跟手拖动、惯性落位；
