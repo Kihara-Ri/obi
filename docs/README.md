@@ -19,7 +19,6 @@
 | [3D附件装配与引擎解耦.md](3D附件装配与引擎解耦.md) | 契约 | 当前 3D 附件装配与引擎归属边界 | 引擎 schema 变化时更新 |
 | [固定样本真实贴图.md](固定样本真实贴图.md) | 运维说明 | 固定开发样本库的获取、离线启动与备份 | 样本或素材锁变化时更新 |
 | [PI_SHOP_BRANDS.md](PI_SHOP_BRANDS.md) | 运维说明 | 购买渠道图标的 Pi CLI 补全机制 | 机制变化时更新 |
-| [../.impeccable.md](../.impeccable.md) | 规范 | 设计理念与交互原则（浅深主题、触屏展示、减少误操作） | 设计决策变化时同步 |
 | [../web/src/components/REGISTRY.md](../web/src/components/REGISTRY.md) | 规范 | 组件注册表：新建 UI 前先查、新组件先登记 | 新增组件时同步 |
 | [../web/tests/browser/README.md](../web/tests/browser/README.md) | 运维说明 | 浏览器验收脚本的运行方式 | 脚本变化时同步 |
 | [架构与工程复盘.md](架构与工程复盘.md) | 记录 | 2026-11-02 架构、瓶颈、改动热点、审美与工程体系、可复用资产与经验教训（GPT + Claude 交叉分析的快照） | 不原地追补，需要时整份重做 |

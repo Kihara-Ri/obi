@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 GOVERNED = [
     'AGENTS.md', 'CLAUDE.md', 'README.md', '使用说明.md', '部署说明.md', 'AI开发复盘.md',
-    '.impeccable.md', '.ai-kit/rules.md', 'web/src/components/REGISTRY.md',
+    '.ai-kit/rules.md', 'web/src/components/REGISTRY.md',
     'web/tests/browser/README.md', 'docs/*.md',
 ]
 TOP_DIRS = ('server/', 'web/', 'tools/', 'docs/', 'tests/', 'vendor/', 'plugins/', 'static/',

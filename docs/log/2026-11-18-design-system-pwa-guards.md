@@ -10,6 +10,7 @@
 - 测试初版误报：`.select-all` 被当成 `select`；抽屉里小于 16px 的输入框；已在 `(hover:none)` 里复位的 `.card:hover`。
 - 查出一处真问题：`.photo-strip a:hover img` 的放大不在 `(hover:hover)` 里，触屏点完会停在放大状态。
 - `.impeccable.md` 第 6 条写「多指缩放和系统边缘返回保留」，与现行代码（整页禁缩放、拦截左缘返回）不一致；规范文档里注明「多指缩放」指展示布局内部的捏合，原文未改，待用户定。
+- 用户决定删除 `.impeccable.md`（2026-11-18）：独有内容（使用场景、一张专辑一条记录、展示不改管理、展示触屏手感）迁入 `docs/界面与功能定案.md`；过时的底栏描述与第 6 条「系统边缘返回保留」不迁；从 `docs/README.md` 和 `tools/check_docs.py` 去掉引用。
 
 ## 怎么解决的
 - 选择器正则收紧到独立的 `input/textarea/select` 词；抽屉里的输入框按 useFloatingFields 接管豁免；`(hover:none)` 里复位过的选择器不算。
