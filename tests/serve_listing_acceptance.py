@@ -64,7 +64,16 @@ def main():
                     'conditionText': '固定模型响应，不代表实物品相' if has_photos else '实物品相尚未核实',
                     'pending': ['此为参考图片与模拟推理；需使用实拍重新分析和试听'] if has_photos else ['尚未核实实物品相'],
                     'conflicts': ['验收：版本标识冲突，争议版本已省略'] if '样本冲突' in content[0]['text'] else []}
-            raw = json.dumps({'choices': [{'message': {'content': json.dumps(result)}}]}).encode()
+            text = json.dumps(result)
+            if request.get('stream'):
+                # 写作走 SSE 流式（listing_transport.stream_chat_text）：按标准 chat.completion.chunk 分几段发出
+                pieces = [text[i:i + 40] for i in range(0, len(text), 40)]
+                raw = b''.join(b'data: ' + json.dumps({'choices': [{'delta': {'content': p}}]}).encode() + b'\n\n'
+                               for p in pieces) + b'data: [DONE]\n\n'
+                self.send_response(200); self.send_header('Content-Type', 'text/event-stream')
+                self.send_header('Content-Length', str(len(raw))); self.end_headers(); self.wfile.write(raw)
+                return
+            raw = json.dumps({'choices': [{'message': {'content': text}}]}).encode()
             self.send_response(200); self.send_header('Content-Type', 'application/json')
             self.send_header('Content-Length', str(len(raw))); self.end_headers(); self.wfile.write(raw)
     upstream = ThreadingHTTPServer(('127.0.0.1', 0), Model)

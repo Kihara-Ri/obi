@@ -40,7 +40,9 @@ for (const engine of engines) {
             const r = el.getBoundingClientRect();
             return [r.x, r.y, r.width, r.height].map(value => value.toFixed(2)).join();
           }).join('|');
-          const idle = document.getAnimations().every(animation => animation.playState !== 'running');
+          // 滚动驱动动画（如书架横滑渐隐）随滚动位置变化，永远是 running，不算“还在动”
+          const idle = document.getAnimations().every(animation =>
+            animation.playState !== 'running' || !(animation.timeline instanceof DocumentTimeline));
           const state = window.__listingSettle || (window.__listingSettle = {key, since: now});
           if (state.key !== key || !idle) {state.key = key; state.since = now;}
           return now - state.since >= 200;
