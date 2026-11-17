@@ -1,0 +1,18 @@
+/* 每月收支柱状图。柱高由组件按像素写入（最高 100px），这里留出利润标签的位置。只用 token。 */
+.ledger-chart{padding-bottom:14px}
+.ledger-chart-scroll{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.ledger-chart-scroll::-webkit-scrollbar{display:none}
+.ledger-chart-plot{display:flex;gap:10px;min-width:100%}
+.ledger-chart-col{flex:0 0 calc((100% - 50px) / 6);min-width:44px;max-width:88px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
+.ledger-chart-pv{font-size:10.5px;font-weight:650;margin-bottom:3px;font-variant-numeric:tabular-nums;color:var(--muted)}
+.ledger-chart-pv.positive{color:var(--green)}.ledger-chart-pv.negative{color:var(--red)}
+.ledger-chart-bars{display:flex;gap:3px;align-items:flex-end;height:100px;width:100%;justify-content:center;
+  border-bottom:1px solid var(--border)}
+.ledger-chart-bars i{display:block;width:12px;border-radius:4px 4px 0 0}
+.is-buy{background:var(--border-strong)}
+.is-net{background:var(--accent)}
+.ledger-chart-x{margin-top:5px;font-size:11px;color:var(--muted);text-align:center;line-height:1.3}
+.ledger-chart-x small{display:block;font-size:10px;color:var(--faint)}
+.ledger-chart-key{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:11.5px;color:var(--muted)}
+.ledger-chart-key i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.ledger-chart+.ledger-table-card{margin-top:12px}

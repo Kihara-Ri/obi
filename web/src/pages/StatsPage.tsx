@@ -1,102 +1,98 @@
-// 账本页（原「账本概览」与「收支统计」合并）：核心指标块 + 按到账月份的交易表。
+// 账本页：年份切换 → 利润卡 → 钱压在哪（当前库存成本分段）→ 每月收支图 → 月度表。
+// 计算全在 core/ledger.ts；本文件只负责按启用的模块取舍与排版。
+import {useMemo, useState} from 'react';
 import {sum, yuan} from '../core/format';
+import {avgTransitDays, ledgerMonths, ledgerSummary, ledgerYears, signedYuan, stockBucket} from '../core/ledger';
+import type {StockBucket} from '../core/ledger';
 import {useApp} from '../state/AppContext';
 import {PageHead} from '../components/PageHead';
 import {DownloadButton} from '../components/DownloadButton';
+import {Seg} from '../components/ui';
+import {LedgerChart} from './LedgerChart';
+import {LedgerTable} from './LedgerTable';
+import './StatsPage.css';
 
-/** 指标块下方的说明：各段以「 · 」连接，每段整体换行 */
-function Note({parts}: {parts: (string | number | false)[]}) {
+/** 小字说明：各段以「 · 」连接，每段整体换行 */
+function Note({parts}: {parts: (string | number | false | null)[]}) {
   const shown = parts.filter((p): p is string => typeof p === 'string' && !!p);
-  return <small>{shown.map((p, i) => <span key={i}>{i ? ' · ' : ''}{p}</span>)}</small>;
+  return shown.length ? <p className="ledger-note">{shown.map((p, i) => <span key={i}>{i ? '\u00a0· ' : ''}{p}</span>)}</p> : null;
 }
+
+interface Bucket {key: string; label: string; b: StockBucket; sub: (string | false)[]}
 
 export function StatsPage() {
   const {state, modules} = useApp();
-  const ov = state.records.filter(r => r.status === 'overseas');
-  const tr = state.records.filter(r => r.status === 'transit');
-  const dom = state.records.filter(r => modules.circulation ? r.status === 'domestic' : ['overseas', 'transit', 'domestic'].includes(r.status));
+  const {trading, acquisition: acq, circulation} = modules;
+  const months = useMemo(() => ledgerMonths(state.records, state.sales), [state.records, state.sales]);
+  const years = ledgerYears(months);
+  const thisYear = String(new Date().getFullYear());
+  const [pick, setPick] = useState<string | null>(null);
+  const year = pick ?? (years.includes(thisYear) ? thisYear : years[0] ?? 'all');
+  const scoped = year === 'all' ? months : months.filter(m => m.key.startsWith(year));
+  const t = ledgerSummary(scoped, state.sales, year === 'all' ? undefined : year);
   const shipping = state.sales.filter(s => s.status === 'shipping');
-  const done = state.sales.filter(s => s.status === 'complete');
-  const items = done.flatMap(s => s.items);
-  const ks = items.filter(i => i.profit !== null);
-  const profit = sum(ks, 'profit');
+  const owed = sum(shipping.flatMap(s => s.items), 'net');
 
-  const months: Record<string, {net: number; profit: number; count: number; unknown: number}> = {};
-  done.forEach(s => {
-    const k = (s.receivedDate || s.date).slice(0, 7);
-    const m = months[k] ??= {net: 0, profit: 0, count: 0, unknown: 0};
-    m.net += sum(s.items, 'net');
-    m.profit += sum(s.items, 'profit');
-    m.count += s.items.length;
-    m.unknown += s.items.filter(i => i.profit === null).length;
-  });
-
-  const ovKnown = ov.filter(r => r.cost !== null);
-  const domKnown = dom.filter(r => r.cost !== null);
-  const ovListed = ov.filter(r => r.listed).length;
-  const domListed = dom.filter(r => r.listed).length;
+  const of = (st: string) => state.records.filter(r => r.status === st);
+  const days = avgTransitDays(state.shipments);
+  const buckets: Bucket[] = circulation ? [
+    {key: 'ov', label: '海外库存', b: stockBucket(of('overseas')), sub: []},
+    {key: 'tr', label: '海外在途', b: stockBucket(of('transit')),
+     sub: [`${state.shipments.filter(s => s.status === 'transit').length} 个包裹`, '含运费', days !== null && `按往期平均 ${days} 天到`]},
+    {key: 'dom', label: '国内库存', b: stockBucket(of('domestic')), sub: []},
+  ] : [{key: 'dom', label: '收藏', b: stockBucket(state.records.filter(r => ['overseas', 'transit', 'domestic'].includes(r.status))), sub: []}];
+  const total = buckets.reduce((a, x) => ({count: a.count + x.b.count, cost: a.cost + x.b.cost}), {count: 0, cost: 0});
+  const weight = (x: Bucket) => acq ? x.b.cost : x.b.count;
+  const whole = buckets.reduce((a, x) => a + weight(x), 0);
+  const label = year === 'all' ? '全部' : year;
 
   return (
     <>
-      <PageHead title="账本" desc={modules.acquisition ? '人民币统一口径：日元按购买当天汇率折算，已知成本与待补资料分别统计。' : '按到账月份统计售出金额与费用。'}
-                label="IN NUMBERS"
+      <PageHead title="账本" desc={acq ? '人民币统一口径：日元按买入当天汇率折算。' : '按到账月份统计售出金额。'} label="IN NUMBERS"
                 actions={<DownloadButton path="export" fileName="albums.csv" className="link-button head-text" ariaLabel="导出库存 CSV"><span className="btn-long">导出库存 CSV</span><span className="btn-short" aria-hidden="true">导出</span></DownloadButton>}/>
-      <div className="stat-grid">
-        {modules.circulation ? <div className="stat-block">
-          <span className="stat-label">海外库存</span>
-          <strong>{ov.length} 张</strong>
-          <Note parts={[`成本 ${yuan(sum(ovKnown, 'cost'))}`, ov.length - ovKnown.length && `${ov.length - ovKnown.length} 张待补`,
-                        ovListed && `已上架 ${ovListed} 张`]}/>
-        </div> : null}
-        {modules.circulation ? <div className="stat-block">
-          <span className="stat-label">海外在途</span>
-          <strong>{tr.length} 张</strong>
-          <Note parts={[`${state.shipments.filter(s => s.status === 'transit').length} 个包裹`, '运费已计入成本', '约 11 天']}/>
-        </div> : null}
-        <div className="stat-block">
-          <span className="stat-label">{modules.circulation ? '国内库存价值' : modules.acquisition ? '收藏成本' : '我的收藏'}</span>
-          <strong>{modules.acquisition ? domKnown.length ? yuan(sum(domKnown, 'cost')) : '—' : `${dom.length} 张`}</strong>
-          <Note parts={[`${dom.length} 张`, modules.acquisition && dom.length - domKnown.length && `${dom.length - domKnown.length} 张待补`,
-                        modules.trading && domListed && `已上架 ${domListed} 张`]}/>
-        </div>
-        {modules.trading ? <div className="stat-block">
-          <span className="stat-label">售出中应收</span>
-          <strong>{yuan(sum(shipping.flatMap(s => s.items), 'net'))}</strong>
-          <Note parts={[`${shipping.length} 笔`, `确认收货后计入${modules.acquisition ? '利润' : '到账金额'}`]}/>
-        </div> : null}
-        {modules.trading ? <div className="stat-block">
-          <span className="stat-label">售出金额</span>
-          <strong>{yuan(sum(items, 'net'))}</strong>
-          <small>{done.length} 笔已确认到账</small>
-        </div> : null}
-        {modules.trading && modules.acquisition ? <div className="stat-block">
-          <span className="stat-label">已实现利润</span>
-          <strong className={profit < 0 ? 'negative' : 'positive'}>{yuan(profit)}</strong>
-          <small>{ks.length} / {items.length} 条成本已知</small>
-        </div> : null}
+      {years.length > 1 ? <Seg className="ledger-years" ariaLabel="统计年份" persistKey="ledger-year" value={year} onValue={setPick}
+                               options={[{value: 'all', label: '全部'}, ...years.map(y => ({value: y, label: y}))]}/> : null}
+      <div className="ledger-top">
+        {trading ? <section className="ledger-card ledger-hero">
+          <span className="ledger-label">{acq ? '已实现利润' : '售出到手'} · {label}</span>
+          <strong className={'ledger-big' + (acq ? t.profit < 0 ? ' negative' : ' positive' : '')}>{yuan(acq ? t.profit : t.net)}</strong>
+          <div className="ledger-row">
+            {acq ? <div><span className="ledger-label">售出到手</span><b>{yuan(t.net)}</b></div>
+                 : <div><span className="ledger-label">售出</span><b>{t.sold} 张</b></div>}
+            {acq ? <div><span className="ledger-label">利润率</span><b>{t.margin === null ? '—' : `${(t.margin * 100).toFixed(1)}%`}</b></div> : null}
+            <div><span className="ledger-label">退货损失</span><b className={t.loss < 0 ? 'negative' : ''}>{t.loss ? signedYuan(t.loss) : '—'}</b></div>
+          </div>
+          <Note parts={[`已确认收货 ${t.sold} 张`, acq && t.unknown ? `其中 ${t.unknown} 张成本待补，未计入利润` : false,
+                        acq && t.returned ? `已扣 ${t.returned} 笔退货` : false,
+                        shipping.length ? `另有售出中应收 ${yuan(owed)}（${shipping.length} 笔）` : false]}/>
+        </section> : null}
+        <section className="ledger-card ledger-stock" aria-label={acq ? '钱压在哪' : '库存'}>
+          <div className="ledger-stock-head">
+            <span className="ledger-label">{acq ? `钱压在哪 · ${total.count} 张` : '库存'}</span>
+            <b>{acq ? yuan(total.cost) : `${total.count} 张`}</b>
+          </div>
+          {buckets.length > 1 && whole > 0 ? <div className="ledger-bar" aria-hidden="true">
+            {buckets.map(x => weight(x) ? <i key={x.key} className={'is-' + x.key} style={{flexGrow: weight(x)}}/> : null)}
+          </div> : null}
+          <ul className="ledger-legend">
+            {buckets.map(x => (
+              <li key={x.key}>
+                {buckets.length > 1 ? <span className={'ledger-dot is-' + x.key}/> : null}
+                <span>{x.label} · {x.b.count} 张</span>
+                {acq ? <b>{yuan(x.b.cost)}</b> : null}
+                <Note parts={[...x.sub, trading && x.b.listed ? `已上架 ${x.b.listed} 张` : false,
+                              acq && x.b.unknown ? `${x.b.unknown} 张成本待补` : false]}/>
+              </li>
+            ))}
+          </ul>
+          {acq ? <Note parts={['按成本计，日元按买入当天汇率']}/> : null}
+        </section>
       </div>
-      {modules.trading ? <>
-      <h3 className="section-title">月度交易</h3>
-      <p className="help">按到账月份统计（确认收货）；退货归入处理月份。</p>
-      <table className="monthly">
-        <thead>
-          <tr><th>月份</th><th>售出</th><th>到手</th>{modules.acquisition ? <><th>利润</th><th>成本待补</th></> : null}</tr>
-        </thead>
-        <tbody>
-          {Object.keys(months).sort().reverse().map(k => (
-            <tr key={k}>
-              {/* data-l：手机端表格卡片化时的字段名（stats.css 读取） */}
-              <td data-l="月份">{k}</td>
-              <td data-l="售出">{months[k].count} 张</td>
-              <td data-l="到手">{yuan(months[k].net)}</td>
-              {modules.acquisition ? <><td className={months[k].profit < 0 ? 'negative' : 'positive'} data-l="利润">{yuan(months[k].profit)}</td>
-              <td data-l="成本待补">{months[k].unknown ? `${months[k].unknown} 条` : '—'}</td></> : null}
-            </tr>
-          ))}
-          {!Object.keys(months).length && <tr><td colSpan={modules.acquisition ? 5 : 3}>还没有已完成交易。</td></tr>}
-        </tbody>
-      </table>
-      </> : <p className="help">购买时间和店铺可在收藏详情中查看；金额缺失的专辑不计入成本合计。</p>}
+      {scoped.length ? <>
+        <h3 className="section-title">每月收支</h3>
+        <LedgerChart months={scoped} buy={acq} sell={trading} profit={acq && trading} showYear={year === 'all'}/>
+        <LedgerTable months={scoped} total={t} buy={acq} sell={trading} profit={acq && trading} showYear={year === 'all'}/>
+      </> : <p className="help">还没有买入或售出记录。</p>}
     </>
   );
 }

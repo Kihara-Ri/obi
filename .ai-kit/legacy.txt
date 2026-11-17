@@ -59,6 +59,5 @@ web/src/styles/sales.css
 web/src/styles/settings.css
 web/src/styles/shelf.css
 web/src/styles/shipments.css
-web/src/styles/stats.css
 web/src/styles/tracklist.css
 web/src/types.ts

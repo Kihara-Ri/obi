@@ -4,6 +4,7 @@
 import {useState} from 'react';
 import {api} from '../core/api';
 import {today, yuan} from '../core/format';
+import {avgTransitDays} from '../core/ledger';
 import {useApp} from '../state/AppContext';
 import type {AppCtx} from '../state/AppContext';
 import type {Currency} from '../types';
@@ -31,6 +32,7 @@ function ShipForm({ids}: {ids: string[]}) {
     : rate === null ? null : Number(v.cost) * rate / 100;
   const cnyQ = cny === null ? null : Number(cny.toFixed(2));
   const share = cnyQ === null ? null : cnyQ / rs.length;
+  const days = avgTransitDays(app.state.shipments);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +43,7 @@ function ShipForm({ids}: {ids: string[]}) {
     <form id="ship-form" onSubmit={submit} noValidate onSubmitCapture={feedback.onSubmitCapture}>
       <div className="drawer-body">
         {feedback.feedback}
-        <p className="help">这 {rs.length} 张专辑打包为一趟运输，状态变为「海外在途」，约 11 天后签收。</p>
+        <p className="help">这 {rs.length} 张专辑打包为一趟运输，状态变为「海外在途」{days !== null ? `，按往期平均约 ${days} 天签收` : ''}。</p>
         {rs.map(r => <AlbumLine key={r.id} r={r} showCost={false}/>)}
         <div className="field form-section">
           <span className="field-label"><label>运输方式</label></span>

@@ -1,0 +1,35 @@
+/* 账本页：年份切换、利润卡、钱压在哪。只用 token。 */
+.ledger-years{margin-bottom:14px;max-width:420px}
+.ledger-top{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;align-items:start}
+.ledger-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px}
+.ledger-label{display:block;font-size:12.5px;color:var(--muted)}
+.ledger-note{margin:8px 0 0;font-size:11.5px;line-height:1.5;color:var(--faint)}
+/* 说明按「 · 」分段，每段不在中间断开 */
+.ledger-note>span{display:inline-block}
+
+.ledger-big{display:block;margin:2px 0 12px;font-size:34px;font-weight:750;letter-spacing:-.01em;line-height:1.2;font-variant-numeric:tabular-nums}
+.ledger-row{display:flex;gap:10px;padding-top:12px;border-top:1px solid var(--border)}
+.ledger-row>div{flex:1;min-width:0}
+.ledger-row b{display:block;margin-top:2px;font-size:16px;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+.ledger-stock-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.ledger-stock-head b{font-size:22px;font-variant-numeric:tabular-nums}
+.ledger-bar{display:flex;height:10px;margin:12px 0 4px;border-radius:99px;overflow:hidden;background:var(--surface-3)}
+.ledger-bar i{display:block;flex-basis:0;min-width:3px}
+.ledger-legend{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:10px}
+.ledger-legend li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;column-gap:8px;align-items:baseline;font-size:13.5px}
+.ledger-legend li b{font-variant-numeric:tabular-nums}
+.ledger-legend .ledger-note{grid-column:2/-1;margin-top:1px}
+.ledger-legend li:not(:has(.ledger-dot)){grid-template-columns:minmax(0,1fr) auto}
+.ledger-legend li:not(:has(.ledger-dot)) .ledger-note{grid-column:1/-1}
+.ledger-dot{width:9px;height:9px;border-radius:3px}
+.is-ov{background:var(--blue)}
+.is-tr{background:var(--purple)}
+.is-dom{background:var(--accent)}
+
+@media (max-width:840px){
+  .ledger-years{max-width:none}
+  .ledger-top{grid-template-columns:minmax(0,1fr);gap:12px}
+  .ledger-card{padding:16px}
+  .ledger-big{font-size:32px}
+}

@@ -9,7 +9,6 @@ import './styles/album-summary.css';
 import './styles/shelf.css';
 import './styles/sales.css';
 import './styles/shipments.css';
-import './styles/stats.css';
 import './styles/settings.css';
 import './styles/more.css';
 import './styles/drawer.css';
