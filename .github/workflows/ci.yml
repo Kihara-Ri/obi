@@ -180,31 +180,8 @@ jobs:
           npm --prefix web run test:browser -- --url http://127.0.0.1:63282 --expectations "$RUNNER_TEMP/obi-preview-check.json" --parts '${{ matrix.suite.parts }}'
       - name: 售卖草稿与图片下载验收（模拟模型）
         if: matrix.suite.id == 'listing'
-        run: |
-          python3 - <<'PY'
-          import os
-          from pathlib import Path
-          from tools.seed_samples import seed_listing_reference_photos
-          seed_listing_reference_photos(Path(os.environ['OBI_DEV_HOME']) / 'instance')
-          PY
-          python3 tests/serve_listing_acceptance.py --data-dir "$OBI_DEV_HOME/instance" > "$RUNNER_TEMP/obi-listing-server.log" 2>&1 &
-          listing_pid=$!
-          trap 'kill "$listing_pid" 2>/dev/null || true; wait "$listing_pid" 2>/dev/null || true' EXIT
-          for attempt in $(seq 1 60); do
-            listing_url=$(sed -n 's/^ACCEPTANCE_URL=//p' "$RUNNER_TEMP/obi-listing-server.log" | head -1)
-            [ -n "$listing_url" ] && break
-            kill -0 "$listing_pid" || exit 1
-            sleep 1
-          done
-          LISTING_ACCEPTANCE_URL="$listing_url" node web/tests/browser/listing-acceptance.mjs
-          # 主验收会改写长文样本；结束后再经 storage 事务写入固定长文，专测展开/收起。
-          python3 - <<'PY'
-          import os
-          from pathlib import Path
-          from tools.seed_samples import seed_listing_long_copy
-          seed_listing_long_copy(Path(os.environ['OBI_DEV_HOME']) / 'instance')
-          PY
-          LISTING_ACCEPTANCE_URL="$listing_url" node web/tests/browser/listing-reader-acceptance.mjs
+        # 与本地 pre-push 跑的是同一个脚本：先复制一份干净实例，再跑主验收与长文验收。
+        run: OBI_ACCEPTANCE_HOME="$OBI_DEV_HOME" OBI_SKIP_BUILD=1 TMPDIR="$RUNNER_TEMP" tools/browser_acceptance.sh
       - name: 保存失败现场与样本诊断
         if: failure()
         uses: actions/upload-artifact@v4
@@ -215,4 +192,4 @@ jobs:
             ${{ runner.temp }}/obi-preview-screenshots/
             ${{ runner.temp }}/obi-preview-check.json
             ${{ runner.temp }}/obi-preview-server.log
-            ${{ runner.temp }}/obi-listing-server.log
+            ${{ runner.temp }}/obi-listing-run.*/server.log

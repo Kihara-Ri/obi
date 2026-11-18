@@ -3,12 +3,13 @@ import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
 import {join} from 'node:path';
 import {chromium} from 'playwright';
+import {fastFail, reportFailure} from './acceptance-kit.mjs';
 const base = process.env.LISTING_ACCEPTANCE_URL;
 assert.match(base || '', /^http:\/\/127\.0\.0\.1:\d+$/u, '只允许隔离本机验收服务');
 const output = process.env.OBI_PREVIEW_SCREENSHOTS || '/tmp/obi-listing-browser';
 await mkdir(output, {recursive: true});
 const browser = await chromium.launch({headless: true});
-const context = await browser.newContext({viewport: {width: 1280, height: 900}, permissions: ['clipboard-read', 'clipboard-write']});
+const context = fastFail(await browser.newContext({viewport: {width: 1280, height: 900}, permissions: ['clipboard-read', 'clipboard-write']}));
 const page = await context.newPage();
 const errors = [];
 page.on('pageerror', e => errors.push(e.message));
@@ -38,11 +39,11 @@ const generate = async () => {
   await page.waitForFunction(() => {
     const el = [...document.querySelectorAll('button')].find(node => /^(AI 生成上架资料|重新生成)$/u.test(node.textContent.trim()));
     return !el || el.disabled;
-  });
+  }, null, {timeout: 20000});
   await page.waitForFunction(() => {
     const el = [...document.querySelectorAll('button')].find(node => /^(AI 生成上架资料|重新生成)$/u.test(node.textContent.trim()));
     return !!el && !el.disabled;
-  });
+  }, null, {timeout: 20000});
 };
 try {
   // 设置 · 账户 · 已连接服务（视觉模型）：服务商列表 → 点进详情抽屉完成密钥 / 模型 / 设为在用（D-013）。
@@ -201,7 +202,7 @@ try {
   await page.getByRole('button', {name: '保存图片', exact: true}).click();
   await (await download).saveAs(join(output, 'listing-photos.zip'));
   await page.screenshot({path: join(output, 'listing-desktop.png')});
-  const phoneContext = await browser.newContext({viewport: {width: 390, height: 844}, isMobile: true, hasTouch: true});
+  const phoneContext = fastFail(await browser.newContext({viewport: {width: 390, height: 844}, isMobile: true, hasTouch: true}));
   await phoneContext.addInitScript(() => {
     Object.defineProperty(navigator, 'canShare', {value: () => true});
     Object.defineProperty(navigator, 'share', {value: data => {
@@ -251,7 +252,6 @@ try {
   assert.deepEqual(errors.filter(e => !e.includes('400 (Bad Request)')), []);
   console.log(JSON.stringify({passed: true, screenshots: output, liveModel: false}));
 } catch (error) {
-  await page.screenshot({path: join(output, 'listing-failure.png')});
-  console.error('失败页面：', page.url(), await page.locator('.error').allTextContents());
+  await reportFailure(browser, output, 'listing');
   throw error;
 } finally {await browser.close();}

@@ -60,7 +60,10 @@ python3 tools/run_tests.py                                                 # 后
 npm --prefix web run typecheck && npm --prefix web run build               # 前端
 OBI_DEV_HOME=/private/tmp/obi-acceptance python3 tools/preview_samples.py prepare --download
 OBI_DEV_HOME=/private/tmp/obi-acceptance python3 tools/preview_samples.py --port <空闲端口>
+tools/browser_acceptance.sh                                                # 售卖浏览器验收（约 40 秒，与 CI 同一脚本）
 ```
+
+- **改了界面（`web/src`）、售卖后端或浏览器验收脚本，提交前先跑 `tools/browser_acceptance.sh`。** 推送时 pre-push 钩子会按改动范围自动再跑一次，不过就不推送（紧急时 `git push --no-verify`）。这套验收以前只在 CI 里跑，界面或动效一改，测试脚本跟不上，推上去才失败，是 CI 反复失败的主要原因（2026-11-18）。验收脚本的等待统一用 `web/tests/browser/acceptance-kit.mjs`：单步 8 秒超时、等稳定用 `settle()`、失败时 `reportFailure()` 截图并打印现场，不另写 30 秒的等待。
 
 - **8765 等本机常用端口可能被常驻服务占用**——验证一律用空闲端口（如 8791）+ 临时数据目录 + `--no-seed`；Docker 验证用独立端口与临时卷。
 - **后续测试统一复用固定样本库**（`tools/seed_samples.py`）：现有 21 副本覆盖国内/海外/在途/售出中/已售/回收站、日元/人民币、多副本分组、侧标、新式包装资料、成本缺失等场景，金额日期渠道均为虚构、不含个人数据。涉及专辑场景的自动测试、浏览器验收与手动测试均从这里的样本定义和初始化入口取得数据。真实封面与 3D 验收统一使用 `tools/preview_samples.py`：首次 `prepare --download`，后续直接启动同一固定开发目录；仅显式 `--rebuild` 归档后重建。素材锁为 `tools/sample-bundle.json`，启动检查 21 张封面、三个发布文档的印刷面绑定、19 份模型图片与引擎契约；缺失必须失败，不能临时补图绕过。日常预览允许固定仓库外目录；自动验收用独立 `OBI_DEV_HOME`。`backup/restore` 完整归档包含图片和离线素材包，JSON 不能替代图片。离线业务单测仍允许无封面，`--with-models` 仅作隔离几何测试，保留合成光栅、物理装配及账本边界覆盖。普通展示禁止合成图或相似版本填补；公开图集须标为版次参考。缺少副本、包装、照片、条码、数字实体任务或贴图场景时，先扩充此样本库及其可复用素材/初始化方法，同步更新 `tests/test_sample_library.py` 的覆盖点和必要断言，再执行验证；不得另起一套从零造数据，也不得在一次性验证脚本中临时补造贴图或发布任务来绕过样本库。测试仍在独立临时数据目录运行，不修改真实 `data/`。样本清单与各覆盖点见 `tools/seed_samples.py` 模块注释。

@@ -63,6 +63,14 @@ node web/tests/browser/engine-plugin-acceptance.mjs --url http://127.0.0.1:<空�
 
 ## 售卖草稿与图片包
 
+**一键运行**（本地与 CI 同一脚本，推送前 pre-push 钩子也会按改动范围自动跑）：
+
+```sh
+tools/browser_acceptance.sh
+```
+
+它依次构建前端、准备固定样本（仓库外 `~/.cache/obi-acceptance`，坏了自动重建）、复制一份干净实例、启动模拟模型服务、跑主验收和长文验收，结束后关掉服务。失败时打印每个页面的地址、可见标题、焦点和截图路径。共用的超时、`settle()`、`reportFailure()` 在 `acceptance-kit.mjs`：单步 8 秒（`OBI_ACCEPTANCE_TIMEOUT` 可调），生成步骤单独放宽到 20 秒。下面是脚本内部做的事，排查时可以手动分步执行。
+
 先用独立 `OBI_DEV_HOME` 运行 `python3 tools/preview_samples.py prepare --download`。再调用 `tools.seed_samples.seed_listing_reference_photos(<固定样本 instance 目录>)`：复用锁定的真实版次参考图片，备注明确标为非本副本实拍，不生成品相证明。`seed_listing_photos` 只供离线协议单测使用合成图片；普通样本保持缺图。
 
 ```sh

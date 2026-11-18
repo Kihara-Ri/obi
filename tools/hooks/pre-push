@@ -1,3 +1,38 @@
 #!/bin/sh
-# pre-push：推送前再扫一遍完整工作树（防绕过 pre-commit 的提交溜上远端）。
-exec "$(dirname "$0")/../check-data-leak.sh" tree
+# pre-push：
+# 1. 再扫一遍完整工作树（防绕过 pre-commit 的提交溜上远端）。
+# 2. 这次推送动了界面、售卖后端或浏览器验收时，先在本地跑售卖浏览器验收（约 40 秒），
+#    免得推上去才在 CI 里失败。紧急时 git push --no-verify 跳过；OBI_SKIP_BROWSER=1 只跳过第 2 步。
+hooks="$(cd "$(dirname "$0")" && pwd)"
+root="$(cd "$hooks/../.." && pwd)"
+"$hooks/../check-data-leak.sh" tree || exit 1
+
+zero=0000000000000000000000000000000000000000
+changed=""
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue          # 删除远端分支
+  if [ "$remote_sha" = "$zero" ]; then             # 新分支：与远端默认分支比
+    base=$(git merge-base "$local_sha" origin/HEAD 2>/dev/null || git merge-base "$local_sha" origin/main 2>/dev/null)
+  else
+    base="$remote_sha"
+  fi
+  if [ -n "$base" ] && git cat-file -e "$base" 2>/dev/null; then
+    changed="$changed
+$(git diff --name-only "$base" "$local_sha")"
+  else
+    changed="$changed
+web/src/(无法确定推送范围，按需要验收处理)"
+  fi
+done
+
+[ "${OBI_SKIP_BROWSER:-}" = 1 ] && exit 0
+pattern='^(web/src/|web/index\.html|web/package(-lock)?\.json|web/tests/browser/(listing|acceptance-kit)|server/|app\.py|storage\.py|domain_listing\.py|photo_uploads\.py|tests/serve_listing_acceptance\.py|tools/(seed_samples|sample_bundle|preview_samples)\.py|tools/browser_acceptance\.sh)'
+printf '%s\n' "$changed" | grep -Eq "$pattern" || exit 0
+
+echo "推送涉及界面或售卖流程，先跑本地售卖浏览器验收（约 40 秒；跳过：git push --no-verify）…"
+if ! "$root/tools/browser_acceptance.sh"; then
+  echo "" >&2
+  echo "推送已拦下：售卖浏览器验收没通过，推上去 CI 也会在同一处失败。" >&2
+  echo "修好后再推；确认与本次改动无关且必须先推时，用 git push --no-verify。" >&2
+  exit 1
+fi

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
 import {join} from 'node:path';
 import {chromium, webkit} from 'playwright';
+import {fastFail, reportFailure, settle as settleOn} from './acceptance-kit.mjs';
 const base = process.env.LISTING_ACCEPTANCE_URL;
 assert.match(base || '', /^http:\/\/127\.0\.0\.1:\d+$/u);
 const output = process.env.OBI_PREVIEW_SCREENSHOTS || '/tmp/obi-listing-reader-shots';
@@ -17,7 +18,7 @@ for (const engine of engines) {
   const browser = await engine.launch({headless: true});
   try {
     for (const viewport of [{width: 390, height: 844}, {width: 1280, height: 900}]) {
-      const context = await browser.newContext({viewport, hasTouch: viewport.width === 390});
+      const context = fastFail(await browser.newContext({viewport, hasTouch: viewport.width === 390}));
       const page = await context.newPage();
       const errors = [];
       page.on('pageerror', e => errors.push(e.message));
@@ -31,23 +32,7 @@ for (const engine of engines) {
       };
       // 抽屉进场（slide/sheet-up）与卡片限高都带过渡：量几何前要求卡片、照片、底栏三块矩形
       // 连续 200ms 不变且没有动画在跑，否则会量到进场途中（桌面端 x 偏移几 px、手机端照片还在上移）。
-      const settle = async () => {
-        await page.waitForFunction(() => {
-          const now = performance.now();
-          const key = ['.listing-copy', '.listing-photos', '.listing-footer'].map(selector => {
-            const el = document.querySelector(selector);
-            if (!el) return '-';
-            const r = el.getBoundingClientRect();
-            return [r.x, r.y, r.width, r.height].map(value => value.toFixed(2)).join();
-          }).join('|');
-          // 滚动驱动动画（如书架横滑渐隐）随滚动位置变化，永远是 running，不算“还在动”
-          const idle = document.getAnimations().every(animation =>
-            animation.playState !== 'running' || !(animation.timeline instanceof DocumentTimeline));
-          const state = window.__listingSettle || (window.__listingSettle = {key, since: now});
-          if (state.key !== key || !idle) {state.key = key; state.since = now;}
-          return now - state.since >= 200;
-        }, null, {polling: 50, timeout: 8000});
-      };
+      const settle = () => settleOn(page, ['.listing-copy', '.listing-photos', '.listing-footer']);
       await page.goto(base + '/#overseas');
       await page.getByRole('button', {name: record.title, exact: true}).click();
       await page.getByRole('button', {name: '管理', exact: true}).click();
@@ -101,6 +86,9 @@ for (const engine of engines) {
       assert.deepEqual(errors, []);
       await context.close();
     }
+  } catch (error) {
+    await reportFailure(browser, output, `reader-${engine.name()}`);
+    throw error;
   } finally {await browser.close();}
 }
 console.log(JSON.stringify({passed: true, engines: engines.map(engine => engine.name()), screenshots: output}));
