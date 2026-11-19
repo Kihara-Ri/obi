@@ -81,7 +81,7 @@ export function ShelfPage() {
 
   const pageRef = useRef<HTMLDivElement>(null);
   const snapshotFlip = useShelfFlip(pageRef, app.shelfView);
-  useListFlip(pageRef, rs.map(r => r.id).join(','), `${page}|${app.shelfView}`);
+  useListFlip(pageRef, rs.map(r => r.id).join(','), `${page}|${app.shelfView}`, id => app.rec(id)?.status ?? null);
 
   const title = page === 'domestic' && !modules.circulation ? '我的收藏' : page === 'overseas' ? '海外库存' : page === 'domestic' ? '国内库存' : '回收站';
   const desc = !modules.circulation && !isTrash ? '整理每张实物的版本和照片。'
