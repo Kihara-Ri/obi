@@ -132,7 +132,9 @@ def api_photo(h, svc):
             files = sorted((svc.store.photos_dir / parts[3]).glob(parts[4] + '.*'))
             if not files: return h.send({'error': '照片不存在'}, 404)
             raw = files[0].read_bytes()
-        return h.send(raw, mime=mimetypes.guess_type(files[0])[0] or 'image/jpeg')
+        # 带版本号的地址内容固定（照片一换 photoRevision 就变），可长缓存：详情缩略图、灯箱大图、
+        # 保存预取共用同一地址，打开大图不再整张重下（2026-11-19）
+        return h.send(raw, mime=mimetypes.guess_type(files[0])[0] or 'image/jpeg', cache='private, max-age=31536000, immutable')
     folder = svc.store.photos_dir / parts[3] if ok else None
     files = sorted(folder.glob(parts[4] + '.*')) if folder and folder.exists() else []
     if not files: return h.send({'error': '照片不存在'}, 404)

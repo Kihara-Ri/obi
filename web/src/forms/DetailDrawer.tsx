@@ -109,10 +109,9 @@ function DetailBody({id, back}: {id: string; back?: DetailBack}) {
       ]}/>
       {r.photoCount ? <div className="detail-photos">
         <div className="photo-strip">
-          {Array.from({length: r.photoCount}, (_, i) => (
-            <a key={i} href={`/api/photo/${r.id}/${i}`} target="_blank" rel="noopener">
-              <img src={`/api/photo/${r.id}/${i}`} loading="lazy" alt={`实物照片 ${i + 1}`}/>
-            </a>
+          {/* 带版本号：与保存按钮预取同址，可长缓存，打开大图直接用已下好的图 */}
+          {Array.from({length: r.photoCount}, (_, i) => `/api/photo/${r.id}/${i}?photoRevision=${r.photoRevision ?? 0}`).map((src, i) => (
+            <a key={i} href={src} target="_blank" rel="noopener"><img src={src} loading="lazy" alt={`实物照片 ${i + 1}`}/></a>
           ))}
         </div>
         {modules.trading && ['overseas', 'domestic'].includes(r.status)

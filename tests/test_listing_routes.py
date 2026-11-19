@@ -80,6 +80,16 @@ class ListingRouteTests(unittest.TestCase):
         self.assertEqual(self.request(path + '?photoRevision=invalid')[0], 400)
         self.assertEqual(self.request(path)[0], 200)
 
+    def test_photo_cache_only_for_versioned_url(self):
+        with self.store.connect() as db: r = self.store.get(db, 'records', self.ids['lift-fists'])
+        path = f"/api/photo/{r['id']}/0"
+        conn = HTTPConnection('127.0.0.1', self.server.server_port)
+        for url, cache in ((path + f"?photoRevision={r['photoRevision']}", 'private, max-age=31536000, immutable'), (path, 'no-store')):
+            conn.request('GET', url, headers={'Cookie': 'album_session=' + self.token})
+            response = conn.getresponse(); response.read()
+            self.assertEqual((response.status, response.getheader('Cache-Control')), (200, cache))
+        conn.close()
+
     def test_listing_job_query_by_record_id(self):
         from unittest.mock import MagicMock
         mock_listings = MagicMock()
