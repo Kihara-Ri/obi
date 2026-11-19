@@ -1,29 +1,57 @@
-/* BulkBar：库存页底部悬浮批量操作条（position:fixed，不挤压页面）；进退场动画与手机两列布局。只用 token。 */
+/* BulkBar：库存页底部悬浮批量操作条（position:fixed，不挤压页面）；进退场动画与手机布局。只用 token。 */
 
-/* ── 悬浮批量条 ── */
+/* ── 悬浮批量条（桌面：一行浮条，数量 + 全部操作） ── */
 .bulkbar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:12px;
   background:var(--surface-3);border:1px solid var(--border-strong);border-radius:14px;padding:9px 12px 9px 16px;box-shadow:var(--shadow);
   max-width:calc(100vw - 24px);animation:bulk-in var(--dur-slow) var(--ease-out)}
 @keyframes bulk-in{from{opacity:0;transform:translate(-50%,12px)}to{opacity:1;transform:translate(-50%,0)}}
 @keyframes bulk-out{to{opacity:0;transform:translate(-50%,12px)}}
-/* 手机端条自身无横向位移，进退场只做纵向 */
+/* 手机端条自身无横向位移，进退场只做纵向；顶栏从上方落下 */
 @keyframes bulk-in-m{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @keyframes bulk-out-m{to{opacity:0;transform:translateY(12px)}}
+@keyframes bulk-top-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+@keyframes bulk-top-out{to{opacity:0;transform:translateY(-8px)}}
 .bulkbar.is-leaving{animation:bulk-out var(--dur) var(--ease-soft) forwards;pointer-events:none}
 .bulkbar-head{display:flex;align-items:center;gap:12px;min-width:0}
 .bulkbar-head strong{font-size:13px;white-space:nowrap}
 .bulkbar-head .quiet{padding:6px 8px;font-size:12.5px}
 .bulkbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .bulkbar-actions button{padding:6px 12px;font-size:12.5px;white-space:nowrap}
+.bulk-top,.bulk-more-btn,.bulk-more{display:none}
 
 @media (max-width:840px){
-  /* 批量条：整宽底部浮条，两行——第一行数量与取消，第二行操作按钮两列网格，主操作独占一行 */
-  .bulkbar{left:12px;right:12px;width:auto;bottom:calc(var(--nav-bottom) + 72px);transform:none;
-    max-width:none;flex-direction:column;align-items:stretch;gap:10px;padding:12px;animation-name:bulk-in-m}
+  /* 选择期间：底部导航让位给操作条，顶栏内容让位给「取消｜已选 N 张｜全选」 */
+  #shell:has(.shelf-page.is-selecting)~.mobile-nav{display:none}
+  .shelf-page.is-selecting .page-head>div,.shelf-page.is-selecting .page-head .head-actions{visibility:hidden}
+  .shelf-page.is-selecting .toolbar .select-all,.shelf-page.is-selecting .toolbar .mobile-select-toggle{display:none}
+
+  .bulk-top{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;position:fixed;z-index:31;
+    top:var(--head-top);left:16px;right:16px;height:44px;animation:bulk-top-in var(--dur-slow) var(--ease-out)}
+  .bulk-top.is-leaving{animation:bulk-top-out var(--dur) var(--ease-soft) forwards;pointer-events:none}
+  .bulk-top strong{grid-column:2;font-size:17px;font-weight:650;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .bulk-top .quiet{min-height:40px;padding:0 14px;border-radius:20px;color:var(--text);font-size:14px;
+    background:var(--glass);backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);
+    border:1px solid var(--glass-line);box-shadow:var(--glass-shadow)}
+  .bulk-top .quiet:first-child{justify-self:start}
+  .bulk-top .quiet:last-child{justify-self:end}
+
+  /* 操作条：占底栏原位（同高 58、同圆角、同距底），一行等分；页面底部 120px 留白本就为底栏预留，无需再加 */
+  .bulkbar{left:12px;right:12px;width:auto;bottom:var(--nav-bottom);height:58px;transform:none;max-width:none;
+    padding:6px;border-radius:29px;gap:0;background:var(--chrome-nav);
+    backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);animation-name:bulk-in-m}
   .bulkbar.is-leaving{animation-name:bulk-out-m}
-  .bulkbar-head{justify-content:space-between}
-  .bulkbar-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;justify-content:stretch}
-  .bulkbar-actions > .primary{grid-column:1 / -1}
-  .bulkbar-actions button{min-height:42px;font-size:13px;padding:8px 10px;width:100%}
-  .bulkbar-head .quiet{min-height:40px}
+  .bulkbar-head,.bulkbar-actions .is-overflow{display:none}
+  .bulkbar-actions{flex:1;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px;justify-content:stretch;flex-wrap:nowrap}
+  .bulkbar-actions button{height:46px;min-height:44px;padding:0 6px;border-radius:23px;font-size:14px;width:100%;
+    background:transparent;border:0;box-shadow:none;color:var(--text)}
+  .bulkbar-actions button.primary{background:var(--accent);color:var(--accent-ink);font-weight:600}
+  .bulkbar-actions button:disabled{opacity:.4}
+  .bulk-more-btn{display:block}
+
+  /* 「更多」：从操作条上方弹出的竖排菜单 */
+  .bulk-more{display:flex;flex-direction:column;position:absolute;right:0;bottom:calc(100% + 8px);min-width:180px;padding:6px;
+    background:var(--surface-3);border:1px solid var(--border-strong);border-radius:14px;box-shadow:var(--shadow);
+    animation:bulk-in-m var(--dur) var(--ease-out)}
+  .bulk-more button{display:flex;align-items:center;justify-content:flex-start;min-height:44px;padding:0 14px;text-align:left;font-size:15px;background:transparent;border:0;border-radius:10px;color:var(--text)}
+  .bulk-more button:active{background:var(--surface-2)}
 }

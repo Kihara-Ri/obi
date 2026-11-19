@@ -247,7 +247,7 @@ export function ShelfPage() {
             if (!next) app.setSelected(new Set());
           }}>{app.mobileSelecting || curSelected.size ? '取消选择' : '选择'}</button> : null}
       </div>
-      <BulkBar page={page} ids={[...curSelected]} isTrash={isTrash}/>
+      <BulkBar page={page} ids={[...curSelected]} allIds={selectable.map(r => r.id)} isTrash={isTrash}/>
       {/* 库存里搜不到或想看别的版本：同一个词直接带去「查询」页查资料库（条码、编号、专辑名都行） */}
       {searching && !isTrash ? <a className="shelf-lookup-row" href="#lookup" onClick={() => queueLookup(query.trim())}>
         <span>在资料库查「<b>{query.trim()}</b>」</span><i aria-hidden="true">›</i></a> : null}
