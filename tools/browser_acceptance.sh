@@ -66,7 +66,7 @@ step "售卖主验收"
 LISTING_ACCEPTANCE_URL="$url" node web/tests/browser/listing-acceptance.mjs || fail "售卖主验收"
 # 主验收会改写长文样本；结束后再经 storage 事务写入固定长文，专测展开/收起。
 seed seed_listing_long_copy
-step "长文展开验收"
-LISTING_ACCEPTANCE_URL="$url" node web/tests/browser/listing-reader-acceptance.mjs || fail "长文展开验收"
+step "文案阅读验收"
+LISTING_ACCEPTANCE_URL="$url" node web/tests/browser/listing-reader-acceptance.mjs || fail "文案阅读验收"
 printf '\n✓ 售卖浏览器验收通过（截图：%s）\n' "$OBI_PREVIEW_SCREENSHOTS"
 rm -rf "${RUN}/instance"  # 通过后清掉复制的实例，失败时保留现场

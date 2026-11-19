@@ -1,3 +1,3 @@
-.listing-review{display:grid;gap:var(--listing-gap);margin-bottom:var(--listing-gap)}
-.listing-card{display:grid;gap:var(--listing-gap-sm);padding:var(--listing-gap);border:1px solid var(--border);border-radius:var(--radius);background:var(--inset)}
+.listing-review{display:grid;gap:var(--listing-gap)}
+.listing-card{display:grid;gap:var(--listing-gap-sm)}
 .listing-card h4,.listing-card p{margin:0}

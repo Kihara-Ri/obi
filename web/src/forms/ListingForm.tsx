@@ -119,7 +119,13 @@ function ListingForm({id}: {id: string}) {
     <div className="drawer-body listing-body">
       <ListingCopy draft={shown} saved={saved && !dirty} candidate={!!candidate} busy={busy || stale}
         ready={!!ready && !!preferences && !stale} editing={editing} generating={task.busy ? phaseText : undefined}
-        streaming={streaming}
+        streaming={streaming} settings={<ListingOptions value={preferences} busy={busy || stale} supplement={supplement}
+          onSupplement={value => {setSupplement(value); markDirty(false);}}
+          onSave={async value => {
+            setSettingsBusy(true);
+            try {const next = await api<Preferences>('listing/preferences', value); setPreferences({...next, builtins: value.builtins});}
+            finally {setSettingsBusy(false);}
+          }}/>}
         onEditing={setEditing} onGenerate={() => generate()} onChange={change}/>
       {candidate ? <div className="listing-candidate-actions" aria-label="候选操作">
         <button type="button" disabled={stale || busy} onClick={async () => {
@@ -150,13 +156,6 @@ function ListingForm({id}: {id: string}) {
         ? '当前模型仅支持文字；请在设置中选择支持图片的模型。' : '请先在 设置 → 账户 → 已连接服务 中连接并选择模型。'}</p> : null}
       <ListingPhotos id={id} count={r.photoCount} revision={r.photoRevision ?? 0} files={photos.files} order={order} onCover={i => {void setCover(i);}}
         disabled={stale} error={photos.error} retry={photos.retry}/>
-      <ListingOptions value={preferences} busy={busy || stale} supplement={supplement}
-        onSupplement={value => {setSupplement(value); markDirty(false);}}
-        onSave={async value => {
-          setSettingsBusy(true);
-          try {const next = await api<Preferences>('listing/preferences', value); setPreferences({...next, builtins: value.builtins});}
-          finally {setSettingsBusy(false);}
-        }}/>
       {shown.analysis ? <Details className="listing-options" summary="核对与依据" open={reviewOpen} onOpenChange={setReviewOpen}>
         <ListingReview draft={shown} onReanalyze={!stale && ready && !busy ? () => generate(true) : undefined}/>
       </Details> : null}

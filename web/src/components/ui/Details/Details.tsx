@@ -35,10 +35,12 @@ export function Details({summary, children, className = '', open, defaultOpen = 
     try { reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { /* 当作减少动态 */ }
     if (!el || reduce || typeof el.animate !== 'function') { setClosing(false); return; }
     const full = el.scrollHeight;
+    // 内边距一起归零：border-box 下 height:0 压不掉 padding，收起末段会留一条空白，摘掉 open 时才跳没。
+    const {paddingTop: pt, paddingBottom: pb} = getComputedStyle(el);
     el.style.overflow = 'hidden';
-    const frames = isOpen
-      ? [{height: '0px', opacity: 0}, {height: `${full}px`, opacity: 1}]
-      : [{height: `${full}px`, opacity: 1}, {height: '0px', opacity: 0}];
+    const shut = {height: '0px', opacity: 0, paddingTop: '0px', paddingBottom: '0px'};
+    const shown = {height: `${full}px`, opacity: 1, paddingTop: pt, paddingBottom: pb};
+    const frames = isOpen ? [shut, shown] : [shown, shut];
     // fill:forwards：动画结束到 React 摘掉 open 之间不能弹回原高度，否则收起后会闪一下
     const anim = el.animate(frames, {duration: MS, easing: EASE, fill: 'forwards'});
     // 展开结束后撤掉 fill，高度回到自动：内容在展开后变高（如就地出现编辑区）时不会被锁在展开瞬间的高度里。

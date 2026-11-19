@@ -34,7 +34,12 @@ const closeDrawer = async () => {
   await restored; await page.locator('#panel').waitFor({state: 'detached'});
 };
 const generate = async () => {
-  await page.getByRole('button', {name: /^(AI 生成上架资料|重新生成)$/u}).click();
+  // 已有文案时「重新生成」先展开生成面板，再点「开始生成」；空态直接点「AI 生成上架资料」。
+  const regen = page.getByRole('button', {name: '重新生成', exact: true});
+  if (await regen.count()) {
+    if (await regen.getAttribute('aria-expanded') !== 'true') await regen.click();
+    await page.getByRole('button', {name: '开始生成', exact: true}).click();
+  } else await page.getByRole('button', {name: 'AI 生成上架资料', exact: true}).click();
   // 已有草稿时“已保存”标题一直在，不能拿标题当完成信号；先等忙碌态出现，再等按钮恢复。
   await page.waitForFunction(() => {
     const el = [...document.querySelectorAll('button')].find(node => /^(AI 生成上架资料|重新生成)$/u.test(node.textContent.trim()));
@@ -44,6 +49,11 @@ const generate = async () => {
     const el = [...document.querySelectorAll('button')].find(node => /^(AI 生成上架资料|重新生成)$/u.test(node.textContent.trim()));
     return !!el && !el.disabled;
   }, null, {timeout: 20000});
+};
+const openPanel = async () => {
+  const regen = page.getByRole('button', {name: '重新生成', exact: true});
+  if (await regen.getAttribute('aria-expanded') !== 'true') await regen.click();
+  await page.getByRole('textbox', {name: /^本次补充/u}).waitFor();
 };
 try {
   // 设置 · 账户 · 已连接服务（视觉模型）：服务商列表 → 点进详情抽屉完成密钥 / 模型 / 设为在用（D-013）。
@@ -161,7 +171,7 @@ try {
   await page.getByRole('button', {name: /编辑上架资料/u}).click();
   assert.match(await page.locator('.listing-copy-preview').innerText(), /保留手写正文/u);
   // 自定义风格保存即成为全局默认，换风格后候选采用保存。
-  await page.getByText('生成设置', {exact: true}).click();
+  await openPanel();
   await page.getByRole('combobox', {name: /^文案风格：/u}).click();
   await page.getByRole('option', {name: '＋ 我的风格', exact: true}).click();
   await page.getByRole('button', {name: '友好', exact: true}).click();
@@ -228,7 +238,7 @@ try {
   const shared = await phone.evaluate(() => window.__sharedPhotos);
   assert.equal(shared.names.length, 4); assert.equal(shared.active, true, '系统分享在用户手势内调用');
   await phoneContext.close();
-  await page.getByText('生成设置', {exact: true}).click();
+  await openPanel();
   await page.getByRole('textbox', {name: /^本次补充/u}).fill('样本冲突');
   await generate();
   await page.getByRole('button', {name: '版本有冲突 · 查看核对依据', exact: true}).click();

@@ -41,6 +41,6 @@ export function ListingPhotos({id, count, revision, files, order, onCover, disab
           }}>{copying === i ? SpinIco : done === i ? <svg viewBox="0 0 24 24" className="listing-photo-check" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg> : CopyIco}</button> : null}
       </div>)}
     </div>
-    <p className="listing-photo-hint">第一张是闲鱼首图，决定列表里怎么展示，点「设首图」可换；底栏「保存图片」按这个顺序存到相册。{supported ? '点图片右下角可复制单张。' : '长按图片可保存单张。'}</p>
+    <p className="listing-photo-hint">第一张是闲鱼首图，「保存图片」按此顺序存。{supported ? '右下角可复制单张。' : '长按可存单张。'}</p>
   </section>;
 }

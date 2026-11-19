@@ -37,51 +37,31 @@ for (const engine of engines) {
       await page.getByRole('button', {name: record.title, exact: true}).click();
       await page.getByRole('button', {name: '管理', exact: true}).click();
       await page.getByRole('button', {name: /编辑上架资料/u}).click();
-      const toggle = page.getByRole('button', {name: /^(展开全文|收起全文)$/u});
-      await toggle.waitFor();
+      // 文案始终全文：没有展开 / 收起，点正文不改变布局（可正常选字）。
+      await page.locator('.listing-copy-text').waitFor();
       await settle();
       const box = selector => page.locator(selector).first().evaluate(el => {
         const r = el.getBoundingClientRect(); return {x: r.x, y: r.y, width: r.width, height: r.height};
       });
-      const collapsed = {copy: await box('.listing-copy'), photos: await box('.listing-photos'), footer: await box('.listing-footer')};
-      assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
-      assert.ok(collapsed.footer.y + collapsed.footer.height <= viewport.height + 1, '底栏始终在屏内');
-      await shot(join(output, `${engine.name()}-${viewport.width}-collapsed.png`));
-      // 就地展开：卡片增高、照片被推下，宽度与底栏不变，没有覆盖层。
-      await toggle.click();
-      await settle();
-      assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
-      assert.equal(await page.locator('.listing-copy-reader').count(), 0);
-      const open = {copy: await box('.listing-copy'), photos: await box('.listing-photos'), footer: await box('.listing-footer')};
-      assert.ok(open.copy.height > collapsed.copy.height + 50, '展开后卡片增高');
-      assert.ok(Math.abs(open.copy.width - collapsed.copy.width) < 1, '展开不改变文字宽度');
-      assert.ok(Math.abs(open.footer.y - collapsed.footer.y) < 1, '底栏不动');
-      assert.equal(await page.getByRole('button', {name: '保存图片', exact: true}).isVisible(), true);
+      assert.equal(await page.getByRole('button', {name: /^(展开全文|收起全文)$/u}).count(), 0);
+      const text = await page.locator('.listing-copy-preview').evaluate(el => ({scroll: el.scrollHeight, client: el.clientHeight}));
+      assert.ok(text.scroll <= text.client + 1, '正文不被裁切');
+      const before = {copy: await box('.listing-copy'), footer: await box('.listing-footer')};
+      assert.ok(before.footer.y + before.footer.height <= viewport.height + 1, '底栏始终在屏内');
       assert.equal(await page.getByRole('button', {name: '复制文案', exact: true}).isVisible(), true);
-      // 读到底部时收起条仍吸附在可视区内，随时可收。
-      await page.locator('.listing-body').evaluate(el => {el.scrollTop = 200;});
-      const sticky = await toggle.boundingBox();
-      assert.ok(sticky.y >= 0 && sticky.y + sticky.height <= viewport.height, '收起条在可视区内');
-      await page.locator('.listing-body').evaluate(el => {el.scrollTop = 0;});
-      await shot(join(output, `${engine.name()}-${viewport.width}-expanded.png`));
-      await toggle.click();
+      await page.locator('.listing-copy-text').click({position: {x: 20, y: 20}});
       await settle();
-      const back = {copy: await box('.listing-copy'), photos: await box('.listing-photos')};
-      for (const item of ['copy', 'photos']) for (const key of ['x', 'y', 'width', 'height'])
-        assert.ok(Math.abs(back[item][key] - collapsed[item][key]) < 1, `${engine.name()} ${viewport.width} 收起后 ${item}.${key} 复原`);
-      // 点正文本身同样展开 / 收起；选中文字时不误触。
-      await page.locator('.listing-copy-clip').click({position: {x: 20, y: 20}});
+      const after = await box('.listing-copy');
+      for (const key of ['x', 'y', 'width', 'height']) assert.ok(Math.abs(after[key] - before.copy[key]) < 1, `点正文后 ${key} 不变`);
+      // 重新生成：就地展开生成面板（风格与本次补充），取消收回。
+      await page.getByRole('button', {name: '重新生成', exact: true}).click();
+      await page.getByRole('textbox', {name: /^本次补充/u}).waitFor();
       await settle();
-      assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
-      await page.locator('.listing-copy-clip').click({position: {x: 20, y: 20}});
+      await shot(join(output, `${engine.name()}-${viewport.width}-panel.png`));
+      await page.locator('.listing-copy-panel-actions').getByRole('button', {name: '取消', exact: true}).click();
       await settle();
-      assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
-      // 减少动态效果：直接切换，几何一致。
-      await page.emulateMedia({reducedMotion: 'reduce'});
-      await toggle.click(); await settle();
-      assert.ok((await box('.listing-copy')).height > collapsed.copy.height + 50);
-      await toggle.click(); await settle();
-      assert.ok(Math.abs((await box('.listing-copy')).height - collapsed.copy.height) < 1);
+      assert.ok(Math.abs((await box('.listing-copy')).height - before.copy.height) < 1, '取消后面板收回');
+      await shot(join(output, `${engine.name()}-${viewport.width}-reading.png`));
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
       assert.deepEqual(errors, []);
       await context.close();
