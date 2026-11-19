@@ -74,3 +74,16 @@ export const MoreIco = (
     <circle cx="5.5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="18.5" cy="12" r="1.7"/>
   </svg>
 );
+
+// 库存视图切换（2026-11-19）：照实际布局画——列表是「小封面＋两行字」一行一行，卡片是两列大封面。
+export const ListViewIco = (
+  <svg className="view-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <rect x="3" y="4" width="6" height="6" rx="1.2"/><rect x="3" y="14" width="6" height="6" rx="1.2"/><path d="M12.5 6h8.5M12.5 9h5M12.5 16h8.5M12.5 19h5"/>
+  </svg>
+);
+
+export const CardViewIco = (
+  <svg className="view-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <rect x="3" y="3" width="7.5" height="18" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="18" rx="1.6"/><path d="M3 12.5h7.5M13.5 12.5h7.5"/>
+  </svg>
+);

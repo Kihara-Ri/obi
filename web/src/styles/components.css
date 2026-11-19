@@ -88,7 +88,6 @@ button.primary[aria-busy=true]::after{content:"";position:absolute;inset:0;backg
   .toolbar{gap:8px}
   .toolbar .search{flex:1 1 100%;min-width:0}
   .toolbar button,.select-all{min-height:42px}
-  .flip-btn{width:44px;padding:8px 0}
   .head-actions button,.head-actions .link-button{min-height:40px}
 
 

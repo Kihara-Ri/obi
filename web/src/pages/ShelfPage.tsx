@@ -1,11 +1,11 @@
 // 库存页（海外 / 国内 / 回收站共用）：搜索、排序、时间线/艺人分组、批量操作条。
 import {useRef} from 'react';
 import {useApp} from '../state/AppContext';
-import type {AlbumRecord, SortMode} from '../types';
+import type {AlbumRecord, ModuleFlags, SortMode} from '../types';
 import {fmtMonth, sum, yuan} from '../core/format';
 import {searchScore} from '../core/search';
 import {onShelf} from '../core/modules';
-import type {ModuleFlags} from '../types';
+import {CardViewIco, ListViewIco} from '../components/icons';
 import {PageHead} from '../components/PageHead';
 import {BulkBar} from './BulkBar';
 import {ShelfSummary} from './ShelfSummary';
@@ -29,6 +29,7 @@ import {queueLookup} from '../core/lookup-handoff';
 
 const SORTS = [
   {value: 'new', label: '最近买入'},
+  {value: 'old', label: '最早买入'},   // = 「最近买入」+ 倒序（flip）；原来的 ⇅ 按钮并进这里（2026-11-19）
   {value: 'cost', label: '成本从高到低'},
   {value: 'artist', label: '按艺人'},
 ];
@@ -197,7 +198,10 @@ export function ShelfPage() {
 
   return (
     <div ref={pageRef} className={`shelf-page shelf-${app.shelfView}${alignList ? ' align-list' : ''}${app.mobileSelecting || curSelected.size ? ' is-selecting' : ''}`}>
-      <PageHead title={titleNode} desc={keepDesc ? desc : undefined} label="COLLECTION" actions={isTrash ? null : (
+      {/* 手机「选择」在顶栏左侧（与右侧「＋」对称）；进入选择后顶栏由 BulkBar 换成「取消｜已选 N 张｜全选」 */}
+      <PageHead title={titleNode} desc={keepDesc ? desc : undefined} label="COLLECTION"
+        lead={!isTrash && selectable.length ? <button className="mobile-select-toggle" onClick={() => app.setMobileSelecting(true)}>选择</button> : null}
+        actions={isTrash ? null : (
         <>
           {modules.showcase ? <a className="link-button gallery-link" href="#gallery">展示收藏</a> : null}
           <button className="primary head-add" aria-label="添加专辑" onClick={() => openRecordForm(app)}>
@@ -226,26 +230,16 @@ export function ShelfPage() {
         )}
         <SearchField ariaLabel="搜索专辑" placeholder={modules.acquisition ? '搜索专辑、艺人或渠道…' : '搜索专辑或艺人…'}
                      value={query} onChange={app.setQuery}/>
-        {modules.acquisition && sort === 'new' && !searching ? (
-          <button className={`flip-btn${flip ? ' on' : ''}`} aria-label="倒转时间顺序"
-                  title="倒转时间顺序（新↔旧）"
-                  onClick={() => app.setFlip(!flip)}>⇅</button>
-        ) : null}
         {!isTrash && modules.trading ? (
           <Seg className="filter-seg" persistKey="shelf-listed" ariaLabel="上架筛选" options={LISTED_FILTERS}
                value={shelfFilter} onValue={app.setShelfFilter}/>
         ) : null}
-        <Dropdown id="sort" value={sort} options={modules.acquisition ? SORTS : [{value: 'new', label: '最近添加'}, {value: 'artist', label: '按艺人'}]} label="排序方式"
-                  onPick={v => app.setSort(v as SortMode)}/>
+        <Dropdown id="sort" value={sort === 'new' && flip && modules.acquisition ? 'old' : sort} label="排序方式"
+                  options={modules.acquisition ? SORTS : [{value: 'new', label: '最近添加'}, {value: 'artist', label: '按艺人'}]}
+                  onPick={v => { app.setFlip(v === 'old'); app.setSort((v === 'old' ? 'new' : v) as SortMode); }}/>
         <Seg className="view-seg" persistKey="shelf-view" ariaLabel="库存显示方式" value={app.shelfView}
-             options={[{value: 'list', label: '☷ 列表', ariaLabel: '列表视图'}, {value: 'cards', label: '▦ 卡片', ariaLabel: '卡片视图'}]}
+             options={[{value: 'list', label: <>{ListViewIco}列表</>, ariaLabel: '列表视图'}, {value: 'cards', label: <>{CardViewIco}卡片</>, ariaLabel: '卡片视图'}]}
              onValue={v => { snapshotFlip(); app.setShelfView(v as 'list' | 'cards'); }}/>
-        {!isTrash && selectable.length ? <button className="mobile-select-toggle" aria-pressed={app.mobileSelecting || !!curSelected.size}
-          onClick={() => {
-            const next = !(app.mobileSelecting || curSelected.size);
-            app.setMobileSelecting(next);
-            if (!next) app.setSelected(new Set());
-          }}>{app.mobileSelecting || curSelected.size ? '取消选择' : '选择'}</button> : null}
       </div>
       <BulkBar page={page} ids={[...curSelected]} allIds={selectable.map(r => r.id)} isTrash={isTrash}/>
       {/* 库存里搜不到或想看别的版本：同一个词直接带去「查询」页查资料库（条码、编号、专辑名都行） */}

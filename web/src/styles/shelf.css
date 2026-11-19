@@ -48,8 +48,6 @@
 .tl-group:last-child .tl-rail::before{display:none}
 .tl-cards{padding-bottom:30px;min-width:0}
 .tl-group:last-child .tl-cards{padding-bottom:6px}
-.flip-btn{padding:8px 11px;background:var(--surface)}
-.flip-btn.on{border-color:var(--accent-deep);color:var(--accent-deep);background:var(--accent-wash)}
 
 /* 按艺人分组 */
 .artist-group{margin-bottom:36px}
@@ -135,11 +133,15 @@
     transition:transform var(--slide-ms) var(--slide-ease),width var(--slide-ms) var(--slide-ease);will-change:transform,width}
   .shelf-page .toolbar{gap:8px}
   .shelf-page .toolbar .search{order:-1;flex-basis:100%}
-  .mobile-select-toggle{display:inline-flex;min-height:42px;margin-left:auto;padding:8px 10px}
-  /* 全选不插队：排到视图切换之后、选择/取消选择之前，出现时旧控件零位移；
-     放不下换行后与右端的取消选择同排相对。不选择时全选本就隐藏，布局不变。 */
-  .shelf-page .toolbar .select-all{order:1}
-  .shelf-page .toolbar .mobile-select-toggle{order:2}
+  /* 排序下拉与列表/卡片同高 46（与上一行「全部/已上架/未上架」一致），两者等分整行，左右与上方各行对齐 */
+  .shelf-page .toolbar .dd-btn{min-height:46px;width:100%;justify-content:space-between}
+  .shelf-page .toolbar .dd,.shelf-page .toolbar .view-seg{flex:1 1 0;min-width:0}
+  .shelf-page .toolbar .view-seg button{min-height:38px;flex:1}
+  /* 「选择」在顶栏左侧：与顶栏次要操作同款玻璃文字钮（工具栏的「全选」在手机上由 BulkBar 顶栏接管） */
+  .head-lead{grid-column:1;grid-row:1;justify-self:start}
+  .head-lead .mobile-select-toggle{display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border-radius:20px;color:var(--text);font-size:14px;
+    background:var(--glass);backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);
+    border:1px solid var(--glass-line);box-shadow:var(--glass-shadow)}
   .shelf-page:not(.is-selecting) .select-all,.shelf-page:not(.is-selecting) .card-check{display:none}
   .shelf-page .card-edit{display:none}
   .shelf-page .summary{gap:8px 16px;font-size:12px;padding:10px 12px;margin-bottom:12px}
@@ -228,3 +230,5 @@
 .shelf-lookup-row b{color:var(--text);font-weight:650}
 .shelf-lookup-row i{font-style:normal;font-weight:600;color:var(--accent-deep)}
 .shelf-lookup-row:hover{border-style:solid;color:var(--text)}
+/* 列表/卡片切换的线性图标，与文字同行居中（2026-11-19） */
+.view-seg button{display:inline-flex;align-items:center;justify-content:center;gap:6px}.view-seg .view-ico{flex:none}

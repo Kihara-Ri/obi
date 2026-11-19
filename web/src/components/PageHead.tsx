@@ -12,8 +12,10 @@ const BackIco = (
   </svg>
 );
 
-export function PageHead({title, desc, actions, label}: {
+export function PageHead({title, desc, actions, label, lead}: {
   title: ReactNode; desc?: ReactNode; actions?: ReactNode; label?: string;
+  /** 手机顶栏左侧的操作（没有返回钮的页面才用，例如库存页的「选择」） */
+  lead?: ReactNode;
 }) {
   const back = BACK_TARGET[useShownRoute()];
   return (
@@ -21,6 +23,7 @@ export function PageHead({title, desc, actions, label}: {
       <div>
         {/* 手机顶栏的返回：只在「更多」的子页出现，按样稿是「‹ 上一级名」的文字钮；桌面有侧栏不显示 */}
         {back ? <a className="head-back" href={back.href} aria-label={`返回${back.label}`}>{BackIco}<span aria-hidden="true">{back.label}</span></a> : null}
+        {!back && lead ? <span className="head-lead">{lead}</span> : null}
         {label ? <div className="eyebrow">{label}</div> : null}
         <h1>{title}</h1>
         {desc ? <p>{desc}</p> : null}
