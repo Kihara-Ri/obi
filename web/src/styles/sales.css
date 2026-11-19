@@ -39,10 +39,14 @@
 /* 售出中：等待天数徽标；久等（> 7 天）变提醒色 */
 .pill.wait-days{background:var(--surface-3);color:var(--muted);border:1px solid var(--border);font-variant-numeric:tabular-nums}
 .pill.wait-days.is-long{background:color-mix(in srgb,var(--orange) 12%,transparent);color:var(--orange);border-color:color-mix(in srgb,var(--orange) 30%,transparent)}
-/* 「⋯」更多操作：方形图标钮；面板里两项整宽排列 */
+/* 「⋯」更多操作：方形图标钮；操作单是一组圆角列表，每行「图标 + 名称/说明」靠左，危险项整行红字 */
 .sale-foot .actions .sale-more-btn{width:42px;padding:0;display:inline-flex;align-items:center;justify-content:center}
-.sale-more{display:flex;flex-direction:column;gap:8px;padding-bottom:12px}
-.sale-more button{width:100%;min-height:46px}
+.sale-more{display:flex;flex-direction:column}
+.sale-more button{display:flex;align-items:center;justify-content:flex-start;gap:14px;width:100%;min-height:62px;padding:10px 16px;text-align:left;background:var(--surface-2);border:1px solid var(--border);border-radius:0;color:var(--text);box-shadow:none}
+.sale-more button:first-child{border-radius:14px 14px 0 0}.sale-more button:last-child{border-radius:0 0 14px 14px}.sale-more button+button{border-top:none}
+.sale-more button svg{flex:none;color:var(--muted)}.sale-more button.danger,.sale-more button.danger svg{color:var(--red)}
+.sale-more button span{display:flex;flex-direction:column;gap:2px;min-width:0}.sale-more b{font-size:15px;font-weight:600}.sale-more small{font-size:12.5px;color:var(--muted)}
+.sale-more button:active{background:var(--surface-3)}
 
 @media (max-width:840px){
   .sale-card{padding:13px 14px}

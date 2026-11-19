@@ -75,6 +75,19 @@ export const MoreIco = (
   </svg>
 );
 
+// 售出中「⋯」操作单：退款 / 退货（折返箭头）、撤销售出（逆时针撤回）
+export const RefundIco = (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>
+  </svg>
+);
+
+export const UndoIco = (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <circle cx="12" cy="12" r="8.5"/><path d="m9 9 6 6M15 9l-6 6"/>
+  </svg>
+);
+
 // 库存视图切换（2026-11-19）：照实际布局画——列表是「小封面＋两行字」一行一行，卡片是两列大封面。
 export const ListViewIco = (
   <svg className="view-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">

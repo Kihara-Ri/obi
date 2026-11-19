@@ -1,6 +1,7 @@
 // 售出中与已交易共用销售单卡片：专辑、金额与操作集中展示。
 // 2026-11-17 收紧：售出中用「已 N 天」徽标代替状态标签（久等变提醒色）；费用明细收成一行；
-// 售出中只露「退款 / 退货」「确认收货」，「修改费用」「撤销售出」收进「⋯」；单张不写「1 张」。
+// 售出中只露「修改费用」「确认收货」（2026-11-19：修改费用最常用，换到外面），「退款 / 退货」「撤销售出」收进「⋯」；单张不写「1 张」。
+import type {ReactNode} from 'react';
 import {useApp} from '../state/AppContext';
 import type {AppCtx} from '../state/AppContext';
 import type {Sale} from '../types';
@@ -8,7 +9,7 @@ import {SALE_NAMES} from '../types';
 import {daysSince, shipFeeText, sum, yuan} from '../core/format';
 import {AlbumSummary} from '../components/AlbumSummary';
 import {ShopMark} from '../components/ShopField';
-import {MoreIco} from '../components/icons';
+import {MoreIco, RefundIco, UndoIco} from '../components/icons';
 import {openDetail} from '../forms/DetailDrawer';
 import {CONFIRM_TITLES, ConfirmForm} from '../forms/ConfirmForm';
 
@@ -21,12 +22,16 @@ function openConfirm(app: AppCtx, kind: keyof typeof CONFIRM_TITLES,
     content: <ConfirmForm kind={kind} id={opts.id} sale={opts.sale} arriveCount={opts.arriveCount}/>});
 }
 
-// 「⋯」更多操作：贴底小面板，选一项后在抽屉栈里推入对应表单（取消回到这里）
-function openSaleMore(app: AppCtx, s: Sale, onEditCosts: () => void) {
-  app.openDrawer({title: '更多操作', compact: true, content: (
-    <div className="drawer-body sale-more">
-      <button type="button" onClick={onEditCosts}>修改费用</button>
-      <button type="button" className="danger" onClick={() => openConfirm(app, 'cancel', {id: s.id})}>撤销售出</button>
+// 「⋯」更多操作：贴底操作单，标题写明是哪一笔；每项「图标 + 名称 + 一句说明」，
+// 选一项后在抽屉栈里推入对应表单（取消回到这里）
+function openSaleMore(app: AppCtx, s: Sale) {
+  const first = app.rec(s.items[0]?.recordId ?? '')?.title || '这笔交易';
+  const row = (ico: ReactNode, label: string, hint: string, run: () => void, cls = '') => (
+    <button type="button" className={cls} onClick={run}>{ico}<span><b>{label}</b><small>{hint}</small></span></button>);
+  app.openDrawer({title: s.items.length > 1 ? `${first} 等 ${s.items.length} 张` : first, compact: true, content: (
+    <div className="sale-more">
+      {row(RefundIco, '退款 / 退货', '买家退款，或专辑退回到国内库存', () => openConfirm(app, 'refund', {id: s.id, sale: s}))}
+      {row(UndoIco, '撤销售出', '记错了或没成交，专辑回到原状态', () => openConfirm(app, 'cancel', {id: s.id}), 'danger')}
     </div>)});
 }
 
@@ -100,8 +105,8 @@ export function SaleCard({s, onArtist, onEditCosts}: {s: Sale; onArtist: (artist
         {shipping && (
           <div className="actions">
             <button className="sale-more-btn" aria-label="更多操作" title="更多操作"
-                    onClick={() => openSaleMore(app, s, onEditCosts)}>{MoreIco}</button>
-            <button onClick={() => openConfirm(app, 'refund', {id: s.id, sale: s})}>退款 / 退货</button>
+                    onClick={() => openSaleMore(app, s)}>{MoreIco}</button>
+            <button onClick={onEditCosts}>修改费用</button>
             <button className="primary" onClick={() => openConfirm(app, 'receive', {id: s.id, sale: s})}>确认收货</button>
           </div>
         )}
