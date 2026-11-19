@@ -4,11 +4,11 @@
 // 邻张随轨道提前挂载，不再有换图解码空窗；桌面另有左右按钮与方向键，连按会延展目标。
 // 点照片本体以外的任何位置（背景、轨道、计数）或按 Esc 关闭（Esc 只关灯箱这一层）；
 // 开合从被点缩略图的位置与尺寸放大/收回（WAAPI 过渡），减少动态效果时直接切换。
-import {useEffect, useLayoutEffect, useRef, useState} from 'react';
-import type {MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent} from 'react';
+import {useEffect, useLayoutEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent} from 'react';
+import {LightboxBar} from './LightboxBar';
 import {ChevLeftIco, ChevRightIco} from '../icons';
 import {advanceGalleryMotion, clampGalleryPosition, galleryReleaseVelocity, releaseGalleryMotion} from '../../core/gallery-motion';
-import {thumbnailZoomFrames} from '../../core/gallery-zoom';
+import {currentClip, thumbnailZoomFrames, thumbRadius} from '../../core/gallery-zoom';
 import {useLightboxZoom} from './lightboxZoom';
 import type {GalleryMotionState} from '../../core/gallery-motion';
 
@@ -147,14 +147,14 @@ export function Lightbox() {
     // 收起：从当前视觉位置（含放大动画中途的插值）缩回这张照片自己的缩略图。
     // 变换始终以未变换的落位矩形为基准：先取当前插值、定格进行中的动画，再量落位。
     const fromTransform = window.getComputedStyle(img).transform;
-    const fromRadius = window.getComputedStyle(img).borderRadius;
+    const fromClip = currentClip(img);
     zoomAnim.current?.cancel();
     zoomAnim.current = null;
     const rect = img.getBoundingClientRect();
     if (!rect.width || !rect.height) {teardown(); return;}
-    const [thumbnailFrame] = thumbnailZoomFrames(rect, box, data.radius, fromRadius);
+    const [thumbnailFrame] = thumbnailZoomFrames(rect, box, data.radius, window.getComputedStyle(img).borderRadius);
     const anim = img.animate(
-      [{transform: fromTransform, borderRadius: fromRadius},
+      [{transform: fromTransform, clipPath: fromClip},
        thumbnailFrame],
       {duration: ZOOM_MS, easing: ZOOM_EASE, fill: 'forwards'});
     zoomAnim.current = anim;
@@ -177,7 +177,7 @@ export function Lightbox() {
         const index = Math.max(0, els.indexOf(img));
         posRef.current = index;
         // 记录容器内逐张对应的缩略图与圆角；位置到动画启动时再量（见下）。
-        const radius = parseFloat(window.getComputedStyle(img).borderTopLeftRadius);
+        const radius = thumbRadius(img); // 圆角常在外层容器上，img 自己是 0（否则收回时先变直角）
         origin.current = {radius: Number.isFinite(radius) ? radius : 0,
           thumbs: els.map(el => el instanceof HTMLImageElement ? el : null)};
         introDone.current = false;
@@ -186,7 +186,7 @@ export function Lightbox() {
       }
       if (!latest.current.view) return;
       // 照片本体与导航键各守其义；轨道、背景与计数都算「照片以外」，点按即收起。
-      if (t.closest('.lb-slide img,.lb-nav')) return;
+      if (t.closest('.lb-slide img,.lb-nav,.lb-bar button')) return;
       if (t.closest('#lightbox')) close();
     };
     // 捕获阶段先消费按键，避免底下的抽屉 / 展示页一起响应。
@@ -378,10 +378,10 @@ export function Lightbox() {
          onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}
          onPointerCancel={onPointerCancel} onLostPointerCapture={onLostCapture} onClickCapture={onClickCapture}>
       <div className="lb-track">{slides}</div>
+      <LightboxBar src={view.list[idx]} index={idx} count={n} onClose={close}/>
       {n > 1 && <>
         {btnIdx > 0 && <button type="button" className="lb-nav lb-prev" aria-label="上一张照片" onClick={() => step(-1)}>{ChevLeftIco}</button>}
         {btnIdx < n - 1 && <button type="button" className="lb-nav lb-next" aria-label="下一张照片" onClick={() => step(1)}>{ChevRightIco}</button>}
-        <span className="lb-count" aria-live="polite">{idx + 1} / {n}</span>
       </>}
     </div>
   );

@@ -1,0 +1,24 @@
+/* 灯箱顶栏（关闭｜第几张｜保存）与照片长按面板。灯箱本身固定深色底，顶栏用固定的半透明深色玻璃，不随主题。 */
+.lb-bar{position:absolute;z-index:2;top:calc(10px + env(safe-area-inset-top));left:12px;right:12px;display:grid;grid-template-columns:44px 1fr 44px;align-items:center;justify-items:center;pointer-events:none;transition:opacity .18s ease}
+.lb-btn{pointer-events:auto;width:44px;height:44px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:22px;
+  border:1px solid var(--lb-line);background:var(--lb-glass);color:var(--lb-ink);box-shadow:none;
+  backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);cursor:pointer}
+.lb-btn:hover,.lb-btn:active{background:var(--lb-glass-strong);border-color:var(--lb-line-strong)}
+.lb-btn:disabled{opacity:.6;cursor:default}
+.lb-bar .lb-count{position:static;transform:none;pointer-events:auto;padding:5px 12px;font-size:14px;font-variant-numeric:tabular-nums;
+  background:var(--lb-glass);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+#lightbox.lb-intro .lb-bar{opacity:0;transition:none}
+#lightbox.lb-closing .lb-bar{opacity:0}
+#lightbox.lb-intro .lb-bar *,#lightbox.lb-closing .lb-bar *{pointer-events:none}
+
+/* 照片上关掉系统长按菜单（链接预览 / 存储图像），由长按面板代替 */
+.photo-strip a,.photo-strip img,.photo-thumb img,.lb-slide img{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+
+.photo-hold{position:fixed;inset:0;z-index:90;display:flex;align-items:flex-end;justify-content:center;background:var(--photo-hold-scrim);animation:lb-in var(--dur) var(--ease-soft)}
+.photo-hold-sheet{width:min(100%,420px);display:flex;flex-direction:column;gap:8px;padding:0 10px calc(10px + env(safe-area-inset-bottom));animation:photo-hold-up var(--dur-slow) var(--ease-out)}
+@keyframes photo-hold-up{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.photo-hold-sheet img{align-self:center;max-width:72%;max-height:38dvh;margin-bottom:10px;border-radius:12px;box-shadow:var(--shadow);object-fit:contain}
+.photo-hold-group{border-radius:14px;overflow:hidden;background:var(--surface-3);border:1px solid var(--border-strong)}
+.photo-hold-group button,.photo-hold-cancel{width:100%;min-height:56px;display:flex;align-items:center;justify-content:center;gap:10px;border:0;border-radius:0;background:transparent;box-shadow:none;font-size:16px;color:var(--text)}
+.photo-hold-group button svg{color:var(--accent-deep)}
+.photo-hold-cancel{border-radius:14px;background:var(--surface-3);border:1px solid var(--border-strong);font-weight:600}

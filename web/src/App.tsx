@@ -3,8 +3,7 @@ import {useCallback, useDeferredValue, useEffect, useRef, useState} from 'react'
 import {ApiError} from './core/api';
 import {useLedgerState} from './state/useLedgerState';
 import {homePage, LEGACY_MODULES, normalizeModules, pageEnabled, PRESETS} from './core/modules';
-import {applyThemePref, themePref} from './core/theme';
-import type {ThemePref} from './core/theme';
+import {applyThemePref, themePref, type ThemePref} from './core/theme';
 import {ShownPage, useHashRoute} from './hooks/useHashRoute';
 import {usePageTransition} from './hooks/usePageTransition';
 import {usePwa} from './hooks/usePwa';
@@ -18,6 +17,7 @@ import type {SortMode} from './types';
 import {MobileNav, navCounts, Sidebar} from './components/AppNav';
 import {Drawer} from './components/ui/Drawer';
 import {Lightbox} from './components/ui/Lightbox';
+import {PhotoLongPress} from './components/ui/PhotoLongPress';
 import {Toast} from './components/ui/Toast';
 import type {ToastAction, ToastKind} from './state/AppContext';
 import {Splash} from './components/ui';
@@ -191,7 +191,7 @@ export default function App() {
       {drawer ? <Drawer spec={drawer} closing={drawerClosing} pages={drawerPages} pageKey={drawerPage.key} direction={drawerPage.direction}
                         onClose={() => closeDrawer()} onClosed={drawerExited}/> : null}
       {toastMsg ? <Toast key={toastMsg.key} kind={toastMsg.kind} text={toastMsg.text} action={toastMsg.action} onDone={() => setToastMsg(null)}/> : null}
-      <Lightbox/><PeekUnderlay/><WhatsNew/>
+      <Lightbox/><PhotoLongPress/><PeekUnderlay/><WhatsNew/>
     </AppContext.Provider>
     <Splash ready/>
     {veil ? <PageVeil key={page} covers={veil} onDone={() => setVeil(null)}/> : null}

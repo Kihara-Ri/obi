@@ -8,19 +8,20 @@ import {fileURLToPath} from 'node:url';
 const {output, source, require} = compiledSources();
 const zoom = require(join(output, 'core/gallery-zoom.js'));
 
-test('缩略图过渡按元素中心与实际宽高计算，并按横向缩放修正角半径', () => {
+test('缩略图过渡按元素中心等比缩放，裁切圆角换算回缩放前尺寸', () => {
   const full = {left: 100, top: 50, width: 400, height: 600};
   const thumb = {left: 20, top: 30, width: 100, height: 150};
   const [start, end] = zoom.thumbnailZoomFrames(full, thumb, 8, '12px');
-  assert.deepEqual(start, {transform: 'translate(-230px, -245px) scale(0.25, 0.25)', borderRadius: '32px'});
-  assert.deepEqual(end, {transform: 'none', borderRadius: '12px'});
+  assert.deepEqual(start, {transform: 'translate(-230px, -245px) scale(0.25)', clipPath: 'inset(0px 0px round 32px)'});
+  assert.deepEqual(end, {transform: 'none', clipPath: 'inset(0px 0px round 12px)'});
 });
 
-test('非等比缩略图使用独立宽高缩放，反向动画可复用起始关键帧', () => {
-  const full = {left: 10, top: 20, width: 300, height: 500};
-  const thumb = {left: 170, top: 80, width: 120, height: 60};
-  const [thumbnailFrame] = zoom.thumbnailZoomFrames(full, thumb, 6, '0px');
-  assert.deepEqual(thumbnailFrame, {transform: 'translate(70px, -160px) scale(0.4, 0.12)', borderRadius: '15px'});
+test('横图收回方形缩略图：等比铺满不变形，左右多出的部分裁掉，落点圆角等于缩略图圆角', () => {
+  const full = {left: 0, top: 200, width: 400, height: 300};
+  const thumb = {left: 20, top: 540, width: 72, height: 72};
+  const [frame] = zoom.thumbnailZoomFrames(full, thumb, 9, '12px');
+  // 铺满方块取纵向比例 72/300 = 0.24；可见宽 72/0.24 = 300，左右各裁 50
+  assert.deepEqual(frame, {transform: 'translate(-144px, 226px) scale(0.24)', clipPath: 'inset(0px 50px round 37.5px)'});
 });
 
 test('遮罩动画取消后仍保留目标透明度，避免收起中途闪回不透明底色', () => {
