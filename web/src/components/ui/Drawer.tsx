@@ -421,7 +421,7 @@ export function Drawer({spec, closing, pages, pageKey = 0, direction = 'forward'
     <div id="panel" ref={panelRef} className={closing ? 'is-closing' : undefined} onKeyDown={onKeyDown}
          onClick={e => { if (e.target === e.currentTarget) requestClose(); }}>
       <section ref={sheetRef} onAnimationEnd={onAnimationEnd}
-               className={`drawer${spec.wide ? ' wide' : ''}${spec.compact ? ' compact' : ''}${spec.workspace ? ' import-workspace' : ''}${closing ? ' closing' : ''}`}
+               className={`drawer${spec.wide ? ' wide' : ''}${spec.compact ? ' compact' : ''}${spec.workspace ? ' import-workspace' : ''}${spec.variant === 'artist' ? ' artist-drawer' : ''}${closing ? ' closing' : ''}`}
                role="dialog" aria-modal="true" aria-labelledby="drawer-title" tabIndex={-1}>
         <div className="drawer-head" onPointerDown={onHeadPointerDown} onPointerMove={onHeadPointerMove}
              onPointerUp={endHeadDrag} onPointerCancel={endHeadDrag}>

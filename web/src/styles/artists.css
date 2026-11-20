@@ -1,26 +1,19 @@
-/* 艺人资料：沿用统一抽屉外壳（桌面右抽屉 / 手机底部 sheet），单列排版，与专辑详情同一套字号与信息行。 */
+/* 艺人资料：沿用统一抽屉外壳（桌面加宽的右抽屉 / 手机底部 sheet）。头部见 ArtistHero.css，目录见 ArtistCatalog.css。 */
 .artist-profile{padding:0}
-.profile-head{margin-bottom:16px}
-.profile-name{font-size:20px;font-weight:650;line-height:1.3;overflow-wrap:anywhere}
-.profile-source-name{margin-top:8px;font-size:12px;color:var(--muted);overflow-wrap:anywhere}
-.artist-workspace{display:flex;flex-direction:column;gap:20px}
-.profile-sidebar{display:flex;flex-direction:column;gap:4px;min-width:0}
+.artist-workspace{display:flex;flex-direction:column;gap:28px}
+.profile-sidebar{display:flex;flex-direction:column;gap:12px;min-width:0}
 .profile-content{display:flex;flex-direction:column;gap:24px;min-width:0}
-.profile-overview:empty{display:none}
-.profile-facts{margin:0}
-.profile-meta-item{font-size:12px;line-height:1.6;color:var(--faint);overflow-wrap:anywhere}
-.profile-aliases,.profile-genres{margin-top:14px;font-size:12px;line-height:1.7;color:var(--text);overflow-wrap:anywhere}
-.profile-aliases .profile-meta-item,.profile-genres .profile-meta-item{display:block}
-.alias-toggle{font-size:12px;padding:4px 0;text-decoration:underline}
-.profile-identity{margin-top:14px;line-height:1.7}
-.profile-identity a{display:block}
+/* 桌面：抽屉加宽成两栏，左侧栏随滚动停在顶部 */
+@media (min-width:841px){
+  .drawer.wide.artist-drawer{width:min(1080px,calc(100vw - 48px))}
+  .artist-workspace{display:grid;grid-template-columns:300px minmax(0,1fr);gap:36px;align-items:start}
+  .profile-sidebar{position:sticky;top:0}
+}
 .profile-note{font-size:13px;color:var(--muted);line-height:1.7}
-.profile-head .profile-note{margin-top:12px}
 .profile-banner{margin-top:10px;padding:12px;border-radius:var(--radius-sm);background:var(--accent-wash);font-size:13px;line-height:1.6}
 .profile-banner.warn{color:var(--orange)}
 .profile-banner.err{color:var(--red)}
 .profile-banner .quiet{margin-left:6px;padding:4px 8px}
-.profile-foot p{margin-top:10px;overflow-wrap:anywhere;line-height:1.6}
 .profile-ops{display:flex;flex-direction:column;gap:8px;margin-top:12px}
 .profile-ops button{min-height:38px}
 /* 候选数量/专辑核对状态与身份信息分开呈现。 */
@@ -45,30 +38,6 @@
 .candidate-search-row button{flex:none;min-height:44px}
 .profile-empty{display:flex;flex-direction:column;gap:12px;padding:20px;border:1px dashed var(--border-strong);border-radius:var(--radius);font-size:14px;line-height:1.6}
 .profile-empty p{overflow-wrap:anywhere}
-/* 目录：分类下划线与封面格，避免反复套卡片。 */
-.profile-catalog{display:flex;flex-direction:column;gap:16px}
-.artist-cats{display:flex;gap:18px;overflow-x:auto;border-bottom:1px solid var(--border);scrollbar-width:none}
-.artist-cats::-webkit-scrollbar{display:none}
-.artist-cat{position:relative;flex:none;display:inline-flex;align-items:baseline;gap:5px;min-height:44px;padding:8px 0 12px;border:0;border-radius:0;background:none;color:var(--muted);font-size:13px;white-space:nowrap}
-.artist-cat:hover{background:none;color:var(--text)}
-.artist-cat b{font-size:10px;font-weight:500}
-.artist-cat.on{color:var(--text);font-weight:700;box-shadow:inset 0 -3px var(--accent-deep)}
-.work-list{list-style:none;display:flex;flex-direction:column}
-.artist-work{min-width:0;border-bottom:1px solid var(--border)}
-.work-row{white-space:normal;display:grid;grid-template-columns:64px minmax(0,1fr);gap:3px 14px;width:100%;align-items:center;padding:12px 0;background:none;border:0;border-radius:0;color:var(--text);text-align:left;font:inherit}
-.work-row:hover{background:none}
-.work-cover{display:block;width:64px;grid-row:1/span 2;aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--surface-3)}
-.work-cover img{display:block;width:100%;height:100%;object-fit:cover;transition:filter .15s}
-.work-row:hover .work-cover img{filter:brightness(1.08)}
-.work-cover.cover-fallback{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:30px;font-weight:500}
-.work-cover.cover-fallback.pending{color:var(--faint)}
-.work-main{display:flex;flex-direction:column;gap:5px;min-width:0}
-.work-title{font-size:14px;font-weight:600;line-height:1.4;overflow-wrap:anywhere}
-.work-meta{font-size:11px;color:var(--muted);line-height:1.5;overflow-wrap:anywhere}
-.work-state{grid-column:2;justify-self:start;font-size:10px;line-height:1.5;color:var(--muted);padding:3px 6px;background:var(--surface-2);border-radius:5px}
-.work-state.owned{background:var(--accent);color:var(--accent-ink)}
-.work-state.maybe{background:var(--accent-wash);color:var(--accent-text)}
-.work-detail{display:flex;flex-direction:column;gap:14px;padding:4px 0 14px}
 .copy-list{list-style:none;display:flex;flex-direction:column;gap:8px}
 .copy-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px;border-radius:8px;background:var(--surface-2)}
 .copy-info{display:flex;flex-direction:column;gap:4px;min-width:0}
@@ -78,7 +47,6 @@
 .suggest-box{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:8px;background:var(--accent-wash)}
 .linker,.profile-unlinked{display:flex;flex-direction:column;gap:10px}
 @media (max-width:840px){
-  .artist-cats{gap:20px}
   .copy-row{flex-wrap:wrap}
   .copy-actions button,.copy-row>button,.linker>button{min-height:44px}
   .candidate{padding:14px;gap:12px}
@@ -98,9 +66,3 @@
 
 .candidate-source{display:inline-flex;align-items:center;min-height:36px;padding:4px 0;margin-left:46px;font-size:11px;color:var(--muted)}
 @media (max-width:840px){.candidate-source{min-height:44px;margin-left:44px}}
-
-/* 折叠区做成与 detail-grid 行同款的分隔行，不再套边框盒子 */
-details.adv.profile-more,details.adv.profile-foot{margin-top:0;padding:0;border:0;border-bottom:1px solid var(--border);border-radius:0}
-.profile-more summary,.profile-foot summary{display:flex;align-items:center;gap:6px;min-height:44px;font-size:12.5px;color:var(--muted)}
-details.adv.profile-more.is-open summary,details.adv.profile-foot.is-open summary{margin-bottom:0}
-.profile-foot>:last-child{margin-bottom:12px}

@@ -1,7 +1,6 @@
 web/src/components/AlbumEngineSettings.tsx
 web/src/components/AlbumFlipCard.tsx
 web/src/components/AlbumModel.tsx
-web/src/components/ArtistProfile.tsx
 web/src/components/DiscCalibrationEditor.tsx
 web/src/components/EditionArtwork.tsx
 web/src/components/EngineMount.tsx

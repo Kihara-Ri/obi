@@ -1,0 +1,41 @@
+/* 艺人页头部：手机为头像在左、文字在右；桌面侧栏里头像在上。只用 token。 */
+.artist-hero{display:flex;flex-direction:column;gap:16px;min-width:0}
+.artist-hero-top{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"avatar text more";gap:16px;align-items:center}
+.artist-avatar{grid-area:avatar;width:84px;height:84px;border-radius:18px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:var(--surface-3);color:var(--muted)}
+.artist-avatar.mosaic{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px;background:var(--border)}
+.artist-avatar img{display:block;width:100%;height:100%;object-fit:cover;min-width:0;min-height:0}
+.artist-avatar b{font-size:34px;font-weight:650}
+.artist-hero-text{grid-area:text;display:flex;flex-direction:column;gap:4px;min-width:0}
+.artist-hero-name{font-size:26px;line-height:1.15;font-weight:700;letter-spacing:-.01em;overflow-wrap:anywhere}
+.artist-hero-summary{font-size:14px;line-height:1.5;color:var(--muted);overflow-wrap:anywhere}
+.artist-hero-note{font-size:12px;line-height:1.5;color:var(--faint);overflow-wrap:anywhere}
+.artist-hero-more{grid-area:more;align-self:start;width:44px;height:44px;padding:0;margin:-6px -10px 0 0;border-radius:22px;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.artist-hero-more[aria-expanded=true]{background:var(--surface-2);color:var(--text)}
+.artist-hero-meta{margin-top:-4px;font-size:12px;line-height:1.6;color:var(--muted);overflow-wrap:anywhere}
+.artist-hero-meta a{text-decoration:none;color:var(--accent-deep)}
+.artist-source{display:flex;flex-direction:column;gap:6px;padding:14px;border-radius:var(--radius-sm);background:var(--surface-2)}
+.artist-source-title{font-size:13px;font-weight:650}
+.artist-source .profile-ops{flex-direction:row;margin-top:6px}
+.artist-source .profile-ops button{flex:1}
+.artist-stats{display:grid;grid-auto-columns:minmax(0,1fr);grid-auto-flow:column;margin:0;border-radius:var(--radius);background:var(--surface-2)}
+.artist-stats>div{display:flex;flex-direction:column-reverse;align-items:center;gap:4px;padding:14px 6px}
+.artist-stats>div+div{border-left:1px solid var(--border)}
+.artist-stats dt{font-size:12px;color:var(--muted)}
+.artist-stats dd{margin:0;font-size:24px;line-height:1;font-weight:700;font-variant-numeric:tabular-nums}
+.artist-stats .is-zero dd{color:var(--faint)}
+.artist-chips{display:flex;flex-wrap:wrap;gap:8px}
+.artist-chip{display:inline-flex;align-items:center;min-height:30px;padding:0 12px;border:1px solid var(--border);border-radius:999px;background:var(--surface-2);font-size:13px;color:var(--text)}
+.artist-chip-toggle{background:none;border-style:dashed;border-color:var(--border-strong);color:var(--muted)}
+.artist-chip-toggle:hover{background:var(--surface-2)}
+.artist-chip-toggle[aria-expanded=true]{border-style:solid;color:var(--text)}
+.artist-aliases{font-size:13px;line-height:1.7;color:var(--muted);overflow-wrap:anywhere}
+@media (max-width:840px){
+  .artist-chip{min-height:36px}
+  #panel .artist-source .candidate-search-row input{font-size:16px}
+}
+@media (min-width:841px){
+  .artist-hero-top{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"avatar more" "text text";align-items:start}
+  .artist-avatar{width:120px;height:120px;border-radius:22px}
+  .artist-avatar b{font-size:46px}
+  .artist-hero-name{font-size:30px}
+}

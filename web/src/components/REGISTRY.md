@@ -95,3 +95,7 @@
 - `ListingCopy`：文案卡片，空态（就地生成 / 手动编写）、阅读（长文限高渐隐，就地展开，sticky 收起条）、编辑（输入框就地编辑，带 `data-native-input` 不走聚焦输入层；完成/保存在表单底栏）；复用 AutoTextarea。
 - `ListingPhotos`：本副本自适应缩略图（加载骨架/失败态）、右下角图标复制单张；复用 PhotoDownload 保存全部，不混入资料库封面。
 - `ListingOptions`（forms）：默认折叠的风格、本次补充与生成选项；复用 ListingPreferences。
+- `ArtistProfile`：艺人抽屉主体（纯展示）。手机单列；桌面抽屉加宽成两栏，左边侧栏，右边作品目录。负责算出关联、建议和未关联副本。
+- `ArtistHero`（`ArtistHero/`）：艺人页头部。头像用收藏封面拼成（4 张以上拼 2×2）；下面是名字和一行摘要、收藏数字（持有 / 售出中 / 曾收藏，为 0 时变灰）、音乐类型标签；别名点「别名 N」展开。右上「⋯」展开 `source` 插槽；同目录的 `ArtistSource` 是来源与资料管理面板。
+- `ArtistCatalog`（`ArtistCatalog/`）：作品目录。有「只看已收藏」开关、胶囊分类、读取进度；手机是列表行，桌面是封面网格，点开的作品占满一行。同目录：`ArtistWorkItem`（收藏状态角标，未收藏的变淡，点开显示副本关联）、`WorkCover`（按需加载封面的闸门）。
+- `ArtistResolution`：艺人候选确认，包括查找中、候选列表、同名提示、搜索名称；确认区送进抽屉底栏。另有未找到和无法连接两种状态。
