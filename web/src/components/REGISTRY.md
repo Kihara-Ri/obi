@@ -66,6 +66,7 @@
 | `Chevron` | 全站唯一箭头（down / right，open 旋转） | 同一 SVG、14px、同一过渡；禁止再用 › ▾ ▸ 字符或另画箭头；折叠用 `Collapse` |
 | `ui/Drawer` | 抽屉 / 手机底部 sheet：遮罩、焦点圈、Esc、下拉收起、脏表单确认 | 存量文件（见 `.ai-kit/legacy.txt`），动到时拆分 |
 | `ui/Lightbox` | 照片灯箱 | 同上 |
+| `ui/LightboxSlide` | 灯箱里的一张照片：整张读完才显示（读取中转圈），出错或 12 秒未读完换地址重读一次 | `src` `index` `offset`；重读地址见 `ui/photoSave.ts` 的 `retrySrc` |
 | `ui/LightboxBar` | 灯箱顶栏：左「关闭」、中「第几张 / 共几张」、右「保存」（手机走系统分享面板，电脑下载）；固定深色玻璃，不随主题 | `src` `index` `count` `onClose`；保存逻辑与预取在 `ui/photoSave.ts` |
 | `ui/PhotoLongPress` | 实物照片长按保存面板：关掉系统长按菜单，按住约半秒弹出「保存到相册 / 取消」，缩略图与灯箱大图通用；App 里挂一次 | 无 props（全局监听 `.photo-strip a img` `.photo-thumb img` `.lb-slide img`）；长按后吞掉松手的 click |
 | `NavIcon` | 手机底栏的统一线条图标（展示 / 库存 / 在途 / 售出中 / 更多），24 栅格、currentColor | `name` | 未知名称回退为「更多」点点 | — |

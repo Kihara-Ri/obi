@@ -6,6 +6,7 @@
 // 开合从被点缩略图的位置与尺寸放大/收回（WAAPI 过渡），减少动态效果时直接切换。
 import {useEffect, useLayoutEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent} from 'react';
 import {LightboxBar} from './LightboxBar';
+import {LightboxSlide} from './LightboxSlide';
 import {ChevLeftIco, ChevRightIco} from '../icons';
 import {advanceGalleryMotion, clampGalleryPosition, galleryReleaseVelocity, releaseGalleryMotion} from '../../core/gallery-motion';
 import {currentClip, thumbnailZoomFrames, thumbRadius} from '../../core/gallery-zoom';
@@ -118,7 +119,7 @@ export function Lightbox() {
     if (!cur || !root) return null;
     const index = clampGalleryPosition(Math.round(clampGalleryPosition(posRef.current, 0, cur.list.length - 1)), 0, cur.list.length - 1);
     const src = cur.list[index];
-    return Array.from(root.querySelectorAll<HTMLImageElement>('.lb-slide img')).find(el => el.src === src) ?? null;
+    return Array.from(root.querySelectorAll<HTMLImageElement>('.lb-slide img')).find(el => el.dataset.src === src) ?? null;
   };
   const pinchZoom = useLightboxZoom(currentImg);
   const teardown = () => {
@@ -367,11 +368,7 @@ export function Lightbox() {
   const base = Math.floor(view.pos);
   const slides = [];
   for (let k = Math.max(0, base - 1); k <= Math.min(n - 1, base + 1); k++) {
-    slides.push(
-      <div key={view.list[k]} className="lb-slide" style={{transform: `translateX(${(k - view.pos) * 100}%)`}}>
-        <img src={view.list[k]} alt={`实物照片 ${k + 1}`} draggable={false}/>
-      </div>,
-    );
+    slides.push(<LightboxSlide key={view.list[k]} src={view.list[k]} index={k} offset={k - view.pos}/>);
   }
   return (
     <div id="lightbox" className={zoom === 'in' ? 'lb-intro' : zoom === 'out' ? 'lb-closing' : undefined}

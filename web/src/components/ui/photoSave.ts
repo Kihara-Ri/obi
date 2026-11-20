@@ -44,3 +44,9 @@ export function usePhotoFile(src: string | null) {
   }, [src]);
   return {file, failed};
 }
+
+/** 只对本站照片接口加重试参数；data:/blob: 等本地地址原样返回 */
+export function retrySrc(src: string, attempt: number): string {
+  if (!attempt || /^(data|blob):/.test(src) || !src.includes('/api/photo/')) return src;
+  return `${src}${src.includes('?') ? '&' : '?'}retry=${attempt}`;
+}
