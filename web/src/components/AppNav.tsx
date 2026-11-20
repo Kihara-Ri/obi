@@ -48,7 +48,7 @@ export function Sidebar({page, home, modules, counts, installEvt, onInstalled}: 
   return (
     <aside className="sidebar">
       <a className="brand" href={`#${home}`}>
-        <img className="brand-logo" src="/icon-192.png" alt="" width="30" height="30"/>
+        <img data-no-reveal className="brand-logo" src="/icon-192.png" alt="" width="30" height="30"/>
         <span>Obi</span>
       </a>
       <nav aria-label="主导航">

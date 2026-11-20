@@ -34,6 +34,7 @@ function fly(src: HTMLImageElement, from: DOMRect, to: DOMRect, ms: number, radi
   const clone = document.createElement('img');
   clone.src = src.currentSrc || src.src;
   clone.alt = '';
+  clone.dataset.noReveal = '';
   clone.setAttribute('aria-hidden', 'true');
   Object.assign(clone.style, {
     position: 'fixed', left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px`,

@@ -36,6 +36,9 @@ import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App';
 import {ensureBackend} from './core/backend';
+import {installImageReveal} from './core/image-reveal';
+
+installImageReveal();   // 全站图片读完时统一「模糊到清晰」显现
 
 // 静态站点要先启动本机引擎；服务器部署 ensureBackend 立即返回，渲染时机不变
 ensureBackend().then(() => {

@@ -111,7 +111,7 @@ export function ReleaseCandidateCard({c, fold, tag, fallbackArt, children}: {c: 
   }, [artState]);
   const art = artState === 'ok' && cur ? cur.small : '';
   const origin: CoverOrigin | null = cur ? (/mzstatic\.com/.test(cur.small) ? 'digital' : cur.kind) : null;
-  const artImg = cur && artState !== 'none' ? <img key={cur.small + tries} className={'rcc-art rcc-art-img' + (artState !== 'ok' ? ' is-pending' : '')} ref={expand.art} src={(expand.big ? cur.big : cur.small) + (tries ? (cur.small.includes('?') ? '&' : '?') + 'r=' + tries : '')} alt="封面"
+  const artImg = cur && artState !== 'none' ? <img data-no-reveal key={cur.small + tries} className={'rcc-art rcc-art-img' + (artState !== 'ok' ? ' is-pending' : '')} ref={expand.art} src={(expand.big ? cur.big : cur.small) + (tries ? (cur.small.includes('?') ? '&' : '?') + 'r=' + tries : '')} alt="封面"
     style={expand.big ? {backgroundImage: `url(${cur.small})`} : undefined}
     onClick={fold ? expand.toggle : undefined} onLoad={() => setLoaded(true)} onError={next}/> : null;
 

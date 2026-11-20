@@ -98,8 +98,8 @@ button.primary[aria-busy=true]::after{content:"";position:absolute;inset:0;backg
   .head-actions .theme-seg{display:none}
 }
 
-/* 封面淡入：Cover 载入完成前透明，避免空白格子突然跳出图片 */
-img.cover{opacity:0;transition:opacity .2s ease}
+/* 封面载入完成前透明，避免空白格子突然跳出图片；读完的显现动画由 core/image-reveal.ts 统一播放 */
+img.cover{opacity:0}
 img.cover.is-ready{opacity:1}
 
 /* 按钮内转圈图标：用形状（转动的圆环）表达「处理中」，不依赖颜色 */
@@ -118,10 +118,6 @@ img.cover.is-ready{opacity:1}
 @keyframes empty-in{from{opacity:0;translate:0 8px}to{opacity:1;translate:0 0}}
 /* 封面来源角标（查询页专辑列表、版本卡片、表单里的已确认版本共用）：贴封面右下角，外层需 position:relative */
 .cover-origin{position:absolute;right:2px;bottom:2px;padding:0 4px;border-radius:4px;background:var(--surface-3);color:var(--text);opacity:.92;font:600 9px/14px var(--font);font-style:normal;letter-spacing:.2px;pointer-events:none;white-space:nowrap}
-/* 封面显现（core/cover-reveal.ts）：透明 + 模糊 → 清晰。只动 opacity / filter，不缩放，不改布局 */
-.cover-reveal{clip-path:inset(0 round var(--reveal-r,0));animation:cover-reveal .38s cubic-bezier(.2,.7,.2,1) both}
-@keyframes cover-reveal{from{opacity:0;filter:blur(10px) saturate(.6)}60%{opacity:1}to{opacity:1;filter:none}}
-@media (prefers-reduced-motion:reduce){.cover-reveal{animation:none}}
 /* 资料来源小标签（库名）：查询结果的专辑行与版本卡片；第一个是主来源，其余是合并进来的同一版本 */
 .src-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
 .src-tags i{font:600 10.5px/16px var(--font);font-style:normal;padding:0 6px;border-radius:99px;border:1px solid var(--border-strong);color:var(--muted);white-space:nowrap}

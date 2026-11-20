@@ -460,7 +460,7 @@ export function GalleryFocus({record, records, originElement, onNavigate, onClos
         onSettings={() => goTo('#settings')}/>
     </section> : null}
     {unavailable ? <p className="gallery-engine-unavailable" role="status">3D 暂不可用，可重试</p> : null}
-    {record.cover ? <img ref={coverProxy} className="gallery-focus-transition-image" src={record.cover}
+    {record.cover ? <img data-no-reveal ref={coverProxy} className="gallery-focus-transition-image" src={record.cover}
       alt="" aria-hidden="true" draggable={false}/> : null}
     <span className="gallery-visually-hidden" role="status" aria-live="polite">{transitionStatus}</span>
     {/* Keep the 3D paper/CD edge grips reachable; the 2D gallery navigation

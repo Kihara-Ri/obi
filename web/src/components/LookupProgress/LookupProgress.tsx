@@ -17,7 +17,7 @@ export function LookupProgress({sources, onCancel}: {sources: ReleaseSource[]; o
     <div className="lp-track" key={sources.join()} aria-hidden="true"><span className="lp-fill"/></div>
     <div className="lp-sources">
       <span>查找：</span>
-      {sources.map(s => <img key={s} className={`lp-src is-${s}`} src={SOURCE_ICONS[s]} alt={SOURCE_LABEL[s]} title={SOURCE_LABEL[s]}/>)}
+      {sources.map(s => <img data-no-reveal key={s} className={`lp-src is-${s}`} src={SOURCE_ICONS[s]} alt={SOURCE_LABEL[s]} title={SOURCE_LABEL[s]}/>)}
     </div>
   </div>;
 }

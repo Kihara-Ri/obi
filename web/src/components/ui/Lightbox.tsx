@@ -235,9 +235,8 @@ export function Lightbox() {
       }).catch(() => {});
       setZoom('in');
     };
-    if (img.complete) start();
-    else img.addEventListener('load', start, {once: true});
-    return () => img.removeEventListener('load', start);
+    // 图还没读完：不再等读完补播放大，读完后原位「模糊到清晰」显现（core/image-reveal）
+    if (img.complete) start(); else introDone.current = true;
   }, [view !== null]);
   // 过渡兜底：后台标签可能推迟动画结束事件，到点强制收尾（'out' 同时卸载灯箱）。
   useLayoutEffect(() => {

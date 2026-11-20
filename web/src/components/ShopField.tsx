@@ -16,10 +16,10 @@ const TOP = 6; // 默认显示的品牌 / 店铺标签数，其余收进「更�
 export function ShopMark({name, brands}: {name: string; brands?: Record<string, ShopBrand>}) {
   const s = (name || '').toLowerCase();
   for (const [keys, src] of SHOP_ICONS) {
-    if (keys.split('|').some(k => s.includes(k))) return <img src={src} alt=""/>;
+    if (keys.split('|').some(k => s.includes(k))) return <img data-no-reveal src={src} alt=""/>;
   }
   const icon = brands?.[normShop(name)]?.icon;
-  if (icon && icon.startsWith('/api/shop-brand-icon/')) return <img src={icon} alt=""/>;
+  if (icon && icon.startsWith('/api/shop-brand-icon/')) return <img data-no-reveal src={icon} alt=""/>;
   const ch = [...(name || '').trim()][0];
   return ch ? <span className="shop-letter">{ch.toUpperCase()}</span> : null;
 }
