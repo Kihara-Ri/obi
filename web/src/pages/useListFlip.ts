@@ -1,8 +1,9 @@
 // 库存卡片 / 列表行的重排转场（FLIP）：搜索、排序、筛选、新增、移除、售出后，
 // 留下的卡片从旧位置平滑移到新位置，新出现的卡片淡入并轻微放大。
 // 被移除的卡片（售出、调走、删除）：React 已把节点摘掉，这里用上一帧记下的元素复制一个替身放回原位，
-// 让它飞向去处在导航里的入口（售出 → 「售出中」，入口随后轻跳一下）；入口看不到（删除、选择模式隐藏了底栏、
-// 只是被筛选掉）就原地缩小淡出。后面的卡片稍等替身离开再上移补位（2026-11-19）。
+// 只把带圆角的封面飞向去处在导航里的入口（售出 → 「售出中」，入口随后轻跳一下），卡片其余部分原地淡出
+// （2026-11-20：原来整张卡片一起飞，太重）；入口看不到（删除、选择模式隐藏了底栏、只是被筛选掉）就原地
+// 缩小淡出。后面的卡片稍等替身离开再上移补位（2026-11-19）。
 // orderKey 变化才触发；scopeKey（页面 / 视图）变化说明是整页切换，由别处负责，这里只刷新记录。
 import {useLayoutEffect, useRef} from 'react';
 
@@ -15,14 +16,29 @@ const EASE = 'cubic-bezier(.2,.7,.2,1)';
 /** 记录状态 → 导航里的入口（hash） */
 const DEST: Record<string, string> = {shipping: 'shipping', sold: 'trades', overseas: 'overseas', transit: 'transit', domestic: 'domestic'};
 
-interface Pos {x: number; y: number; w: number; h: number; el: HTMLElement; parent: HTMLElement | null}
+interface Box {x: number; y: number; w: number; h: number}
+/** cover：封面相对卡片的位置与圆角（卡片被摘掉后量不到，只能在上一帧记下） */
+interface Pos extends Box {el: HTMLElement; parent: HTMLElement | null; cover: (Box & {r: string}) | null}
+
+/** 飞行封面的圆角：取封面或其外层的圆角；卡片视图封面本身是直角（圆角在卡片上），退回全局 --radius */
+function coverRadius(el: HTMLElement): string {
+  const own = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
+  const wrap = el.parentElement ? parseFloat(getComputedStyle(el.parentElement).borderTopLeftRadius) || 0 : 0;
+  const r = Math.max(own, wrap);
+  const root = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--radius')) || 12;
+  return `${r >= 4 ? r : root}px`;
+}
 
 function measure(root: HTMLElement): Map<string, Pos> {
   const map = new Map<string, Pos>();
   const sx = window.scrollX, sy = window.scrollY;
   root.querySelectorAll<HTMLElement>('.card[data-id]').forEach(card => {
     const r = card.getBoundingClientRect();
-    if (r.width > 0) map.set(card.dataset.id!, {x: r.left + sx, y: r.top + sy, w: r.width, h: r.height, el: card, parent: card.parentElement});
+    if (r.width <= 0) return;
+    const c = card.querySelector<HTMLElement>('.cover');
+    const cr = c?.getBoundingClientRect();
+    const cover = c && cr && cr.width > 0 ? {x: cr.left - r.left, y: cr.top - r.top, w: cr.width, h: cr.height, r: coverRadius(c)} : null;
+    map.set(card.dataset.id!, {x: r.left + sx, y: r.top + sy, w: r.width, h: r.height, el: card, parent: card.parentElement, cover});
   });
   return map;
 }
@@ -54,15 +70,27 @@ function flyGhost(root: HTMLElement, old: Pos, target: HTMLElement | null, delay
   inner.appendChild(ghost); layer.appendChild(inner); document.body.appendChild(layer);
   const done = () => layer.remove();
   let anim: Animation;
-  if (target) {
+  const src = ghost.querySelector<HTMLElement>('.cover');
+  if (target && old.cover && src) {
+    // 封面单独抽出来飞：卡片替身里的封面位置留空（露出底色），像被拿走；卡片其余部分原地淡出
+    const c = old.cover;
+    const fly = src.cloneNode(true) as HTMLElement;
+    if (fly instanceof HTMLImageElement) fly.dataset.noReveal = '';
+    src.style.visibility = 'hidden';
+    Object.assign(fly.style, {position: 'fixed', margin: '0', left: `${left + c.x}px`, top: `${top + c.y}px`, width: `${c.w}px`, height: `${c.h}px`,
+      objectFit: 'cover', borderRadius: c.r, overflow: 'hidden', opacity: '1', visibility: 'visible', boxShadow: 'var(--shadow)', transformOrigin: 'center center'});
+    inner.appendChild(fly);
     const t = target.getBoundingClientRect();
-    const dx = t.left + t.width / 2 - (left + old.w / 2), dy = t.top + t.height / 2 - (top + old.h / 2);
-    const s = Math.min(1, 40 / Math.max(old.w, old.h));
-    anim = ghost.animate([
-      {transform: 'none', opacity: 1, easing: 'cubic-bezier(.3,0,.4,1)'},
-      {transform: 'scale(1.03)', opacity: 1, offset: .18, easing: 'cubic-bezier(.55,0,.75,.2)'},
-      {transform: `translate(${dx}px,${dy}px) scale(${s})`, opacity: .25},
+    const dx = t.left + t.width / 2 - (left + c.x + c.w / 2), dy = t.top + t.height / 2 - (top + c.y + c.h / 2);
+    const s = Math.min(1, 32 / Math.max(c.w, c.h));
+    // 圆角按缩放反算，落到入口时仍是看得见的圆角
+    const endRadius = `${parseFloat(c.r) / s}px`;
+    anim = fly.animate([
+      {transform: 'none', opacity: 1, borderRadius: c.r, easing: 'cubic-bezier(.3,0,.4,1)'},
+      {transform: 'scale(1.05)', opacity: 1, borderRadius: c.r, offset: .18, easing: 'cubic-bezier(.55,0,.75,.2)'},
+      {transform: `translate(${dx}px,${dy}px) scale(${s})`, opacity: .35, borderRadius: endRadius},
     ], {duration: FLY_MS, delay, fill: 'both'});
+    ghost.animate([{opacity: 1}, {opacity: 0, transform: 'scale(.97)'}], {duration: FADE_MS, delay: delay + 80, easing: EASE, fill: 'both'});
     anim.finished.then(() => target.animate([{transform: 'none'}, {transform: 'scale(1.16)'}, {transform: 'none'}],
       {duration: 320, easing: 'cubic-bezier(.3,1.4,.5,1)'})).catch(() => {});
   } else {
