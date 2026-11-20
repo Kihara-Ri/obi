@@ -70,10 +70,9 @@ def make_handler(svc):
             self.end_headers()
 
         # ── 请求守卫 ──
-        def trusted(self, allow_cross_site=False):
+        def trusted(self):
             """只认本机回环地址与（可选的）公网源；挡跨站脚本伪造与错误 Host。
 
-            allow_cross_site 供令牌鉴权的外部回调（如 RYM 书签绑定）豁免 Origin 检查。
             回环主机（127.0.0.1/localhost/::1）允许任意端口——Docker 端口映射时浏览器
             Host 是宿主机端口、容器内是另一端口。跨站防护不依赖这一条：Origin 必须
             命中白名单或与当前 Host 完全一致，Sec-Fetch-Site 挡跨站。
@@ -88,23 +87,22 @@ def make_handler(svc):
             if loopback: allowed.add(host)
             if host not in allowed:
                 self.send({'error': '访问地址未配置'}, 403); return False
-            if not allow_cross_site:
-                origin = self.headers.get('Origin')
-                if origin:
-                    onetloc = urlsplit(origin).netloc
-                    if onetloc not in allowed and not (loopback and onetloc == host):
-                        self.send({'error': '不允许跨站请求'}, 403); return False
-                if self.headers.get('Sec-Fetch-Site') == 'cross-site':
-                    # Following an external link is a normal *top-level page navigation*,
-                    # not a cross-site API call. Keep the exception narrow: only the
-                    # two HTML entry points, GET, no Origin, and browser navigation
-                    # metadata. POST and every /api/ request remain CSRF-protected.
-                    page_navigation = (self.command == 'GET' and not origin
-                        and urlsplit(self.path).path in ('/', '/login')
-                        and self.headers.get('Sec-Fetch-Mode') == 'navigate'
-                        and self.headers.get('Sec-Fetch-Dest') == 'document')
-                    if not page_navigation:
-                        self.send({'error': '不允许跨站请求'}, 403); return False
+            origin = self.headers.get('Origin')
+            if origin:
+                onetloc = urlsplit(origin).netloc
+                if onetloc not in allowed and not (loopback and onetloc == host):
+                    self.send({'error': '不允许跨站请求'}, 403); return False
+            if self.headers.get('Sec-Fetch-Site') == 'cross-site':
+                # Following an external link is a normal *top-level page navigation*,
+                # not a cross-site API call. Keep the exception narrow: only the
+                # two HTML entry points, GET, no Origin, and browser navigation
+                # metadata. POST and every /api/ request remain CSRF-protected.
+                page_navigation = (self.command == 'GET' and not origin
+                    and urlsplit(self.path).path in ('/', '/login')
+                    and self.headers.get('Sec-Fetch-Mode') == 'navigate'
+                    and self.headers.get('Sec-Fetch-Dest') == 'document')
+                if not page_navigation:
+                    self.send({'error': '不允许跨站请求'}, 403); return False
             return True
 
         def logged_in(self):
@@ -193,10 +191,9 @@ def make_handler(svc):
                 return self.upload(*routes.UPLOAD[urlsplit(self.path).path], length)
             raw = self.rfile.read(length) if 0 < length <= MAX_BODY else None
             if raw is None: self.close_connection = True
-            if not self.trusted(allow_cross_site=urlsplit(self.path).path in routes.CROSS_SITE_POST): return
+            if not self.trusted(): return
             ctype = self.headers.get('Content-Type', '').split(';')[0]
-            # text/plain 供跨站书签的 no-cors fetch（body 仍是 JSON）；其余请求一律 application/json
-            if ctype not in ('application/json', 'text/plain'):
+            if ctype != 'application/json':
                 return self.send({'error': '请使用 JSON 请求'}, 415)
             try:
                 if raw is None: raise ValidationError('请求内容为空或超过 50 MB')

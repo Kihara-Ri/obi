@@ -464,22 +464,18 @@ class LedgerTests(unittest.TestCase):
         self.store.restore_backup(legacy)
         rec=self.record('a1');sale=self.sale('s1')
         self.assertEqual(rec['status'],'domestic');self.assertNotIn('rate',rec);self.assertEqual(sale['status'],'complete')
-    # ── 退役的 RYM 直达：历史数据保留，不再生成新绑定 ──
-    def test_rym_settings_preserved_and_roundtrip(self):
-        # meta 里的历史 rym 数据原样保留（只读通用路径），不删除、不覆盖、不迁移
+    # ── 退役的 RYM 直达：历史绑定与令牌在启动迁移时清除，旧备份恢复时丢弃 ──
+    def test_retired_rym_settings_removed(self):
         with self.store.connect() as db:
             db.execute("INSERT OR REPLACE INTO meta VALUES('rym-token',?)", ('"tok-123"',))
-            db.execute("INSERT OR REPLACE INTO meta VALUES('rym-links',?)",
-                       ('{"米津玄師": "https://rateyourmusic.com/artist/kenshi_yonezu"}',))
-        self.assertFalse(hasattr(self.store, 'bind_artist'))  # 旧绑定入口已退役
+            db.execute("INSERT OR REPLACE INTO meta VALUES('rym-links',?)", ('{"A": "x"}',))
+        self.store.migrate()
         b = self.store.backup()
-        self.assertEqual(b['settings']['rym-links']['米津玄師'], 'https://rateyourmusic.com/artist/kenshi_yonezu')
-        self.assertEqual(b['settings']['rym-token'], 'tok-123')
+        self.assertNotIn('rym-token', b['settings']); self.assertNotIn('rym-links', b['settings'])
         other = Store(Path(self.tmp.name) / 'other.sqlite3')
-        other.restore_backup(b)  # 旧备份继续可恢复这些设置
+        other.restore_backup({**b, 'settings': {**b['settings'], 'rym-token': 'tok', 'rym-links': {'A': 'x'}}})
         with other.connect() as db:
-            links = json.loads(db.execute("SELECT data FROM meta WHERE key='rym-links'").fetchone()[0])
-        self.assertEqual(links['米津玄師'], 'https://rateyourmusic.com/artist/kenshi_yonezu')
+            self.assertIsNone(db.execute("SELECT data FROM meta WHERE key IN ('rym-links','rym-token')").fetchone())
 
 class RateServiceTests(unittest.TestCase):
     def test_weekend_rolls_back(self):

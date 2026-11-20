@@ -19,10 +19,9 @@ import financial_rates
 from photo_uploads import staged_bytes
 from twins import TWIN_KEY, SKILL_VERSION, ID as TWIN_ID, ASSET as TWIN_ASSET, UUID as TWIN_RELEASE_ID, appearance, same_appearance, clean_barcode, clean_registry, image_type, entity_assets
 
-SCHEMA = 4
+SCHEMA = 4; RETIRED_META = ('rym-links', 'rym-token')  # 已退役功能留下的设置键：启动迁移删除，恢复备份时丢弃
 # 随 /api/state 下发的设置：前端只读展示分组（core/gallery.ts）。新增前端读取的设置要在这里登记。
 STATE_SETTINGS = ('showcase-groups-v1',)
-
 # Metadata-only editor contract; never accepts purchase/status/derived money.
 RECORD_METADATA_FIELDS = ('title', 'artist', 'cover', 'coverSource', 'version', 'packaging',
                           'pressing', 'obi', 'note', 'noteAlbum', 'storage', 'releaseInfo')
@@ -155,6 +154,7 @@ class Store:
     def migrate(self):
         """One-way upgrades; idempotent. Schema 3: shipments. Schema 4: covers to files."""
         with closing(self.connect()) as db, db:
+            db.execute(f"DELETE FROM meta WHERE key IN {RETIRED_META}")  # 退役的 RYM 直达：历史绑定与令牌每次启动都清掉
             version = db.execute("SELECT data FROM meta WHERE key='schema'").fetchone()
             if version and json.loads(version[0]) >= SCHEMA: return
             changed = False
@@ -1198,7 +1198,7 @@ class Store:
             for sh in shipments: self.put(db,'shipments',sh)
             for a in b.get('audit',[]): db.execute('INSERT INTO audit(at,action,data) VALUES(?,?,?)',(a['at'],a['action'],a['data']))
             for k,v in settings.items():
-                if k!='schema': db.execute('INSERT INTO meta VALUES(?,?)',(k,dumps(v)))
+                if k!='schema' and k not in RETIRED_META: db.execute('INSERT INTO meta VALUES(?,?)',(k,dumps(v)))
             db.execute("INSERT OR REPLACE INTO meta VALUES('schema',?)",(dumps(SCHEMA),))
             self.audit(db,'恢复完整备份',{'from':b.get('createdAt')})
             if archive_stage is not None:

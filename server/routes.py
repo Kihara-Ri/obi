@@ -684,9 +684,6 @@ POST = {
     '/api/twins/disc-calibration': (api_twin_disc_calibration, True, True),
 }
 
-# 允许跨站（外部页面）调用的写接口；当前为空，保留豁免管线供未来令牌鉴权回调使用
-CROSS_SITE_POST: set = set()
-
 # 上传整个文件的写接口（请求体不是 JSON）：路径 → (处理函数, 请求体上限字节)。处理函数拿到的是落盘后的临时文件路径。
 # 服务器与本机模式都按这里分发（server/http.py、server/local_entry.py），都需登录并持写锁。
 def api_restore_archive(h, svc, path):

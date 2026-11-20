@@ -118,15 +118,13 @@ class ArtistStorageTests(unittest.TestCase):
                   'records': [{'id': 'a1', 'title': 'T', 'artist': 'A', 'date': '', 'price': '',
                                'currency': 'CNY', 'fees': '0.00', 'actual': '', 'cover': '',
                                'status': 'domestic', 'revision': 1, 'createdAt': '2026-01-01T00:00:00'}],
-                  'sales': [], 'audit': [], 'settings': {'rym-links': {'A': 'https://rateyourmusic.com/artist/a'},
-                                                          'rym-token': 'tok'}}
+                  'sales': [], 'audit': [], 'settings': {'rym-links': {'A': 'x'}, 'rym-token': 'tok'}}
         self.store.restore_backup(legacy)
         self.assertEqual(self.store.artist_identities(), {})
         self.assertEqual(self.store.record_work_links(), {})
-        # 历史 RYM 数据原样保留：不删除、不改写
+        # 退役的 RYM 设置随旧备份进来时直接丢弃
         b = self.store.backup()
-        self.assertEqual(b['settings']['rym-links'], legacy['settings']['rym-links'])
-        self.assertEqual(b['settings']['rym-token'], 'tok')
+        self.assertNotIn('rym-links', b['settings']); self.assertNotIn('rym-token', b['settings'])
 
     def test_clean_helpers_strip_unknown_fields(self):
         ident = clean_artist_identities({'艺人': {'artistMbid': MBID_A, 'sourceName': 'n', 'method': 'manual',
