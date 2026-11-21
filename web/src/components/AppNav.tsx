@@ -95,6 +95,23 @@ export function MobileNav({page, modules, counts, showcaseTab, inventoryPage}: M
   // 胶囊滑动期间临时关掉玻璃条的背景模糊（底色本就 92% 不透明，肉眼无差别），省掉每帧重新模糊
   const [moving, setMoving] = useState(false);
   const firstRef = useRef(true);
+  const navRef = useRef<HTMLElement | null>(null);
+  // 转屏后底栏点不动（2026-11-21，主屏幕 App、内容不滚动的「更多」页）：iOS 转屏后固定定位、带背景模糊的底栏
+  // 点击区域可能停在旧位置，要等整页重排才更新（点进子页再退回就好了）。转屏稳定后让底栏原地重建一次。
+  useEffect(() => {
+    let timer = 0;
+    const rebuild = () => {
+      const nav = navRef.current;
+      if (!nav) return;
+      nav.style.display = 'none';
+      void nav.offsetHeight;
+      nav.style.removeProperty('display');
+    };
+    const onTurn = () => { window.clearTimeout(timer); timer = window.setTimeout(rebuild, 350); };
+    window.addEventListener('orientationchange', onTurn);
+    window.addEventListener('resize', onTurn);
+    return () => { window.clearTimeout(timer); window.removeEventListener('orientationchange', onTurn); window.removeEventListener('resize', onTurn); };
+  }, []);
   useEffect(() => {
     if (firstRef.current) { firstRef.current = false; return; }
     setMoving(true);
@@ -102,7 +119,7 @@ export function MobileNav({page, modules, counts, showcaseTab, inventoryPage}: M
     return () => window.clearTimeout(t);
   }, [pillIndex]);
   return (
-    <nav className={moving ? 'mobile-nav is-moving' : 'mobile-nav'} aria-label="手机导航" style={{gridTemplateColumns: weights.map(w => w + 'fr').join(' ')}}>
+    <nav ref={navRef} className={moving ? 'mobile-nav is-moving' : 'mobile-nav'} aria-label="手机导航" style={{gridTemplateColumns: weights.map(w => w + 'fr').join(' ')}}>
       {/* 胶囊宽度恒为激活权重占比，只在槽位间平移：用 transform（合成器线程），换页渲染占满主线程时也不掉帧 */}
       <span className="nav-pill" aria-hidden="true" style={{
         width: `calc((100% - 12px) * ${weights[pillIndex] / total})`,

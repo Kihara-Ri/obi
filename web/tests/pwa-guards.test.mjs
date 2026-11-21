@@ -78,6 +78,9 @@ test('左缘返回：起手即拦系统手势（touchstart / touchmove 非 passi
   assert.match(edge, /addEventListener\('touchstart', onStart, \{passive: false/);
   assert.match(edge, /addEventListener\('touchmove', onMove, \{passive: false/);
   assert.match(edge, /addEventListener\('touchcancel'/, '系统抢走手势时要能回弹');
+  // 转屏后整屏点不动（2026-11-21）：转屏收掉手势并暂停接管，坐标对不上按到的元素时不拦
+  assert.match(edge, /addEventListener\('orientationchange', onResize\)/);
+  assert.match(edge, /elementFromPoint\(t\.clientX, t\.clientY\)/);
 });
 
 test('切页历史：只有 core/nav.ts 能改 location.hash（手机切页用 replace，免得右划退回上一页）', () => {

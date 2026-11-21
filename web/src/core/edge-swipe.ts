@@ -4,9 +4,15 @@
 // iOS：左缘起手若不在 touchstart 就 preventDefault，系统的「边缘返回」会在手指慢慢移动的那几帧里接管：
 // 页面收到 touchcancel（内容瞬间弹回），随后系统播自己的返回动画（2026-10-24 账本页慢划失控）。所以起手即拦，
 // 只放过贴边的按钮 / 链接（拦了会吞掉点击），它们由第一次 touchmove 再拦。
+//
+// 转屏防护（2026-11-21）：主屏幕 App 在「更多」子页横屏再转回竖屏后整屏点不动、滑不动，要杀掉重开。起手拦截会把
+// 点击和滚动一起吞掉，转屏期间 / 之后若触点坐标与实际按到的元素对不上，就可能每一下都被当成左缘起手拦掉。
+// 所以：转屏（resize / orientationchange）时收掉进行中的手势，之后 800ms 内不接管；触点坐标落在视口外、
+// 或该坐标处的元素不是实际按到的元素时，一律不拦。
 
 export const EDGE = 28;          // 起点距左缘 px
 const LOCK = 8;                  // 位移超过它才判定方向
+const SETTLE_MS = 800;           // 转屏后这段时间内不接管
 const COMMIT = .3, FLICK_DX = 30, FLICK_V = .45;   // 拖过宽度的比例，或甩动（px，px/ms）即算返回
 
 /** 松手时是否算「返回」：两处统一口径 */
@@ -26,7 +32,7 @@ export interface EdgeSwipe {
 
 export function installEdgeSwipe(h: EdgeSwipe): () => void {
   let start: {x: number; y: number} | null = null;
-  let active = false, dx = 0, v = 0, lastX = 0, lastT = 0;
+  let active = false, dx = 0, v = 0, lastX = 0, lastT = 0, resizedAt = -Infinity;
   const abort = () => {
     const was = active;
     start = null; active = false;
@@ -36,14 +42,18 @@ export function installEdgeSwipe(h: EdgeSwipe): () => void {
     // 上一次的 touchend 丢了（触点节点被重渲染移出文档时冒不到 document）：先回弹收尾
     if (start && e.touches.length === 1) abort();
     const t = e.touches[0];
-    if (e.touches.length !== 1 || t.clientX > EDGE) return;
+    if (e.touches.length !== 1 || t.clientX > EDGE || t.clientX < 0) return;
+    if (e.timeStamp - resizedAt < SETTLE_MS) return;
     const target = e.target instanceof Element ? e.target : null;
+    // 坐标与按到的元素对不上（转屏后视口未就绪等）：不是可信的左缘起手，放行
+    const hit = document.elementFromPoint(t.clientX, t.clientY);
+    if (!target || !hit || (hit !== target && !target.contains(hit) && !hit.contains(target))) return;
     if (!h.canStart(target)) return;
     // 起点在「已向右滚过」的横向条带里：让位给原生横向滚动
-    for (let n = target; n && n !== document.body; n = n.parentElement) {
+    for (let n: Element | null = target; n && n !== document.body; n = n.parentElement) {
       if (n.scrollWidth > n.clientWidth + 1 && n.scrollLeft > 0) return;
     }
-    if (e.cancelable && !target?.closest('button, a')) e.preventDefault();
+    if (e.cancelable && !target.closest('button, a')) e.preventDefault();
     start = {x: t.clientX, y: t.clientY};
     active = false; dx = 0; v = 0; lastX = t.clientX; lastT = e.timeStamp;
   };
@@ -73,6 +83,9 @@ export function installEdgeSwipe(h: EdgeSwipe): () => void {
     active = false;
     h.end(dx, v);
   };
+  const onResize = (e: Event) => { resizedAt = e.timeStamp; abort(); };
+  window.addEventListener('resize', onResize);
+  window.addEventListener('orientationchange', onResize);
   // touchstart 必须 capture：iOS 键盘弹出时 WebKit 只把 touchstart 派发到捕获阶段（冒泡阶段收不到，实测）
   document.addEventListener('touchstart', onStart, {passive: false, capture: true});
   document.addEventListener('touchmove', onMove, {passive: false});
@@ -83,5 +96,7 @@ export function installEdgeSwipe(h: EdgeSwipe): () => void {
     document.removeEventListener('touchmove', onMove);
     document.removeEventListener('touchend', onEnd);
     document.removeEventListener('touchcancel', abort);
+    window.removeEventListener('resize', onResize);
+    window.removeEventListener('orientationchange', onResize);
   };
 }
