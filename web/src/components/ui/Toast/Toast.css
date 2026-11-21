@@ -1,23 +1,35 @@
 /* Toast：顶部中间的毛玻璃胶囊，与底部导航 / 沉浸悬浮条同一套浮层语言（--chrome-nav + 模糊 + 细边）。
    左侧实心圆点 + 符号标明级别（✓ 成功 / ! 警告 / × 错误），状态不只靠颜色；
-   停留时长由组件定时器控制，到点下移淡出；悬停/聚焦暂停；点击立即关闭。 */
+   停留时长由组件定时器控制，到点收回顶端；悬停/聚焦暂停；点击立即关闭。
+   动效（2026-11-21）：从顶端带一点回弹落下（像从刘海里掉出来），圆点随后弹出、✓ 一笔画出；
+   消失时缩小、上收、淡出；新消息替换旧消息时原地轻换（.swap），不再整条重新落下。 */
 #toast{--toast-c:var(--green);cursor:pointer;position:fixed;top:14px;left:50%;translate:-50% 0;z-index:90;
   display:flex;align-items:center;gap:10px;width:max-content;max-width:min(calc(100vw - 32px),440px);box-sizing:border-box;min-height:44px;padding:6px 18px 6px 8px;
   background:var(--chrome-nav);border:1px solid var(--border-strong);border-radius:22px;box-shadow:var(--shadow);
   -webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);
   color:var(--text);font-size:14px;font-weight:550;line-height:1.35;
-  animation:toast-in var(--dur-slow) cubic-bezier(.2,.8,.3,1.1)}
+  transform-origin:50% 0;animation:toast-in .52s cubic-bezier(.22,1.25,.36,1) both}
 #toast.warn{--toast-c:var(--orange)}
 #toast.err{--toast-c:var(--red)}
 #toast .toast-ico{flex:none;display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--toast-c);color:var(--surface)}
+#toast .toast-ico{animation:toast-ico .42s .12s cubic-bezier(.3,1.6,.5,1) both}
 #toast .toast-ico svg{width:15px;height:15px}
+#toast.ok .toast-ico polyline{stroke-dasharray:22;stroke-dashoffset:22;animation:toast-draw .3s .3s cubic-bezier(.4,0,.2,1) forwards}
+#toast .toast-text,#toast .toast-action{animation:toast-text .32s .1s ease-out both}
 #toast .toast-text{min-width:0;overflow-wrap:anywhere}
 #toast .toast-action{flex:none;margin:0 -10px 0 4px;min-height:32px;padding:0 14px;border-radius:999px;border:0;background:var(--accent);color:var(--accent-ink);font-weight:650;font-size:13px}
-#toast.leaving{animation:toast-out .22s ease forwards}
-@keyframes toast-in{from{opacity:0;transform:translateY(-10px) scale(.96)}}
-@keyframes toast-out{to{opacity:0;transform:translateY(-8px) scale(.97)}}
+#toast.swap{animation:toast-swap .34s cubic-bezier(.3,1.4,.5,1) both}
+#toast.leaving{animation:toast-out .26s cubic-bezier(.5,0,.75,0) forwards;pointer-events:none}
+@keyframes toast-in{from{opacity:0;transform:translateY(calc(-100% - 24px)) scale(.6)}40%{opacity:1}}
+@keyframes toast-swap{from{transform:scale(.94)}}
+@keyframes toast-out{to{opacity:0;transform:translateY(calc(-100% - 14px)) scale(.7)}}
+@keyframes toast-ico{from{transform:scale(0)}}
+@keyframes toast-draw{to{stroke-dashoffset:0}}
+@keyframes toast-text{from{opacity:0;transform:translateX(-6px)}}
 @media (prefers-reduced-motion:reduce){
-  #toast{animation-name:toast-fade}#toast.leaving{animation-name:toast-fade-out}
+  #toast,#toast.swap{animation:toast-fade .2s ease}#toast.leaving{animation:toast-fade-out .2s ease forwards}
+  #toast .toast-ico,#toast .toast-text,#toast .toast-action{animation:none}
+  #toast.ok .toast-ico polyline{animation:none;stroke-dashoffset:0}
   @keyframes toast-fade{from{opacity:0}}@keyframes toast-fade-out{to{opacity:0}}
 }
 @media (max-width:840px){

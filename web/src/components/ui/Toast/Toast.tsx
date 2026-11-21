@@ -4,6 +4,8 @@
 //   · 鼠标悬停或键盘聚焦时暂停计时，移开后接着走；
 //   · 点一下立即关闭；
 //   · 错误用 role=alert（读屏立即朗读），其余 role=status。
+// 动效（2026-11-21）：从屏幕顶端弹性落下、图标圆点弹出、✓ 一笔画出；消失时收回顶端；
+// 上一条还在显示就来了新的，不再先硬切掉再重新落下，而是原地轻轻换一下内容（swap）。
 import {useEffect, useRef, useState} from 'react';
 import type {ReactNode} from 'react';
 import type {ToastAction, ToastKind} from '../../../state/AppContext';
@@ -14,7 +16,9 @@ const SHOW_MS: Record<ToastKind, number> = {ok: 2000, warn: 3500, err: 6000};
 /** 带操作按钮的 toast 停留时长，给用户足够时间反应 */
 const ACTION_MS = 8000;
 /** 淡出时长，与 Toast.css 的 toast-out 保持一致 */
-const LEAVE_MS = 220;
+const LEAVE_MS = 260;
+/** 当前是否有一条正显示（未在淡出）的 toast：新来的据此决定是落下还是原地换内容 */
+let showing = false;
 
 const glyph = (children: ReactNode) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"
   strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">{children}</svg>;
@@ -34,6 +38,7 @@ export interface ToastProps {
 
 export function Toast({kind, text, action, onDone}: ToastProps) {
   const [leaving, setLeaving] = useState(false);
+  const [swap] = useState(() => showing);
   const [paused, setPaused] = useState(false);
   const showMs = action ? ACTION_MS : SHOW_MS[kind];
 
@@ -54,6 +59,7 @@ export function Toast({kind, text, action, onDone}: ToastProps) {
   };
   const leave = () => {
     phase.current = 'leave';
+    showing = false;
     setLeaving(true);
     step.current = () => doneRef.current();
     arm(LEAVE_MS);
@@ -61,8 +67,9 @@ export function Toast({kind, text, action, onDone}: ToastProps) {
 
   useEffect(() => {
     step.current = leave;
+    showing = true;
     arm(showMs);
-    return () => window.clearTimeout(timer.current);
+    return () => { window.clearTimeout(timer.current); showing = false; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pause = () => {
@@ -78,7 +85,7 @@ export function Toast({kind, text, action, onDone}: ToastProps) {
   };
 
   return (
-    <div id="toast" className={kind + (leaving ? ' leaving' : '')}
+    <div id="toast" className={kind + (leaving ? ' leaving' : swap ? ' swap' : '')}
          role={kind === 'err' ? 'alert' : 'status'} aria-live={kind === 'err' ? 'assertive' : 'polite'}
          data-paused={paused || undefined} data-ms={showMs}
          onPointerEnter={pause} onPointerLeave={resume} onFocus={pause} onBlur={resume}
