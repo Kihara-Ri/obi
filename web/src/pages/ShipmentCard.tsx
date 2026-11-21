@@ -14,7 +14,7 @@ export function ShipmentCard({s, arrived, onArtist}: {s: Shipment; arrived: bool
   const feeOf = new Map(s.items.map(i => [i.recordId, i]));
   const recs = s.items.map(i => app.rec(i.recordId)).filter((r): r is NonNullable<typeof r> => !!r);
   return (
-    <article className={`shipment-card${arrived ? ' arrived' : ''}`}>
+    <article className={`shipment-card${arrived ? ' arrived' : ''}`} data-id={s.id}>
       <div className="shipment-head">
         <span className="method">{s.method}</span>
         {arrived

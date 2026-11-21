@@ -9,6 +9,9 @@ import {SaleCard} from './SaleCard';
 import {Seg} from '../components/ui/Seg';
 import {SearchField} from '../components/ui/SearchField';
 import {openSaleCostsForm} from '../forms/SaleCostsForm';
+import {useRef} from 'react';
+import {useListFlip} from './useListFlip';
+import {saleDest} from './SaleCard';
 
 const TRADE_FILTERS = [
   {value: 'all', label: '全部'},
@@ -33,9 +36,12 @@ export function TradesPage() {
   const all = state.sales.filter(s => s.status === 'complete');
   const items = all.flatMap(s => s.items);
   const ks = items.filter(i => i.profit !== null);
+  // 撤销退款 → 回到售出中：封面飞过去；搜索、筛选掉的原地淡出
+  const pageRef = useRef<HTMLDivElement>(null);
+  useListFlip(pageRef, sales.map(s => s.id).join(','), 'trades', {selector: '.sale-card[data-id]', destOf: saleDest(app)});
 
   return (
-    <div className="align-list">
+    <div className="align-list" ref={pageRef}>
       <PageHead title="交易记录" label="CASHED IN"
                 actions={<DownloadButton path="export?scope=sales" fileName="sales.csv" className="link-button head-text" ariaLabel="导出交易 CSV"><span className="btn-long">导出交易 CSV</span><span className="btn-short" aria-hidden="true">导出</span></DownloadButton>}/>
       <div className="summary">

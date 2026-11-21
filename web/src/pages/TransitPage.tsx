@@ -5,6 +5,8 @@ import {oldestFirst} from '../core/queue-order';
 import {useApp} from '../state/AppContext';
 import {PageHead} from '../components/PageHead';
 import {ShipmentCard} from './ShipmentCard';
+import {useRef} from 'react';
+import {destOfStatus, useListFlip} from './useListFlip';
 
 export function TransitPage() {
   const app = useApp();
@@ -15,9 +17,16 @@ export function TransitPage() {
     .sort((a, b) => (b.arrivedDate || '').localeCompare(a.arrivedDate || ''))
     .slice(0, 6);
   const albumCount = shs.flatMap(s => s.items).length;
+  // 签收 → 封面飞向国内库存、包裹挪到「最近签收」；回滚签收 → 包裹挪回在途；撤销运输 → 封面飞回海外库存
+  const pageRef = useRef<HTMLDivElement>(null);
+  const shipDest = (id: string) => {
+    const sh = state.shipments.find(s => s.id === id);
+    return destOfStatus(sh?.status === 'transit' ? 'transit' : app.rec(sh?.items[0]?.recordId ?? '')?.status);
+  };
+  useListFlip(pageRef, `${shs.map(s => s.id)}|${arrived.map(s => s.id)}`, 'transit', {selector: '.shipment-card[data-id]', destOf: shipDest});
 
   return (
-    <div className="align-list">
+    <div className="align-list" ref={pageRef}>
       <PageHead title="海外在途" label="IN TRANSIT"/>
       <div className="summary">
         <span><strong>{shs.length}</strong> 个在途包裹</span>

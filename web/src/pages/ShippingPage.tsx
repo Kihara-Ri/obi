@@ -4,8 +4,10 @@ import {daysSince, sum, yuan} from '../core/format';
 import {oldestFirst} from '../core/queue-order';
 import {useApp} from '../state/AppContext';
 import {PageHead} from '../components/PageHead';
-import {LONG_WAIT_DAYS, SaleCard} from './SaleCard';
+import {LONG_WAIT_DAYS, SaleCard, saleDest} from './SaleCard';
 import {openSaleCostsForm} from '../forms/SaleCostsForm';
+import {useRef} from 'react';
+import {useListFlip} from './useListFlip';
 
 export function ShippingPage() {
   const app = useApp();
@@ -16,9 +18,12 @@ export function ShippingPage() {
   const items = sales.flatMap(s => s.items);
   const ks = items.filter(i => i.profit !== null);
   const longWait = sales.filter(s => daysSince(s.date) > LONG_WAIT_DAYS).length;
+  // 确认收货 → 交易记录、撤销售出 → 原库存、退货 → 国内库存：封面飞向专辑的新去处（按第一张专辑的状态）
+  const pageRef = useRef<HTMLDivElement>(null);
+  useListFlip(pageRef, sales.map(s => s.id).join(','), 'shipping', {selector: '.sale-card[data-id]', destOf: saleDest(app)});
 
   return (
-    <div className="align-list">
+    <div className="align-list" ref={pageRef}>
       <PageHead title="售出中" label="SELLING"/>
       {/* 统计卡片：两个大数字（预计到手、预估利润），下面一行说明笔数与需要处理的事（久等、成本待补） */}
       <div className="summary sale-summary">
