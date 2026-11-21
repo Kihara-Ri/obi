@@ -280,3 +280,11 @@ def allocate(total, weights):
     order = sorted(range(len(raw)), key=lambda i: raw[i]-parts[i], reverse=True)
     for i in order[:cents-sum(parts)]: parts[i] += 1
     return [money(Decimal(n)/100) for n in parts]
+
+
+def set_return_postage(sale, value):
+    """退货时自己承担的寄回运费（人民币）：记在销售单并按件均分，0 时去掉（2026-11-21）。"""
+    for obj in (sale, *sale['items']): obj.pop('returnPostage', None)
+    if not value: return
+    sale['returnPostage'] = money(value)
+    for item, share in zip(sale['items'], allocate(value, [1] * len(sale['items']))): item['returnPostage'] = share

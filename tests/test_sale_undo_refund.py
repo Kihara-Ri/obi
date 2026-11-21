@@ -62,6 +62,29 @@ class UndoRefundTest(unittest.TestCase):
         id = self.buy(); sid = self.sell([id])
         with self.assertRaises(ValidationError): self.store.sale_action({'id': sid, 'action': 'undo_refund'})
 
+    def test_return_postage_counts_as_loss(self):
+        """退货时自己承担的寄回运费与寄出运费分开记，一起计入损失；退货后可补填，撤销退款清空（2026-11-21）。"""
+        a = self.buy(); b = self.buy()
+        sid = self.store.sell({'ids': [a, b], 'gross': '200', 'fees': '0', 'postage': '6', 'date': '2026-09-07'})['id']
+        self.store.sale_action({'id': sid, 'action': 'refund', 'refund': '200', 'date': '2026-09-08', 'returned': True, 'returnPostage': '9.01'})
+        s = self.sale(sid)
+        self.assertEqual(s['returnPostage'], '9.01')
+        self.assertEqual(sorted(i['returnPostage'] for i in s['items']), ['4.50', '4.51'])
+        self.assertEqual(sum(float(i['profit']) for i in s['items']), -15.01)  # 寄出 6 + 寄回 9.01
+        self.store.sale_action({'id': sid, 'action': 'return_postage', 'returnPostage': '12'})
+        self.assertEqual(sum(float(i['profit']) for i in self.sale(sid)['items']), -18.0)
+        self.store.sale_action({'id': sid, 'action': 'return_postage', 'returnPostage': ''})
+        s = self.sale(sid); self.assertNotIn('returnPostage', s); self.assertNotIn('returnPostage', s['items'][0])
+        self.store.sale_action({'id': sid, 'action': 'return_postage', 'returnPostage': '5'})
+        self.store.sale_action({'id': sid, 'action': 'undo_refund'})
+        s = self.sale(sid); self.assertNotIn('returnPostage', s); self.assertNotIn('returnPostage', s['items'][0])
+        with self.assertRaises(ValidationError): self.store.sale_action({'id': sid, 'action': 'return_postage', 'returnPostage': '5'})
+
+    def test_return_postage_ignored_for_plain_refund(self):
+        id = self.buy(); sid = self.sell([id])
+        self.store.sale_action({'id': sid, 'action': 'refund', 'refund': '10', 'date': '2026-09-08', 'returnPostage': '8'})
+        self.assertNotIn('returnPostage', self.sale(sid))
+
 
 if __name__ == '__main__':
     unittest.main()

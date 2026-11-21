@@ -195,6 +195,8 @@ export interface SaleItem {
   grossOriginal?: string;   // 日元售出：原币金额（人民币折算后留存，同运费口径）
   feesOriginal?: string;
   postageOriginal?: string;
+  /** 退货时自己承担的寄回运费（人民币，按件均分） */
+  returnPostage?: string;
 }
 
 export interface Sale {
@@ -206,6 +208,8 @@ export interface Sale {
   refundDate?: string;
   /** 还没发货就退款：专辑回到售出前的库存，平台扣费与运费已清零 */
   unshipped?: boolean;
+  /** 已退货：自己承担的寄回运费（人民币），与寄出运费分开记，计入损失 */
+  returnPostage?: string;
   gross: string;
   fees: string;
   postage: string;

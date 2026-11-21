@@ -1,4 +1,5 @@
-// 确认表单族：签收 / 回滚 / 撤销运输 / 确认收货 / 撤销售出 / 退款退货 / 撤销退款 / 恢复备份。
+// 确认表单族：签收 / 回滚 / 撤销运输 / 确认收货 / 撤销售出 / 退款退货 / 寄回运费 / 撤销退款 / 恢复备份。
+// 退货时可另填自己承担的寄回运费（2026-11-21，两趟运费常不一样），已退货后也能补填。
 // 提交时路由到对应 API。日期一律用「今天/昨天/选日期」快捷行；确认收货先给
 // 金额摘要（到手 / 利润 / 成交价口径），不可逆后果独立成警示行。
 import {useState} from 'react';
@@ -11,7 +12,7 @@ import {AmountInput, DateChipsRow} from './fields';
 import {FormMessage, useFormFeedback} from './form-feedback';
 import {useFormSubmit} from './shared';
 
-export type ConfirmKind = 'arrive' | 'undo_arrive' | 'cancel_shipment' | 'receive' | 'cancel' | 'refund' | 'undo_refund' | 'restore';
+export type ConfirmKind = 'arrive' | 'undo_arrive' | 'cancel_shipment' | 'receive' | 'cancel' | 'refund' | 'return_postage' | 'undo_refund' | 'restore';
 
 export const CONFIRM_TITLES: Record<ConfirmKind, string> = {
   arrive: '确认签收',
@@ -20,6 +21,7 @@ export const CONFIRM_TITLES: Record<ConfirmKind, string> = {
   receive: '确认收货',
   cancel: '撤销售出',
   refund: '退款 / 退货',
+  return_postage: '寄回运费',
   undo_refund: '撤销退款',
   restore: '恢复完整备份',
 };
@@ -48,6 +50,19 @@ function ReceiveSummary({sale: s}: {sale: Sale}) {
   );
 }
 
+function ReturnPostageRow({value, onValue}: {value: string; onValue: (v: string) => void}) {
+  return (
+    <div className="row amount-row">
+      <label htmlFor="f-return-postage">寄回运费</label>
+      <div className="row-value">
+        <AmountInput id="f-return-postage" name="returnPostage" min="0" step="0.01" inputMode="decimal"
+               placeholder="买家承担就留空" value={value} onValue={onValue}/>
+        <span className="unit">元</span>
+      </div>
+    </div>
+  );
+}
+
 export function ConfirmForm({kind, id, arriveCount, sale, restoreData, restoreFile}: {
   kind: ConfirmKind;
   id?: string;
@@ -62,6 +77,7 @@ export function ConfirmForm({kind, id, arriveCount, sale, restoreData, restoreFi
   const feedback = useFormFeedback();
   const [date, setDate] = useState(today());
   const [refund, setRefund] = useState(sale ? sale.gross : '');
+  const [returnPostage, setReturnPostage] = useState(sale?.returnPostage ?? '');
   // 退款场景：还没发货（unshipped）/ 已发货买家退回（returned）。默认不选，避免点错
   const [mode, setMode] = useState<'' | 'unshipped' | 'returned'>('');
   const [ack, setAck] = useState(false);
@@ -75,8 +91,10 @@ export function ConfirmForm({kind, id, arriveCount, sale, restoreData, restoreFi
       if (kind === 'cancel_shipment') return api('shipment-action', {id, action: 'cancel'});
       if (kind === 'refund') {
         if (!mode) throw new Error('请先选择：还没发货，还是买家已退回');
-        return api('sale-action', {id, action: kind, refund, date, unshipped: mode === 'unshipped', returned: mode === 'returned'});
+        const returned = mode === 'returned';
+        return api('sale-action', {id, action: kind, refund, date, unshipped: mode === 'unshipped', returned, ...(returned ? {returnPostage} : {})});
       }
+      if (kind === 'return_postage') return api('sale-action', {id, action: kind, returnPostage});
       return api('sale-action', {id, action: kind, date});
     });
   };
@@ -108,7 +126,7 @@ export function ConfirmForm({kind, id, arriveCount, sale, restoreData, restoreFi
         )}
         {kind === 'cancel' && <p>用于纠正误记或未成交，专辑回到原状态，交易保留撤销历史。</p>}
         {kind === 'undo_refund' && <p>用于纠正点错的退款 / 退货：交易回到「售出中」，退款金额清空{sale?.status === 'returned' || sale?.unshipped
-          ? '，退回库存的专辑重新挂回这笔交易（专辑已再次售出或移动时不能撤销）' : ''}{sale?.unshipped ? '，清零的平台扣费与寄出运费恢复' : ''}。之后可重新选退款、退货或确认收货。</p>}
+          ? '，退回库存的专辑重新挂回这笔交易（专辑已再次售出或移动时不能撤销）' : ''}{sale?.unshipped ? '，清零的平台扣费与寄出运费恢复' : ''}{sale?.returnPostage ? '，寄回运费清空' : ''}。之后可重新选退款、退货或确认收货。</p>}
         {kind === 'refund' && (
           <>
             <Seg className="refund-mode" ariaLabel="退款场景" value={mode} onValue={v => setMode(v as typeof mode)}
@@ -116,7 +134,7 @@ export function ConfirmForm({kind, id, arriveCount, sale, restoreData, restoreFi
             <p className="help">{mode === 'unshipped'
               ? '专辑没离手，回到售出前的库存；平台扣费与寄出运费清零，不计损失。'
               : mode === 'returned'
-                ? <>买家收到后退回，专辑回到{app.modules.circulation ? '国内库存' : '我的收藏'}；平台扣费与寄出运费记为损失。</>
+                ? <>买家收到后退回，专辑回到{app.modules.circulation ? '国内库存' : '我的收藏'}；平台扣费、寄出运费与自己承担的寄回运费记为损失。</>
                 : '先选场景：还没发货就退款，还是买家收到后退货。'}</p>
             <div className="row-group">
               <div className="row amount-row">
@@ -128,8 +146,15 @@ export function ConfirmForm({kind, id, arriveCount, sale, restoreData, restoreFi
                   <span className="unit">元</span>
                 </div>
               </div>
+              {mode === 'returned' ? <ReturnPostageRow value={returnPostage} onValue={setReturnPostage}/> : null}
               <DateChipsRow label="处理日期" value={date} onChange={setDate}/>
             </div>
+          </>
+        )}
+        {kind === 'return_postage' && (
+          <>
+            <p className="help">买家退回专辑时由你承担的运费，与寄出运费分开记，计入这笔交易的损失；买家承担就留空。</p>
+            <div className="row-group"><ReturnPostageRow value={returnPostage} onValue={setReturnPostage}/></div>
           </>
         )}
         {kind === 'restore' && (
@@ -151,7 +176,7 @@ export function ConfirmForm({kind, id, arriveCount, sale, restoreData, restoreFi
         <FormMessage error={error}/>
         <button type="button" onClick={() => app.backDrawer()}>取消</button>
         <button type="submit" className="primary" aria-busy={saving} disabled={saving || (kind === 'refund' && !mode)}>
-          {kind === 'receive' ? '确认收货' : kind === 'refund' ? (mode === 'returned' ? '确认退货' : '确认退款') : '确认'}
+          {kind === 'receive' ? '确认收货' : kind === 'refund' ? (mode === 'returned' ? '确认退货' : '确认退款') : kind === 'return_postage' ? '保存' : '确认'}
         </button>
       </div>
     </form>

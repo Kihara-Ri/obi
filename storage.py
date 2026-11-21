@@ -13,7 +13,7 @@ import json, os, sqlite3, uuid, base64, hashlib, re, shutil, threading, time
 from pathlib import Path
 from datetime import datetime
 from contextlib import closing, contextmanager
-from domain import ValidationError, ConflictError, clean_record, clean_release_info, clean_modules, clean_start_page, clean_showcase_group, clean_showcase_groups, clean_listing, validate_packaging_photos, MODULE_NAMES, cost, number, money, day, allocate, STATUSES
+from domain import ValidationError, ConflictError, clean_record, clean_release_info, clean_modules, clean_start_page, clean_showcase_group, clean_showcase_groups, clean_listing, validate_packaging_photos, MODULE_NAMES, cost, number, money, day, allocate, set_return_postage, STATUSES
 from decimal import Decimal
 import financial_rates
 from photo_uploads import staged_bytes
@@ -233,7 +233,7 @@ class Store:
         for s in b['sales']:
             for item in s['items']:
                 c=Decimal(costs[item['recordId']]) if costs.get(item['recordId']) not in (None,'') else None
-                net=Decimal(item['gross'])-Decimal(item['fees'])-Decimal(item.get('postage','0'))-Decimal(item.get('refund','0'))
+                net=Decimal(item['gross'])-Decimal(item['fees'])-Decimal(item.get('postage','0'))-Decimal(item.get('refund','0'))-Decimal(item.get('returnPostage','0'))
                 item['net']=money(net)
                 # Returned stock retains its acquisition cost; sale shows only residual loss.
                 p=net if s['status']=='returned' or s.get('unshipped') else (net-c if c is not None else None)
@@ -1003,9 +1003,15 @@ class Store:
                 if kept:
                     for k,v in kept['sale'].items(): s[k]=v
                     for item,costs in zip(s['items'],kept['items']): item.update(costs)
-                s['status']='shipping';s.pop('refundDate',None);s.pop('unshipped',None)
+                s['status']='shipping';s.pop('refundDate',None);s.pop('unshipped',None);set_return_postage(s,0)
                 for item in s['items']: item.pop('refund',None)
                 self.put(db,'sales',s);self.audit(db,'销售 undo_refund',{'before':old,'after':s})
+                return {'ok':True}
+            if action=='return_postage':
+                # 已退货后补填 / 修改自己承担的寄回运费（人民币），计入这笔交易的损失
+                if s['status']!='returned': raise ValidationError('只有已退货的交易能填寄回运费')
+                set_return_postage(s,number(data.get('returnPostage') or 0,'寄回运费'))
+                self.put(db,'sales',s);self.audit(db,'修改寄回运费',{'before':old,'after':s})
                 return {'ok':True}
             if s['status']=='complete': raise ValidationError('已确认收货，只能修改销售费用，不能重复收货、撤销或退款')
             if s['status'] not in ('shipping',): raise ValidationError('这笔交易已处理，不能重复操作')
@@ -1022,9 +1028,10 @@ class Store:
                 if refund>Decimal(s['gross']): raise ValidationError('退款不能超过买家支付总额')
                 shares=allocate(refund,[Decimal(i['gross']) for i in s['items']])
                 # 两种场景：unshipped = 还没发货就退款（专辑没离手，回到售出前的位置，平台扣费与运费没发生、清零，撤销时恢复）；
-                # returned = 已发货、买家退回（专辑回国内库存，平台扣费与寄出运费记为损失）。两者都不传是旧版「仅退款，买家留着专辑」
+                # returned = 已发货、买家退回（专辑回国内库存，平台扣费、寄出运费与自己承担的寄回运费记为损失）。两者都不传是旧版「仅退款，买家留着专辑」
                 unshipped=data.get('unshipped') is True;returned=data.get('returned') is True and not unshipped
                 s['status']='returned' if returned else 'refunded';s['refundDate']=day(data.get('date'),'退款日期')
+                if returned: set_return_postage(s,number(data.get('returnPostage') or 0,'寄回运费'))
                 if unshipped:
                     keys=('fees','postage','feesOriginal','postageOriginal')
                     s['unshipped']=True
@@ -1180,7 +1187,7 @@ class Store:
             number(s.get('gross'),'销售总额');number(s.get('fees'),'销售费用')
             if not s.get('id') or not s.get('items') or any(i.get('recordId') not in ids for i in s['items']): raise ValidationError('备份的销售关联不完整')
             for i in s['items']:
-                for k in ('gross','fees','refund'): number(i.get(k,0),k)
+                for k in ('gross','fees','refund','returnPostage'): number(i.get(k,0),k)
         for r in b['records']:
             if r['status'] in ('sold','shipping'):
                 want='complete' if r['status']=='sold' else 'shipping'

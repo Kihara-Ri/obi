@@ -1,5 +1,6 @@
 // 售出中与已交易共用销售单卡片：专辑、金额与操作集中展示。
 // 2026-11-17 收紧：售出中用「已 N 天」徽标代替状态标签（久等变提醒色）；费用明细收成一行；
+// 已退货可补填寄回运费（2026-11-21），费用行补上退款与寄回运费，算式能对上利润。
 // 售出中只露「修改费用」「确认收货」（2026-11-19：修改费用最常用，换到外面），「退款 / 退货」「撤销售出」收进「⋯」；单张不写「1 张」。
 import type {ReactNode} from 'react';
 import {useApp} from '../state/AppContext';
@@ -12,6 +13,7 @@ import {ShopMark} from '../components/ShopField';
 import {MoreIco, RefundIco, UndoIco} from '../components/icons';
 import {openDetail} from '../forms/DetailDrawer';
 import {CONFIRM_TITLES, ConfirmForm} from '../forms/ConfirmForm';
+import {destOfStatus} from './cardFly';
 
 /** 售出中超过这么多天还没确认收货，天数徽标变提醒色 */
 export const LONG_WAIT_DAYS = 7;
@@ -42,6 +44,7 @@ export function SaleCard({s, onArtist, onEditCosts}: {s: Sale; onArtist: (artist
   const net = sum(s.items, 'net');
   const profit = sum(s.items, 'profit');
   const shipping = s.status === 'shipping';
+  const refunded = s.status === 'refunded' || s.status === 'returned';
   const days = daysSince(s.date);
   const badge = shipping
     ? <span className={'pill wait-days' + (days > LONG_WAIT_DAYS ? ' is-long' : '')}
@@ -54,7 +57,7 @@ export function SaleCard({s, onArtist, onEditCosts}: {s: Sale; onArtist: (artist
   ].filter(Boolean);
   const count = [s.items.length > 1 ? `${s.items.length} 张` : '', s.note || ''].filter(Boolean).join(' · ');
   return (
-    <article className="sale-card">
+    <article className="sale-card" data-id={s.id}>
       <div className="sale-top">
         {badge}
         <span className="when info">
@@ -93,6 +96,8 @@ export function SaleCard({s, onArtist, onEditCosts}: {s: Sale; onArtist: (artist
           <span>成交 {shipFeeText(s.currency, s.grossOriginal, s.gross)}</span>{' '}
           <span>− 扣费 {shipFeeText(s.currency, s.feesOriginal, s.fees)}</span>{' '}
           <span>− 运费 {shipFeeText(s.currency, s.postageOriginal, s.postage || '0')}</span>
+          {refunded ? <>{' '}<span>− 退款 {yuan(sum(s.items, 'refund'))}</span></> : null}
+          {s.returnPostage ? <>{' '}<span>− 寄回运费 {yuan(s.returnPostage)}</span></> : null}
         </p>
         {s.items.length > 1 ? <div className="cell total"><span>{shipping ? '预计到手合计' : '到手合计'}</span><b>{yuan(net)}</b></div> : null}
         {s.items.length > 1 && app.modules.acquisition ? <div className="cell total">
@@ -113,14 +118,22 @@ export function SaleCard({s, onArtist, onEditCosts}: {s: Sale; onArtist: (artist
         {s.status === 'complete' && (
           <div className="actions"><button onClick={onEditCosts}>修改费用</button></div>
         )}
-        {(s.status === 'refunded' || s.status === 'returned') && (
+        {refunded && (
           <div className="actions">
             <button className="quiet" onClick={() => openConfirm(app, 'undo_refund', {id: s.id, sale: s})}>撤销退款</button>
+            {s.status === 'returned' ? <button onClick={() => openConfirm(app, 'return_postage', {id: s.id, sale: s})}>
+              {s.returnPostage ? '修改寄回运费' : '填寄回运费'}</button> : null}
           </div>
         )}
       </div>
     </article>
   );
 }
+
+/** 销售单的去处：跟着第一张专辑走（收货 → 交易记录，撤销 / 退货 → 库存，撤销退款 → 售出中） */
+export const saleDest = (app: AppCtx) => (id: string) => {
+  const s = app.state.sales.find(x => x.id === id);
+  return destOfStatus(app.rec(s?.items[0]?.recordId ?? '')?.status);
+};
 
 export {openConfirm};
