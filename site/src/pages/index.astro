@@ -1,6 +1,7 @@
 ---
-// 介绍站首页：页眉 → 首屏 → 五个模块 → 九种布局 → 四条承诺 → 开始使用 → 页脚。
+// 介绍站首页：开屏 → 页眉 → 首屏 → 五个模块 → 九种布局 → 四条承诺 → 开始使用 → 页脚。
 import Base from '../layouts/Base.astro';
+import Intro from '../components/Intro.astro';
 import Header from '../components/Header.astro';
 import Hero from '../components/Hero.astro';
 import Features from '../components/Features.astro';
@@ -10,6 +11,7 @@ import Start from '../components/Start.astro';
 import Footer from '../components/Footer.astro';
 ---
 <Base title="Obi · CD 收藏与交易账本" description="让每一张唱片，都被好好记着。开源、自托管的 CD 收藏与交易账本，数据只在你自己的设备上。">
+  <Intro />
   <Header />
   <main>
     <Hero />

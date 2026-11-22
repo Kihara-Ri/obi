@@ -1,0 +1,38 @@
+---
+// 开屏：应用图标拆成三层（底板 / 黑胶 / 带记录的封套，public/intro/*.svg）。
+// 黑胶从封套里抽出 → 封套落下 → 黑胶移到屏幕中央放大，中心孔扩开成窗口露出页面（scripts/intro.ts 逐帧驱动）。
+// 每个会话只播一次；减少动态效果时不出现；点击或按键直接跳过。没有脚本时 2.5 秒后自动隐藏，不会挡住页面。
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+---
+<div class="intro" data-intro aria-hidden="true">
+  <div class="stage" data-stage>
+    <img class="layer" data-back src={`${base}intro/back.svg`} alt="" />
+    <img class="layer rec" data-rec src={`${base}intro/record.svg`} alt="" />
+    <img class="layer" data-sleeve src={`${base}intro/sleeve.svg`} alt="" />
+  </div>
+</div>
+<script src="../scripts/intro.ts"></script>
+
+<style>
+  .intro{
+    position:fixed; inset:0; z-index:100; display:grid; place-items:center;
+    background:var(--bg); animation:bail 0s 2.5s forwards;
+  }
+  .intro.run{ animation:none; }
+  .intro.gone{ display:none; }
+  .intro.skip{ opacity:0; transition:opacity var(--dur-slow) var(--ease-soft); }
+  /* 中心孔：以黑胶圆心为圆心、半径 --r 的透明圆，透出下面的页面 */
+  .intro.hole{
+    -webkit-mask-image:radial-gradient(circle at var(--cx) var(--cy), transparent var(--r), black calc(var(--r) + 1px));
+    mask-image:radial-gradient(circle at var(--cx) var(--cy), transparent var(--r), black calc(var(--r) + 1px));
+  }
+  :global(html:has(.intro.run:not(.gone))){ overflow:hidden; }
+  @keyframes bail{ to{ visibility:hidden; } }
+
+  .stage{ position:relative; width:min(56vw, 15rem); aspect-ratio:1; opacity:0; }
+  .layer{ position:absolute; inset:0; width:100%; height:100%; }
+  /* 黑胶圆心在图标的 (256, 176)/512 处，缩放和位移都以它为原点 */
+  .rec{ transform-origin:50% 34.375%; }
+
+  @media (prefers-reduced-motion:reduce){ .intro{ display:none; } }
+</style>
