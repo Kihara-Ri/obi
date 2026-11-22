@@ -1,6 +1,7 @@
 // 封面区块：当前封面缩略图 + 一句清晰的状态 + 「重新匹配」，候选缩略图点选抓取。
 // 状态文字用正文字号（匹配通常要几秒，用户需要一眼看到进度）；匹配中显示转圈。
 import {useRef, useState} from 'react';
+import {isPlainEnter} from '../../core/ime';
 import {Chevron, Collapse} from '../../components/ui';
 import {SpinIco} from '../../components/icons';
 import {useArtExpand} from '../../components/ReleaseCandidateCard/useArtExpand';
@@ -37,7 +38,7 @@ export function CoverPanel({cover, src, busy, inline}: {cover: CoverSearch; src:
         <input type="url" inputMode="url" autoComplete="off" aria-label="封面图片地址"
           placeholder="粘贴 Bandcamp 封面图片地址（专辑页右键封面 → 复制图片地址）"
           value={url} onChange={e => setUrl(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); applyUrl(); } }}/>
+          onKeyDown={e => { if (isPlainEnter(e)) { e.preventDefault(); applyUrl(); } }}/>
         <button type="button" disabled={busy || !url.trim()} onClick={applyUrl}>使用</button>
       </div> : null}
       {cover.candidates.length ? <>

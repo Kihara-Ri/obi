@@ -6,6 +6,7 @@
 // 每个选项可带 leading（图标/标记），输入框左侧可放 leading 元素。
 import {useEffect, useId, useMemo, useRef, useState} from 'react';
 import type {KeyboardEvent, ReactNode} from 'react';
+import {isPlainEnter} from '../../../core/ime';
 import {Chevron} from '../Chevron';
 import {useLeaving} from '../useLeaving';
 import './Combobox.css';
@@ -82,7 +83,7 @@ export function Combobox({
       if (!matches.length) return;
       setActive(a => (a < 0 ? (e.key === 'ArrowDown' ? 0 : matches.length - 1)
         : (a + (e.key === 'ArrowDown' ? 1 : -1) + matches.length) % matches.length));
-    } else if (e.key === 'Enter' && open && active >= 0) {
+    } else if (isPlainEnter(e) && open && active >= 0) {
       e.preventDefault();
       choose(matches[active]);
     }

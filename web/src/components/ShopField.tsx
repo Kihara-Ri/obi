@@ -7,6 +7,7 @@ import {SHOP_ICONS} from './shopIcons';
 import {branchLabel, brandsFromKeys, groupShops, mergeShops, normShop} from '../core/shop-groups';
 import type {Group} from '../core/shop-groups';
 import {api} from '../core/api';
+import {isPlainEnter} from '../core/ime';
 import './ShopField.css';
 
 type ShopBrand = {status: 'pending' | 'found' | 'no-icon' | 'unavailable'; name: string; icon?: string; domain?: string};
@@ -107,7 +108,7 @@ export function ShopField({value, records, defaultShop, onChange}: {
       </div>
       {typing ? <input className="shop-input" value={value} autoComplete="off" placeholder="输入店铺名称"
         aria-label="新店铺名称" onChange={e => onChange(e.target.value)}
-        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); setTyping(false); } }}/> : null}
+        onKeyDown={e => { if (isPlainEnter(e)) { e.preventDefault(); setTyping(false); } }}/> : null}
       {status === 'pending' ? <small className="shop-discovery-hint">识别图标中…</small> : null}
       {status === 'unavailable' ? <button type="button" className="shop-discovery-retry quiet" onClick={() => void retry()}>重试识别图标</button> : null}
     </div>

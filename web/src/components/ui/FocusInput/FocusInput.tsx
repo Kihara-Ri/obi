@@ -4,6 +4,7 @@
 // 打开时在 layout effect 里同步聚焦：调用方在点按手势内 flushSync 打开，iOS 才会弹出键盘。
 import {useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {createPortal} from 'react-dom';
+import {isPlainEnter} from '../../../core/ime';
 import {AutoTextarea} from '../AutoTextarea';
 import './FocusInput.css';
 
@@ -54,7 +55,7 @@ export function FocusInput(p: FocusInputProps) {
   }, [p.open]);
   if (!p.open) return null;
   const key = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !p.multiline && !e.nativeEvent.isComposing) {e.preventDefault(); (p.onEnter ?? p.onSubmit)();}
+    if (isPlainEnter(e) && !p.multiline) {e.preventDefault(); (p.onEnter ?? p.onSubmit)();}
     else if (e.key === 'Escape') {e.stopPropagation(); p.onClose();}
   };
   const common = {placeholder: p.placeholder, value: p.value, maxLength: p.maxLength, autoComplete: 'off',
