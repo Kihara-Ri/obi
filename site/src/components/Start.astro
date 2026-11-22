@@ -1,0 +1,48 @@
+---
+// 开始使用：三条路径（Docker / 裸 Python / 没有服务器）。命令与 README「快速开始」保持一致，改一处要同步另一处。
+// 复制按钮由 scripts/copy.ts（外链 ES module）接管；没有 JS 时命令仍可手动选中复制。
+const repo = 'https://github.com/Kihara-Ri/obi';
+const paths = [
+  { name: 'Docker', tag: '推荐', cmd: `git clone ${repo}\ncd obi\ncp .env.example .env\ndocker compose up -d --build`, note: '打开 127.0.0.1:8765，数据在 ./data' },
+  { name: 'Python', cmd: `git clone ${repo}\ncd obi\npython3 app.py`, note: '零依赖，Python 3.10+' },
+  { name: '没有服务器', links: [{ t: '安卓 APK', href: `${repo}/releases/latest` }, { t: '本机模式说明', href: `${repo}/blob/main/部署说明.md#方案三没有服务器本机模式主要给手机` }], note: '数据存在手机里，可断网使用' },
+];
+---
+<section id="start" class="section band">
+  <div class="wrap">
+    <h2 class="section-title">开始使用</h2>
+    <p class="section-sub">公网部署、登录与异地备份见<a class="link" href={`${repo}/blob/main/部署说明.md`}>部署说明</a>。</p>
+    <ol class="paths">
+      {paths.map((p) => (
+        <li class="path">
+          <div class="head">
+            <h3>{p.name}</h3>{p.tag && <span class="tag">{p.tag}</span>}
+            {p.cmd && <button type="button" class="copy" data-copy={p.cmd} aria-label={`复制 ${p.name} 命令`}>复制</button>}
+          </div>
+          {p.cmd && <pre><code>{p.cmd}</code></pre>}
+          {p.links && <div class="links">{p.links.map((l) => <a class="btn" href={l.href}>{l.t}</a>)}</div>}
+          <p class="note">{p.note}</p>
+        </li>
+      ))}
+    </ol>
+  </div>
+</section>
+
+<script src="../scripts/copy.ts"></script>
+
+<style>
+  .band{ background:var(--surface-2); }
+  .link{ color:var(--text); text-decoration:underline; text-decoration-color:var(--accent-deep); text-underline-offset:.2em; margin-left:var(--s-1); }
+  .paths{ display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr)); gap:var(--s-4); margin:var(--s-6) 0 0; padding:0; list-style:none; }
+  .path{ display:flex; flex-direction:column; gap:var(--s-3); padding:var(--s-5); border-radius:var(--radius); background:var(--surface); border:1px solid var(--border); min-width:0; }
+  .head{ display:flex; align-items:center; gap:var(--s-2); }
+  h3{ font-size:var(--fs-lg); }
+  .tag{ font-size:var(--fs-xs); font-weight:600; padding:0 var(--s-2); border-radius:999px; background:var(--accent); color:var(--accent-ink); }
+  pre{ margin:0; padding:var(--s-4); overflow-x:auto; border-radius:var(--radius-sm); background:var(--surface-2); border:1px solid var(--hairline); font-size:var(--fs-xs); line-height:1.7; }
+  .copy{ margin-left:auto; min-height:2.25rem; padding-inline:var(--s-3); border:1px solid var(--border); border-radius:999px; background:var(--surface); font-size:var(--fs-xs); cursor:pointer; }
+  .copy[data-done]{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+  .links{ display:flex; flex-wrap:wrap; gap:var(--s-2); }
+  .btn{ display:inline-flex; align-items:center; min-height:2.75rem; padding-inline:var(--s-4); border-radius:999px; border:1px solid var(--border-strong); font-weight:600; font-size:var(--fs-sm); }
+  .note{ margin-top:auto; color:var(--muted); font-size:var(--fs-sm); }
+  @media (hover:hover){ .btn:hover, .copy:hover{ background:var(--surface-2); } }
+</style>

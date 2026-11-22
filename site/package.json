@@ -1,0 +1,15 @@
+{
+  "name": "obi-site",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "node tests/csp.test.mjs"
+  },
+  "dependencies": {
+    "astro": "^7.4.13"
+  }
+}

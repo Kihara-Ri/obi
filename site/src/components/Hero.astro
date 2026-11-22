@@ -1,0 +1,78 @@
+---
+// 首屏：标语 + 三个入口 + 右侧「被腰封包着的封面墙」。
+// 腰封（帯，obi）是日版 CD 侧面那条竖纸条，也是项目名的来历：竖排文字压在封面墙左缘。
+// 封面墙三列缓慢匀速漂移（中列反向），减少动态效果时静止。
+// 封面都是真实专辑的像素图：改 site/cover-wall.json 后运行 scripts/pixel-covers.py 生成（D-044），按清单顺序轮流分到三列。
+import CoverColumn from './CoverColumn.astro';
+import wall from '../covers.json';
+const repo = 'https://github.com/Kihara-Ri/obi';
+const cols = [0, 1, 2].map((i) => wall.covers.filter((_, n) => n % 3 === i).map((c) => c.file));
+---
+<section class="hero">
+  <div class="wrap grid">
+    <div class="copy">
+      <p class="kicker">CD 收藏与交易账本</p>
+      <h1>让每一张唱片，<br />都被好好记着。</h1>
+      <ul class="facts" aria-label="特点">
+        <li>开源</li><li>自托管</li><li>数据只在你的设备上</li>
+      </ul>
+      <div class="cta">
+        <a class="btn primary" href="#start">开始使用</a>
+        <a class="btn" href={`${repo}/releases/latest`}>下载安卓版</a>
+      </div>
+    </div>
+
+    <div class="case" aria-hidden="true">
+      <div class="wall">
+        {cols.map((c, i) => <CoverColumn covers={c} size={wall.size} reverse={i === 1} />)}
+      </div>
+      <div class="obi"><span class="obi-big">Obi</span><span class="obi-small">收藏 · 购入 · 交易 · 周转</span></div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero{ padding-block:var(--s-7) var(--s-8); overflow:clip; }
+  .grid{ display:grid; gap:var(--s-7); align-items:center; }
+  .kicker{ color:var(--accent-deep); font-weight:700; font-size:var(--fs-sm); letter-spacing:.08em; }
+  h1{ margin-top:var(--s-3); font-size:var(--fs-hero); font-weight:800; letter-spacing:-.02em; }
+  .facts{ display:flex; flex-wrap:wrap; gap:var(--s-2); margin:var(--s-5) 0 0; padding:0; list-style:none; }
+  .facts li{ padding:var(--s-1) var(--s-3); border:1px solid var(--border); border-radius:999px; background:var(--surface); color:var(--muted); font-size:var(--fs-sm); }
+  .cta{ display:flex; flex-wrap:wrap; gap:var(--s-3); margin-top:var(--s-6); }
+  .btn{
+    display:inline-flex; align-items:center; min-height:2.75rem; padding-inline:var(--s-5);
+    border-radius:999px; border:1px solid var(--border-strong); background:var(--surface);
+    font-weight:600; transition:background var(--dur-fast) var(--ease-soft), transform var(--dur-fast) var(--ease-soft);
+  }
+  .btn.primary{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+  .btn:active{ transform:scale(.97); }
+  @media (hover:hover){
+    .btn:hover{ background:var(--surface-2); }
+    .btn.primary:hover{ background:var(--accent-strong); }
+  }
+
+  .case{
+    position:relative; height:22rem; border-radius:var(--radius);
+    background:var(--surface-3); box-shadow:var(--shadow); overflow:hidden;
+  }
+  .wall{
+    position:absolute; inset:0 0 0 var(--obi-w);
+    display:grid; grid-template-columns:repeat(3,1fr); gap:var(--s-3); padding-inline:var(--s-3);
+    mask-image:linear-gradient(to bottom, transparent, black 12%, black 88%, transparent);
+  }
+  .obi{
+    position:absolute; inset:0 auto 0 0; width:calc(var(--obi-w) + var(--s-2));
+    /* 竖排（vertical-rl）下 row 才是竖直方向：大字在上，小字在下 */
+    display:flex; flex-direction:row; align-items:center; justify-content:space-between; padding-block:var(--s-5);
+    background:var(--accent); color:var(--accent-ink); writing-mode:vertical-rl;
+    box-shadow:var(--shadow-sm);
+  }
+  .obi-big{ font-weight:900; font-size:var(--fs-xl); letter-spacing:.12em; }
+  .obi-small{ font-size:var(--fs-xs); font-weight:600; letter-spacing:.3em; opacity:.8; }
+
+  @media (min-width:56rem){
+    .hero{ padding-block:var(--s-8) var(--s-9); }
+    .grid{ grid-template-columns:1.1fr 1fr; }
+    .case{ height:32rem; }
+  }
+</style>

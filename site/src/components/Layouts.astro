@@ -1,0 +1,56 @@
+---
+// 九种展示布局的示意小图：每个布局是一组方块 [x, y, 边长, 旋转角, 是否当前]，画在 120×80 画布上。
+// 只示意空间关系，不放真实封面；布局名与应用一致（docs/界面与功能定案.md「收藏展示」）。
+type R = [number, number, number, number?, boolean?];
+const grid = (cols: number, rows: number, s: number, gap: number, ox: number, oy: number): R[] =>
+  Array.from({ length: cols * rows }, (_, i) => [ox + (i % cols) * (s + gap), oy + Math.floor(i / cols) * (s + gap), s]);
+const layouts: { name: string; rects: R[]; skew?: boolean }[] = [
+  { name: '封面墙', rects: grid(5, 3, 18, 4, 8, 6) },
+  { name: '瀑布流', rects: [[10, 4, 22], [10, 30, 16], [10, 50, 26], [38, 4, 16], [38, 24, 26], [38, 54, 22], [66, 4, 26], [66, 34, 18], [66, 56, 20], [96, 4, 18], [96, 26, 24], [96, 54, 22]] },
+  { name: '胶片', rects: [[-14, 18, 44], [38, 14, 48, 0, true], [94, 18, 44]] },
+  { name: '翻阅', rects: [[6, 26, 24], [22, 22, 30], [80, 22, 30], [90, 26, 24], [40, 14, 40, 0, true]] },
+  { name: '唱片箱', rects: [[40, 8, 40, -14], [40, 14, 40, -8], [40, 22, 40, 0, true]] },
+  { name: '桌面铺开', rects: [[8, 6, 26, -8], [40, 10, 24, 6], [74, 4, 28, -4], [16, 40, 26, 7], [50, 42, 24, -6], [84, 40, 26, 9, true]] },
+  { name: '扇形展开', rects: [[16, 22, 32, -24], [30, 14, 34, -12], [62, 14, 34, 12], [76, 22, 32, 24], [44, 10, 36, 0, true]] },
+  { name: '等距封面墙', skew: true, rects: grid(4, 3, 18, 6, 18, 6).map((r, i) => (i === 5 ? [...r.slice(0, 3), 0, true] as R : r)) },
+  { name: '环形展架', rects: [[6, 30, 20], [24, 24, 24], [74, 24, 24], [96, 30, 20], [38, 34, 16], [66, 34, 16], [42, 14, 36, 0, true]] },
+];
+---
+<section id="gallery" class="section band">
+  <div class="wrap">
+    <h2 class="section-title">九种方式，摆出你的收藏</h2>
+    <p class="section-sub">触屏手势跟手，可自动巡游。</p>
+    <ul class="list">
+      {layouts.map((l) => (
+        <li>
+          <svg viewBox="0 0 120 80" aria-hidden="true">
+            <g class:list={{ skew: l.skew }}>
+              {l.rects.map(([x, y, s, r = 0, on]) => (
+                <rect x={x} y={y} width={s} height={s} rx="2" class:list={{ on }}
+                  transform={r ? `rotate(${r} ${x + s / 2} ${y + s})` : undefined} />
+              ))}
+            </g>
+          </svg>
+          <span>{l.name}</span>
+        </li>
+      ))}
+    </ul>
+  </div>
+</section>
+
+<style>
+  .band{ background:var(--surface-2); }
+  /* 九个：手机 3×3，宽屏一排九个，避免 6+3 的残行 */
+  .list{ display:grid; grid-template-columns:repeat(3,1fr); gap:var(--s-4); margin:var(--s-6) 0 0; padding:0; list-style:none; }
+  li{ display:flex; flex-direction:column; gap:var(--s-2); padding:var(--s-3); border-radius:var(--radius); background:var(--surface); border:1px solid var(--border); font-size:var(--fs-sm); font-weight:600; text-align:center; }
+  svg{ width:100%; aspect-ratio:3/2; overflow:hidden; border-radius:var(--radius-sm); background:var(--surface-2); }
+  rect{ fill:var(--surface-3); stroke:var(--border-strong); stroke-width:.75; }
+  rect.on{ fill:var(--accent); stroke:var(--accent-deep); }
+  .skew{ transform:skewY(-12deg) translateY(12px); transform-origin:center; }
+  @media (max-width:30rem){ .list{ gap:var(--s-2); } li{ padding:var(--s-2); font-size:var(--fs-xs); } }
+  @media (min-width:60rem){ .list{ grid-template-columns:repeat(9,1fr); gap:var(--s-3); } li{ padding:var(--s-2); } }
+  @media (hover:hover){
+    li{ transition:transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out); }
+    li:hover{ transform:translateY(-2px); box-shadow:var(--shadow-sm); }
+  }
+</style>

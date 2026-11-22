@@ -1,0 +1,21 @@
+---
+// 封面墙的一列：同一组封面渲染两遍，整列匀速上移一半高度后无缝回到起点。
+// props：covers（public/covers 下的像素图文件名）、size（像素格数）、reverse（向下漂移）。纯装饰，父级已 aria-hidden。
+interface Props { covers: string[]; size: number; reverse?: boolean }
+const { covers, size, reverse = false } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+const loop = [...covers, ...covers];
+---
+<div class:list={['col', { reverse }]}>
+  {loop.map((c) => <img src={`${base}covers/${c}`} alt="" width={size} height={size} decoding="async" />)}
+</div>
+
+<style>
+  .col{ display:flex; flex-direction:column; gap:var(--s-3); animation:drift 48s linear infinite; }
+  .col.reverse{ animation-direction:reverse; animation-duration:56s; }
+  /* 小尺寸像素图放大显示：pixelated 让每格保持方块，不被插值糊掉 */
+  img{ width:100%; height:auto; aspect-ratio:1; image-rendering:pixelated; border-radius:var(--cover-r); box-shadow:var(--shadow-sm); }
+  /* 两遍封面之间也有一个 gap，位移 = 一半高度 + 半个 gap 才能首尾对齐 */
+  @keyframes drift{ to{ transform:translateY(calc(-50% - var(--s-3) / 2)); } }
+  @media (prefers-reduced-motion:reduce){ .col{ animation:none; } }
+</style>

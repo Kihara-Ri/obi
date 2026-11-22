@@ -1,0 +1,31 @@
+{
+  "size": 64,
+  "colors": 32,
+  "albums": [
+    {"id": "dsotm", "title": "The Dark Side of the Moon", "artist": "Pink Floyd", "cover": "../../me.api/media/music/dsotm-cover.jpg", "show": true},
+    {"id": "spiderland", "title": "Spiderland", "artist": "Slint", "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/2d/62/b7/2d62b77d-9518-b5f1-7212-5542597953c2/cover.jpg/1200x1200bb.jpg", "show": true},
+    {"id": "mbdtf", "title": "My Beautiful Dark Twisted Fantasy", "artist": "Kanye West", "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/0a/0b/31/0a0b31cc-077c-31bf-e7fe-612191774948/10UMGIM30072.rgb.jpg/1200x1200bb.jpg", "show": true},
+    {"id": "synchronicity", "title": "Synchronicity", "artist": "The Police", "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/a4/67/ba/a467ba62-87df-9d10-98d2-c517f68ac870/16UMGIM60882.rgb.jpg/1200x1200bb.jpg", "show": true},
+    {"id": "islands", "title": "Islands", "artist": "King Crimson", "cover": "https://coverartarchive.org/release/009ac226-f187-4692-ae68-becbfe8f6eb7/45846801388-500.jpg", "show": true},
+    {"id": "red", "title": "Red", "artist": "King Crimson", "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music4/v4/a8/5d/d3/a85dd370-ed7e-1e6f-f2ee-5464f7b3a978/Red_2500px.jpg/1200x1200bb.jpg", "show": true},
+    {"id": "yehui", "title": "叶惠美", "artist": "周杰伦", "cover": "https://coverartarchive.org/release/b7077acf-ce3d-43b3-9760-de042fd7e813/10679050284-500.jpg", "show": true},
+    {"id": "illinois", "title": "Illinois", "artist": "Sufjan Stevens", "cover": "../../me.api/media/music/illinois-cover.jpg", "show": true},
+    {"id": "lyskf", "title": "Lift Your Skinny Fists Like Antennas to Heaven", "artist": "Godspeed You! Black Emperor", "cover": "../../me.api/media/music/lyskf-cover.webp", "show": true},
+    {"id": "rmp", "title": "Racing Mount Pleasant", "artist": "Racing Mount Pleasant", "cover": "../../me.api/media/music/rmp-cover.jpg", "show": true},
+    {"id": "slowriot", "title": "Slow Riot for New Zero Kanada", "artist": "Godspeed You! Black Emperor", "cover": "../../me.api/media/music/slowriot-cover.jpg", "show": true},
+    {"id": "avici", "title": "AVĪCI (01) - EP", "artist": "Avicii", "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/97/ec/23/97ec23c0-cb32-5da3-b8ec-b04b2c2c3333/17UM1IM17510.rgb.jpg/1200x1200bb.jpg", "show": true},
+    {"id": "dookie-en", "title": "Dookie", "artist": "Green Day", "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/88/83/e7/8883e74b-1b7c-0725-09de-21e4e00d54b5/093624915713.jpg/1200x1200bb.jpg", "show": true},
+    {"id": "ex-all-time", "title": "“Ex” All Time Favourites", "artist": "關淑怡", "cover": "https://coverartarchive.org/release/42214477-da04-4d46-958b-f96a182972e6/38873723420-500.jpg", "show": true},
+    {"id": "first-love", "title": "First Love - EP", "artist": "宇多田ヒカル", "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music128/v4/d1/a6/81/d1a681b9-aa68-6148-5a50-69fd4c95cc37/00602567241966.rgb.jpg/1200x1200bb.jpg", "show": true},
+    {"id": "larks", "title": "Larks’ Tongues in Aspic", "artist": "King Crimson", "cover": "https://coverartarchive.org/release/0504731c-810f-4593-85b6-5092cf3f0bbf/27232961397-500.jpg", "show": true},
+    {"id": "loveless", "title": "Loveless", "artist": "My Bloody Valentine", "cover": "https://coverartarchive.org/release/cd32c6cf-f979-39e7-a4ec-157d3a560d06/25797196285.jpg", "show": true},
+    {"id": "m83", "title": "Hurry up, We're Dreaming", "artist": "M83", "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/73/c6/ed/73c6edb3-924c-27f0-28f8-1470906d6780/cover.jpg/1200x1200bb.jpg", "show": true},
+    {"id": "minecraft", "title": "Minecraft - Volume Alpha", "artist": "C418", "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/7c/04/bf/7c04bfc6-be8c-661a-3306-b97fc2c4999b/859705593825.jpg/1200x1200bb.jpg", "show": true},
+    {"id": "moon", "title": "A Moon Shaped Pool", "artist": "Radiohead", "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/b7/f2/5d/b7f25d91-4320-47c8-146a-6f84d5bc7e78/cover.jpg/1200x1200bb.jpg", "show": true},
+    {"id": "parachutes", "title": "Parachutes", "artist": "Coldplay", "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/f5/93/8c/f5938c49-964c-31d1-4b33-78b634f71fb7/190295978075.jpg/1200x1200bb.jpg", "show": true},
+    {"id": "remain", "title": "Remain In Light", "artist": "Talking Heads", "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music/87/5f/5b/mzi.zzquknhm.jpg/1200x1200bb.jpg", "show": true},
+    {"id": "shall-we", "title": "Shall We Dance? Shall We Talk!", "artist": "陳奕迅", "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/a9/7e/a2/a97ea2db-0a6e-75a3-c1f8-a9ece883633d/EEG1025S-SHALL_WE_DANCE_SHALL_WE_TALK-.jpg/1200x1200bb.jpg", "show": true},
+    {"id": "tasogare", "title": "盗作", "artist": "ヨルシカ", "cover": "https://coverartarchive.org/release/99845955-f4bb-4d60-ae95-b99964654c4a/26961291900-500.jpg", "show": true},
+    {"id": "tpab", "title": "To Pimp a Butterfly", "artist": "Kendrick Lamar", "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/0d/ae/61/0dae6140-d4af-d0df-eae0-3c92eb392a33/15UMGIM11922.rgb.jpg/1200x1200bb.jpg", "show": true}
+  ]
+}

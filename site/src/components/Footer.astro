@@ -1,0 +1,25 @@
+---
+// 页脚：仓库链接与许可证。只放链接，不放说明文字。
+const repo = 'https://github.com/Kihara-Ri/obi';
+const links = [
+  { t: 'GitHub', href: repo },
+  { t: '下载', href: `${repo}/releases` },
+  { t: '更新记录', href: `${repo}/blob/main/CHANGELOG.md` },
+  { t: '使用说明', href: `${repo}/blob/main/使用说明.md` },
+];
+---
+<footer class="foot">
+  <div class="wrap row">
+    <span class="mark">Obi · AGPL-3.0</span>
+    <nav aria-label="页脚链接">{links.map((l) => <a href={l.href}>{l.t}</a>)}</nav>
+  </div>
+</footer>
+
+<style>
+  .foot{ padding-block:var(--s-6) calc(var(--s-6) + env(safe-area-inset-bottom)); border-top:1px solid var(--border); color:var(--muted); font-size:var(--fs-sm); }
+  .row{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:var(--s-4); }
+  .mark{ font-weight:600; }
+  nav{ display:flex; flex-wrap:wrap; gap:var(--s-2) var(--s-5); }
+  a{ padding-block:var(--s-1); }
+  @media (hover:hover){ a:hover{ color:var(--text); } }
+</style>

@@ -71,3 +71,9 @@ dist-local/
 
 # Local analysis and verification artifacts
 .tmp/
+
+# 介绍站（site/，见 D-044）依赖与产物
+site/node_modules/
+site/dist/
+site/.astro/
+site/.cover-cache/

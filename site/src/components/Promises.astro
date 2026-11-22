@@ -1,0 +1,33 @@
+---
+// 四条承诺：来自 AGENTS.md 红线与界面原则，对外用一句话表达。图标 + 短句，不展开解释。
+const items = [
+  { t: '数据只在你的设备上', d: '单用户 SQLite，可完整备份恢复',
+    icon: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>' },
+  { t: '成本缺失，绝不当 0', d: '利润只算成本已知的部分',
+    icon: '<path d="M5 12h14"/><path d="M12 5v14" opacity=".35"/><circle cx="12" cy="12" r="9"/>' },
+  { t: '条码精确匹配', d: '多个候选由你选，不按标题猜',
+    icon: '<path d="M4 6v12M7 6v12M10 6v12M14 6v12M16 6v12M20 6v12"/>' },
+  { t: '手机优先', d: '可装到主屏幕，也能离线用',
+    icon: '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/>' },
+];
+---
+<section class="section">
+  <div class="wrap">
+    <ul class="list">
+      {items.map((i) => (
+        <li>
+          <svg viewBox="0 0 24 24" aria-hidden="true" set:html={i.icon} />
+          <div><h3>{i.t}</h3><p>{i.d}</p></div>
+        </li>
+      ))}
+    </ul>
+  </div>
+</section>
+
+<style>
+  .list{ display:grid; grid-template-columns:repeat(auto-fill,minmax(15rem,1fr)); gap:var(--s-5) var(--s-6); margin:0; padding:0; list-style:none; }
+  li{ display:flex; gap:var(--s-3); align-items:flex-start; }
+  svg{ flex:none; width:1.75rem; height:1.75rem; fill:none; stroke:var(--text); stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round; }
+  h3{ font-size:var(--fs-md); }
+  p{ margin-top:var(--s-1); color:var(--muted); font-size:var(--fs-sm); }
+</style>

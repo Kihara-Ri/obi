@@ -1,6 +1,7 @@
 {
   "version": "0.0.1",
   "configurations": [
-    {"name": "samples", "runtimeExecutable": "python3", "runtimeArgs": ["tools/preview_samples.py", "start"], "port": 63282}
+    {"name": "samples", "runtimeExecutable": "python3", "runtimeArgs": ["tools/preview_samples.py", "start"], "port": 63282},
+    {"name": "site", "runtimeExecutable": "npm", "runtimeArgs": ["--prefix", "site", "run", "preview", "--", "--port", "4329"], "port": 4329}
   ]
 }

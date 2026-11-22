@@ -24,3 +24,4 @@ static/models/packaging
 **/*.pyc
 dist-local
 android
+site

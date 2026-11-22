@@ -1,0 +1,12 @@
+/* 介绍站补充 token：只放排版、间距与版心。颜色、圆角、动效时长全部来自应用的
+   web/src/styles/tokens.css（由 Base.astro 先引入），这里不定义任何颜色（D-044）。 */
+:root{
+  --s-1:.25rem; --s-2:.5rem; --s-3:.75rem; --s-4:1rem; --s-5:1.5rem; --s-6:2rem; --s-7:3rem; --s-8:4.5rem; --s-9:7rem;
+  --fs-xs:.75rem; --fs-sm:.875rem; --fs-md:1rem; --fs-lg:1.25rem; --fs-xl:1.75rem; --fs-2xl:2.5rem; --fs-hero:clamp(2.25rem,6vw,4.25rem);
+  --lh-tight:1.15; --lh:1.6;
+  --site-max:72rem; --site-gutter:1rem;
+  --obi-w:3.25rem; /* 腰封（帯）宽度：首屏竖条与页眉标志共用 */
+  --cover-r:.375rem;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (min-width:48rem){ :root{ --site-gutter:2rem; --obi-w:4rem; } }

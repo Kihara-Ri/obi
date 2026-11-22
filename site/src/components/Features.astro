@@ -1,0 +1,47 @@
+---
+// 五个功能模块卡片：图标 + 名称 + 至多三个短标签（少字原则，解释交给文档）。
+// 「整理收藏」始终可用，其余按需开启；状态用文字徽标区分，不只靠颜色。
+const modules = [
+  { name: '整理收藏', base: true, tags: ['条码录入', '实物照片', '艺人资料'],
+    icon: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3a9 9 0 0 1 9 9"/>' },
+  { name: '展示收藏', tags: ['九种布局', '自动巡游', '2D / 3D'],
+    icon: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>' },
+  { name: '购入记录', tags: ['原币金额', '当日汇率', '缺失待补'],
+    icon: '<path d="M4 7h16l-1.5 12h-13z"/><path d="M9 7a3 3 0 0 1 6 0"/>' },
+  { name: '二手交易', tags: ['上架文案', '成交到账', '利润'],
+    icon: '<path d="M7 7h11l-3-3"/><path d="M17 17H6l3 3"/>' },
+  { name: '海外周转', tags: ['打包', '运费均摊', '在途'],
+    icon: '<path d="M3 7h11v9H3z"/><path d="M14 10h4l3 3v3h-7"/><circle cx="7" cy="17.5" r="1.5"/><circle cx="17" cy="17.5" r="1.5"/>' },
+];
+---
+<section id="features" class="section">
+  <div class="wrap">
+    <h2 class="section-title">五个模块，按需打开</h2>
+    <p class="section-sub">关闭模块只收起入口，不删任何记录。</p>
+    <ul class="cards">
+      {modules.map((m) => (
+        <li class="card">
+          <div class="top">
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" set:html={m.icon} />
+            <span class:list={['badge', { on: m.base }]}>{m.base ? '始终可用' : '可选'}</span>
+          </div>
+          <h3>{m.name}</h3>
+          <ul class="tags">{m.tags.map((t) => <li>{t}</li>)}</ul>
+        </li>
+      ))}
+    </ul>
+  </div>
+</section>
+
+<style>
+  .cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,11.5rem),1fr)); gap:var(--s-4); margin:var(--s-6) 0 0; padding:0; list-style:none; }
+  .card{ padding:var(--s-5); border-radius:var(--radius); background:var(--surface); border:1px solid var(--border); }
+  .top{ display:flex; align-items:center; justify-content:space-between; }
+  .ico{ width:2.5rem; height:2.5rem; padding:var(--s-2); border-radius:var(--radius-sm); background:var(--accent-wash); color:var(--accent-deep);
+    fill:none; stroke:currentColor; stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round; }
+  .badge{ font-size:var(--fs-xs); color:var(--muted); padding:0 var(--s-2); border:1px solid var(--border); border-radius:999px; }
+  .badge.on{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); font-weight:600; }
+  h3{ margin-top:var(--s-4); font-size:var(--fs-lg); }
+  .tags{ display:flex; flex-wrap:wrap; gap:var(--s-1) var(--s-2); margin:var(--s-3) 0 0; padding:0; list-style:none; color:var(--muted); font-size:var(--fs-sm); }
+  .tags li+li::before{ content:'·'; margin-right:var(--s-2); color:var(--faint); }
+</style>

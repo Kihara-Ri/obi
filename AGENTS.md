@@ -39,6 +39,9 @@
 - **改完必须** `npm --prefix web run typecheck && npm --prefix web run build`——服务端只认构建产物（`static/assets`、`static/index.html`），改源码不构建等于没改。产物不进 git（D-038），发布与 CI 都现构建。
 - `static/assets` 文件名保持稳定（不哈希）：服务端对构建产物下发 `Cache-Control: no-cache` + ETag（未变即 304），测试断言固定路径。
 
+### 介绍站（`site/`）
+- 对外介绍页独立在 `site/`（Astro 静态站，GitHub Pages 发布，D-044），不进镜像与发布包，后端与 `web/` 不为它改动。颜色只引用 `web/src/styles/tokens.css`；CSP 无内联同样适用（`npm --prefix site run check`）；封面墙只用 `site/scripts/pixel-covers.py` 按 `site/cover-wall.json` 清单产出的真实专辑像素图（见 D-044 补充）；增删专辑改清单，原图不得进站点，不放假想专辑。
+
 ## 用户已定案的界面与功能（不得回退）
 
 逐条定案全文在 [docs/界面与功能定案.md](docs/界面与功能定案.md)（「功能组合」、「界面规则」、「数字实体（2026-10-17：生成已移出本应用）」、「条形码优先录入（2026-10-13 定案）」、「售卖草稿（2026-10-28 更新，D-031）」、「售卖识别多服务商（2026-10-19）」）。**改动这些领域前必须先读对应小节**；与之冲突的改动先问用户。贯穿全局的原则：

@@ -1,0 +1,64 @@
+# 介绍站发布（D-044）：site/ 或应用 token 变化时构建 Astro 静态站并发布到 GitHub Pages。
+# 首次使用需在仓库 Settings → Pages 把 Source 设为 GitHub Actions；自定义域名也在那里绑定，不提交 CNAME。
+name: site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'web/src/styles/tokens.css'
+      - '.github/workflows/site.yml'
+  pull_request:
+    paths:
+      - 'site/**'
+      - 'web/src/styles/tokens.css'
+      - '.github/workflows/site.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: 构建介绍站
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - id: pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v5
+      - run: npm --prefix site ci
+      # 项目页的路径是 /<仓库名>/，绑定自定义域名后是 /；由 configure-pages 给出
+      - run: npm --prefix site run build
+        env:
+          SITE_BASE: ${{ steps.pages.outputs.base_path || '/' }}
+      - run: npm --prefix site run check
+      - if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/dist
+
+  deploy:
+    name: 发布到 GitHub Pages
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
