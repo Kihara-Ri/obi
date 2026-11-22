@@ -1,56 +1,115 @@
 ---
-// 九种展示布局的示意小图：每个布局是一组方块 [x, y, 边长, 旋转角, 是否当前]，画在 120×80 画布上。
-// 只示意空间关系，不放真实封面；布局名与应用一致（docs/界面与功能定案.md「收藏展示」）。
-type R = [number, number, number, number?, boolean?];
-const grid = (cols: number, rows: number, s: number, gap: number, ox: number, oy: number): R[] =>
-  Array.from({ length: cols * rows }, (_, i) => [ox + (i % cols) * (s + gap), oy + Math.floor(i / cols) * (s + gap), s]);
-const layouts: { name: string; rects: R[]; skew?: boolean }[] = [
-  { name: '封面墙', rects: grid(5, 3, 18, 4, 8, 6) },
-  { name: '瀑布流', rects: [[10, 4, 22], [10, 30, 16], [10, 50, 26], [38, 4, 16], [38, 24, 26], [38, 54, 22], [66, 4, 26], [66, 34, 18], [66, 56, 20], [96, 4, 18], [96, 26, 24], [96, 54, 22]] },
-  { name: '胶片', rects: [[-14, 18, 44], [38, 14, 48, 0, true], [94, 18, 44]] },
-  { name: '翻阅', rects: [[6, 26, 24], [22, 22, 30], [80, 22, 30], [90, 26, 24], [40, 14, 40, 0, true]] },
-  { name: '唱片箱', rects: [[40, 8, 40, -14], [40, 14, 40, -8], [40, 22, 40, 0, true]] },
-  { name: '桌面铺开', rects: [[8, 6, 26, -8], [40, 10, 24, 6], [74, 4, 28, -4], [16, 40, 26, 7], [50, 42, 24, -6], [84, 40, 26, 9, true]] },
-  { name: '扇形展开', rects: [[16, 22, 32, -24], [30, 14, 34, -12], [62, 14, 34, 12], [76, 22, 32, 24], [44, 10, 36, 0, true]] },
-  { name: '等距封面墙', skew: true, rects: grid(4, 3, 18, 6, 18, 6).map((r, i) => (i === 5 ? [...r.slice(0, 3), 0, true] as R : r)) },
-  { name: '环形展架', rects: [[6, 30, 20], [24, 24, 24], [74, 24, 24], [96, 30, 20], [38, 34, 16], [66, 34, 16], [42, 14, 36, 0, true]] },
-];
+// 九种展示布局：一块大预览 + 九个名字，点名字切换（单选组，键盘方向键可用；没有 JS 也能切）。
+// 预览用封面墙的真实像素封面，每种布局按应用的外观缩成小样；姿态都来自 lib/gallery-poses.ts：
+// 服务端画 t=0 的静态首帧，scripts/layouts.ts 只在当前布局可见时逐帧驱动，没人操作时还会轮换到下一种。
+import wall from '../covers.json';
+import { LAYOUTS, COUNT, LAYERED, pose, transform, order } from '../lib/gallery-poses';
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+const covers = wall.covers.map((c) => `${base}covers/${c.file}`);
+const cover = (li: number, i: number) => covers[(i + li * 5) % covers.length];
+const op = (v?: number) => (v === undefined || v >= 1 ? undefined : Math.round(v * 100) / 100);
 ---
 <section id="gallery" class="section band">
   <div class="wrap">
     <h2 class="section-title">九种方式，摆出你的收藏</h2>
     <p class="section-sub">触屏手势跟手，可自动巡游。</p>
-    <ul class="list">
-      {layouts.map((l) => (
-        <li>
-          <svg viewBox="0 0 120 80" aria-hidden="true">
-            <g class:list={{ skew: l.skew }}>
-              {l.rects.map(([x, y, s, r = 0, on]) => (
-                <rect x={x} y={y} width={s} height={s} rx="2" class:list={{ on }}
-                  transform={r ? `rotate(${r} ${x + s / 2} ${y + s})` : undefined} />
-              ))}
+    <div class="viewer" data-layouts>
+      <fieldset class="names">
+        <legend class="sr">展示布局</legend>
+        {LAYOUTS.map((l, i) => (
+          <label><input type="radio" name="layout" value={i} checked={i === 0} /><span>{l.name}</span></label>
+        ))}
+      </fieldset>
+      <svg class="defs" width="0" height="0" aria-hidden="true">
+        <defs>
+          <clipPath id="lay-round" clipPathUnits="objectBoundingBox"><rect width="1" height="1" rx=".05" /></clipPath>
+          <linearGradient id="lay-fade-y-g" x2="0" y2="1"><stop offset="0" stop-color="black" /><stop offset=".1" stop-color="white" /><stop offset=".9" stop-color="white" /><stop offset="1" stop-color="black" /></linearGradient>
+          <mask id="lay-fade-y" maskUnits="userSpaceOnUse" x="0" y="0" width="300" height="200"><rect width="300" height="200" fill="url(#lay-fade-y-g)" /></mask>
+          <radialGradient id="lay-fade-g"><stop offset=".55" stop-color="white" /><stop offset="1" stop-color="black" /></radialGradient>
+          <mask id="lay-fade" maskUnits="userSpaceOnUse" x="0" y="0" width="300" height="200"><rect width="300" height="200" fill="url(#lay-fade-g)" /></mask>
+          <linearGradient id="lay-refl-g" x2="0" y2="1"><stop offset="0" stop-color="white" stop-opacity=".35" /><stop offset=".5" stop-color="black" /></linearGradient>
+          <mask id="lay-refl" maskContentUnits="objectBoundingBox"><rect width="1" height="1" fill="url(#lay-refl-g)" /></mask>
+          <filter id="lay-soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="5" /></filter>
+        </defs>
+      </svg>
+      <div class="stage" aria-hidden="true">
+        {LAYOUTS.map((l, li) => (
+          <svg viewBox="0 0 300 200" class={`m-${l.mode}`} data-mode={l.mode}>
+            {l.mode === 'desk' && <g class="desk"><rect width="300" height="200" />{[34, 81, 140, 188, 251].map((x) => <path d={`M${x} 0v200`} />)}</g>}
+            {l.mode === 'crate' && <g class="crate"><rect class="back" x="64" y="34" width="172" height="150" rx="3" /></g>}
+            {l.mode === 'ring' && <ellipse class="base" cx="150" cy="150" rx="142" ry="36" />}
+            <g class="frame" mask={l.mode === 'iso' ? 'url(#lay-fade)' : ['wall', 'waterfall', 'desk'].includes(l.mode) ? 'url(#lay-fade-y)' : undefined}>
+              <g class="items" data-items transform={l.mode === 'iso' ? 'translate(150 100) skewY(-18)' : undefined}>
+                {(LAYERED.includes(l.mode) ? order(l.mode, 0) : Array.from({ length: COUNT[l.mode] }, (_, i) => i)).map((i) => {
+                  const p = pose(l.mode, i, 0);
+                  return (
+                    <g class="it" data-i={i} transform={transform(p)} opacity={op(p.o)}>
+                      <rect class="sh" x="4" y="10" width="92" height="92" rx="5" filter="url(#lay-soft)" />
+                      <image href={cover(li, i)} width="100" height="100" preserveAspectRatio="none" clip-path="url(#lay-round)" />
+                      {l.mode === 'flip' && <image href={cover(li, i)} width="100" height="100" preserveAspectRatio="none" transform="translate(0 202) scale(1 -1)" mask="url(#lay-refl)" />}
+                      {l.mode === 'waterfall' && <g class="cap"><rect y="108" width="92" height="10" rx="5" /><rect y="124" width="56" height="9" rx="4.5" /></g>}
+                      <rect class="dim" width="100" height="100" rx="5" opacity={op(p.dim) ?? 0} />
+                      {l.mode === 'iso' && <rect class="hl" width="100" height="100" rx="5" opacity={op(p.hl) ?? 0} />}
+                    </g>
+                  );
+                })}
+              </g>
             </g>
+            {l.mode === 'crate' && <g class="crate"><path class="side" d="M64 34 52 26v160l12-2zM236 34l12-8v160l-12-2z" /><rect class="front" x="52" y="140" width="196" height="48" rx="3" /><path class="lip" d="M54 141.5h192" /></g>}
+            {l.mode === 'film' && <rect class="pick" x="138.5" y="157.5" width="21" height="21" rx="3" />}
           </svg>
-          <span>{l.name}</span>
-        </li>
-      ))}
-    </ul>
+        ))}
+      </div>
+    </div>
   </div>
 </section>
+<script src="../scripts/layouts.ts"></script>
 
 <style>
   .band{ background:var(--surface-2); }
-  /* 九个：手机 3×3，宽屏一排九个，避免 6+3 的残行 */
-  .list{ display:grid; grid-template-columns:repeat(3,1fr); gap:var(--s-4); margin:var(--s-6) 0 0; padding:0; list-style:none; }
-  li{ display:flex; flex-direction:column; gap:var(--s-2); padding:var(--s-3); border-radius:var(--radius); background:var(--surface); border:1px solid var(--border); font-size:var(--fs-sm); font-weight:600; text-align:center; }
-  svg{ width:100%; aspect-ratio:3/2; overflow:hidden; border-radius:var(--radius-sm); background:var(--surface-2); }
-  rect{ fill:var(--surface-3); stroke:var(--border-strong); stroke-width:.75; }
-  rect.on{ fill:var(--accent); stroke:var(--accent-deep); }
-  .skew{ transform:skewY(-12deg) translateY(12px); transform-origin:center; }
-  @media (max-width:30rem){ .list{ gap:var(--s-2); } li{ padding:var(--s-2); font-size:var(--fs-xs); } }
-  @media (min-width:60rem){ .list{ grid-template-columns:repeat(9,1fr); gap:var(--s-3); } li{ padding:var(--s-2); } }
-  @media (hover:hover){
-    li{ transition:transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out); }
-    li:hover{ transform:translateY(-2px); box-shadow:var(--shadow-sm); }
+  .viewer{ display:grid; gap:var(--s-5); margin-top:var(--s-6); }
+  .names{ display:flex; flex-wrap:wrap; gap:var(--s-2); margin:0; padding:0; border:0; min-width:0; }
+  .sr{ position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+  .defs{ position:absolute; }
+  label{ position:relative; }
+  input{ position:absolute; inset:0; margin:0; opacity:0; cursor:pointer; }
+  label span{
+    display:inline-flex; align-items:center; min-height:2.5rem; padding-inline:var(--s-4); border-radius:999px;
+    border:1px solid var(--border); background:var(--surface); color:var(--muted); font-size:var(--fs-sm); font-weight:600;
+    transition:background var(--dur) var(--ease-soft), color var(--dur) var(--ease-soft), border-color var(--dur) var(--ease-soft);
+  }
+  input:checked + span{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+  input:focus-visible + span{ outline:2px solid var(--accent-deep); outline-offset:2px; }
+  .stage{ display:grid; padding:var(--s-3); border-radius:var(--radius); background:var(--surface); border:1px solid var(--border); box-shadow:var(--shadow); }
+  /* 九张预览叠在同一格，选中的那张淡入 */
+  .stage svg{ grid-area:1 / 1; width:100%; aspect-ratio:3/2; overflow:hidden; border-radius:var(--radius-sm); background:var(--surface-2);
+    opacity:0; transition:opacity var(--dur-slow) var(--ease-soft); }
+  .viewer:has(input[value="0"]:checked) .stage svg:nth-child(1), .viewer:has(input[value="1"]:checked) .stage svg:nth-child(2),
+  .viewer:has(input[value="2"]:checked) .stage svg:nth-child(3), .viewer:has(input[value="3"]:checked) .stage svg:nth-child(4),
+  .viewer:has(input[value="4"]:checked) .stage svg:nth-child(5), .viewer:has(input[value="5"]:checked) .stage svg:nth-child(6),
+  .viewer:has(input[value="6"]:checked) .stage svg:nth-child(7), .viewer:has(input[value="7"]:checked) .stage svg:nth-child(8),
+  .viewer:has(input[value="8"]:checked) .stage svg:nth-child(9){ opacity:1; }
+  image{ image-rendering:pixelated; }
+  .sh{ fill:black; opacity:0; }
+  .m-flip .sh, .m-fan .sh, .m-ring .sh, .m-crate .sh{ opacity:.16; }
+  .m-desk .sh{ opacity:.35; }
+  .dim{ fill:black; }
+  .cap rect{ fill:var(--border-strong); }
+  .cap rect + rect{ fill:var(--border); }
+  .hl{ fill:none; stroke:var(--accent); stroke-width:7; }
+  .pick{ fill:none; stroke:var(--accent); stroke-width:2; }
+  /* 木色没有对应 token：用颜色关键字与主题色混出，深浅主题共用 */
+  .desk rect{ fill:color-mix(in srgb, sienna 32%, var(--surface-2)); }
+  .desk path{ stroke:color-mix(in srgb, sienna 45%, var(--surface-2)); stroke-width:.6; opacity:.6; }
+  .crate .back{ fill:color-mix(in srgb, saddlebrown 70%, black); }
+  .crate .side{ fill:color-mix(in srgb, sienna 70%, black); }
+  .crate .front{ fill:sienna; }
+  .crate .lip{ stroke:color-mix(in srgb, sienna 60%, white); stroke-width:1.5; opacity:.7; }
+  .base{ fill:var(--surface-3); stroke:var(--border-strong); stroke-width:.8; }
+  /* 宽屏：名字竖排在左，预览在右 */
+  @media (min-width:52rem){
+    .viewer{ grid-template-columns:11rem 1fr; align-items:center; gap:var(--s-7); }
+    .names{ flex-direction:column; flex-wrap:nowrap; }
+    label, label span{ display:flex; width:100%; }
   }
 </style>

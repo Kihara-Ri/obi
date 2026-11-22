@@ -11,14 +11,26 @@ const cols = [0, 1, 2].map((i) => wall.covers.filter((_, n) => n % 3 === i).map(
 <section class="hero">
   <div class="wrap grid">
     <div class="copy">
-      <p class="kicker">CD 收藏与交易账本</p>
-      <h1>让每一张唱片，<br />都被好好记着。</h1>
+      <p class="kicker">专辑收藏与交易账本</p>
+      <h1>架上的专辑，<br />账上都有。</h1>
       <ul class="facts" aria-label="特点">
-        <li>开源</li><li>自托管</li><li>数据只在你的设备上</li>
+        {['开源', '自托管', '数据只在你的设备上'].map((f) => (
+          <li>
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m3.5 8.5 3 3 6-7" /></svg>
+            {f}
+          </li>
+        ))}
       </ul>
       <div class="cta">
         <a class="btn primary" href="#start">开始使用</a>
-        <a class="btn" href={`${repo}/releases/latest`}>下载安卓版</a>
+        <a class="btn" href={`${repo}/releases/latest`}>
+          <!-- 安卓机器人头像（自绘）：半圆头 + 两根天线，眼睛用 evenodd 镂空 -->
+          <svg class="icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <path fill="currentColor" fill-rule="evenodd" d="M2.5 18.5a9.5 9.5 0 0 1 19 0zM8 13.4a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4zm8 0a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4z" />
+            <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M7.2 10.6 5.4 7.4M16.8 10.6l1.8-3.2" />
+          </svg>
+          下载安卓版
+        </a>
       </div>
     </div>
 
@@ -36,11 +48,13 @@ const cols = [0, 1, 2].map((i) => wall.covers.filter((_, n) => n % 3 === i).map(
   .grid{ display:grid; gap:var(--s-7); align-items:center; }
   .kicker{ color:var(--accent-deep); font-weight:700; font-size:var(--fs-sm); letter-spacing:.08em; }
   h1{ margin-top:var(--s-3); font-size:var(--fs-hero); font-weight:800; letter-spacing:-.02em; }
-  .facts{ display:flex; flex-wrap:wrap; gap:var(--s-2); margin:var(--s-5) 0 0; padding:0; list-style:none; }
-  .facts li{ padding:var(--s-1) var(--s-3); border:1px solid var(--border); border-radius:999px; background:var(--surface); color:var(--muted); font-size:var(--fs-sm); }
+  /* 特点是陈述不是按钮：不加边框和底色，前面一个打勾，避免看起来能点 */
+  .facts{ display:flex; flex-wrap:wrap; gap:var(--s-2) var(--s-5); margin:var(--s-5) 0 0; padding:0; list-style:none; }
+  .facts li{ display:flex; align-items:center; gap:var(--s-1); color:var(--muted); font-size:var(--fs-sm); }
+  .facts svg{ flex:none; color:var(--accent-deep); }
   .cta{ display:flex; flex-wrap:wrap; gap:var(--s-3); margin-top:var(--s-6); }
   .btn{
-    display:inline-flex; align-items:center; min-height:2.75rem; padding-inline:var(--s-5);
+    display:inline-flex; align-items:center; gap:var(--s-2); min-height:2.75rem; padding-inline:var(--s-5);
     border-radius:999px; border:1px solid var(--border-strong); background:var(--surface);
     font-weight:600; transition:background var(--dur-fast) var(--ease-soft), transform var(--dur-fast) var(--ease-soft);
   }

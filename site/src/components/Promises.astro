@@ -25,7 +25,9 @@ const items = [
 </section>
 
 <style>
-  .list{ display:grid; grid-template-columns:repeat(auto-fill,minmax(15rem,1fr)); gap:var(--s-5) var(--s-6); margin:0; padding:0; list-style:none; }
+  /* 四条承诺：手机单列，其余 2×2，不出现 3+1；整块限宽居中，不贴左右两边 */
+  .list{ display:grid; grid-template-columns:1fr; gap:var(--s-5) var(--s-7); max-width:44rem; margin:0 auto; padding:0; list-style:none; }
+  @media (min-width:40rem){ .list{ grid-template-columns:repeat(2,max-content); justify-content:center; } }
   li{ display:flex; gap:var(--s-3); align-items:flex-start; }
   svg{ flex:none; width:1.75rem; height:1.75rem; fill:none; stroke:var(--text); stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round; }
   h3{ font-size:var(--fs-md); }
