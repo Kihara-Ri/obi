@@ -16,6 +16,12 @@ def photo_order(value, count=30):
     return list(value)
 
 
+def has_listing_copy(record):
+    saved = record.get('listingDraft') or {}
+    return any(str(value or '').strip() for value in
+               (saved.get('title'), saved.get('description'), record.get('listingDescription')))
+
+
 def clean_analysis(value):
     if not isinstance(value, dict): raise ValidationError('照片分析格式无效')
     out = {}

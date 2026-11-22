@@ -20,4 +20,5 @@ class Services:
     plugins: Optional[Any] = None     # Optional installed Album Engine lifecycle
     catalog_art: Optional[Any] = None # Core exact-edition artwork, independent of engine
     listings: Optional[Any] = None    # Copy-specific sale drafts and photo analysis
+    listing_agent_secret: Optional[bytes] = None  # 摘要，独立于浏览器会话和模型凭据
     state_cache: Any = field(default_factory=StateCache)  # 上一份 /api/state，按库与汇率指纹复用

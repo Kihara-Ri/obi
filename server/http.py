@@ -133,8 +133,8 @@ def make_handler(svc):
             if not self.trusted(): return
             path = urlsplit(self.path).path
             if path.startswith('/api/'):
-                if path not in routes.PUBLIC_GET and not self.authorized(): return
-                fn = routes.resolve_get(path)
+                fn, access = routes.resolve_get(path) or (None, True)
+                if not routes.authorize(self, svc, access): return
                 if not fn: return self.send({'error': '接口不存在'}, 404)
                 try:
                     routes.recover(svc)
@@ -201,8 +201,8 @@ def make_handler(svc):
                 if not isinstance(body, dict): raise ValidationError('请求格式不正确')
                 found = routes.resolve_post(urlsplit(self.path).path)
                 if not found: return self.send({'error': '接口不存在'}, 404)
-                fn, needs_auth, needs_lock = found
-                if needs_auth and not self.authorized(): return
+                fn, access, needs_lock = found
+                if not routes.authorize(self, svc, access): return
                 routes.recover(svc)
                 if needs_lock:
                     with routes.WRITE_LOCK: fn(self, svc, body)

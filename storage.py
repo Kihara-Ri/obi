@@ -681,9 +681,9 @@ class Store:
                 audit = [dict(r) for r in db.execute('SELECT * FROM audit ORDER BY id DESC LIMIT 100')][::-1]
             return {'ids': result, 'records': records, 'audit': audit}
         return {'ids':result}
-    def save_listing_draft(self, data):
-        """草稿只改本副本售卖资料，不触碰上架标记或发行资料。"""
-        from domain_listing import clean_draft, photo_order
+    def save_listing_draft(self, data, *, replace_existing=True):
+        """把售卖草稿及显式上架操作保存到当前副本。"""
+        from domain_listing import clean_draft, has_listing_copy, photo_order
         draft = clean_draft(data.get('draft'))
         mark = data.get('markListed', False)
         if type(mark) is not bool: raise ValidationError('上架状态无效')
@@ -700,6 +700,8 @@ class Store:
                 raise ValidationError('记录已变更，请关闭后重新打开')
             if draft['photoRevision'] != r.get('photoRevision', 0):
                 raise ValidationError('照片已变更，请重新核对')
+            if not replace_existing and has_listing_copy(r):
+                raise ConflictError('已有上架草稿，请确认后再替换')
             photo_order(draft['photoOrder'], r.get('photoCount', 0))
             if draft.get('analysis') and draft['analysis']['photoRevision'] != draft['photoRevision']:
                 raise ValidationError('分析依据的照片已变更，请重新分析')

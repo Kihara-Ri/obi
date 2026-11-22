@@ -35,6 +35,7 @@ from storage import Store
 from server.chatgpt_auth import ChatGPTAuth
 from server.listing_model import ListingModel
 from server.listing_analysis import ListingAnalysis
+from server.listing_agent import load_agent_secret
 
 ROOT = Path(__file__).resolve().parent
 
@@ -42,6 +43,7 @@ ROOT = Path(__file__).resolve().parent
 def build(data_dir, public_origin=None):
     """从数据目录组装全部服务；无全局单例，测试可用临时目录构建。"""
     data = Path(data_dir)
+    listing_agent_secret = load_agent_secret(data)
     rates = RateService(data / 'rates.sqlite3')
     store = Store(data / 'albums.sqlite3', rates)
     mb = MusicBrainzClient()
@@ -50,6 +52,7 @@ def build(data_dir, public_origin=None):
     plugins = PluginManager(store, None, mb)   # 宿主不提供视觉模型：数字实体的生成在 Album Engine 项目中
     return Services(store=store, shops=ShopBrandService(store), plugins=plugins, catalog_art=ArtClient(),
                     listings=ListingAnalysis(store, releases, ListingModel(ChatGPTAuth(data))),
+                    listing_agent_secret=listing_agent_secret,
                     auth=Auth(data / 'auth.sqlite3'),
                     covers=covers, releases=releases, twins=plugins.facade,
                     artists=ArtistService(store, mb, covers, write_lock=WRITE_LOCK),

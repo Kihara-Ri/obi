@@ -4,7 +4,7 @@ import hashlib
 import json
 import uuid
 from domain import ValidationError
-from domain_listing import clean_analysis, clean_draft, text
+from domain_listing import clean_analysis, clean_draft, has_listing_copy, text
 from domain_listing import select_preset
 from .listing_context import public_context
 from .listing_photos import listing_record, read_photos
@@ -87,11 +87,8 @@ class ListingGeneration:
                                'sourceContext': json.dumps(public_context(record), sort_keys=True, ensure_ascii=False),
                                'provider': selection['provider'], 'model': selection['model']}})
             self._check_generation(record)
-            existing = record.get('listingDraft') or {}
-            protected = any(str(value or '').strip() for value in
-                            (record.get('listingDescription'), existing.get('title'), existing.get('description')))
             saved = None
-            if auto_save and not protected:
+            if auto_save and not has_listing_copy(record):
                 self._update_generation(ident, phase='saving')
                 from .routes import WRITE_LOCK
                 with WRITE_LOCK:

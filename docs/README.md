@@ -13,6 +13,7 @@
 | [../.ai-kit/rules.md](../.ai-kit/rules.md) | 规范 | ai-kit 12 条铁律（来自上游套件） | 随套件升级，项目取舍见 DECISIONS |
 | [DECISIONS.md](DECISIONS.md) | 规范 | 只增不删的决策记录（D-编号） | 新决策追加，废弃则标「已废弃」 |
 | [汇率模块.md](汇率模块.md) | 契约 | 报价有效性、缓存/显式准备/入账边界、本机同步与发布兼容 | 汇率及金额流程变化时同步 |
+| [Agent上架接口.md](Agent上架接口.md) | 契约 | 外部 Agent 的副本查找、图片取用、令牌和草稿保存 | 接口或授权规则变化时同步 |
 | [KNOWN-ISSUES.md](KNOWN-ISSUES.md) | 规范 | 已发现未修的问题（I-编号） | 解决后标「已解决」并写日志名 |
 | [模块扩展指南.md](模块扩展指南.md) | 契约 | 新模块、收藏展示、包装结构的契约与验收入口 | 随功能变化更新 |
 | [AlbumEngine插件.md](AlbumEngine插件.md) | 契约 | Album Engine 插件协议、安装与持久化 | 引擎版本变化时更新 |

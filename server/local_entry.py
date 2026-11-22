@@ -120,9 +120,9 @@ class Engine:
         try:
             routes.recover(self.svc)
             if method == 'GET':
-                fn = routes.resolve_get(path)
+                fn, access = routes.resolve_get(path) or (None, True)
                 if not fn: h.send({'error': '接口不存在'}, 404)
-                else: fn(h, self.svc)
+                elif routes.authorize(h, self.svc, access): fn(h, self.svc)
             elif path in routes.UPLOAD:
                 # 整文件上传：请求体已在内存里，落到数据目录内的临时文件再交给同一个处理函数
                 fn, limit = routes.UPLOAD[path]
@@ -135,7 +135,8 @@ class Engine:
                 if not isinstance(payload, dict): raise ValidationError('请求格式不正确')
                 found = routes.resolve_post(path)
                 if not found: h.send({'error': '接口不存在'}, 404); return h
-                fn, _auth, needs_lock = found
+                fn, access, needs_lock = found
+                if not routes.authorize(h, self.svc, access): return h
                 if needs_lock:
                     with routes.WRITE_LOCK: fn(h, self.svc, payload)
                 else: fn(h, self.svc, payload)

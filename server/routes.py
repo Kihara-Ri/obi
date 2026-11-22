@@ -20,6 +20,7 @@ from . import archive, export_csv
 from .artists import SourceUnavailableError
 from .state_sync import send_cached_state
 from .version import uptime, version
+from .listing_agent import authorize_listing_agent, api_agent_copies, api_agent_materials, api_agent_save_draft
 from .listing_routes import (api_listing_status, api_listing_analyze, api_listing_job, api_listing_dismiss,
     api_listing_draft, api_listing_photos, api_listing_login, api_listing_disconnect,
     api_listing_provider, api_listing_models, api_listing_connection, api_listing_auth_code, api_listing_test,
@@ -33,6 +34,12 @@ def recover(svc):
     """A failed committed restore must finish before another request can use its files."""
     with WRITE_LOCK:
         svc.store.finish_archive_restore()
+
+
+def authorize(h, svc, access):
+    if callable(access):
+        return access(h, svc)
+    return not access or not svc.auth or h.authorized()
 
 
 def query(h):
@@ -635,8 +642,13 @@ GET_PREFIX = {  # 带路径参数的接口
 GET.update({'/api/listing/status': api_listing_status, '/api/listing/job': api_listing_job,
             '/api/listing/photos': api_listing_photos, '/api/listing/models': api_listing_models,
             '/api/listing/preferences': api_listing_preferences})
+AGENT_GET = {
+    '/api/listing/agent/copies': api_agent_copies,
+    '/api/listing/agent/materials': api_agent_materials,
+    '/api/listing/agent/photos': api_listing_photos,
+}
 POST = {
-    # path: (处理函数, 需要登录, 需要 WRITE_LOCK)
+    # path: (处理函数, 会话登录布尔值或独立鉴权函数, 需要 WRITE_LOCK)
     '/api/rates/prepare': (api_prepare_rates, True, False),
     '/api/login': (api_login, False, False),
     '/api/logout': (api_logout, True, False),
@@ -645,6 +657,7 @@ POST = {
     '/api/listing/generate': (api_listing_generate, True, False),
     '/api/listing/preferences': (api_listing_save_preferences, True, True),
     '/api/listing/draft': (api_listing_draft, True, True),
+    '/api/listing/agent/draft': (api_agent_save_draft, authorize_listing_agent, True),
     '/api/listing/job/dismiss': (api_listing_dismiss, True, False),
     '/api/listing/login': (api_listing_login, True, False),
     '/api/listing/disconnect': (api_listing_disconnect, True, False),
@@ -702,9 +715,10 @@ UPLOAD = {
 
 
 def resolve_get(path):
-    if path in GET: return GET[path]
+    if path in AGENT_GET: return AGENT_GET[path], authorize_listing_agent
+    if path in GET: return GET[path], path not in PUBLIC_GET
     for prefix, fn in GET_PREFIX.items():
-        if path.startswith(prefix): return fn
+        if path.startswith(prefix): return fn, True
     return None
 
 
