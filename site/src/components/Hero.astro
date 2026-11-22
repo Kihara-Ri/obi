@@ -38,7 +38,7 @@ const cols = [0, 1, 2].map((i) => wall.covers.filter((_, n) => n % 3 === i).map(
       <div class="wall">
         {cols.map((c, i) => <CoverColumn covers={c} size={wall.size} reverse={i === 1} />)}
       </div>
-      <div class="obi"><span class="obi-big">Obi</span><span class="obi-small">收藏 · 购入 · 交易 · 周转</span></div>
+      <div class="obi"><span class="obi-big">Obi</span><span class="obi-small">收藏 · 记录 · 展示 · 交易</span></div>
     </div>
   </div>
 </section>
@@ -66,7 +66,8 @@ const cols = [0, 1, 2].map((i) => wall.covers.filter((_, n) => n % 3 === i).map(
   }
 
   .case{
-    position:relative; height:22rem; border-radius:var(--radius);
+    /* 标准 CD 盒 142×125mm：横向略长 */
+    position:relative; aspect-ratio:142 / 125; border-radius:var(--radius);
     background:var(--surface-3); box-shadow:var(--shadow); overflow:hidden;
   }
   .wall{
@@ -76,17 +77,16 @@ const cols = [0, 1, 2].map((i) => wall.covers.filter((_, n) => n % 3 === i).map(
   }
   .obi{
     position:absolute; inset:0 auto 0 0; width:calc(var(--obi-w) + var(--s-2));
-    /* 竖排（vertical-rl）下 row 才是竖直方向：大字在上，小字在下 */
-    display:flex; flex-direction:row; align-items:center; justify-content:space-between; padding-block:var(--s-5);
-    background:var(--accent); color:var(--accent-ink); writing-mode:vertical-rl;
+    /* 竖排（vertical-rl）下 row 才是竖直方向，inline 方向的内边距才是上下：大字在上、小字在下，两头都留白 */
+    display:flex; flex-direction:row; align-items:center; justify-content:space-between; padding-inline:var(--s-5);
+    background:var(--accent); color:var(--accent-ink); writing-mode:vertical-rl; white-space:nowrap;
     box-shadow:var(--shadow-sm);
   }
-  .obi-big{ font-weight:900; font-size:var(--fs-xl); letter-spacing:.12em; }
+  .obi-big{ font-weight:900; font-size:var(--fs-xl); letter-spacing:.12em; line-height:1; }
   .obi-small{ font-size:var(--fs-xs); font-weight:600; letter-spacing:.3em; opacity:.8; }
 
   @media (min-width:56rem){
     .hero{ padding-block:var(--s-8) var(--s-9); }
     .grid{ grid-template-columns:1.1fr 1fr; }
-    .case{ height:32rem; }
   }
 </style>

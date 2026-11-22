@@ -11,7 +11,8 @@ const loop = [...covers, ...covers];
 </div>
 
 <style>
-  .col{ display:flex; flex-direction:column; gap:var(--s-3); animation:drift 48s linear infinite; }
+  /* align-self:start：三列张数不同（如 9/8/8），被网格拉成一样高时 -50% 就不再是一份的高度，循环末尾会跳回 */
+  .col{ display:flex; flex-direction:column; align-self:start; gap:var(--s-3); animation:drift 48s linear infinite; }
   .col.reverse{ animation-direction:reverse; animation-duration:56s; }
   /* 小尺寸像素图放大显示：pixelated 让每格保持方块，不被插值糊掉 */
   img{ width:100%; height:auto; aspect-ratio:1; image-rendering:pixelated; border-radius:var(--cover-r); box-shadow:var(--shadow-sm); }
