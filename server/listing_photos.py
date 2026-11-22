@@ -1,4 +1,4 @@
-"""只读取当前副本照片；共享分析与导出的版本/归属校验。"""
+"""资料包与普通照片下载共用原图的版本与归属验证。"""
 from contextlib import closing
 import io
 import re
@@ -8,19 +8,24 @@ from domain import ValidationError
 from domain_listing import photo_order
 
 
-def listing_record(store, rid):
+def _photo_record(store, rid, stock_only):
     if not isinstance(rid, str) or not re.fullmatch(r'[0-9a-f]{32}', rid):
         raise ValidationError('副本编号无效')
     with closing(store.connect()) as db, db:
-        store.require_module('trading', db)
+        if stock_only:
+            store.require_module('trading', db)
         record = store.get(db, 'records', rid)
-    if record['status'] not in ('domestic', 'overseas'):
+    if stock_only and record['status'] not in ('domestic', 'overseas'):
         raise ValidationError('只有库存中的副本可准备售卖资料')
     return record
 
 
-def read_photos(store, rid, order, revision):
-    record = listing_record(store, rid)
+def listing_record(store, rid):
+    return _photo_record(store, rid, stock_only=True)
+
+
+def read_photos(store, rid, order, revision, *, stock_only=True):
+    record = _photo_record(store, rid, stock_only)
     if type(revision) is not int or revision != record.get('photoRevision', 0):
         raise ValidationError('照片已变更，请重新打开并核对')
     order = photo_order(order, record.get('photoCount', 0))
@@ -36,7 +41,7 @@ def read_photos(store, rid, order, revision):
         raw = path.read_bytes(); total += len(raw)
         if total > 35 * 1024 * 1024: raise ValidationError('照片总量过大，请减少选择')
         images.append((index, path.suffix, raw))
-    if listing_record(store, rid).get('photoRevision', 0) != revision:
+    if _photo_record(store, rid, stock_only).get('photoRevision', 0) != revision:
         raise ValidationError('照片已变更，请重试')
     return record, images
 
@@ -50,10 +55,23 @@ def file_label(record):
 
 
 def photo_archive(store, rid, order, revision):
-    record, images = read_photos(store, rid, order, revision)
+    record, images = read_photos(store, rid, order, revision, stock_only=False)
     label = file_label(record)
     output = io.BytesIO()
     with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_STORED) as archive:
         for position, (_, extension, raw) in enumerate(images, 1):
             archive.writestr(f'{label} - {position:02d}{extension}' if label else f'{position:02d}{extension}', raw)
     return output.getvalue()
+
+
+def api_photo_archive(h, svc):
+    from .routes import WRITE_LOCK, query
+    values = query(h)
+    try:
+        order = [int(i) for i in values.get('order', '').split(',') if i]
+        revision = int(values.get('photoRevision', ''))
+    except ValueError:
+        raise ValidationError('照片选择格式无效') from None
+    with WRITE_LOCK:
+        raw = photo_archive(svc.store, values.get('id', ''), order, revision)
+    h.send(raw, mime='application/zip', filename='album-photos.zip')

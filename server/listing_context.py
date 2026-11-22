@@ -1,5 +1,4 @@
-"""发送模型的资料白名单；采购、渠道、私人备注及数字实体不进入请求。"""
-import json
+"""上架资料包的事实白名单；排除采购、渠道、私人备注和数字实体。"""
 
 RELEASE_KEYS = ('catalogNumber', 'barcode', 'label', 'country', 'releaseDate', 'edition',
                 'packaging', 'format', 'discCount', 'matrix', 'extras', 'observations',
@@ -16,7 +15,3 @@ def public_context(record):
     if physical: copy['packaging'] = physical
     return {'album': {key: record.get(key, '') for key in ('title', 'artist', 'releaseYear')},
             'release': {key: release[key] for key in RELEASE_KEYS if release.get(key)}, 'copy': copy}
-
-
-def context_text(record):
-    return json.dumps(public_context(record), ensure_ascii=False)

@@ -1,11 +1,10 @@
-// 设置 · 账户：登录与安全（登录密码默认收起、退出登录）、已连接服务（视觉模型，仅二手交易）、安装到主屏幕的提示（未安装时）。
+// 设置 · 账户：登录与安全、退出登录与安装提示。
 import {useState} from 'react';
 import {api} from '../../core/api';
 import {clearCoverCache} from '../../core/cover-cache';
 import {useApp} from '../../state/AppContext';
 import {Collapse} from '../../components/ui/Collapse';
 import {PasswordChange} from './PasswordChange';
-import {ListingSettings} from '../../components/ListingSettings';
 import './AccountSettings.css';
 
 // 已从主屏幕启动（PWA）或本身就是安卓应用时不再提示安装
@@ -40,12 +39,6 @@ export function AccountSettings() {
           </>
         ) : <p className="small-note">当前为本机模式，未启用登录。</p>}
       </section>
-
-      {/* 视觉模型只服务售卖照片识别；未开二手交易时只留一行指引，不再整块消失（安卓上曾被误以为没装上） */}
-      {app.modules.trading ? <ListingSettings/> : <section className="settings-section account-section">
-        <h3>已连接服务</h3>
-        <p className="small-note">售卖照片识别用的视觉模型（OpenCode / DeepSeek 等）在「功能」里开启「二手交易」后出现在这里。</p>
-      </section>}
 
       {installed() ? null : (
         <section className="settings-section account-section">

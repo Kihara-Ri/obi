@@ -122,10 +122,3 @@ def clean_preferences(value):
     default = text(value.get('defaultPreset', 'concise'), 100)
     if default not in seen: raise ValidationError('请选择有效的默认预设')
     return {'revision': revision, 'defaultPreset': default, 'customPresets': custom}
-
-
-def select_preset(preferences, ident):
-    rows = [*BUILTIN_PRESETS, *preferences['customPresets']]
-    preset = next((row for row in rows if row['id'] == ident), None)
-    if preset is None: raise ValidationError('文案预设已变更，请重新选择')
-    return dict(preset)

@@ -61,34 +61,15 @@ node web/tests/browser/engine-plugin-acceptance.mjs --url http://127.0.0.1:<空�
 
 探针记录名「引擎验收临时」；中断的运行可能把它留在库里（表现为图库 17 张、首张占位封面），下一段 `full-ui` 会自动清理，或 `preview_samples.py prepare --rebuild` 重建固定开发目录。期望 JSON 绑定当次种子实例的记录 ID，重建后须重新生成。控制台错误与 HTTP/传输失败一律判失败。
 
-## 售卖草稿与图片包
-
-**一键运行**（本地与 CI 同一脚本，推送前 pre-push 钩子也会按改动范围自动跑）：
+## 上架记录与照片下载
 
 ```sh
 tools/browser_acceptance.sh
+OBI_READER_WEBKIT=1 tools/browser_acceptance.sh
 ```
 
-它依次构建前端、准备固定样本（仓库外 `~/.cache/obi-acceptance`，坏了自动重建）、复制一份干净实例、启动模拟模型服务、跑主验收和长文验收，结束后关掉服务。失败时打印每个页面的地址、可见标题、焦点和截图路径。共用的超时、`settle()`、`reportFailure()` 在 `acceptance-kit.mjs`：单步 8 秒（`OBI_ACCEPTANCE_TIMEOUT` 可调），生成步骤单独放宽到 20 秒。下面是脚本内部做的事，排查时可以手动分步执行。
+脚本与 CI 使用同一套固定样本。准备缓存后复制独立实例，用 `seed_listing_reference_photos` 取用已核验的版次参考图集，再启动仅监听回环地址的测试服务。参考图集用于验证下载与顺序，样本备注标明其来源。普通样本保持缺图。
 
-先用独立 `OBI_DEV_HOME` 运行 `python3 tools/preview_samples.py prepare --download`。再调用 `tools.seed_samples.seed_listing_reference_photos(<固定样本 instance 目录>)`：复用锁定的真实版次参考图片，备注明确标为非本副本实拍，不生成品相证明。`seed_listing_photos` 只供离线协议单测使用合成图片；普通样本保持缺图。
+主验收在 Chromium 验证详情页能下载原图 ZIP、管理页还能打开历史链接和阅读旧文案、账户页已经移除售卖模型设置。然后用 `seed_listing_long_copy` 给现有样本副本写入固定长文，检查桌面和手机尺寸的完整阅读、无横向溢出与复制。默认运行 Chromium。可额外启用 WebKit 布局验收。
 
-```sh
-python3 tests/serve_listing_acceptance.py --data-dir /path/to/sample-home/instance
-# 将上一步打印的本机空闲端口地址填入：
-LISTING_ACCEPTANCE_URL=http://127.0.0.1:<空闲端口> node web/tests/browser/listing-acceptance.mjs
-```
-
-测试服务只接受固定样本目录，启动本机模拟 Chat Completions 上游；浏览器通过真实 API 通道依次验证：多服务商切换、DeepSeek 保存密钥/读取真实协议模型目录/思考强度持久化、OpenCode 保存密钥/读取无能力元数据的目录/连接测试/Go 与按量余额目录隔离、兼容 API 静态模型就绪、无照片一键分析/写作/自动保存、仅文字模型可用于无照片但照片场景被拦截、有照片时图片能力门槛、手写正文保护、候选采用、自定义预设持久化、复制到剪贴板、照片多模态输入、冲突提示、选图排序/首图、ZIP 下载、保存不标记上架、重开持久化、手机宽度、并发草稿冲突。CI 在完整真实封面/模型验收结束后运行，不影响前一阶段样本契约。截图与图片包放入 `OBI_PREVIEW_SCREENSHOTS` 指定目录（默认 `/tmp/obi-listing-browser`）。
-
-该验收使用模拟模型，不能证明真实 OAuth 授权成功、模型可用性、照片版本或品相准确率。真实 OAuth 需用户完成授权，选择视觉模型后以实拍副本单独验收。正常流程要求 console/pageerror 为零；并发保存用例仅允许预期的 HTTP 400 诊断。
-
-
-长文阅读专项复用相同样本和服务，另加 `--long-copy`（通过 storage 事务给现有样本副本写入固定长文，不新增副本）：
-
-```sh
-python3 tests/serve_listing_acceptance.py --data-dir /path/to/sample-home/instance --long-copy
-OBI_READER_WEBKIT=1 LISTING_ACCEPTANCE_URL=http://127.0.0.1:<空闲端口> node web/tests/browser/listing-reader-acceptance.mjs
-```
-
-在 Chromium / WebKit 的手机与桌面尺寸检查：展开中途原文案/图片/底栏几何不变，正文滚到底再收起、快速反复开合、焦点恢复、Esc、减少动态效果、原页面已有滚动以及窗口旋转。截图等待抽屉动画结束；WebKit 截图时 Playwright 会注入隐藏光标用的样式表并被 CSP 拒绝一次，脚本只忽略截图这一刻出现的该条固定文案，其余 console/pageerror 仍要求为零。CI 的售卖验收在主流程结束后，向同一服务经 storage 事务补写固定长文，再跑该脚本的 Chromium 版；WebKit 用上面的 `OBI_READER_WEBKIT=1` 在本地补验。此项证明浏览器布局与交互，不替代真机帧率验收。
+共用的超时、`settle()` 与 `reportFailure()` 在 `acceptance-kit.mjs`。单步 8 秒，可用 `OBI_ACCEPTANCE_TIMEOUT` 调整。截图路径可通过 `OBI_PREVIEW_SCREENSHOTS` 指定。正常页面的 console 与 pageerror 保持为零。

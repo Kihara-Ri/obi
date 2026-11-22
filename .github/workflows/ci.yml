@@ -109,7 +109,7 @@ jobs:
         suite:
           - {id: card, name: 真实封面 · 卡片 · 移动端, parts: 'card,mobile'}
           - {id: models, name: 3D 参考实体贴图, parts: models}
-          - {id: listing, name: 售卖草稿与图片下载（模拟模型）}
+          - {id: listing, name: 上架记录与照片下载}
     steps:
       # job 级 env 不能引用 runner 上下文（会让整个工作流文件无效），改在首个步骤里写入环境
       - name: 准备预览目录变量
@@ -178,7 +178,7 @@ jobs:
             exit 1
           fi
           npm --prefix web run test:browser -- --url http://127.0.0.1:63282 --expectations "$RUNNER_TEMP/obi-preview-check.json" --parts '${{ matrix.suite.parts }}'
-      - name: 售卖草稿与图片下载验收（模拟模型）
+      - name: 上架记录与照片下载验收
         if: matrix.suite.id == 'listing'
         # 与本地 pre-push 跑的是同一个脚本：先复制一份干净实例，再跑主验收与长文验收。
         run: OBI_ACCEPTANCE_HOME="$OBI_DEV_HOME" OBI_SKIP_BUILD=1 TMPDIR="$RUNNER_TEMP" tools/browser_acceptance.sh

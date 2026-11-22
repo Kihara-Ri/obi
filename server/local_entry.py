@@ -5,14 +5,13 @@ Worker 调用本模块的 handle()，数据写进浏览器（见 static/local/en
 有服务器时不会 import 本模块。决策见 docs/DECISIONS.md D-019。
 
 浏览器与服务器的差别都在这里抹平，业务代码与路由表保持原样：
-- 不能起线程：并发取封面的线程池换成就地执行，不启动后台预取/备份/生成线程；
+- 不能起线程：并发取封面的线程池换成就地执行，不启动后台预取与备份线程；
 - 没有 socket：urllib 的出站请求改走 Worker 里的同步 XHR（受 CORS 约束，不能自定义 User-Agent）；
 - 没有文件锁：Pyodide 移除了 fcntl，装一个空实现（本机同一时刻只有一个窗口持有引擎，见 engine-worker.js 的 Web Lock）；
 - 没有 HTTP 服务：用 LocalHandler 冒充 BaseHTTPRequestHandler 里路由实际用到的那几项。
 """
 import io
 import json
-import os
 import sys
 import tempfile
 import types
@@ -59,19 +58,16 @@ class LocalHandler:
 
 
 def build_local(data_dir):
-    """从浏览器里的数据目录组装服务：账本、封面、发行资料、艺人资料与售卖辅助；无后台线程。"""
+    """从浏览器数据目录组装账本、封面、发行与艺人资料等服务。"""
     from covers import CoverService
     from musicbrainz import MusicBrainzClient
     from rates import RateService
     from server import Services
     from server.artists import ArtistService
     from server.catalog_art import ArtClient
-    from server.chatgpt_auth import ChatGPTAuth
     from server.discogs_catalog import DiscogsCatalog
     from server.engine_plugins import PluginManager
     from server.itunes_catalog import ItunesCatalog
-    from server.listing_analysis import ListingAnalysis
-    from server.listing_model import ListingModel
     from server.release_catalog import ReleaseCatalog
     from storage import Store
     data = Path(data_dir)
@@ -83,15 +79,9 @@ def build_local(data_dir):
     artists = ArtistService(store, mb, covers, write_lock=routes.WRITE_LOCK)
     artists.prewarm_enabled = False
     releases = ReleaseCatalog(mb=mb, discogs=DiscogsCatalog(), itunes=ItunesCatalog())
-    # 售卖辅助只在安卓原生中继可用时启用（D-030）：浏览器静态站点直连 OpenCode 会被 CORS 挡下。
-    listings = None
-    if os.getenv('OPENCODE_RELAY_BASE', '').strip():
-        listings = ListingAnalysis(store, releases, ListingModel(ChatGPTAuth(data)), inline=True)
-        with listings.model.providers.config.locked() as state:
-            if state['provider'] in ('openai', 'anthropic'): state['provider'] = 'opencode'
     # Deezer 不返回 CORS 头，浏览器里的同步 XHR 取不到，本机模式只接 MusicBrainz、Discogs 与 iTunes（iTunes 回 `*`）；国会图书馆（NDL）同样不回 CORS 头，不接。
     return Services(store=store, plugins=plugins, catalog_art=ArtClient(), covers=covers,
-                    releases=releases, twins=plugins.facade, listings=listings,
+                    releases=releases, twins=plugins.facade,
                     artists=artists, rates=rates)
 
 
@@ -114,9 +104,6 @@ class Engine:
         h = LocalHandler(method, target, headers)
         path = urlsplit(target).path
         if not path.startswith('/api/'): h.send({'error': '接口不存在'}, 404); return h
-        if path.startswith('/api/listing/') and self.svc.listings is None:
-            h.send({'error': '浏览器本机模式不支持售卖照片识别；请用安卓安装包（OpenCode / DeepSeek）或服务器版'}, 400)
-            return h
         try:
             routes.recover(self.svc)
             if method == 'GET':

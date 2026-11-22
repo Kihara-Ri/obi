@@ -79,7 +79,7 @@ class TradingAgentTests(unittest.TestCase):
             self.assertEqual(self.request(route, {})[0], 401)
         self.assertEqual(self.request('/api/state', token=self.trade_token)[0], 401)
         self.assertEqual(self.request('/api/bulk', {}, token=self.trade_token)[0], 401)
-        self.assertEqual(self.request('/api/listing/agent/materials', token=self.trade_token)[0], 401)
+        self.assertEqual(self.request('/api/listing/agent/package?q=Dookie', token=self.trade_token)[0], 401)
         self.assertEqual(self.request(RECEIPTS, data, token=self.trade_token, origin='https://other.test')[0], 403)
         self.store.set_modules(dict(acquisition=True, trading=False, circulation=True, showcase=True))
         self.post(RECEIPTS, data, 400)

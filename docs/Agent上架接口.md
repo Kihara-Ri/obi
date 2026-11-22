@@ -1,36 +1,40 @@
-# Agent 上架接口
+# Agent 资料包与交易同步接口
 
-服务器版开启「二手交易」后，Agent 可以查库存副本、取得发行资料和原图、保存上架草稿。调用方自行选择模型和发布工具。Obi 把草稿留在副本的「编辑上架资料」中，上架状态由用户确认实际发布后记录。见 D-045。
+服务器版开启「二手交易」后，Agent 可查找库存副本并下载上架资料。文案、选图、发布与订单监听由外部系统完成，Obi 接收其回报的交易事实。既有上架信息仍可在专辑详情 → 管理查看。见 D-047。
 
-## 开通
+## 启用资料包
 
-在服务端数据目录（Docker 内为 `/data`）的 `credentials/listing-agent.token` 保存一枚独立令牌。用 `python3 -c 'import secrets; print("obi_listing_" + secrets.token_urlsafe(32))'` 生成，文件仅允许服务用户读取。重启 Obi 后生效。删除文件并重启可关闭接口，换令牌也需要重启。令牌随服务端配置管理，账本备份只包含账本和业务资产。
+在服务端数据目录（Docker 内为 `/data`）的 `credentials/listing-agent.token` 保存一枚独立令牌。用 `python3 -c 'import secrets; print("obi_listing_" + secrets.token_urlsafe(32))'` 生成，文件权限设为 `0600`，仅服务用户可读。重启 Obi 后生效。删除文件并重启可关闭接口，换令牌也需要重启。令牌由实例管理，账本备份只包含账本与业务资产。
 
-所有请求都带 `Authorization: Bearer <TOKEN>`。远程使用既有的 HTTPS 地址，本机可使用回环 HTTP。Agent 只需要这枚令牌。本机浏览器或安卓版本不运行这个 HTTP 服务。
+资料包请求带 `Authorization: Bearer <LISTING_TOKEN>`。远程使用实例的 HTTPS 地址，隔离本机测试可使用回环 HTTP。浏览器本机模式与安卓本机模式不提供这两个 Agent 能力。
 
-## 请求与响应
+## 查找与下载
 
-前缀为 `/api/listing/agent`。接口中的 `id` 对应一张实物副本。
+统一使用 `GET /api/listing/agent/package`。用 `q` 查找库存实物副本，用返回的 `id` 下载单件 ZIP。
 
-| 方法和路径 | 查询或请求字段 | 响应 |
-| --- | --- | --- |
-| `GET /copies` | `q` 必填。可选 `by=text\|barcode\|catalogNumber`，默认 `text`。可选 `offset`，默认 0。 | `copies` 为候选列表，每页最多 20 项。每项包含 `id`、`title`、`artist`、`catalogNumber`、`barcode`、`version`、`pressing`、`obi`、`status` 和 `listed`。用 `nextOffset` 请求下一页，末页为 `null`。 |
-| `GET /materials` | `id` | 返回 `id`、`revision`、`photoRevision`、`photoCount`、`photoOrder`、`listed`、`facts`、`writingPreset` 和 `draft`。 |
-| `GET /photos` | `id`、`photoRevision`、`order`。图片序号从 0 开始，以逗号分隔。 | `application/zip`。ZIP 内是指定顺序的原格式图片，第一张用作首图。有序子集也可下载。 |
-| `POST /draft` | JSON 包含 `id`、`revision`、`photoRevision`、`title`、`description`、`photoOrder`。可选 `replaceExisting`，默认为 `false`。 | 保存成功返回 `id` 和新 `revision`。再次读取 `/materials` 可核对已存内容。 |
+```http
+GET /api/listing/agent/package?by=catalogNumber&q=WPCR-0001
+GET /api/listing/agent/package?id=0123456789abcdef0123456789abcdef
+```
 
-- 查找范围是国内与海外库存。文字模式匹配艺人和专辑名，条码和唱片编号做精确匹配并沿用发行检索的格式归一化。找到多张副本时请用户选定一张。
-- `facts` 沿用售卖模块的发行资料白名单，包括专辑、发行版和本副本的包装等字段。`writingPreset` 提供默认风格的 `id`、`name` 和 `instructions`。`draft` 为当前保存的标题与正文，空白时为 `null`。
-- `photoOrder` 为从 0 开始且互不重复的序号数组。资料接口优先返回照片版本仍有效的保存顺序。没有图片时用空数组并跳过下载。首图由顺序决定。
-- 写作遵循[售卖草稿定案](界面与功能定案.md#售卖草稿2026-10-28-更新d-031)。正文以已知发行资料和实物证据为准。买入价格、渠道、私人备注、模型凭据由 Obi 保留。
-- 草稿写入核对记录和照片版本。带旧版本的请求返回 400，重新取资料再判断。已有文案而未明确允许替换时返回 409。保存请求超时后先读取草稿核对结果，再决定是否重试。
-- 启用接口时，缺少有效令牌返回 401。令牌文件不存在时返回 404。二手交易关闭时返回 400。失败响应统一是含 `error` 的 JSON。
+- 查找时可用 `by=text`（默认，匹配艺人与专辑名）、`by=barcode` 或 `by=catalogNumber`（归一化后精确匹配）。结果仅含国内和海外库存。多副本命中时应先选定一件，再下载资料。
+- 查找响应是 `application/json`。每页最多 20 项，`copies` 含候选，`nextOffset` 可作为下一次请求的 `offset`，末页为 `null`。每个候选含 `id`、`title`、`artist`、`catalogNumber`、`barcode`、`version`、`pressing`、`obi`、`status` 和 `listed`。
+- 下载响应是 `application/zip`。根目录有 UTF-8 编码的 `materials.json`，`photos/01.jpg` 等文件按打包顺序编号，扩展名沿用原文件。包内有且仅有清单和清单列出的原图。单图上限 6 MiB，图片合计上限 35 MiB。
+- 优先沿用照片版本相同的历史选图与顺序。其余副本按当前顺序打包所有原图。若只取资料，传 `photos=0`，ZIP 仅含清单。选取部分照片或调整顺序时传 `order=0,2` 与清单当前的 `photoRevision`。序号从 0 开始且不能重复。版本冲突返回 409，重新取包并核对。
+- `id` 与查询参数 `q`、`by`、`offset` 不能混用。启用接口后缺少有效令牌返回 401。令牌文件不存在返回 404。参数无效、目标离开库存、二手交易关闭或原图缺失返回 400。错误响应为包含 `error` 的 JSON。
 
-## 单件流程
+### ZIP 清单
 
-1. 查找候选，选定副本后读资料和照片。
-2. 写标题和正文，按顺序保存选用的图片序号。用同一份资料的记录和照片版本保存草稿。
-3. 回读草稿，再把文案和已下载的图片交给发布工具。价格、运费、类目和发货地由调用方在发布环节准备。
+| 字段 | 含义 |
+| --- | --- |
+| `id`、`revision` | 唯一实物副本 ID 及记录版本。回填上架回执用当前记录版本。 |
+| `photoRevision`、`photoCount` | 照片版本及副本照片总数。 |
+| `photoOrder`、`photos` | 本包的 0 基序号数组及有序文件清单 `[{index,file}]`。包内首张可用作首图。没有图或用了 `photos=0` 时两个数组为空。 |
+| `listed` | Obi 当前的上架标记。平台是否在线由外部系统核实。 |
+| `facts` | `album`、`release`、`copy` 三组白名单资料。发行版资料属于版次，本副本照片和确认过的实物信息才可作为品相依据。 |
+| `draft` | 历史标题与正文 `{title,description}`，无内容时为 `null`。 |
+
+资料包排除采购成本、购买渠道、私人备注、凭据和其他副本数据。已有草稿可作为参考，新文案由外部系统持久化。旧的 `/api/listing/agent/copies`、`materials`、`photos` 和 `draft` 接口已停用。
 
 ## 闲鱼交易同步
 
@@ -38,7 +42,7 @@
 
 ### 单独启用
 
-在服务器数据目录的 `credentials/trading-agent.token` 写入交易令牌。用 `python3 -c 'import secrets; print("obi_trading_" + secrets.token_urlsafe(32))'` 生成，权限为 `0600`，服务重启后生效。删除文件并重启可关闭。每个下文请求使用 `Authorization: Bearer <TRADING_TOKEN>`，远程使用既有 HTTPS 地址。草稿令牌和交易令牌各自只授予本节或上文列出的能力。
+在服务器数据目录的 `credentials/trading-agent.token` 写入交易令牌。用 `python3 -c 'import secrets; print("obi_trading_" + secrets.token_urlsafe(32))'` 生成，权限为 `0600`，服务重启后生效。删除文件并重启可关闭。每个下文请求使用 `Authorization: Bearer <TRADING_TOKEN>`，远程使用既有 HTTPS 地址。资料包令牌只读，交易令牌只用于本节的三个写入口。
 
 交易同步也要求开启「二手交易」。错误返回 `{"error":"…"}`。停用接口返回 404，令牌无效返回 401，字段无效或模块关闭返回 400。遇到副本版本、商品绑定、订单或到账日期冲突时返回 409，由调用方保留事实供核对。
 
@@ -91,4 +95,4 @@
 
 ### 固定样本验证
 
-在仓库根运行 `python3 -m unittest discover -s tests -p test_trading_agent.py`。测试在临时数据目录用 Obi 固定样本和本机 HTTP 跑回执、售出及结算，并覆盖事实乱序、并发重复订单、历史链接、旧销售单和令牌隔离。测试数据中的商品号、订单号和金额均为虚构值。
+在仓库根运行 `python3 -m unittest discover -s tests -p test_listing_routes.py` 和 `python3 -m unittest discover -s tests -p test_trading_agent.py`。测试在临时数据目录用 Obi 固定样本和本机 HTTP 验证资料包、回执、售出及结算，并覆盖事实乱序、并发重复订单、历史链接、旧销售单和令牌隔离。测试数据中的商品号、订单号和金额均为虚构值。

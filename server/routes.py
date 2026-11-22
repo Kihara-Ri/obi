@@ -20,13 +20,10 @@ from . import archive, export_csv
 from .artists import SourceUnavailableError
 from .state_sync import send_cached_state
 from .version import uptime, version
-from .listing_agent import authorize_listing_agent, api_agent_copies, api_agent_materials, api_agent_save_draft
+from .listing_agent import authorize_listing_agent, api_agent_package
+from .listing_photos import api_photo_archive
 from .trading_agent import (authorize_trading_agent, api_listing_receipt, api_paid_order,
                             api_order_settlement)
-from .listing_routes import (api_listing_status, api_listing_analyze, api_listing_job, api_listing_dismiss,
-    api_listing_draft, api_listing_photos, api_listing_login, api_listing_disconnect,
-    api_listing_provider, api_listing_models, api_listing_connection, api_listing_auth_code, api_listing_test,
-    api_listing_generate, api_listing_preferences, api_listing_save_preferences)
 
 # 所有改状态的 store 调用共用一把锁，串行化并发写
 WRITE_LOCK = threading.Lock()
@@ -624,6 +621,7 @@ GET = {
     '/api/export': api_export,
     '/api/release-details': api_release,
     '/api/catalog/front-cover': api_release_front_cover,
+    '/api/photos/archive': api_photo_archive,
     '/api/plugins/album-engine': api_engine_plugin,
     '/api/twins': api_twins,
 }
@@ -641,35 +639,16 @@ GET_PREFIX = {  # 带路径参数的接口
     '/api/twin-review-assets/': api_twin_review_asset,
     '/api/twin-source-preview/': api_twin_source_preview,
 }
-GET.update({'/api/listing/status': api_listing_status, '/api/listing/job': api_listing_job,
-            '/api/listing/photos': api_listing_photos, '/api/listing/models': api_listing_models,
-            '/api/listing/preferences': api_listing_preferences})
-AGENT_GET = {
-    '/api/listing/agent/copies': api_agent_copies,
-    '/api/listing/agent/materials': api_agent_materials,
-    '/api/listing/agent/photos': api_listing_photos,
-}
+AGENT_GET = {'/api/listing/agent/package': api_agent_package}
 POST = {
     # path: (处理函数, 会话登录布尔值或独立鉴权函数, 需要 WRITE_LOCK)
     '/api/rates/prepare': (api_prepare_rates, True, False),
     '/api/login': (api_login, False, False),
     '/api/logout': (api_logout, True, False),
     '/api/password': (api_password, True, True),
-    '/api/listing/analyze': (api_listing_analyze, True, True),
-    '/api/listing/generate': (api_listing_generate, True, False),
-    '/api/listing/preferences': (api_listing_save_preferences, True, True),
-    '/api/listing/draft': (api_listing_draft, True, True),
-    '/api/listing/agent/draft': (api_agent_save_draft, authorize_listing_agent, True),
     '/api/listing/agent/receipts': (api_listing_receipt, authorize_trading_agent, True),
     '/api/trading/agent/orders': (api_paid_order, authorize_trading_agent, True),
     '/api/trading/agent/settlements': (api_order_settlement, authorize_trading_agent, True),
-    '/api/listing/job/dismiss': (api_listing_dismiss, True, False),
-    '/api/listing/login': (api_listing_login, True, False),
-    '/api/listing/disconnect': (api_listing_disconnect, True, False),
-    '/api/listing/provider': (api_listing_provider, True, False),
-    '/api/listing/connection': (api_listing_connection, True, False),
-    '/api/listing/test': (api_listing_test, True, False),
-    '/api/listing/auth-code': (api_listing_auth_code, True, False),
     '/api/catalog/barcode': (api_barcode_lookup, True, False),
     '/api/catalog/barcode/verify': (api_verify_barcode, True, False),
     '/api/catalog/number': (api_catalog_number_lookup, True, False),

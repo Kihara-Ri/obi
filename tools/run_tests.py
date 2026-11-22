@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TESTS = ROOT / 'tests'
 # Measured slowest first; unknown modules keep alphabetical order after these.
 SLOW_FIRST = ('test_sample_bundle', 'test_web_app', 'test_updates', 'test_engine_plugins',
-              'test_artists_routes', 'test_listing_providers', 'test_digital_twins')
+              'test_artists_routes', 'test_digital_twins')
 
 
 def modules(names):

@@ -775,25 +775,6 @@ class Store:
             listed = bool(record.get('listed')) and trade_sync.listing_item_id(record) == item_id
             return {**receipt, 'revision': record['revision'], 'url': url, 'listed': listed}
 
-    def listing_preferences(self):
-        from domain_listing import clean_preferences
-        with closing(self.connect()) as db:
-            self.require_module('trading', db)
-            return clean_preferences(self.meta_get(db, 'listing-preferences-v1') or {})
-
-    def save_listing_preferences(self, data):
-        from domain_listing import clean_preferences
-        value = clean_preferences(data)
-        with closing(self.connect()) as db, db:
-            db.execute('BEGIN IMMEDIATE')
-            self.require_module('trading', db)
-            before = self.meta_get(db, 'listing-preferences-v1') or {'revision': 0}
-            if value['revision'] != before['revision']: raise ValidationError('文案偏好已变更，请重新打开')
-            value['revision'] += 1
-            db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)', ('listing-preferences-v1', dumps(value)))
-            self.audit(db, '保存文案偏好', {})
-        return value
-
     def last_audit(self, db, action, id):
         for (raw,) in db.execute("SELECT data FROM audit WHERE action=? ORDER BY id DESC LIMIT 500", (action,)):
             d=json.loads(raw)

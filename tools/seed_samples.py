@@ -30,7 +30,7 @@
 
 seed_rate_review 为现有 Dookie 副本提供未缓存的虚构买入日期，验证账本先显示、汇率补取与失败重试；不增加副本或素材。
 
-seed_listing_long_copy 为现有 lift-fists 副本提供固定长文案，供展开/收起验收；
+seed_listing_long_copy 为现有 lift-fists 副本提供固定长文案，供历史文案阅读与复制验收；
 不新增副本，不改照片、金额或上架状态。
 
 安全约束：只能写入 --data-dir 指定的目录；拒绝指向仓库 data/，拒绝覆盖已存在
@@ -331,8 +331,8 @@ def seed_listing_reference_photos(data_dir):
 
 # 只用于阅读布局验收，不冒充真实售卖说明或模型品相结论。
 LISTING_LONG_DESCRIPTION = '\n\n'.join(
-    f'阅读样本第 {i + 1} 段：这是固定样本的长文案，用于检查展开、滚动与收起。'
-    '文案展开时照片和设置保留原有占位，底部复制按钮始终可用。'
+    f'阅读样本第 {i + 1} 段：这是固定样本的历史长文案，用于验证阅读、滚动和复制。'
+    '文案包含多段文字，打开管理页后可以阅读全部内容，复制按钮保留原有的换行。'
     for i in range(18))
 
 

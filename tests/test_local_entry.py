@@ -5,7 +5,6 @@ import json
 import zipfile
 import tempfile
 import unittest
-from unittest.mock import patch
 from urllib import error, request
 
 from server import local_entry
@@ -58,22 +57,10 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(self.call('GET', '/index.html')[0], 404)
         self.assertEqual(self.call('POST', '/api/nope', {})[0], 404)
 
-    def test_listing_is_unavailable_without_android_relay(self):
-        status, _, out = self.call('GET', '/api/listing/status')
-        self.assertEqual(status, 400)
-        self.assertIn('安卓安装包', json.loads(out)['error'])
-
-    def test_listing_uses_local_key_channels_with_relay(self):
-        with patch.dict('os.environ', {'OPENCODE_RELAY_BASE': 'http://127.0.0.1:9/p/t/opencode'}):
-            with tempfile.TemporaryDirectory() as tmp:
-                engine = local_entry.Engine(tmp)
-                status, _, out = engine.handle('GET', '/api/listing/status', '{}', b'')
-                payload = json.loads(out)
-                engine.svc.listings.close()
-        self.assertEqual(status, 200)
-        self.assertEqual(payload['provider'], 'opencode')   # 浏览器里没有 ChatGPT OAuth，默认落到 OpenCode
-        ids = [row['id'] for row in payload['providers']]
-        self.assertIn('opencode', ids)
+    def test_local_has_no_listing_agent_or_provider(self):
+        for path in ('/api/listing/status', '/api/listing/agent/package?q=Dookie'):
+            self.assertEqual(self.call('GET', path)[0], 404)
+        self.assertEqual(self.call('POST', '/api/listing/agent/receipts', {})[0], 404)
 
     def test_backup_roundtrip_keeps_amounts_as_strings(self):
         self.call('POST', '/api/records', {'title': 'T', 'artist': 'A', 'price': '1000', 'currency': 'JPY'})

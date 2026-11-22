@@ -29,10 +29,6 @@ async function claimByServiceWorker(onStatus) {
   });
 }
 
-function relayBase() {
-  try { return globalThis.ObiAndroid?.modelRelay?.() || ''; } catch { return ''; }
-}
-
 function startEngine(onStatus, start = 'start', rateSession) {
   return new Promise((resolve, reject) => {
     const worker = new Worker('/local/engine-worker.js');
@@ -43,7 +39,7 @@ function startEngine(onStatus, start = 'start', rateSession) {
       else if (data.error) reject(new Error(data.error));
     };
     worker.onerror = (e) => reject(new Error(e.message || '本机引擎启动失败'));
-    worker.postMessage({start, relay: relayBase(), rateSession});
+    worker.postMessage({start, rateSession});
   });
 }
 

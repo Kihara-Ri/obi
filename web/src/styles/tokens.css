@@ -6,8 +6,6 @@
    theme.js 同时负责把 theme-color meta 与所选主题对齐。 */
 :root{
   --photo-status-size:.625rem;
-  /* 售卖素材：缩略图最小宽、组间距、控制触控尺寸。 */
-  --listing-photo-size:6rem; --listing-thumb-size:4rem; --listing-title-size:1.125rem; --listing-copy-size:1rem; --listing-small-size:.75rem; --listing-copy-line:1.75; --listing-copy-min:10rem; --listing-action-pad:.75rem; --listing-gap:1rem; --listing-gap-sm:.5rem; --listing-touch-size:2.75rem;
   /* 主色家族（闲鱼黄）：accent=填充（按钮/chip/开关/徽标）；strong=填充悬停；
      ink=黄底上的文字；deep=浅底上的强调文字与细线（正黄在白卡上不可读）；
      wash=聚焦/按压的暖色底；text=强调色文字（浅色=墨色、深色=黄）；
@@ -29,7 +27,7 @@
   --album-tray-black:#151719; --album-tray-white:#f1f0e9; --album-tray-clear:rgba(203,211,218,.16);
   --album-disc-base:#b8bec2; --album-disc-light:#f2f5f4; --album-disc-shade:#858c92; --album-disc-edge:#91989e;
   --radius:14px; --radius-sm:10px;
-  --brand-deepseek:#4d6bfe; --brand-claude:#d97757; --brand-plate:#fff; /* 第三方品牌色（服务商图标） */
+  --brand-plate:#fff; /* 资料库图标底色 */
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
 }
 /* 主题 token：浅色值 = 默认；跟随系统时由 prefers-color-scheme 切深色，设置页显式选择经 data-theme 覆盖。

@@ -32,9 +32,6 @@ from server.catalog_art import ArtClient
 from server.shop_brands import ShopBrandService
 from server.starter_albums import seed_starter
 from storage import Store
-from server.chatgpt_auth import ChatGPTAuth
-from server.listing_model import ListingModel
-from server.listing_analysis import ListingAnalysis
 from server.listing_agent import load_agent_secret
 from server.trading_agent import load_trading_agent_secret
 
@@ -53,7 +50,6 @@ def build(data_dir, public_origin=None):
     releases = ReleaseCatalog(mb=mb, discogs=DiscogsCatalog(), deezer=DeezerCatalog(), itunes=ItunesCatalog(), ndl=NdlCatalog())
     plugins = PluginManager(store, None, mb)   # 宿主不提供视觉模型：数字实体的生成在 Album Engine 项目中
     return Services(store=store, shops=ShopBrandService(store), plugins=plugins, catalog_art=ArtClient(),
-                    listings=ListingAnalysis(store, releases, ListingModel(ChatGPTAuth(data))),
                     listing_agent_secret=listing_agent_secret,
                     trading_agent_secret=trading_agent_secret,
                     auth=Auth(data / 'auth.sqlite3'),
@@ -106,7 +102,6 @@ def main():
     finally:
         server.server_close()
         svc.twins.stop()
-        if svc.listings: svc.listings.close()
         svc.releases.close()
         print('Obi 已停止', flush=True)
 

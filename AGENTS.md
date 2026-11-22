@@ -29,7 +29,7 @@
 - `app.py` 只做 CLI / 组装 / 启动。服务一律经 `server.context.Services` 注入，**禁止模块级单例**（import 零副作用）。
 - 根目录业务模块（`domain/storage/covers/rates/security/backups/photo_uploads`）**不得移动或重命名**（`tools/` 依赖顶层 import 路径）；`storage.py` 保持单文件（跨表事务 + 审计内聚，不拆）。分层单向：`server/` 与 `app.py` 依赖根目录业务模块，根目录模块**不得**反向 import `server/`（曾因 `storage.py` 里 `from server import photo_uploads` 形成导入环，`import storage` 先行的入口全部报 `ImportError: cannot import name 'SCHEMA'`）。
 - 版本：发布包带 `VERSION`（git describe 生成：正式版是 tag，日常部署是构建号），`/api/health` 与设置页显示。
-- **本机模式（D-019）**：静态站点上由浏览器里的 Pyodide 运行同一套后端，入口 `server/local_entry.py`，只在 `dist-local/`（`npm --prefix web run build:local`，不进 `static/`、镜像与 git）里启用，靠 `index.html` 的 `obi-local` 标记识别。**业务代码与路由表不得为本机模式分叉**——浏览器与服务器的差别（无线程、无 socket、无 fcntl）只在 `local_entry.py` 抹平；后端新增线程 / 子进程 / 文件锁依赖时，必须同时保证本机模式不会走到（或在该文件里替换），并跑 `tests/test_local_entry.py`。服务器版 `static/sw.js` 不得加入本机转发。安卓外壳另有只监听 `127.0.0.1` 的原生模型中继（D-030）：页面经 `ObiAndroid.modelRelay()` 取得地址并写入 `OPENCODE_RELAY_BASE`，Python 侧只按这个前缀改写 OpenCode 地址；不得把它扩成任意主机代理。浏览器静态站点没有中继，售卖照片识别仍不可用。
+- **本机模式（D-019）**：静态站点上由浏览器里的 Pyodide 运行同一套后端，入口 `server/local_entry.py`，只在 `dist-local/`（`npm --prefix web run build:local`，不进 `static/`、镜像与 git）里启用，靠 `index.html` 的 `obi-local` 标记识别。**业务代码与路由表不得为本机模式分叉**——浏览器与服务器的差别（无线程、无 socket、无 fcntl）只在 `local_entry.py` 抹平；后端新增线程 / 子进程 / 文件锁依赖时，必须同时保证本机模式不会走到（或在该文件里替换），并跑 `tests/test_local_entry.py`。服务器版 `static/sw.js` 不得加入本机转发。D-047 后本机网页不调用安卓原生模型中继，Agent 资料包与交易同步由服务器版提供。
 
 ### 前端（`web/`，React 19 + TS strict + Vite）
 - 分层单向依赖：`core/` ← `components/` ← `pages/` 与 `forms/`；**禁止反向 import**（`web/tests/layering.test.mjs` 机检）。要打开表单或挂页面的卡片放 `pages/`。
@@ -44,7 +44,7 @@
 
 ## 用户已定案的界面与功能（不得回退）
 
-逐条定案全文在 [docs/界面与功能定案.md](docs/界面与功能定案.md)（「功能组合」、「界面规则」、「数字实体（2026-10-17：生成已移出本应用）」、「条形码优先录入（2026-10-13 定案）」、「售卖草稿（2026-10-28 更新，D-031）」、「售卖识别多服务商（2026-10-19）」）。**改动这些领域前必须先读对应小节**；与之冲突的改动先问用户。贯穿全局的原则：
+逐条定案全文在 [docs/界面与功能定案.md](docs/界面与功能定案.md)（「功能组合」、「界面规则」、「数字实体（2026-10-17：生成已移出本应用）」、「条形码优先录入（2026-10-13 定案）」、「上架资料与交易同步（2026-11-22，D-047）」）。**改动这些领域前必须先读对应小节**；与之冲突的改动先问用户。贯穿全局的原则：
 
 - 主界面只留控件和数字，解释收起来；少字、图标化。
 - 空间结构不被破坏：抽屉只向下收回、不横推；悬浮条不挤压布局；顶栏不动、内容淡入。
@@ -63,10 +63,10 @@ python3 tools/run_tests.py                                                 # 后
 npm --prefix web run typecheck && npm --prefix web run build               # 前端
 OBI_DEV_HOME=/private/tmp/obi-acceptance python3 tools/preview_samples.py prepare --download
 OBI_DEV_HOME=/private/tmp/obi-acceptance python3 tools/preview_samples.py --port <空闲端口>
-tools/browser_acceptance.sh                                                # 售卖浏览器验收（约 40 秒，与 CI 同一脚本）
+tools/browser_acceptance.sh                                                # 上架记录与照片下载验收（与 CI 同一脚本）
 ```
 
-- **改了界面（`web/src`）、售卖后端或浏览器验收脚本，提交前先跑 `tools/browser_acceptance.sh`。** 推送时 pre-push 钩子会按改动范围自动再跑一次，不过就不推送（紧急时 `git push --no-verify`）。这套验收以前只在 CI 里跑，界面或动效一改，测试脚本跟不上，推上去才失败，是 CI 反复失败的主要原因（2026-11-18）。验收脚本的等待统一用 `web/tests/browser/acceptance-kit.mjs`：单步 8 秒超时、等稳定用 `settle()`、失败时 `reportFailure()` 截图并打印现场，不另写 30 秒的等待。
+- **改了界面（`web/src`）、上架与交易同步后端或浏览器验收脚本，提交前先跑 `tools/browser_acceptance.sh`。** 推送时 pre-push 钩子会按改动范围自动再跑一次，不过就不推送（紧急时 `git push --no-verify`）。这套验收以前只在 CI 里跑，界面或动效一改，测试脚本跟不上，推上去才失败，是 CI 反复失败的主要原因（2026-11-18）。验收脚本的等待统一用 `web/tests/browser/acceptance-kit.mjs`：单步 8 秒超时、等稳定用 `settle()`、失败时 `reportFailure()` 截图并打印现场，不另写 30 秒的等待。
 
 - **8765 等本机常用端口可能被常驻服务占用**——验证一律用空闲端口（如 8791）+ 临时数据目录 + `--no-seed`；Docker 验证用独立端口与临时卷。
 - **后续测试统一复用固定样本库**（`tools/seed_samples.py`）：现有 21 副本覆盖国内/海外/在途/售出中/已售/回收站、日元/人民币、多副本分组、侧标、新式包装资料、成本缺失等场景，金额日期渠道均为虚构、不含个人数据。涉及专辑场景的自动测试、浏览器验收与手动测试均从这里的样本定义和初始化入口取得数据。真实封面与 3D 验收统一使用 `tools/preview_samples.py`：首次 `prepare --download`，后续直接启动同一固定开发目录；仅显式 `--rebuild` 归档后重建。素材锁为 `tools/sample-bundle.json`，启动检查 21 张封面、三个发布文档的印刷面绑定、19 份模型图片与引擎契约；缺失必须失败，不能临时补图绕过。日常预览允许固定仓库外目录；自动验收用独立 `OBI_DEV_HOME`。`backup/restore` 完整归档包含图片和离线素材包，JSON 不能替代图片。离线业务单测仍允许无封面，`--with-models` 仅作隔离几何测试，保留合成光栅、物理装配及账本边界覆盖。普通展示禁止合成图或相似版本填补；公开图集须标为版次参考。缺少副本、包装、照片、条码、数字实体任务或贴图场景时，先扩充此样本库及其可复用素材/初始化方法，同步更新 `tests/test_sample_library.py` 的覆盖点和必要断言，再执行验证；不得另起一套从零造数据，也不得在一次性验证脚本中临时补造贴图或发布任务来绕过样本库。测试仍在独立临时数据目录运行，不修改真实 `data/`。样本清单与各覆盖点见 `tools/seed_samples.py` 模块注释。

@@ -6,27 +6,28 @@ import {CheckIco, DownloadIco, SpinIco} from '../icons';
 import {useApp} from '../../state/AppContext';
 import './PhotoDownload.css';
 
-type Props = {id: string; count: number; revision: number; artist: string; title: string; variant?: 'icon' | 'button'; label?: string; disabled?: boolean; preparedFiles?: File[] | null; order?: number[]};
-type Prep = 'loading' | 'ready' | 'failed';
+type Props = {id: string; count: number; revision: number; artist: string; title: string};
 type Phase = 'idle' | 'saving' | 'done';
 
-export function PhotoDownload({id, count, revision, artist, title, variant = 'icon', label: displayLabel, disabled = false, preparedFiles, order: given}: Props) {
+export function PhotoDownload({id, count, revision, artist, title}: Props) {
   const app = useApp();
   const touch = useRef(!window.matchMedia('(hover: hover) and (pointer: fine)').matches).current;
   const files = useRef<File[]>([]);
-  const [prep, setPrep] = useState<Prep>(touch ? 'loading' : 'ready');
+  const [loading, setLoading] = useState(touch);
   const [phase, setPhase] = useState<Phase>('idle');
   const doneTimer = useRef(0);
   useEffect(() => () => window.clearTimeout(doneTimer.current), []);
   useEffect(() => {
-    if (!touch || preparedFiles !== undefined) return;
+    if (!touch) return;
     let alive = true;
-    files.current = []; setPrep('loading');
+    files.current = []; setLoading(true);
     fetchPhotoFiles(id, count, photoLabel(artist, title), revision).then(list => {
-      if (alive) {files.current = list; setPrep('ready');}
-    }).catch(() => {if (alive) setPrep('failed');});
+      if (alive) files.current = list;
+    }).catch(() => {
+      // 预取失败时仍可请求 ZIP。
+    }).finally(() => {if (alive) setLoading(false);});
     return () => {alive = false;};
-  }, [id, count, revision, artist, title, touch, preparedFiles]);
+  }, [id, count, revision, artist, title, touch]);
   const finish = (message: string) => {
     app.toast(message);
     setPhase('done');
@@ -35,14 +36,14 @@ export function PhotoDownload({id, count, revision, artist, title, variant = 'ic
   const fail = (message: string) => {app.toast(message, 'err'); setPhase('idle');};
   const zip = () => {
     setPhase('saving');
-    const order = (given ?? Array.from({length: count}, (_, i) => i)).join(',');
-    downloadFile(`listing/photos?id=${id}&photoRevision=${revision}&order=${order}`, 'listing-photos.zip', {share: false})
+    const order = Array.from({length: count}, (_, i) => i).join(',');
+    downloadFile(`photos/archive?id=${id}&photoRevision=${revision}&order=${order}`, 'album-photos.zip', {share: false})
       .then(() => finish(`已下载 ${count} 张照片（ZIP）`))
       .catch(e => fail(e instanceof Error ? e.message : '下载失败，请重试'));
   };
   const onClick = () => {
-    if (phase === 'saving' || disabled) return;
-    const readyFiles = preparedFiles ?? files.current;
+    if (phase === 'saving') return;
+    const readyFiles = files.current;
     if (touch && readyFiles.length > 0 && navigator.canShare?.({files: readyFiles})) {
       // 必须在点击手势内同步调用；先 await 再分享会被 iOS 拒绝，所以照片在进入详情时已预取。
       setPhase('saving');
@@ -54,12 +55,10 @@ export function PhotoDownload({id, count, revision, artist, title, variant = 'ic
         });
     } else zip();
   };
-  const loading = preparedFiles === null || preparedFiles === undefined && touch && prep === 'loading';
   const label = loading ? '正在读取照片…' : phase === 'saving' ? '保存中…' : touch ? '保存实物照片到相册' : '下载实物照片';
-  return <button type="button" className={`photo-download${variant === 'button' ? ' photo-download-button' : ''}${phase === 'done' ? ' is-done' : ''}`}
-    aria-label={displayLabel || label} title={label} aria-busy={loading || phase === 'saving'}
-    disabled={disabled || !count || loading || phase === 'saving'} onClick={onClick}>
+  return <button type="button" className={`photo-download${phase === 'done' ? ' is-done' : ''}`}
+    aria-label={label} title={label} aria-busy={loading || phase === 'saving'}
+    disabled={!count || loading || phase === 'saving'} onClick={onClick}>
     {loading || phase === 'saving' ? SpinIco : phase === 'done' ? CheckIco : DownloadIco}
-    {variant === 'button' ? <span>{phase === 'saving' ? '保存中…' : loading ? '读取照片…' : displayLabel || '保存图片'}</span> : null}
   </button>;
 }

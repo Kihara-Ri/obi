@@ -6,7 +6,6 @@ import type {AppCtx} from '../../state/AppContext';
 import {fmt, fmtJPY, jpyCost, rmb, shipFeeText, yuan} from '../../core/format';
 import {SALE_NAMES} from '../../types';
 import {CopyButton} from '../../components/CopyButton';
-import {openListingForm} from '../ListingForm';
 import {openPurchaseForm} from '../PurchaseForm';
 import {Rows} from './Rows';
 import {FlowSection} from './FlowSection';
@@ -26,7 +25,7 @@ function ManageBody({id}: {id: string}) {
   const shipment = r.shipmentId ? app.state.shipments.find(s => s.id === r.shipmentId) : undefined;
   const shipItem = shipment?.items.find(i => i.recordId === id);
   const approx = jpyCost(r);
-  const inStock = ['overseas', 'domestic'].includes(r.status);
+  const copy = [r.listingDraft?.title, r.listingDraft?.description || r.listingDescription].filter(Boolean).join('\n\n');
   return <div className="detail-page">
     <Rows rows={[{label: '录入时间', value: r.createdAt?.replace('T', ' ') || '未记录'}]}/>
     {modules.acquisition ? <>
@@ -50,16 +49,15 @@ function ManageBody({id}: {id: string}) {
       {r.note ? <p className="note-text"><b>这张副本</b>{r.note}</p> : null}
       {r.noteAlbum ? <p className="note-text"><b>这张专辑（所有副本共享）</b>{r.noteAlbum}</p> : null}
     </> : null}
-    {modules.trading && (inStock || r.listed || r.listingChannel || r.listingUrl || r.listingDescription) ? <>
+    {modules.trading && (r.listed || r.listingChannel || r.listingUrl || copy) ? <>
       <h3 className="section-title">上架</h3>
       <Rows rows={[
+        r.listed && {label: '状态', value: '已上架'},
         r.listingChannel && {label: '平台', value: r.listingChannel},
         r.listingUrl && {label: '链接', value: <a href={r.listingUrl} target="_blank" rel="noopener noreferrer">打开商品页面 ↗</a>},
       ]}/>
-      {r.listingDescription ? <p className="note-text listing-description">{r.listingDescription}
-        <CopyButton text={r.listingDescription} label="复制上架描述"/></p> : null}
-      {inStock ? <button type="button" className="entry-btn" onClick={() => openListingForm(app, id)}>
-        编辑上架资料<Chevron dir="right"/></button> : null}
+      {copy ? <p className="note-text listing-description"><span>{copy}</span>
+        <CopyButton text={copy} label="复制上架描述"/></p> : null}
     </> : null}
     {modules.circulation && shipment && shipment.status !== 'cancelled' ? <>
       <h3 className="section-title">运输</h3>

@@ -1,11 +1,9 @@
 #!/bin/bash
-# 售卖浏览器验收（模拟模型）的本地一键版：与 CI「售卖草稿与图片下载」同一组步骤。
-#   tools/browser_acceptance.sh            # 构建前端 → 复制干净样本 → 起服务 → 跑主验收与长文验收
+# 上架记录与照片下载的本地一键验收。构建前端后在固定样本副本上运行主验收与长文验收。
 # CI 的同名任务也直接调用本脚本（OBI_ACCEPTANCE_HOME 指向已准备的样本目录，OBI_SKIP_BUILD=1 用已构建的 static/），
 # 本地与 CI 只有这一份步骤。
 # 固定样本目录 OBI_ACCEPTANCE_HOME（默认 ~/.cache/obi-acceptance，仓库外）；首次约 75 秒下载素材，
-# 之后每次约 40 秒。缓存坏了或样本版本变了会自动重建。每次运行都从缓存复制一份全新实例，
-# 主验收写入的草稿、服务商设置不会留到下一次。截图与失败现场在 OBI_PREVIEW_SCREENSHOTS。
+# 缓存坏了或样本版本变了会自动重建。长文写入隔离副本，截图与失败现场在 OBI_PREVIEW_SCREENSHOTS。
 # 注意：$VAR 后紧跟全角字符会被 macOS bash 并入变量名，一律写成 ${VAR}。
 set -euo pipefail
 
@@ -43,7 +41,7 @@ if [ "$(uname)" = Darwin ]; then cp -Rc "${HOME_DIR}/instance" "${RUN}/instance"
 seed() { python3 -c "import sys; from pathlib import Path; import tools.seed_samples as s; getattr(s, sys.argv[1])(Path(sys.argv[2]))" "$1" "${RUN}/instance"; }
 seed seed_listing_reference_photos
 
-step "启动验收服务（本机模拟模型上游）"
+step "启动固定样本验收服务"
 python3 tests/serve_listing_acceptance.py --data-dir "${RUN}/instance" > "${RUN}/server.log" 2>&1 &
 server_pid=$!
 trap 'kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true' EXIT
@@ -62,11 +60,11 @@ fail() {
   echo "  服务日志：${RUN}/server.log    单独重跑：tools/browser_acceptance.sh" >&2
   exit 1
 }
-step "售卖主验收"
-LISTING_ACCEPTANCE_URL="$url" node web/tests/browser/listing-acceptance.mjs || fail "售卖主验收"
-# 主验收会改写长文样本；结束后再经 storage 事务写入固定长文，专测展开/收起。
+step "上架记录与照片下载验收"
+LISTING_ACCEPTANCE_URL="$url" node web/tests/browser/listing-acceptance.mjs || fail "上架记录与照片下载验收"
+# 经 storage 写入固定长文，验证历史资料能完整阅读、复制。
 seed seed_listing_long_copy
 step "文案阅读验收"
 LISTING_ACCEPTANCE_URL="$url" node web/tests/browser/listing-reader-acceptance.mjs || fail "文案阅读验收"
-printf '\n✓ 售卖浏览器验收通过（截图：%s）\n' "$OBI_PREVIEW_SCREENSHOTS"
+printf '\n✓ 上架记录与照片下载验收通过（截图：%s）\n' "$OBI_PREVIEW_SCREENSHOTS"
 rm -rf "${RUN}/instance"  # 通过后清掉复制的实例，失败时保留现场

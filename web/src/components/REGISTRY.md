@@ -53,16 +53,8 @@
 | `WhatsNew` | 更新后第一次打开的更新说明弹窗：原生 `<dialog>`，列出上次看过的版本之后的 CHANGELOG 条目（最多 4 版），关闭即记下当前版本；首次安装不弹 | 无（读 `state.service.version`） |
 | `ReleaseCandidateCard` `ReleaseSummary` `OriginTag` | 发行版卡片（摘要与角标在同目录 `ReleaseSummary.tsx`）：封面（右下角 `OriginTag` 标来源：此版本 / 同专辑 / iTunes / 上传，样式 `.cover-origin` 与查询页专辑列表共用；封面按 `core/version-cover` 的顺序找）+ 名称 + 来源（艺人下一行小字）→ 关键信息网格 → 可展开的曲目与版本资料（按需取详情，不重复摘要字段）→ 调用方的操作区（render prop）。「查询」页（复制 / 入库）与专辑表单（选用此版本、已确认摘要）共用；头部封面点开放大用 `useArtExpand`（编辑页候选封面行同用）| 候选 `c` `children({info, load, busy})`；`fallbackArt?`；`ReleaseSummary` 另可 `title` `artist` `info` `source?` `url?` `origin?` |
 | `LookupProgress` | 查询进度卡：转圈 + 「正在查询 N 个资料库」+ 进度条（后端一次返回，按时间渐近填到九成，不假装完成）+ 「查找：」后列出正在查的资料库官方图标（`sourceIcons.ts` 内联 48px，白底圆形，悬停 / 读屏给全名），右侧「取消」丢弃本次请求。「查询」页与专辑表单的发行版检索共用 | `sources` `onCancel` |
-| `ListingSteps` | 服务商设置步骤与上架资料运行进度（整理资料 / 核对实物 / 生成文案） | `steps[{label,done}]`；当前步 = 第一个未完成 |
 | `PurchaseForm` | 管理页「编辑买入信息」：金额 / 币种 / 日期 / 额外费用 / 渠道 | 复用 `MoneySection`、`ShopField`；管钱的编辑都放这里 |
-| `PhotoDownload` | 专辑详情「实物照片」标题右侧的下载图标：手机把原图交给系统分享面板（存储图像进相册），桌面下载 ZIP | `id` `count` `revision` `artist` `title`；可传 `variant="button"` 与共享 `preparedFiles` 用于上架页；手机进入详情时预取照片，分享须在点击手势内同步调用；加载中禁用，图标有 aria-label |
-| `ListingReview` | 实物核对摘要、待核实事项与照片依据 | 无逐项确认；冲突默认展开、其余依据折叠 |
-| `ListingPreferences` | 文案风格单一下拉；「我的风格」用选项（Seg + Switch）配置，拼成写作要求（`core/listing-style.ts`） | 复用 Dropdown、Seg、Switch；保存/删除走偏好 revision，预设随备份恢复 |
-| `ListingSettings` | 设置「账户 → 已连接服务」：服务商列表，连接/测试/在用状态，点入详情抽屉（仅二手交易） | 复用 Drawer；密钥/令牌不回传，只显示末四位 |
-| `ProviderPage` | 服务商详情：头部状态、三步进度、密钥/模型/测试三块 | 复用 ListingSteps、Dropdown；状态只走 token |
-| `ProviderAccess` | 详情页「密钥/授权」区（按服务商分支） | 密钥输入后即清空；移除/更换分开 |
-| `OpenCodeLogin` | OpenCode 网页登录：打开 opencode.ai/auth，回到应用时读剪贴板回填密钥框（不自动保存） | `busy` `onKey`；剪贴板经 `core/clipboard` 的 `readClipboardText`（安卓走原生桥）；另有「粘贴」按钮兜底 |
-| `ProviderIcon` | 服务商品牌 SVG 图标（Lobe Icons, MIT） | 品牌色走 `--brand-*` token；OpenAI 单色随文字色 |
+| `PhotoDownload` | 专辑详情「实物照片」下载图标。手机把原图交给系统分享面板，桌面经普通照片接口下载 ZIP | `id` `count` `revision` `artist` `title`。手机预取照片，分享在点击时同步调用。加载中禁用，图标有 aria-label |
 | `Chevron` | 全站唯一箭头（down / right，open 旋转） | 同一 SVG、14px、同一过渡；禁止再用 › ▾ ▸ 字符或另画箭头；折叠用 `Collapse` |
 | `ui/Drawer` | 抽屉 / 手机底部 sheet：遮罩、焦点圈、Esc、下拉收起、脏表单确认 | 存量文件（见 `.ai-kit/legacy.txt`），动到时拆分 |
 | `ui/Lightbox` | 照片灯箱 | 同上 |
