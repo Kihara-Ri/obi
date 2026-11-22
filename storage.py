@@ -16,6 +16,7 @@ from contextlib import closing, contextmanager
 from domain import ValidationError, ConflictError, clean_record, clean_release_info, clean_modules, clean_start_page, clean_showcase_group, clean_showcase_groups, clean_listing, validate_packaging_photos, MODULE_NAMES, cost, number, money, day, allocate, set_return_postage, STATUSES
 from decimal import Decimal
 import financial_rates
+import domain_trade_sync as trade_sync
 from photo_uploads import staged_bytes
 from twins import TWIN_KEY, SKILL_VERSION, ID as TWIN_ID, ASSET as TWIN_ASSET, UUID as TWIN_RELEASE_ID, appearance, same_appearance, clean_barcode, clean_registry, image_type, entity_assets
 
@@ -100,6 +101,24 @@ def now(): return datetime.now().isoformat(timespec='seconds')
 def dumps(x): return json.dumps(x, ensure_ascii=False)
 
 def default_status(currency): return 'domestic' if currency == 'CNY' else 'overseas'
+
+
+def _mark_listed(record, listing):
+    if record['status'] not in ('overseas', 'domestic'):
+        raise ValidationError('只有库存中的专辑能标记上架')
+    record['listed'] = True
+    if listing is not None:
+        record.update(listing)
+
+
+def _xianyu_order_status(sale):
+    complete = sale['status'] == 'complete'
+    facts = sale.get('xianyuSettlement', {})
+    settled_date = (sale.get('receivedDate') or None) if complete else facts.get('settledDate')
+    return {'saleId': sale['id'], 'orderId': str(sale['orderId']).strip(), 'status': sale['status'],
+            'buyerReceived': complete or facts.get('buyerReceived', False),
+            'settledDate': settled_date}
+
 
 @contextmanager
 def _discard_staged(staged):
@@ -709,11 +728,52 @@ class Store:
                 for row in draft['analysis']['identifiers'] + draft['analysis']['observations']:
                     photo_order(row['photos'], r.get('photoCount', 0))
             r.update(listingDraft=draft, listingDescription=draft['description'], revision=r['revision'] + 1)
-            r.update(listing)
-            if mark: r['listed'] = True
+            if mark: _mark_listed(r, listing)
+            else: r.update(listing)
             self.put(db, 'records', r)
             self.audit(db, '保存并标记上架' if mark else '保存售卖草稿', {'id': r['id']})
         return {'id': r['id'], 'revision': r['revision']}
+
+    def _xianyu_listing_copy(self, db, item_id):
+        copies = [r for r in self.rows(db, 'records') if trade_sync.listing_item_id(r) == item_id]
+        if not copies:
+            return None
+        receipt = self.meta_get(db, trade_sync.RECEIPT_PREFIX + item_id)
+        if len(copies) > 1 or (receipt is not None and receipt['id'] != copies[0]['id']):
+            raise ConflictError('该闲鱼商品已关联其他副本，请核对上架资料')
+        return copies[0]
+
+    def record_xianyu_listing(self, data):
+        receipt = trade_sync.clean_listing_receipt(data)
+        revision = receipt.pop('revision')
+        item_id = receipt['itemId']
+        url = trade_sync.listing_url(item_id)
+        key = trade_sync.RECEIPT_PREFIX + item_id
+        with closing(self.connect()) as db, db:
+            db.execute('BEGIN IMMEDIATE')
+            self.require_module('trading', db)
+            record = self.get(db, 'records', receipt['id'])
+            previous = self.meta_get(db, key)
+            if previous is not None:
+                if receipt != previous:
+                    raise ConflictError('该闲鱼商品已有不同的发布回执，请核对副本及回执')
+            else:
+                owned = self._xianyu_listing_copy(db, item_id)
+                if owned is not None and owned['id'] != record['id']:
+                    raise ConflictError('该闲鱼商品已关联其他副本，请核对上架资料')
+                if record['revision'] != revision:
+                    raise ConflictError('副本已变更，请重新读取并核对这条回执')
+                channel = record.get('listingChannel')
+                has_other_link = record.get('listingUrl') and trade_sync.listing_item_id(record) != item_id
+                if record.get('listed') and (has_other_link or channel and not trade_sync.xianyu_channel(channel)):
+                    raise ConflictError('这张副本已有不同的上架资料，请先核对原商品')
+                _mark_listed(record, clean_listing({'channel': trade_sync.CHANNEL, 'url': url}))
+                record['revision'] += 1
+                self.put(db, 'records', record)
+                db.execute('INSERT INTO meta VALUES(?,?)', (key, dumps(receipt)))
+                self.audit(db, '登记闲鱼上架回执', receipt)
+            listed = bool(record.get('listed')) and trade_sync.listing_item_id(record) == item_id
+            return {**receipt, 'revision': record['revision'], 'url': url, 'listed': listed}
 
     def listing_preferences(self):
         from domain_listing import clean_preferences
@@ -778,9 +838,7 @@ class Store:
                         raise ValidationError('这张专辑之后又有变动，无法撤销；请手动处理')
                     r['status']='overseas'
                 elif action=='list':
-                    if r['status'] not in ('overseas','domestic'): raise ValidationError('只有库存中的专辑能标记上架')
-                    r['listed']=True
-                    if listing is not None: r.update(listing)
+                    _mark_listed(r, listing)
                 elif action=='unlist':
                     if r['status'] not in ('overseas','domestic'): raise ValidationError('只有库存中的专辑能取消上架')
                     r.pop('listed',None)
@@ -922,6 +980,11 @@ class Store:
     def sell(self,data, *, prepared=None):
         prepared = prepared or self.prepare_financial('sell', data)
         self.require_module('trading')
+        with closing(self.connect()) as db, db:
+            sale = self._write_sale(db, data, prepared=prepared)
+        return {'id': sale['id']}
+
+    def _write_sale(self, db, data, *, prepared=None, xianyu_order=None):
         ids=list(dict.fromkeys(data.get('ids',[])))
         if not ids: raise ValidationError('请选择要出售的专辑')
         currency=data.get('currency') or 'CNY'
@@ -934,28 +997,102 @@ class Store:
         address=str(data.get('address','')).strip()
         if len(address)>500: raise ValidationError('地址过长')
         # 日元按售出日汇率折算人民币入账，原币金额与分摊留存（同运费口径）
-        gross_cny=self.to_cny(gross,currency,date,quote=prepared['quote']);fees_cny=self.to_cny(fees,currency,date,quote=prepared['quote']);postage_cny=self.to_cny(postage,currency,date,quote=prepared['quote'])
-        with closing(self.connect()) as db, db:
+        quote = prepared['quote'] if prepared is not None else None
+        gross_cny=self.to_cny(gross,currency,date,quote=quote);fees_cny=self.to_cny(fees,currency,date,quote=quote);postage_cny=self.to_cny(postage,currency,date,quote=quote)
+        if prepared is not None:
             financial_rates.check(self, prepared)
-            rs=[self.get(db,'records',id) for id in ids]
-            if any(r['status'] not in ('overseas','domestic') for r in rs): raise ValidationError('其中有专辑不能出售，请刷新列表')
-            gs=allocate(gross_cny,[1]*len(rs));fs=allocate(fees_cny,[1]*len(rs));ps=allocate(postage_cny,[1]*len(rs))
-            og=allocate(gross,[1]*len(rs)) if currency=='JPY' else gs
-            of=allocate(fees,[1]*len(rs)) if currency=='JPY' else fs
-            op=allocate(postage,[1]*len(rs)) if currency=='JPY' else ps
-            s={'id':uid(),'date':date,'status':'shipping','receivedDate':'',
-                'currency':currency,'gross':money(gross_cny),'fees':money(fees_cny),'postage':money(postage_cny),'address':address,
-                **({'grossOriginal':money(gross),'feesOriginal':money(fees),'postageOriginal':money(postage)} if currency=='JPY' else {}),
-                'note':str(data.get('note','')),'channel':str(data.get('channel','闲鱼')),'orderId':str(data.get('orderId','')),
-                'createdAt':now(),
-                'items':[{'recordId':r['id'],'gross':g,'fees':f,'postage':p,'refund':'0.00',
-                          **({'grossOriginal':g0,'feesOriginal':f0,'postageOriginal':p0} if currency=='JPY' else {})}
-                         for r,g,f,p,g0,f0,p0 in zip(rs,gs,fs,ps,og,of,op)]}
-            if currency == 'JPY' and prepared['quote']: s['rateQuote'] = prepared['quote']
-            for r in rs:
-                r['previousStatus']=r['status'];r['status']='shipping';r['saleId']=s['id'];r['revision']+=1;self.put(db,'records',r)
-            self.put(db,'sales',s);self.audit(db,'记录售出',s)
-        return {'id':s['id']}
+        rs=[self.get(db,'records',id) for id in ids]
+        if any(r['status'] not in ('overseas','domestic') for r in rs): raise ValidationError('其中有专辑不能出售，请刷新列表')
+        gs=allocate(gross_cny,[1]*len(rs));fs=allocate(fees_cny,[1]*len(rs));ps=allocate(postage_cny,[1]*len(rs))
+        og=allocate(gross,[1]*len(rs)) if currency=='JPY' else gs
+        of=allocate(fees,[1]*len(rs)) if currency=='JPY' else fs
+        op=allocate(postage,[1]*len(rs)) if currency=='JPY' else ps
+        s={'id':uid(),'date':date,'status':'shipping','receivedDate':'',
+            'currency':currency,'gross':money(gross_cny),'fees':money(fees_cny),'postage':money(postage_cny),'address':address,
+            **({'grossOriginal':money(gross),'feesOriginal':money(fees),'postageOriginal':money(postage)} if currency=='JPY' else {}),
+            'note':str(data.get('note','')),'channel':str(data.get('channel','闲鱼')),'orderId':str(data.get('orderId','')),
+            'createdAt':now(),
+            'items':[{'recordId':r['id'],'gross':g,'fees':f,'postage':p,'refund':'0.00',
+                      **({'grossOriginal':g0,'feesOriginal':f0,'postageOriginal':p0} if currency=='JPY' else {})}
+                     for r,g,f,p,g0,f0,p0 in zip(rs,gs,fs,ps,og,of,op)]}
+        if currency == 'JPY' and quote: s['rateQuote'] = quote
+        if xianyu_order is not None: s['xianyuOrder'] = xianyu_order
+        for r in rs:
+            r['previousStatus']=r['status'];r['status']='shipping';r['saleId']=s['id'];r['revision']+=1;self.put(db,'records',r)
+        self.put(db,'sales',s);self.audit(db,'记录售出',s)
+        return s
+
+    def _xianyu_sale(self, db, order_id):
+        sales = [sale for sale in self.rows(db, 'sales') if trade_sync.xianyu_channel(sale.get('channel'))
+                 and str(sale.get('orderId') or '').strip() == order_id]
+        if len(sales) > 1:
+            raise ConflictError('有多笔销售单使用该闲鱼订单号，请先核对')
+        return sales[0] if sales else None
+
+    def record_xianyu_order(self, data):
+        order = trade_sync.clean_paid_order(data)
+        with closing(self.connect()) as db, db:
+            db.execute('BEGIN IMMEDIATE')
+            self.require_module('trading', db)
+            sale = self._xianyu_sale(db, order['orderId'])
+            if sale and 'xianyuOrder' in sale:
+                if sale['xianyuOrder'] != order:
+                    raise ConflictError('该闲鱼订单已按不同内容登记，请核对订单')
+            else:
+                record = self._xianyu_listing_copy(db, order['itemId'])
+                if sale:
+                    if (not record or [i['recordId'] for i in sale['items']] != [record['id']]
+                            or (sale.get('currency') or 'CNY') != 'CNY'
+                            or (sale['date'], sale['gross']) != (order['date'], order['gross'])):
+                        raise ConflictError('该闲鱼订单与已有销售单不一致，请核对')
+                else:
+                    if not record or not record.get('listed') or record['status'] not in ('domestic', 'overseas'):
+                        raise ConflictError('请先将闲鱼商品关联到已上架的库存副本')
+                    sale = self._write_sale(db, {**order, 'ids': [record['id']], 'currency': 'CNY',
+                                                 'channel': trade_sync.CHANNEL}, xianyu_order=order)
+            return _xianyu_order_status(sale)
+
+    def _receive_sale(self, db, sale, date):
+        sale['status'] = 'complete'
+        sale['receivedDate'] = day(date, '到账日期')
+        for item in sale['items']:
+            record = self.get(db, 'records', item['recordId'])
+            record['status'] = 'sold'
+            record['revision'] += 1
+            self.put(db, 'records', record)
+
+    def record_xianyu_settlement(self, data):
+        event = trade_sync.clean_settlement(data)
+        with closing(self.connect()) as db, db:
+            db.execute('BEGIN IMMEDIATE')
+            self.require_module('trading', db)
+            sale = self._xianyu_sale(db, event['orderId'])
+            if sale is None:
+                raise ConflictError('找不到该闲鱼订单，请先登记付款')
+            if sale['status'] not in ('shipping', 'complete'):
+                raise ConflictError('该订单已退款、退货或撤销，请核对后处理')
+            status = _xianyu_order_status(sale)
+            new_date = event['settledDate']
+            old_date = status['settledDate']
+            if new_date and (new_date < sale['date'] or old_date and new_date != old_date):
+                raise ConflictError('到账日期早于付款日期或与已登记日期不一致，请核对')
+            if sale['status'] == 'complete':
+                if new_date and not old_date:
+                    raise ConflictError('销售单已交易，请核对已记录的到账日期')
+                return status
+            facts = {'buyerReceived': status['buyerReceived'] or event['buyerReceived'],
+                     'settledDate': old_date or new_date}
+            if all(status[key] == value for key, value in facts.items()):
+                return status
+            before = dict(sale)
+            sale['xianyuSettlement'] = facts
+            if facts['buyerReceived'] and facts['settledDate']:
+                self._receive_sale(db, sale, facts['settledDate'])
+            self.put(db, 'sales', sale)
+            action = '销售 receive' if sale['status'] == 'complete' else '同步闲鱼订单进度'
+            self.audit(db, action, {'before': before, 'after': sale})
+            return _xianyu_order_status(sale)
+
     def update_sale(self,data, *, prepared=None):
         """补录/修正费用，不改变成交价、币种、到账日期或生命周期。"""
         prepared = prepared or self.prepare_financial('update_sale', data)
@@ -1018,11 +1155,10 @@ class Store:
             if s['status']=='complete': raise ValidationError('已确认收货，只能修改销售费用，不能重复收货、撤销或退款')
             if s['status'] not in ('shipping',): raise ValidationError('这笔交易已处理，不能重复操作')
             if action=='receive':
-                s['status']='complete';s['receivedDate']=day(data.get('date'),'到账日期')
-                for item in s['items']:
-                    r=self.get(db,'records',item['recordId']);r['status']='sold';r['revision']+=1;self.put(db,'records',r)
+                self._receive_sale(db, s, data.get('date'))
             elif action=='cancel':
                 s['status']='cancelled'
+                s.pop('xianyuSettlement', None)
                 for item in s['items']:
                     r=self.get(db,'records',item['recordId']);r['status']=r.get('previousStatus') if r.get('previousStatus') in ('overseas','domestic') else 'domestic';r.pop('saleId',None);r['revision']+=1;self.put(db,'records',r)
             elif action=='refund':
@@ -1033,6 +1169,7 @@ class Store:
                 # returned = 已发货、买家退回（专辑回国内库存，平台扣费、寄出运费与自己承担的寄回运费记为损失）。两者都不传是旧版「仅退款，买家留着专辑」
                 unshipped=data.get('unshipped') is True;returned=data.get('returned') is True and not unshipped
                 s['status']='returned' if returned else 'refunded';s['refundDate']=day(data.get('date'),'退款日期')
+                s.pop('xianyuSettlement', None)
                 if returned: set_return_postage(s,number(data.get('returnPostage') or 0,'寄回运费'))
                 if unshipped:
                     keys=('fees','postage','feesOriginal','postageOriginal')

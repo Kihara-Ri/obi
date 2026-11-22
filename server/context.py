@@ -22,3 +22,4 @@ class Services:
     listings: Optional[Any] = None    # Copy-specific sale drafts and photo analysis
     listing_agent_secret: Optional[bytes] = None  # 摘要，独立于浏览器会话和模型凭据
     state_cache: Any = field(default_factory=StateCache)  # 上一份 /api/state，按库与汇率指纹复用
+    trading_agent_secret: Optional[bytes] = None  # 只授予外部交易事实的入账接口

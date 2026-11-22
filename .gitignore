@@ -21,6 +21,7 @@ listing-chatgpt.json
 listing-chatgpt.tmp
 listing-chatgpt.lock
 listing-agent.token
+trading-agent.token
 litestream.env
 # 历史数据导入与成交凭证
 albums.json

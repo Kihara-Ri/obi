@@ -26,7 +26,7 @@ web/src/(无法确定推送范围，按需要验收处理)"
 done
 
 [ "${OBI_SKIP_BROWSER:-}" = 1 ] && exit 0
-pattern='^(web/src/|web/index\.html|web/package(-lock)?\.json|web/tests/browser/(listing|acceptance-kit)|server/|app\.py|storage\.py|domain_listing\.py|photo_uploads\.py|tests/serve_listing_acceptance\.py|tools/(seed_samples|sample_bundle|preview_samples)\.py|tools/browser_acceptance\.sh)'
+pattern='^(web/src/|web/index\.html|web/package(-lock)?\.json|web/tests/browser/(listing|acceptance-kit)|server/|app\.py|storage\.py|domain_(listing|trade_sync)\.py|photo_uploads\.py|tests/serve_listing_acceptance\.py|tools/(seed_samples|sample_bundle|preview_samples)\.py|tools/browser_acceptance\.sh)'
 printf '%s\n' "$changed" | grep -Eq "$pattern" || exit 0
 
 echo "推送涉及界面或售卖流程，先跑本地售卖浏览器验收（约 40 秒；跳过：git push --no-verify）…"

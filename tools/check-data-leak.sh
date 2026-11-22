@@ -6,8 +6,8 @@ cd "$(git rev-parse --show-toplevel)"
 
 # 个人身份串（域名 / 主机别名 / 账号等）不写进仓库：每行一个 ERE，放 data/leak-patterns.txt（未跟踪），
 # CI 可用仓库 secret LEAK_PATTERNS 提供同样内容（换行分隔）。两者都没有时只做通用扫描。
-FILE_RE='((^|/)listing-(chatgpt|providers)[.](json|tmp|lock)$|(^|/)listing-agent[.]token$|(^|/)listing-anthropic/|^data/|\.sqlite3$|\.sqlite3-|\.env$|(^|/)update\.env$|(^|/)vision-config\.json$|/albums\.json$|^albums\.json$|部署登录信息|出售记录|封面核对报告|管理系统方案|运营记录)'
-CONTENT_RE='BEGIN [A-Z ]*PRIVATE KEY|sk-(proj-)?[A-Za-z0-9_-]{40,}|obi_listing_[A-Za-z0-9_-]{43}|eyJ[A-Za-z0-9_-]{10,}[.]eyJ[A-Za-z0-9_-]{10,}[.][A-Za-z0-9_-]{20,}'
+FILE_RE='((^|/)listing-(chatgpt|providers)[.](json|tmp|lock)$|(^|/)(listing|trading)-agent[.]token$|(^|/)listing-anthropic/|^data/|\.sqlite3$|\.sqlite3-|\.env$|(^|/)update\.env$|(^|/)vision-config\.json$|/albums\.json$|^albums\.json$|部署登录信息|出售记录|封面核对报告|管理系统方案|运营记录)'
+CONTENT_RE='BEGIN [A-Z ]*PRIVATE KEY|sk-(proj-)?[A-Za-z0-9_-]{40,}|obi_(listing|trading)_[A-Za-z0-9_-]{43}|eyJ[A-Za-z0-9_-]{10,}[.]eyJ[A-Za-z0-9_-]{10,}[.][A-Za-z0-9_-]{20,}'
 personal=$( { [ -f data/leak-patterns.txt ] && cat data/leak-patterns.txt; printf '%s\n' "${LEAK_PATTERNS:-}"; } \
     | grep -vE '^[[:space:]]*(#|$)' | paste -sd '|' - || true)
 [ -z "$personal" ] || CONTENT_RE="$CONTENT_RE|$personal"

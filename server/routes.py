@@ -21,6 +21,8 @@ from .artists import SourceUnavailableError
 from .state_sync import send_cached_state
 from .version import uptime, version
 from .listing_agent import authorize_listing_agent, api_agent_copies, api_agent_materials, api_agent_save_draft
+from .trading_agent import (authorize_trading_agent, api_listing_receipt, api_paid_order,
+                            api_order_settlement)
 from .listing_routes import (api_listing_status, api_listing_analyze, api_listing_job, api_listing_dismiss,
     api_listing_draft, api_listing_photos, api_listing_login, api_listing_disconnect,
     api_listing_provider, api_listing_models, api_listing_connection, api_listing_auth_code, api_listing_test,
@@ -658,6 +660,9 @@ POST = {
     '/api/listing/preferences': (api_listing_save_preferences, True, True),
     '/api/listing/draft': (api_listing_draft, True, True),
     '/api/listing/agent/draft': (api_agent_save_draft, authorize_listing_agent, True),
+    '/api/listing/agent/receipts': (api_listing_receipt, authorize_trading_agent, True),
+    '/api/trading/agent/orders': (api_paid_order, authorize_trading_agent, True),
+    '/api/trading/agent/settlements': (api_order_settlement, authorize_trading_agent, True),
     '/api/listing/job/dismiss': (api_listing_dismiss, True, False),
     '/api/listing/login': (api_listing_login, True, False),
     '/api/listing/disconnect': (api_listing_disconnect, True, False),

@@ -1,11 +1,10 @@
 """Agent 售卖接口的独立鉴权及按副本的草稿契约。"""
 from contextlib import closing
-import hashlib
-import hmac
 import re
 
 from domain import ValidationError
 from domain_listing import has_listing_copy, photo_order, select_preset, text
+from .agent_auth import authorize_agent, load_secret
 from .listing_context import public_context
 from .listing_photos import listing_record
 from .release_merge import _catnos, _code
@@ -16,27 +15,11 @@ DRAFT_FIELDS = frozenset(('id', 'revision', 'photoRevision', 'title', 'descripti
 
 
 def load_agent_secret(data_dir):
-    try:
-        token = (data_dir / 'credentials' / 'listing-agent.token').read_bytes().strip()
-    except FileNotFoundError:
-        return None
-    if not re.fullmatch(rb'obi_listing_[A-Za-z0-9_-]{43}', token):
-        raise ValidationError('上架 Agent 令牌格式无效，请按 Agent 上架接口说明生成')
-    return hashlib.sha256(token).digest()
+    return load_secret(data_dir, 'listing-agent.token', b'obi_listing_', '上架 Agent')
 
 
 def authorize_listing_agent(h, svc):
-    expected = svc.listing_agent_secret
-    if expected is None:
-        h.send({'error': '上架 Agent 接口未启用'}, 404)
-        return False
-    scheme, _, token = h.headers.get('Authorization', '').partition(' ')
-    digest = hashlib.sha256(token.encode()).digest()
-    if scheme.lower() != 'bearer' or not hmac.compare_digest(digest, expected):
-        h.send({'error': '需要有效的上架 Agent 令牌'}, 401,
-               headers={'WWW-Authenticate': 'Bearer'})
-        return False
-    return True
+    return authorize_agent(h, svc.listing_agent_secret, '上架 Agent')
 
 
 def _matches(record, by, query):
