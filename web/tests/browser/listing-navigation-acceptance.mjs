@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
 import {join} from 'node:path';
 import {chromium, devices, webkit} from 'playwright';
-import {fastFail, reportFailure, settle, STEP_TIMEOUT} from './acceptance-kit.mjs';
+import {fastFail, reportFailure, settle} from './acceptance-kit.mjs';
 
 const base = process.env.LISTING_ACCEPTANCE_URL;
 assert.match(base || '', /^http:\/\/127\.0\.0\.1:\d+$/u, '只允许隔离本机验收服务');
@@ -17,7 +17,6 @@ assert.equal(newer.listingUrl, 'https://www.goofish.com/item?id=1004');
 assert.equal(newer.listingChannel, '闲鱼');
 assert.equal(newer.listed, true);
 assert.ok(!('listingDescription' in newer) && !('listingDraft' in newer));
-const mobileUrl = 'https://h5.m.goofish.com/item?id=1004';
 const appUrl = 'fleamarket://awesome_detail?id=1004&flutter=true';
 const engines = process.env.OBI_LISTING_WEBKIT === '1' ? [chromium, webkit] : [chromium];
 const screenshotCsp = "Refused to apply a stylesheet because its hash, its nonce, or 'unsafe-inline' does not appear in the style-src directive of the Content Security Policy.";
@@ -25,22 +24,22 @@ const screenshotCsp = "Refused to apply a stylesheet because its hash, its nonce
 async function verifyMobile(context, filename) {
   const page = await context.newPage();
   const errors = [];
-  let opened = 0;
+  const webNavigations = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => {if (message.type() === 'error') errors.push(message.text());});
-  await context.route(mobileUrl, route => {
-    opened++;
+  await context.route(url => /^https?:$/u.test(url.protocol) && /(^|\.)goofish\.com$/u.test(url.hostname), route => {
+    webNavigations.push(route.request().url());
     return route.fulfill({contentType: 'text/html', body: '<h1>Sample product</h1>'});
   });
   await page.addInitScript(() => {
-    // 无 App 分支让浏览器实际尝试未注册的协议。有 App 分支模拟系统切到后台再返回。
+    // 模拟系统切到后台再返回，或始终不给 Obi 页面生命周期事件。
     const click = HTMLAnchorElement.prototype.click;
     window.xianyuAttempts = [];
-    window.xianyuInstalled = true;
+    Object.defineProperty(document, 'hasFocus', {value: () => true});
     HTMLAnchorElement.prototype.click = function () {
       if (this.protocol !== 'fleamarket:') return click.call(this);
       window.xianyuAttempts.push({url: this.href, activated: navigator.userActivation?.isActive});
-      if (!window.xianyuInstalled) return click.call(this);
+      if (!window.xianyuSendsPageEvents) return;
       Object.defineProperty(document, 'hidden', {configurable: true, value: true});
       document.dispatchEvent(new Event('visibilitychange'));
       delete document.hidden;
@@ -99,26 +98,22 @@ async function verifyMobile(context, filename) {
   assert.equal(await manage.getByRole('button', {name: '复制上架描述'}).count(), 0);
   assert.equal(await manage.locator('a[href*="goofish.com"]').count(), 0);
   assert.equal(await button.evaluate(el => el.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true}))), false);
-  assert.equal(opened, 0);
+  assert.deepEqual(webNavigations, []);
   await button.scrollIntoViewIfNeeded();
   await settle(page, ['#panel', '.detail-page', '.listing-entry']);
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await page.screenshot({caret: 'initial', path: join(output, `${filename}-manage.png`)});
   await page.clock.install();
-  await button.tap();
-  assert.deepEqual(await page.evaluate(() => window.xianyuAttempts), [{url: appUrl, activated: true}]);
-  await page.clock.runFor(2000);
-  assert.equal(opened, 0, '返回 Obi 后也不应再打开商品网页');
-  assert.equal(page.url(), base + '/#overseas');
-  assert.equal(context.pages().length, 1, '唤起 App 不另开标签页');
-
-  await page.evaluate(() => {window.xianyuInstalled = false;});
-  // WebKit may report a canceled navigation for the native scheme before requesting the HTTPS fallback.
-  await Promise.all([page.waitForRequest(mobileUrl, {timeout: STEP_TIMEOUT}), button.tap()]);
-  await page.getByRole('heading', {name: 'Sample product', exact: true}).waitFor();
-  assert.equal(page.url(), mobileUrl);
-  assert.equal(opened, 1);
-  assert.equal(context.pages().length, 1, '网页回退不另开标签页');
+  for (const sendsPageEvents of [true, false, false]) {
+    await page.evaluate(value => {window.xianyuSendsPageEvents = value;}, sendsPageEvents);
+    await button.tap();
+    assert.deepEqual(await page.evaluate(() => window.xianyuAttempts.splice(0)), [{url: appUrl, activated: true}]);
+    await page.clock.runFor(2000);
+    await settle(page, ['#panel', '.detail-page', '.listing-entry']);
+    assert.deepEqual(webNavigations, [], '闲鱼入口只唤起 App，不请求商品网页');
+    assert.equal(page.url(), base + '/#overseas');
+    assert.equal(context.pages().length, 1, '唤起 App 不另开标签页');
+  }
   // WebKit 的截图实现有时会注入临时光标样式，站点 CSP 会拒绝它。
   assert.deepEqual(errors.filter(message => !filename.startsWith('webkit-') || message !== screenshotCsp), []);
 }
