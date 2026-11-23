@@ -30,8 +30,8 @@
 
 seed_rate_review 为现有 Dookie 副本提供未缓存的虚构买入日期，验证账本先显示、汇率补取与失败重试；不增加副本或素材。
 
-seed_listing_long_copy 为现有 lift-fists 副本提供固定长文案，供历史文案阅读与复制验收；
-不新增副本，不改照片、金额或上架状态。
+seed_listing_navigation 为现有 lift-fists 和 tpab 副本登记虚构的闲鱼回执；
+lift-fists 同时保留一段历史长文案，供商品跳转、排序及管理页收起文案的验收。
 
 安全约束：只能写入 --data-dir 指定的目录；拒绝指向仓库 data/，拒绝覆盖已存在
 且非样本库的 albums.sqlite3；已灌过的目录幂等跳过。写入全部走 storage.py 的
@@ -329,24 +329,31 @@ def seed_listing_reference_photos(data_dir):
     return ids
 
 
-# 只用于阅读布局验收，不冒充真实售卖说明或模型品相结论。
 LISTING_LONG_DESCRIPTION = '\n\n'.join(
-    f'阅读样本第 {i + 1} 段：这是固定样本的历史长文案，用于验证阅读、滚动和复制。'
-    '文案包含多段文字，打开管理页后可以阅读全部内容，复制按钮保留原有的换行。'
+    f'文案样本第 {i + 1} 段：这段虚构说明供验收管理页，不代表实物品相。'
+    '段落分开保存，用于确认即使副本留有完整长文，管理页也只有单点商品入口。'
     for i in range(18))
 
 
-def seed_listing_long_copy(data_dir):
-    """可选长文案样本：复用 lift-fists 副本及其既有照片，全部经草稿事务写入。"""
-    if check_target(data_dir): raise ValueError('只能向固定样本库准备长文案')
+def seed_listing_navigation(data_dir):
+    """复用两张海外副本，设置与买入顺序不同的闲鱼回执及一份历史草稿。"""
+    if check_target(data_dir): raise ValueError('只能向固定样本库准备上架回执')
     ids = existing_ids(data_dir)
     store = open_store(data_dir)
     with closing(store.connect()) as db: record = store.get(db, 'records', ids['lift-fists'])
-    if record.get('listingDescription') == LISTING_LONG_DESCRIPTION: return ids
-    store.save_listing_draft({'id': record['id'], 'revision': record['revision'], 'draft': {
-        'title': record['artist'] + ' ' + record['title'] + ' CD', 'description': LISTING_LONG_DESCRIPTION,
-        'versionText': '', 'conditionText': '', 'versionConfirmed': False, 'conditionConfirmed': False,
-        'photoRevision': record.get('photoRevision', 0), 'photoOrder': list(range(record.get('photoCount', 0)))}})
+    if record.get('listingDescription') != LISTING_LONG_DESCRIPTION:
+        store.save_listing_draft({'id': record['id'], 'revision': record['revision'], 'draft': {
+            'title': record['artist'] + ' ' + record['title'] + ' CD', 'description': LISTING_LONG_DESCRIPTION,
+            'versionText': '', 'conditionText': '', 'versionConfirmed': False, 'conditionConfirmed': False,
+            'photoRevision': record.get('photoRevision', 0), 'photoOrder': list(range(record.get('photoCount', 0)))}})
+    for key, item_id, verified_at in (
+        ('lift-fists', '1004', '2026-10-08T14:00:00+09:00'),
+        ('tpab', '1005', '2026-10-08T04:00:00Z'),
+    ):
+        with closing(store.connect()) as db: record = store.get(db, 'records', ids[key])
+        store.record_xianyu_listing({'id': record['id'], 'revision': record['revision'], 'itemId': item_id,
+                                     'status': 'online', 'price': '90.00', 'shipping': {'mode': 'free'},
+                                     'verifiedAt': verified_at})
     return ids
 
 

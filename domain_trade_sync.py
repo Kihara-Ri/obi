@@ -25,10 +25,11 @@ def listing_item_id(record):
         return None
     try:
         url = urlsplit(record.get('listingUrl') or '')
-        if (url.scheme not in ('http', 'https') or url.netloc.lower() not in ('goofish.com', 'www.goofish.com')
+        if (url.scheme not in ('http', 'https')
+                or url.netloc.lower() not in ('goofish.com', 'www.goofish.com', 'h5.m.goofish.com')
                 or url.path.rstrip('/') != '/item'):
             return None
-        ids = parse_qs(url.query).get('id', [])
+        ids = parse_qs(url.query, keep_blank_values=True).get('id', [])
         if len(ids) == 1 and re.fullmatch(ITEM_ID, ids[0]):
             return ids[0]
     except (ValueError, TypeError, AttributeError):

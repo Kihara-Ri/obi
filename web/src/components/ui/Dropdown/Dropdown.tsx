@@ -4,6 +4,7 @@
 //   （并阻止冒泡，避免连带关闭外层抽屉）、字母键按首字跳转、Tab 离开即关。
 // 外部点击/触摸：监听 document 的 pointerdown——Safari（含 iOS）点按钮不会让它聚焦，
 //   单靠 blur 关不掉浮层。
+// 选项只拦 mousedown 保持焦点。拦 touch pointerdown 会吞掉 WebKit 的点按。
 // 浮层靠近视口底部、且上方更宽裕时向上展开。
 import {useEffect, useId, useLayoutEffect, useRef, useState} from 'react';
 import type {KeyboardEvent} from 'react';
@@ -161,7 +162,7 @@ export function Dropdown({id, value, options, label, onPick, className = '', dis
           <div key={o.value} id={optId(i)} role="option" aria-selected={o.value === cur?.value}
                aria-disabled={o.disabled || undefined}
                className={`dd-opt${i === active ? ' is-active' : ''}`}
-               onPointerDown={e => e.preventDefault()}
+               onMouseDown={e => e.preventDefault()}
                onPointerMove={() => { if (!o.disabled && (active !== i || keyNav)) { setActive(i); setKeyNav(false); } }}
                onClick={() => choose(o)}>{o.label}</div>
         ))}

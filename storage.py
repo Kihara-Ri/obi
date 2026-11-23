@@ -218,6 +218,40 @@ class Store:
     def record_quotes(self, records):
         # A ledger read never fetches. Missing quotes are prepared through a separate endpoint.
         return self.rates.snapshot(self.rate_days(records)) if self.rates else {}
+    def _listing_order(self, db, records):
+        """Rank active marks from the full audit, which also travels with backups."""
+        pending = {r['id']: r for r in records if r.get('listed')}
+        if not pending:
+            return
+        dated = []
+        events = db.execute(
+            "SELECT id, at, action, data FROM audit WHERE action IN "
+            "('list', '保存并标记上架', '登记闲鱼上架回执') AND json_valid(data) ORDER BY id DESC")
+        for audit_id, at, action, raw in events:
+            event = json.loads(raw)
+            record_id = event.get('id') if isinstance(event, dict) else None
+            if not isinstance(record_id, str) or record_id not in pending:
+                continue
+            record = pending[record_id]
+            before = event.get('before')
+            if action == 'list' and isinstance(before, dict) and before.get('listed'):
+                continue  # Updating an existing mark keeps its position.
+            if action == '登记闲鱼上架回执':
+                item_id = record.get('xianyuItemId')
+                if not item_id or event.get('itemId') != item_id:
+                    continue
+                at = event.get('verifiedAt')
+            try:
+                timestamp = datetime.fromisoformat(at).timestamp()
+            except (TypeError, ValueError, OverflowError, OSError):
+                continue
+            dated.append((timestamp, audit_id, record))
+            del pending[record_id]
+            if not pending:
+                break
+        for index, (_, _, record) in enumerate(sorted(dated), 1):
+            record['listingOrder'] = index
+
     def state(self):
         """前端的账本状态：三张表、最近 100 条 audit、前端要读的设置（STATE_SETTINGS），加上派生的成本与利润。
 
@@ -225,6 +259,7 @@ class Store:
         """
         keys = (*STATE_SETTINGS, 'modules-v1', 'start-page-v1', 'setup-pending')
         with closing(self.connect()) as db, db:
+            db.execute('BEGIN')  # Read each copy and its listing events in the same snapshot.
             audit = [dict(r) for r in db.execute('SELECT * FROM audit ORDER BY id DESC LIMIT 100')]
             audit.reverse()  # 保持与全量一致的时间正序
             meta = {r['key']: json.loads(r['data']) for r in
@@ -233,6 +268,13 @@ class Store:
                  'records': self.rows(db, 'records'), 'sales': self.rows(db, 'sales'),
                  'shipments': self.rows(db, 'shipments'), 'audit': audit,
                  'settings': {k: meta[k] for k in STATE_SETTINGS if k in meta}}
+            for record in b['records']:
+                record.pop('listingOrder', None)
+                record.pop('xianyuItemId', None)
+                item_id = trade_sync.listing_item_id(record)
+                if item_id:
+                    record['xianyuItemId'] = item_id
+            self._listing_order(db, b['records'])
         enabled = meta.get('modules-v1')
         b['modules'] = {'enabled': clean_modules(enabled) if enabled is not None else {k: k != 'showcase' for k in MODULE_NAMES},
                         'configured': enabled is not None,

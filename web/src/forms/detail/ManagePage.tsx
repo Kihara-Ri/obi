@@ -1,14 +1,30 @@
-// 管理页（详情的二级页）：管钱——买入信息（可编辑）、这一张的备注全文、上架、运输、交易历史，以及流转（海外 / 国内库存切换 + 移除）。
+// 管理页（详情的二级页）：买入信息、备注、商品入口、运输、交易历史及流转。
 // 按用户的操作顺序排，不按字段排；流转操作放最底并保留原有的移除确认语义（回收站可恢复）。
 import {Chevron} from '../../components/ui/Chevron';
 import {useApp} from '../../state/AppContext';
 import type {AppCtx} from '../../state/AppContext';
 import {fmt, fmtJPY, jpyCost, rmb, shipFeeText, yuan} from '../../core/format';
 import {SALE_NAMES} from '../../types';
-import {CopyButton} from '../../components/CopyButton';
 import {openPurchaseForm} from '../PurchaseForm';
 import {Rows} from './Rows';
 import {FlowSection} from './FlowSection';
+
+function openListing(url: string, itemId?: string) {
+  const {userAgent, platform, maxTouchPoints} = navigator;
+  const mobile = /Android|iPhone|iPad|iPod/.test(userAgent) || (platform === 'MacIntel' && maxTouchPoints > 1);
+  if (!itemId || !mobile) {
+    window.open(url, '_blank', 'noopener,noreferrer');
+    return;
+  }
+  // Keep the link out of the long-press hit target, but navigate in the tap's activation.
+  const link = document.createElement('a');
+  link.href = `https://h5.m.goofish.com/item?id=${encodeURIComponent(itemId)}`;
+  link.rel = 'noreferrer';
+  link.hidden = true;
+  document.body.append(link);
+  link.click();
+  link.remove();
+}
 
 export function openManagePage(app: AppCtx, id: string) {
   app.openDrawer({title: '管理', content: <ManageBody id={id}/>,
@@ -25,7 +41,7 @@ function ManageBody({id}: {id: string}) {
   const shipment = r.shipmentId ? app.state.shipments.find(s => s.id === r.shipmentId) : undefined;
   const shipItem = shipment?.items.find(i => i.recordId === id);
   const approx = jpyCost(r);
-  const copy = [r.listingDraft?.title, r.listingDraft?.description || r.listingDescription].filter(Boolean).join('\n\n');
+  const listingUrl = modules.trading ? r.listingUrl : undefined;
   return <div className="detail-page">
     <Rows rows={[{label: '录入时间', value: r.createdAt?.replace('T', ' ') || '未记录'}]}/>
     {modules.acquisition ? <>
@@ -49,16 +65,12 @@ function ManageBody({id}: {id: string}) {
       {r.note ? <p className="note-text"><b>这张副本</b>{r.note}</p> : null}
       {r.noteAlbum ? <p className="note-text"><b>这张专辑（所有副本共享）</b>{r.noteAlbum}</p> : null}
     </> : null}
-    {modules.trading && (r.listed || r.listingChannel || r.listingUrl || copy) ? <>
-      <h3 className="section-title">上架</h3>
-      <Rows rows={[
-        r.listed && {label: '状态', value: '已上架'},
-        r.listingChannel && {label: '平台', value: r.listingChannel},
-        r.listingUrl && {label: '链接', value: <a href={r.listingUrl} target="_blank" rel="noopener noreferrer">打开商品页面 ↗</a>},
-      ]}/>
-      {copy ? <p className="note-text listing-description"><span>{copy}</span>
-        <CopyButton text={copy} label="复制上架描述"/></p> : null}
-    </> : null}
+    {listingUrl && /^https?:\/\//i.test(listingUrl) ? (
+      <button type="button" className="entry-btn listing-entry" onContextMenu={e => e.preventDefault()}
+        onClick={() => openListing(listingUrl, r.xianyuItemId)}>
+        {r.xianyuItemId ? '打开闲鱼' : '打开商品网页'}<i aria-hidden="true">↗</i>
+      </button>
+    ) : null}
     {modules.circulation && shipment && shipment.status !== 'cancelled' ? <>
       <h3 className="section-title">运输</h3>
       <Rows rows={[

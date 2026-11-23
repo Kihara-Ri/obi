@@ -95,12 +95,13 @@ export function AlbumCard({r, page, checked, onSelect, onDetail, onArtist, actio
 }
 
 // 网格：副本分组 + 跨列修正（窗口宽度变化会改变列数，随 resize 重算）
-export function CardGrid({records, renderCard}: {
-  records: AlbumRecord[]; renderCard: (r: AlbumRecord) => ReactNode;
+export function CardGrid({records, renderCard, groupCopies = true}: {
+  records: AlbumRecord[]; renderCard: (r: AlbumRecord) => ReactNode; groupCopies?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
   const runs = useMemo(() => {
+    if (!groupCopies) return records.map(record => [record]);
     const map = new Map<string, AlbumRecord[]>();
     for (const r of records) {
       const k = norm(r.title) + '␟' + norm(r.artist);
@@ -108,7 +109,7 @@ export function CardGrid({records, renderCard}: {
       map.get(k)!.push(r);
     }
     return [...map.values()];
-  }, [records]);
+  }, [records, groupCopies]);
 
   useLayoutEffect(() => {
     const fix = () => {

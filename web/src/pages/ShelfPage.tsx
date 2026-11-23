@@ -1,15 +1,15 @@
 // 库存页（海外 / 国内 / 回收站共用）：搜索、排序、时间线/艺人分组、批量操作条。
 import {useRef} from 'react';
 import {useApp} from '../state/AppContext';
-import type {AlbumRecord, ModuleFlags, SortMode} from '../types';
-import {fmtMonth, sum, yuan} from '../core/format';
-import {searchScore} from '../core/search';
+import type {AlbumRecord, SortMode} from '../types';
 import {onShelf} from '../core/modules';
+import {shelfRecords} from '../core/shelf-records';
 import {CardViewIco, ListViewIco} from '../components/icons';
 import {PageHead} from '../components/PageHead';
 import {BulkBar} from './BulkBar';
 import {ShelfSummary} from './ShelfSummary';
-import {AlbumCard, CardGrid} from '../components/Cards';
+import {AlbumCard} from '../components/Cards';
+import {ShelfResults} from './ShelfResults';
 import {Dropdown} from '../components/ui/Dropdown';
 import {Seg} from '../components/ui/Seg';
 import type {SwipeAction} from '../components/ui/SwipeRow';
@@ -33,6 +33,11 @@ const SORTS = [
   {value: 'cost', label: '成本从高到低'},
   {value: 'artist', label: '按艺人'},
 ];
+const COLLECTION_SORTS = [{value: 'new', label: '最近添加'}, {value: 'artist', label: '按艺人'}];
+const LISTING_SORTS = [
+  {value: 'listed', label: '最近上架'},
+  {value: 'listed-old', label: '最早上架'},
+];
 
 const LISTED_FILTERS = [
   {value: 'all', label: '全部专辑'},
@@ -40,29 +45,18 @@ const LISTED_FILTERS = [
   {value: 'unlisted', label: '未上架'},
 ];
 
-function shelfRecords(records: AlbumRecord[], page: string, query: string, sort: SortMode, listedFilter: string, modules: ModuleFlags): AlbumRecord[] {
-  let rs = records.filter(r => onShelf(r.status, page, modules));
-  if (modules.trading && page !== 'trash' && listedFilter !== 'all')
-    rs = rs.filter(r => listedFilter === 'listed' ? !!r.listed : !r.listed);
-  const q = query.trim().toLocaleLowerCase();
-  if (q) {
-    rs = rs.map(r => ({r, sc: searchScore(r, q)})).filter(x => x.sc > 0)
-      .sort((a, b) => b.sc - a.sc).map(x => x.r);
-  } else {
-    rs.sort((a, b) => sort === 'cost'
-      ? ((b.cost === null ? -1 : Number(b.cost)) - (a.cost === null ? -1 : Number(a.cost)))
-      : sort === 'artist' ? a.artist.localeCompare(b.artist)
-        : modules.acquisition ? b.date.localeCompare(a.date) : b.createdAt.localeCompare(a.createdAt));
-  }
-  return rs;
-}
-
 export function ShelfPage() {
   const app = useApp();
-  const {state, modules, page, query, sort, flip, selected, shelfFilter} = app;
+  const {state, modules, page, query, selected, shelfFilter} = app;
   const isTrash = page === 'trash';
+  const canSortByListing = !isTrash && modules.trading && shelfFilter === 'listed';
+  const sort = app.sort === 'listed' && !canSortByListing ? 'new' : app.sort;
+  const flip = sort === app.sort && app.flip;
+  const baseSorts = modules.acquisition ? SORTS : COLLECTION_SORTS;
+  const sortValue = flip && sort === 'listed' ? 'listed-old'
+    : flip && sort === 'new' && modules.acquisition ? 'old' : sort;
   const all = state.records.filter(r => onShelf(r.status, page, modules));
-  const rs = shelfRecords(state.records, page, query, sort, shelfFilter, modules);
+  const rs = shelfRecords(all, {page, query, sort, flip, shelfFilter, modules});
   const selectable = rs.filter(r => r.status !== 'transit');
   const searching = query.trim() !== '';
 
@@ -96,7 +90,6 @@ export function ShelfPage() {
   const baseTitle = modules.circulation && !isTrash ? <><span className="desktop-shelf-title">{title}</span><span className="mobile-shelf-title">库存</span></> : title;
   // 以管理为主的用户：手机顶栏中间是「库存｜展示」切换（桌面仍是文字标题）
   const titleNode = switchOn ? <><span className="head-title-text">{baseTitle}</span><span className="title-switch"><ShowcaseSwitch current="manage"/></span></> : baseTitle;
-  const timeline = !searching && sort === 'new' && modules.acquisition;
 
   const cardActions = (r: AlbumRecord) => {
     if (page === 'trash') return <button onClick={() => bulkAction(app, 'restore', [r.id])}>恢复</button>;
@@ -127,74 +120,6 @@ export function ShelfPage() {
                actions={cardActions(r)} swipeActions={swipeActions(r)}
                selecting={selecting} swipeHint={swipeHint.isHint(r.id, firstSwipe)} onSwipeHint={swipeHint.shown}/>
   );
-
-  let body: React.ReactNode;
-  if (!rs.length) {
-    body = (
-      <div className="empty">
-        <div className="empty-symbol">{isTrash ? '◎' : '◫'}</div>
-        <h3>{query ? '没有找到匹配的专辑' : !modules.circulation && !isTrash ? '从第一张专辑开始' : page === 'overseas' ? '海外库存是空的' : isTrash ? '回收站是空的' : '库存是空的'}</h3>
-        <p>{query ? '试试其他关键词。'
-          : !modules.circulation && !isTrash ? '只需填写专辑名和艺人，其他资料可以慢慢补。'
-            : page === 'overseas' ? '录入在海外买入的专辑，或把国内库存调回海外。'
-            : isTrash ? '移除的专辑会出现在这里。'
-              : '记录一次买入，封面会自动从公开音乐资料库抓取。'}</p>
-        {query
-          ? <button onClick={() => app.setQuery('')}>清除搜索</button>
-          : !isTrash ? <button className="primary" onClick={() => openRecordForm(app)}>＋ 添加专辑</button> : null}
-      </div>
-    );
-  } else if (timeline) {
-    // 按月时间线
-    const sorted = [...rs].sort((a, b) => flip
-      ? (a.date || '9999').localeCompare(b.date || '9999')
-      : (b.date || '').localeCompare(a.date || ''));
-    const groups = new Map<string, AlbumRecord[]>();
-    for (const r of sorted) {
-      const k = r.date ? r.date.slice(0, 7) : '';
-      if (!groups.has(k)) groups.set(k, []);
-      groups.get(k)!.push(r);
-    }
-    body = [...groups.entries()].map(([m, list]) => (
-      <section className="tl-group" key={m}>
-        <div className="tl-label"><b>{fmtMonth(m)}</b><span>{list.length} 张</span></div>
-        <div className="tl-rail"/>
-        <div className="tl-cards"><CardGrid records={list} renderCard={renderCard}/></div>
-      </section>
-    ));
-  } else if (!searching && sort === 'artist') {
-    // 按艺人分组
-    const map = new Map<string, AlbumRecord[]>();
-    for (const r of [...rs].sort((a, b) => (b.date || '').localeCompare(a.date || ''))) {
-      const a = r.artist || '未知艺人';
-      if (!map.has(a)) map.set(a, []);
-      map.get(a)!.push(r);
-    }
-    body = [...map.keys()].sort((a, b) => a.localeCompare(b)).map(a => {
-      const list = map.get(a)!;
-      const knownList = list.filter(r => r.cost !== null);
-      const total = knownList.length ? yuan(sum(knownList, 'cost')) : null;
-      return (
-        <section className="artist-group" key={a}>
-          <header className="artist-head">
-            {a === '未知艺人'
-              ? <span className="artist-name">{a}</span>
-              : <button type="button" className="artist-name"
-                        aria-haspopup="dialog"
-                        title={`查看 ${a} 的资料与作品`}
-                        onClick={() => openArtistDrawer(app, a)}>{a}</button>}
-            <span className="artist-meta">
-              {list.length} 张{modules.acquisition && total ? ` · 总成本 ${total}` : ''}
-              {modules.acquisition && knownList.length < list.length ? ` · ${list.length - knownList.length} 张成本待补` : ''}
-            </span>
-          </header>
-          <CardGrid records={list} renderCard={renderCard}/>
-        </section>
-      );
-    });
-  } else {
-    body = <CardGrid records={rs} renderCard={renderCard}/>;
-  }
 
   return (
     <div ref={pageRef} className={`shelf-page shelf-${app.shelfView}${alignList ? ' align-list' : ''}${app.mobileSelecting || curSelected.size ? ' is-selecting' : ''}`}>
@@ -234,9 +159,12 @@ export function ShelfPage() {
           <Seg className="filter-seg" persistKey="shelf-listed" ariaLabel="上架筛选" options={LISTED_FILTERS}
                value={shelfFilter} onValue={app.setShelfFilter}/>
         ) : null}
-        <Dropdown id="sort" value={sort === 'new' && flip && modules.acquisition ? 'old' : sort} label="排序方式"
-                  options={modules.acquisition ? SORTS : [{value: 'new', label: '最近添加'}, {value: 'artist', label: '按艺人'}]}
-                  onPick={v => { app.setFlip(v === 'old'); app.setSort((v === 'old' ? 'new' : v) as SortMode); }}/>
+        <Dropdown id="sort" value={sortValue} label="排序方式"
+                  options={canSortByListing ? [...LISTING_SORTS, ...baseSorts] : baseSorts}
+                  onPick={v => {
+                    app.setFlip(v === 'old' || v === 'listed-old');
+                    app.setSort((v === 'old' ? 'new' : v === 'listed-old' ? 'listed' : v) as SortMode);
+                  }}/>
         <Seg className="view-seg" persistKey="shelf-view" ariaLabel="库存显示方式" value={app.shelfView}
              options={[{value: 'list', label: <>{ListViewIco}列表</>, ariaLabel: '列表视图'}, {value: 'cards', label: <>{CardViewIco}卡片</>, ariaLabel: '卡片视图'}]}
              onValue={v => { snapshotFlip(); app.setShelfView(v as 'list' | 'cards'); }}/>
@@ -246,7 +174,7 @@ export function ShelfPage() {
       {searching && !isTrash ? <a className="shelf-lookup-row" href="#lookup" onClick={() => queueLookup(query.trim())}>
         <span>在资料库查「<b>{query.trim()}</b>」</span><i aria-hidden="true">›</i></a> : null}
       <TabPanel value={page} order={['domestic', 'overseas']}>
-        {body}
+        <ShelfResults records={rs} sort={sort} flip={flip} renderCard={renderCard}/>
       </TabPanel>
     </div>
   );

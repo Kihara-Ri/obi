@@ -27,7 +27,6 @@ web/src/core/photos.ts
 web/src/forms/ArtistDrawer.tsx
 web/src/pages/GalleryPage.tsx
 web/src/pages/SettingsPage.tsx
-web/src/pages/ShelfPage.tsx
 web/src/styles/album-flip-card.css
 web/src/styles/album-model.css
 web/src/styles/album-summary.css
@@ -36,7 +35,6 @@ web/src/styles/artists.css
 web/src/styles/base.css
 web/src/styles/components.css
 web/src/styles/digital-twins.css
-web/src/styles/drawer.css
 web/src/styles/gallery-case.css
 web/src/styles/gallery-continuous.css
 web/src/styles/gallery-fan.css
@@ -59,4 +57,3 @@ web/src/styles/settings.css
 web/src/styles/shelf.css
 web/src/styles/shipments.css
 web/src/styles/tracklist.css
-web/src/types.ts

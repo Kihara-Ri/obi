@@ -1,9 +1,9 @@
 #!/bin/bash
-# 上架记录与照片下载的本地一键验收。构建前端后在固定样本副本上运行主验收与长文验收。
+# 上架记录、商品入口、排序与照片下载的本地一键验收。
 # CI 的同名任务也直接调用本脚本（OBI_ACCEPTANCE_HOME 指向已准备的样本目录，OBI_SKIP_BUILD=1 用已构建的 static/），
 # 本地与 CI 只有这一份步骤。
 # 固定样本目录 OBI_ACCEPTANCE_HOME（默认 ~/.cache/obi-acceptance，仓库外）；首次约 75 秒下载素材，
-# 缓存坏了或样本版本变了会自动重建。长文写入隔离副本，截图与失败现场在 OBI_PREVIEW_SCREENSHOTS。
+# 缓存坏了或样本版本变了会自动重建。截图与失败现场在 OBI_PREVIEW_SCREENSHOTS。
 # 注意：$VAR 后紧跟全角字符会被 macOS bash 并入变量名，一律写成 ${VAR}。
 set -euo pipefail
 
@@ -62,9 +62,8 @@ fail() {
 }
 step "上架记录与照片下载验收"
 LISTING_ACCEPTANCE_URL="$url" node web/tests/browser/listing-acceptance.mjs || fail "上架记录与照片下载验收"
-# 经 storage 写入固定长文，验证历史资料能完整阅读、复制。
-seed seed_listing_long_copy
-step "文案阅读验收"
-LISTING_ACCEPTANCE_URL="$url" node web/tests/browser/listing-reader-acceptance.mjs || fail "文案阅读验收"
-printf '\n✓ 上架记录与照片下载验收通过（截图：%s）\n' "$OBI_PREVIEW_SCREENSHOTS"
+seed seed_listing_navigation
+step "商品入口与上架排序验收"
+LISTING_ACCEPTANCE_URL="$url" node web/tests/browser/listing-navigation-acceptance.mjs || fail "商品入口与上架排序验收"
+printf '\n✓ 上架记录、商品入口、排序与照片下载验收通过（截图：%s）\n' "$OBI_PREVIEW_SCREENSHOTS"
 rm -rf "${RUN}/instance"  # 通过后清掉复制的实例，失败时保留现场

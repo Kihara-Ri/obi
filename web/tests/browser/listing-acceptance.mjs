@@ -1,4 +1,4 @@
-// 固定样本验收历史上架资料、详情原图包和账户入口。
+// 固定样本验收历史商品链接、详情原图包和账户入口。
 import assert from 'node:assert/strict';
 import {mkdir, readFile} from 'node:fs/promises';
 import {join} from 'node:path';
@@ -41,20 +41,26 @@ try {
   const listing = await openPage('domestic');
   await listing.getByRole('button', {name: 'Parachutes', exact: true}).click();
   await manage(listing);
-  assert.equal(await listing.getByRole('link', {name: '打开商品页面 ↗'}).getAttribute('href'),
-    'https://example.com/listing/1002');
-  assert.equal(await listing.locator('.listing-description span').textContent(), '示例上架描述：碟面无划痕，附原装侧标。');
-  assert.equal(await listing.locator('.detail-page').getByText('已上架', {exact: true}).isVisible(), true);
-  assert.equal(await listing.locator('#panel').getByRole('button', {name: '编辑上架资料', exact: true}).count(), 0);
-  await settle(listing, ['#panel', '.detail-page', '.listing-description']);
-  await listing.screenshot({path: join(output, 'listing-history.png')});
+  const panel = listing.locator('.detail-page');
+  const website = panel.getByRole('button', {name: '打开商品网页', exact: true});
+  await website.waitFor();
+  assert.equal(await panel.getByText('已上架', {exact: true}).count(), 0);
+  assert.equal(await panel.getByText('示例上架描述：碟面无划痕，附原装侧标。', {exact: true}).count(), 0);
+  assert.equal(await panel.getByRole('heading', {name: '上架', exact: true}).count(), 0);
+  const savedUrl = 'https://example.com/listing/1002';
+  await context.route(savedUrl, route => route.fulfill({body: '<title>固定样本商品</title>'}));
+  const [popup] = await Promise.all([context.waitForEvent('page'), website.click()]);
+  await popup.waitForURL(savedUrl);
+  await popup.close();
+  await settle(listing, ['#panel', '.detail-page', '.listing-entry']);
+  await listing.screenshot({path: join(output, 'listing-website.png')});
 
   const settings = await openPage('settings');
   await settings.getByRole('button', {name: '账户', exact: true}).click();
   await settings.getByRole('heading', {name: '登录与安全', exact: true}).waitFor();
   assert.equal(await settings.getByText('已连接服务', {exact: true}).count(), 0);
   assert.deepEqual(errors, []);
-  console.log('原图包、历史上架记录和账户页面通过');
+  console.log('原图包、历史商品链接和账户页面通过');
 } catch (error) {
   await reportFailure(browser, output, 'listing');
   throw error;

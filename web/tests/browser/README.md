@@ -65,11 +65,11 @@ node web/tests/browser/engine-plugin-acceptance.mjs --url http://127.0.0.1:<空�
 
 ```sh
 tools/browser_acceptance.sh
-OBI_READER_WEBKIT=1 tools/browser_acceptance.sh
+OBI_LISTING_WEBKIT=1 tools/browser_acceptance.sh
 ```
 
 脚本与 CI 使用同一套固定样本。准备缓存后复制独立实例，用 `seed_listing_reference_photos` 取用已核验的版次参考图集，再启动仅监听回环地址的测试服务。参考图集用于验证下载与顺序，样本备注标明其来源。普通样本保持缺图。
 
-主验收在 Chromium 验证详情页能下载原图 ZIP、管理页还能打开历史链接和阅读旧文案、账户页已经移除售卖模型设置。然后用 `seed_listing_long_copy` 给现有样本副本写入固定长文，检查桌面和手机尺寸的完整阅读、无横向溢出与复制。默认运行 Chromium。可额外启用 WebKit 布局验收。
+主验收验证详情页的原图 ZIP、打开历史商品网页、账户页的交易入口。之后用 `seed_listing_navigation` 给两张固定副本登记回执，在 390 和 340 宽的浅色及深色手机视口检查上架排序和商品按钮。测试拦截虚构商品的导航，验证商品 ID 和长按菜单的抑制。默认运行 Chromium，可额外启用 WebKit。系统实际唤起闲鱼和 iOS 的原生长按行为须真机核对。
 
 共用的超时、`settle()` 与 `reportFailure()` 在 `acceptance-kit.mjs`。单步 8 秒，可用 `OBI_ACCEPTANCE_TIMEOUT` 调整。截图路径可通过 `OBI_PREVIEW_SCREENSHOTS` 指定。正常页面的 console 与 pageerror 保持为零。

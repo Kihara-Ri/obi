@@ -71,6 +71,7 @@
 | `ShowcaseSwitch` | 手机顶栏的「库存｜展示」切换（仅以管理为主的用户显示） | `current` | 基于 `Seg` | 选中段 |
 | `ThemeToggle` | 浅色 / 深色 / 跟随系统 | 基于 `Seg` |
 | `BulkBar`（`pages/`，要打开表单） | 库存页底部悬浮的批量操作条；清空选择时先播放退出动画再卸载 | `page` `ids` `isTrash` | role=toolbar | 已选数量 |
+| `ShelfResults`（`pages/`） | 库存结果按买入月份或艺人分组，按上架时间显示独立副本 | `records` `sort` `flip` `renderCard` |
 | `Cover` `Thumb` `PriceCell` | 封面、缩略图、价格格 | 卡片 / 详情 / 销售行共用 |
 | `PageHead` `Ledger` | 页头与侧栏账本 | |
 | `Sidebar` `MobileNav`（`AppNav`） | 桌面侧栏与手机底栏；`navCounts` 算两处共用的各页数量 | 仅供 `App` 外壳使用；入口按模块开关过滤 |

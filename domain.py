@@ -218,6 +218,8 @@ def clean_record(data):
     r.pop('listed', None)  # 上架标记只经 storage.bulk 的 list/unlist 写入，表单通道不可改
     r.pop('listingChannel', None)
     r.pop('listingUrl', None)
+    r.pop('listingOrder', None)
+    r.pop('xianyuItemId', None)
     for k in ('location','note','noteAlbum','tradeNote','version','pressing','obi','condition','tag','storage','releaseYear','rawRemark'):
         r[k] = str(r.get(k,'')).strip()
         if len(r[k]) > 50000: raise ValidationError('备注过长')

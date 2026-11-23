@@ -71,6 +71,7 @@
   - 新的可点按导航元素加 `-webkit-touch-callout:none`，以及 `user-select:none`、去掉点按高亮。
   - 需要长按做事的元素（比如以后的长按菜单）自己处理 `contextmenu`，同时关掉 callout。
   - 真正的外链明确写 `target="_blank"`，文字后带 ↗。
+  - 需要单点唤起外部 App 且禁止链接预览的入口使用原生按钮。链接导航在点按的用户手势内同步触发。
 
 ## 6. 键盘
 

@@ -466,21 +466,49 @@ if __name__ == '__main__':
     unittest.main()
 
 
-class ListingReadingSampleTests(unittest.TestCase):
-    def test_long_copy_fixture_reuses_existing_copy_and_is_idempotent(self):
-        from tools.seed_samples import seed_listing_photos, seed_listing_long_copy, LISTING_LONG_DESCRIPTION, open_store
+class ListingNavigationSampleTests(unittest.TestCase):
+    def test_listing_fixture_reuses_existing_copies_and_is_idempotent(self):
+        from tools.seed_samples import seed_listing_photos, seed_listing_navigation, LISTING_LONG_DESCRIPTION, open_store
         with tempfile.TemporaryDirectory() as directory:
             ids = seed_listing_photos(directory)
             store = open_store(directory)
             before = store.state()
-            self.assertEqual(seed_listing_long_copy(directory), ids)
+            self.assertEqual(seed_listing_navigation(directory), ids)
             after = store.state()
             self.assertEqual(len(after['records']), len(before['records']))
             record = next(r for r in after['records'] if r['id'] == ids['lift-fists'])
+            older = next(r for r in after['records'] if r['id'] == ids['tpab'])
             old = next(r for r in before['records'] if r['id'] == ids['lift-fists'])
-            self.assertEqual(record['listingDescription'], LISTING_LONG_DESCRIPTION)
+            self.assertEqual(record['listingDraft']['description'], LISTING_LONG_DESCRIPTION)
             self.assertGreater(len(LISTING_LONG_DESCRIPTION), 1000)
-            for key in ('price', 'status', 'listed', 'photoRevision', 'photoCount'):
+            self.assertTrue(record['listed'] and older['listed'])
+            self.assertEqual((record['xianyuItemId'], older['xianyuItemId']), ('1004', '1005'))
+            self.assertLess(record['date'], older['date'])
+            self.assertGreater(record['listingOrder'], older['listingOrder'])
+            for key in ('price', 'status', 'photoRevision', 'photoCount'):
                 self.assertEqual(record.get(key), old.get(key))
-            seed_listing_long_copy(directory)
+            seed_listing_navigation(directory)
             self.assertEqual(store.state()['records'], after['records'])
+
+    def test_listing_rank_uses_old_audit_and_keeps_undated_copies(self):
+        from tools.seed_samples import open_store, seed
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ids = seed(root / 'source')
+            source = open_store(root / 'source')
+            first, second, undated = (ids[key] for key in ('parachutes', 'illinois', 'm83'))
+            source.bulk({'action': 'list', 'ids': [first]})  # Repeating an active mark does not move it.
+            backup = source.backup()
+            backup['audit'] = [row for row in backup['audit']
+                               if row['action'] != 'list' or json.loads(row['data'])['id'] != undated]
+            backup['audit'] += [{'at': '2026-10-09T00:00:00', 'action': '修改专辑', 'data': '{}'}] * 100
+            restored = open_store(root / 'restored')
+            restored.restore_backup(backup)
+            records = {record['id']: record for record in restored.state()['records']}
+            self.assertLess(records[first]['listingOrder'], records[second]['listingOrder'])
+            self.assertTrue(records[undated]['listed'])
+            self.assertNotIn('listingOrder', records[undated])
+            restored.bulk({'action': 'unlist', 'ids': [first]})
+            restored.bulk({'action': 'list', 'ids': [first]})
+            records = {record['id']: record for record in restored.state()['records']}
+            self.assertGreater(records[first]['listingOrder'], records[second]['listingOrder'])
