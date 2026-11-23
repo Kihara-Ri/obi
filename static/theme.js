@@ -4,8 +4,8 @@
 // 跟随系统时不设 data-theme，颜色由 tokens.css 的 prefers-color-scheme 段自解析，
 // theme-color meta 用双 media 声明原生跟随系统；只有显式选择时才需要 JS 对齐 meta。
 // 应用内切换经 window.DDTheme（core/theme.ts 类型化转发），登录页与本应用共用本文件。
-// 首帧引导不做过渡（颜色必须首帧即正确）；仅交互切换与系统外观变化时加 .theme-fade
-// （base.css 定义的全局颜色过渡窗口，结束即移除，不常驻）。
+// 首帧和系统外观直接走 CSS。系统配色可能在恢复时连续更新，全局渐变会让继承字色落后于底色。
+// 只有用户主动切换时才启用 base.css 的主题过渡。
 (function () {
   var KEY = 'album-theme';
   // 与 tokens.css 的 --bg 浅/深值保持一致
@@ -60,9 +60,5 @@
       }
     },
   };
-  // 跟随系统时，系统外观自动切换（如日落自动转深色）同样渐变
-  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
-    if (resolve(stored()) === 'system') enableFade();
-  });
   boot();
 })();

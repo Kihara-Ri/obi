@@ -21,7 +21,27 @@ const appUrl = 'fleamarket://awesome_detail?id=1004&flutter=true';
 const engines = process.env.OBI_LISTING_WEBKIT === '1' ? [chromium, webkit] : [chromium];
 const screenshotCsp = "Refused to apply a stylesheet because its hash, its nonce, or 'unsafe-inline' does not appear in the style-src directive of the Content Security Policy.";
 
-async function verifyMobile(context, filename) {
+async function verifySystemTheme(page) {
+  await page.evaluate(() => {
+    const dark = matchMedia('(prefers-color-scheme: dark)');
+    const title = document.querySelector('#panel .drawer-head h2');
+    const value = document.querySelector('.drawer-page:not(.is-covered) .detail-grid dd');
+    dark.addEventListener('change', () => requestAnimationFrame(() => {
+      window.themeFrame = [dark.matches, getComputedStyle(title.closest('.drawer')).backgroundColor,
+        getComputedStyle(title).color, getComputedStyle(value).color,
+        document.documentElement.classList.contains('theme-fade')];
+    }));
+  });
+  await page.emulateMedia({colorScheme: 'light'});
+  await page.waitForFunction(() => window.themeFrame?.[0] === false &&
+    getComputedStyle(document.body).color === 'rgb(30, 36, 48)');
+  await page.emulateMedia({colorScheme: 'dark'});
+  const frame = await page.waitForFunction(() => window.themeFrame?.[0] && window.themeFrame);
+  assert.deepEqual(await frame.jsonValue(), [true, 'rgb(22, 25, 32)', 'rgb(232, 235, 241)', 'rgb(232, 235, 241)', false],
+    '跟随系统恢复深色时，抽屉背景、标题和字段值应首帧同步');
+}
+
+async function verifyMobile(context, filename, colorScheme) {
   const page = await context.newPage();
   const errors = [];
   const webNavigations = [];
@@ -100,6 +120,7 @@ async function verifyMobile(context, filename) {
   assert.equal(await button.evaluate(el => el.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true}))), false);
   assert.deepEqual(webNavigations, []);
   await button.scrollIntoViewIfNeeded();
+  if (colorScheme === 'dark') await verifySystemTheme(page);
   await settle(page, ['#panel', '.detail-page', '.listing-entry']);
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await page.screenshot({caret: 'initial', path: join(output, `${filename}-manage.png`)});
@@ -166,7 +187,7 @@ for (const engine of engines) {
     ]) {
       const context = fastFail(await browser.newContext({...devices['iPhone 13'],
         viewport: {width, height: 844}, deviceScaleFactor: 2, colorScheme}));
-      await verifyMobile(context, `${engine.name()}-${width}-${colorScheme}`);
+      await verifyMobile(context, `${engine.name()}-${width}-${colorScheme}`, colorScheme);
       if (engine === chromium && width === 390 && colorScheme === 'light') await verifyMobileBatchForm(context);
       await context.close();
     }
