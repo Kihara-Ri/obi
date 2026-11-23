@@ -57,12 +57,21 @@ try {
   await settle(listing, ['#panel', '.detail-page']);
   await listing.screenshot({path: join(output, 'listing-website.png')});
 
+  const unlisted = await openPage('domestic');
+  await unlisted.getByRole('button', {name: 'Minecraft: Volume Alpha', exact: true}).click();
+  await manage(unlisted);
+  const emptyRows = unlisted.locator('.detail-page dl').filter({has: unlisted.getByText('链接', {exact: true})});
+  await emptyRows.waitFor();
+  assert.deepEqual(await emptyRows.locator('dt').allTextContents(), ['状态', '平台', '链接']);
+  assert.deepEqual(await emptyRows.locator('dd').allTextContents(), ['未上架', '未记录', '未记录']);
+  assert.equal(await emptyRows.getByRole('link').count(), 0);
+
   const settings = await openPage('settings');
   await settings.getByRole('button', {name: '账户', exact: true}).click();
   await settings.getByRole('heading', {name: '登录与安全', exact: true}).waitFor();
   assert.equal(await settings.getByText('已连接服务', {exact: true}).count(), 0);
   assert.deepEqual(errors, []);
-  console.log('原图包、历史商品链接和账户页面通过');
+  console.log('原图包、上架三行、历史商品链接和账户页面通过');
 } catch (error) {
   await reportFailure(browser, output, 'listing');
   throw error;

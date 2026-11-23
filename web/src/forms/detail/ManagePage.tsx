@@ -64,12 +64,12 @@ function ManageBody({id}: {id: string}) {
       {r.note ? <p className="note-text"><b>这张副本</b>{r.note}</p> : null}
       {r.noteAlbum ? <p className="note-text"><b>这张专辑（所有副本共享）</b>{r.noteAlbum}</p> : null}
     </> : null}
-    {modules.trading && (r.listed || r.listingChannel || r.listingUrl) ? <>
+    {modules.trading ? <>
       <h3 className="section-title">上架</h3>
       <Rows rows={[
-        r.listed && {label: '状态', value: '已上架'},
-        r.listingChannel && {label: '平台', value: r.listingChannel},
-        r.listingUrl && {label: '链接', value: mobileItemId ? (
+        {label: '状态', value: r.listed ? '已上架' : '未上架'},
+        {label: '平台', value: r.listingChannel || '未记录'},
+        {label: '链接', value: !r.listingUrl ? '未记录' : mobileItemId ? (
           <button type="button" className="listing-entry" onContextMenu={e => e.preventDefault()}
             onClick={() => openXianyuItem(mobileItemId)}>打开商品页面 ↗</button>
         ) : <a href={r.listingUrl} target="_blank" rel="noopener noreferrer">打开商品页面 ↗</a>},
