@@ -101,7 +101,6 @@
   .mobile-nav a{position:relative;display:flex;align-items:center;justify-content:center;min-width:0;
     height:44px;padding:0;border-radius:23px;text-decoration:none;color:var(--muted);font-size:13.5px;font-weight:650;
     transition:color .2s ease;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
-  .mobile-nav a:active{transform:scale(.94)}
   .mobile-nav a.active{color:var(--accent-ink)}
   .mobile-nav svg{flex:none}
   .tab-label{max-width:0;opacity:0;overflow:hidden;white-space:nowrap;margin-left:0;

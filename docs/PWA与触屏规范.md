@@ -97,6 +97,7 @@
 - **规则**
   - 带位移或缩放的悬停效果只写在 `@media (hover:hover) and (pointer:fine)` 里，或者在 `(hover:none)` 里复位（有机检）。
   - 触屏的按下反馈只改背景或用 `:active` 轻微缩放，不做抬起。
+  - 手机底栏在按下时保持图标、文字和计数的尺寸。
   - 触屏上全局关闭 `:focus-visible` 描边（`base.css`），键盘用户仍然能看到描边。
 
 ## 9. 主题与旧 WebView
