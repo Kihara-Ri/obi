@@ -12,14 +12,12 @@ import {useDigitalTwins} from './state/useDigitalTwins';
 import {useAlbumEngine} from './state/useAlbumEngine';
 import {useDrawerStack} from './state/useDrawerStack';
 import {useShelfView} from './state/useShelfView';
-import type {AppCtx} from './state/AppContext';
-import type {SortMode} from './types';
+import type {AppCtx, ShelfSortChoices, ToastAction, ToastKind} from './state/AppContext';
 import {MobileNav, navCounts, Sidebar} from './components/AppNav';
 import {Drawer} from './components/ui/Drawer';
 import {Lightbox} from './components/ui/Lightbox';
 import {PhotoLongPress} from './components/ui/PhotoLongPress';
 import {Toast} from './components/ui/Toast';
-import type {ToastAction, ToastKind} from './state/AppContext';
 import {Splash} from './components/ui';
 import {PageVeil} from './components/PageVeil'; import {PeekUnderlay} from './pages/PeekUnderlay'; import {WhatsNew} from './components/WhatsNew';
 import {installReplaceNav} from './core/nav';
@@ -43,14 +41,14 @@ const PAGE_CHUNKS: Record<string, {load(): Promise<unknown>; readonly loaded: bo
   overseas: ShelfPage, domestic: ShelfPage, trash: ShelfPage, transit: TransitPage, shipping: ShippingPage,
   trades: TradesPage, stats: StatsPage, lookup: LookupPage, more: MorePage};
 const pageModule = (page: string, needsSetup: boolean) => needsSetup ? SetupPage : PAGE_CHUNKS[page] ?? SettingsPage;
+const DEFAULT_SHELF_SORT: ShelfSortChoices = {base: 'new', listed: 'listed'};
 
 export default function App() {
   const route = useHashRoute();
   const {state, refresh, applyRecordMetadata} = useLedgerState();
   const [fatal, setFatal] = useState('');
   const [query, setQuery] = useState('');
-  const [sort, setSort] = useState<SortMode>('new');
-  const [flip, setFlip] = useState(false);
+  const [shelfSort, setShelfSort] = useState(DEFAULT_SHELF_SORT);
   const [tradeFilter, setTradeFilter] = useState('all');
   const [shelfFilter, setShelfFilter] = useState('all');
   const [shelfView, setShelfView] = useShelfView();
@@ -91,7 +89,7 @@ export default function App() {
     setQuery('');
     // 国内 ↔ 海外是同一张库存页的子标签：保留已选的排序与上架筛选，换到其他页才重置
     const sameShelf = (a: string, b: string) => (a === 'domestic' || a === 'overseas') && (b === 'domestic' || b === 'overseas');
-    if (!sameShelf(shelfPageRef.current, page)) { setSort('new'); setShelfFilter('all'); }
+    if (!sameShelf(shelfPageRef.current, page)) { setShelfSort(DEFAULT_SHELF_SORT); setShelfFilter('all'); }
     shelfPageRef.current = page;
     setMobileSelecting(false);
     if (page === 'domestic' || page === 'overseas') setInventoryPage(page);
@@ -153,8 +151,7 @@ export default function App() {
   const ctx: AppCtx = {
     state, modules, page,
     query, setQuery,
-    sort, setSort,
-    flip, setFlip,
+    shelfSort, setShelfSort,
     tradeFilter, setTradeFilter,
     shelfFilter, setShelfFilter,
     shelfView, setShelfView, mobileSelecting, setMobileSelecting,

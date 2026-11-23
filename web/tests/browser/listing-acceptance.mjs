@@ -72,12 +72,46 @@ try {
   await settle(unlisted, ['#panel', '.detail-page']);
   await unlisted.screenshot({path: join(output, 'listing-unlisted.png')});
 
+  const latestCopy = async () => (await (await fetch(base + '/api/state')).json()).records
+    .find(r => r.title === 'Minecraft: Volume Alpha');
+  await unlisted.getByRole('button', {name: '返回专辑详情', exact: true}).click();
+  await unlisted.getByRole('button', {name: '上架', exact: true}).click();
+  await unlisted.getByRole('heading', {name: '标记上架', exact: true}).waitFor();
+  const form = unlisted.locator('#listing-form');
+  assert.equal(Boolean((await latestCopy()).listed), false);
+  await form.getByLabel('平台', {exact: true}).fill('闲鱼');
+  const itemUrl = 'https://www.goofish.com/item?id=1006';
+  await form.getByLabel('商品链接', {exact: true}).fill(itemUrl);
+  await form.getByRole('button', {name: '确认上架', exact: true}).click();
+  await unlisted.getByRole('button', {name: '关闭', exact: true}).waitFor({state: 'detached'});
+  const marked = await latestCopy();
+  assert.deepEqual([marked.listed, marked.listingChannel, marked.listingUrl], [true, '闲鱼', itemUrl]);
+
+  await unlisted.getByRole('button', {name: 'Minecraft: Volume Alpha', exact: true}).click();
+  await manage(unlisted);
+  await unlistedSection.getByRole('button', {name: '编辑上架信息', exact: true}).click();
+  await unlisted.getByRole('heading', {name: '编辑上架信息', exact: true}).waitFor();
+  const channel = form.getByLabel('平台', {exact: true});
+  const url = form.getByLabel('商品链接', {exact: true});
+  assert.equal(await channel.inputValue(), '闲鱼');
+  assert.equal(await url.inputValue(), itemUrl);
+  await channel.fill('示例二手平台');
+  const newUrl = 'https://example.com/listing/1006';
+  await url.fill(newUrl);
+  await form.getByRole('button', {name: '保存', exact: true}).click();
+  await unlisted.getByRole('heading', {name: '管理', exact: true}).waitFor();
+  await unlistedSection.getByText('示例二手平台', {exact: true}).waitFor();
+  assert.equal(await unlistedSection.getByRole('link', {name: '打开商品页面 ↗', exact: true}).getAttribute('href'), newUrl);
+  const updated = await latestCopy();
+  assert.deepEqual([updated.listed, updated.listingOrder, updated.listingChannel, updated.listingUrl],
+                   [true, marked.listingOrder, '示例二手平台', newUrl]);
+
   const settings = await openPage('settings');
   await settings.getByRole('button', {name: '账户', exact: true}).click();
   await settings.getByRole('heading', {name: '登录与安全', exact: true}).waitFor();
   assert.equal(await settings.getByText('已连接服务', {exact: true}).count(), 0);
   assert.deepEqual(errors, []);
-  console.log('原图包、上架字段与平台图标、历史商品链接和账户页面通过');
+  console.log('原图包、平台图标、手动上架和编辑、历史商品链接及账户页面通过');
 } catch (error) {
   await reportFailure(browser, output, 'listing');
   throw error;

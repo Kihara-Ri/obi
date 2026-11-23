@@ -14,6 +14,7 @@ import {Cover} from '../components/Cover';
 import {useArtExpand} from '../components/ReleaseCandidateCard/useArtExpand';
 import {openRecordForm} from './RecordForm';
 import {openSaleForm} from './SaleForm';
+import {openListingForm} from './ListingForm';
 import {PhotoDownload} from '../components/PhotoDownload';
 import {LikeHeart} from '../components/LikeHeart';
 import {CopyButton} from '../components/CopyButton';
@@ -140,7 +141,8 @@ function DetailFooter({id}: {id: string}) {
     <div className="detail-footer-row" role="group" aria-label="主要操作">
       <button type="button" onClick={() => openRecordForm(app, id)}>编辑</button>
       {app.modules.trading && inStock
-        ? <button type="button" onClick={() => bulkAction(app, r.listed ? 'unlist' : 'list', [id], r.listed ? '已取消上架' : '已标记上架')}>
+        ? <button type="button" onClick={() => r.listed ? bulkAction(app, 'unlist', [id], '已取消上架')
+          : openListingForm(app, [id], {back: '返回专辑详情'})}>
             {r.listed ? '取消上架' : '上架'}</button> : null}
       {app.modules.trading && inStock
         ? <button type="button" className="primary" onClick={() => openSaleForm(app, [id])}>记录售出</button> : null}

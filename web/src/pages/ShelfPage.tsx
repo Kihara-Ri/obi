@@ -1,6 +1,7 @@
 // 库存页（海外 / 国内 / 回收站共用）：搜索、排序、时间线/艺人分组、批量操作条。
 import {useRef} from 'react';
 import {useApp} from '../state/AppContext';
+import type {ShelfSortChoice} from '../state/AppContext';
 import type {AlbumRecord, SortMode} from '../types';
 import {onShelf} from '../core/modules';
 import {shelfRecords} from '../core/shelf-records';
@@ -22,6 +23,7 @@ import {ShowcaseSwitch, useShowcaseSwitch} from '../components/ShowcaseSwitch';
 import {useSlidingThumb} from '../components/ui/SlidingThumb';
 import {openRecordForm} from '../forms/RecordForm';
 import {openSaleForm} from '../forms/SaleForm';
+import {openListingForm} from '../forms/ListingForm';
 import {openDetail} from '../forms/DetailDrawer';
 import {openArtistDrawer} from '../forms/ArtistDrawer';
 import {bulkAction} from '../forms/shared';
@@ -50,11 +52,12 @@ export function ShelfPage() {
   const {state, modules, page, query, selected, shelfFilter} = app;
   const isTrash = page === 'trash';
   const canSortByListing = !isTrash && modules.trading && shelfFilter === 'listed';
-  const sort = app.sort === 'listed' && !canSortByListing ? 'new' : app.sort;
-  const flip = sort === app.sort && app.flip;
+  const sortScope = canSortByListing ? 'listed' : 'base';
+  const chosenSort = app.shelfSort[sortScope];
+  const sortValue = !modules.acquisition && (chosenSort === 'old' || chosenSort === 'cost') ? 'new' : chosenSort;
+  const sort: SortMode = sortValue === 'old' ? 'new' : sortValue === 'listed-old' ? 'listed' : sortValue;
+  const flip = sortValue === 'old' || sortValue === 'listed-old';
   const baseSorts = modules.acquisition ? SORTS : COLLECTION_SORTS;
-  const sortValue = flip && sort === 'listed' ? 'listed-old'
-    : flip && sort === 'new' && modules.acquisition ? 'old' : sort;
   const all = state.records.filter(r => onShelf(r.status, page, modules));
   const rs = shelfRecords(all, {page, query, sort, flip, shelfFilter, modules});
   const selectable = rs.filter(r => r.status !== 'transit');
@@ -104,7 +107,7 @@ export function ShelfPage() {
   // 手机列表行左滑：上架 / 下架 + 记录售出（行内按钮在手机上随之收起）
   const swipeActions = (r: AlbumRecord): SwipeAction[] => page === 'trash' || !modules.trading || r.status === 'transit' ? [] : [
     {label: r.listed ? '下架' : '上架', ariaLabel: `${r.listed ? '取消上架' : '标记上架'}：${r.title}`,
-     onClick: () => bulkAction(app, r.listed ? 'unlist' : 'list', [r.id], r.listed ? '已取消上架' : '已标记上架')},
+     onClick: () => r.listed ? bulkAction(app, 'unlist', [r.id], '已取消上架') : openListingForm(app, [r.id])},
     {label: '记录售出', tone: 'primary', ariaLabel: `记录售出：${r.title}`, onClick: () => openSaleForm(app, [r.id])},
   ];
 
@@ -161,10 +164,7 @@ export function ShelfPage() {
         ) : null}
         <Dropdown id="sort" value={sortValue} label="排序方式"
                   options={canSortByListing ? [...LISTING_SORTS, ...baseSorts] : baseSorts}
-                  onPick={v => {
-                    app.setFlip(v === 'old' || v === 'listed-old');
-                    app.setSort((v === 'old' ? 'new' : v === 'listed-old' ? 'listed' : v) as SortMode);
-                  }}/>
+                  onPick={v => app.setShelfSort({...app.shelfSort, [sortScope]: v as ShelfSortChoice})}/>
         <Seg className="view-seg" persistKey="shelf-view" ariaLabel="库存显示方式" value={app.shelfView}
              options={[{value: 'list', label: <>{ListViewIco}列表</>, ariaLabel: '列表视图'}, {value: 'cards', label: <>{CardViewIco}卡片</>, ariaLabel: '卡片视图'}]}
              onValue={v => { snapshotFlip(); app.setShelfView(v as 'list' | 'cards'); }}/>

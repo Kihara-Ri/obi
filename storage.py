@@ -14,6 +14,7 @@ from pathlib import Path
 from datetime import datetime
 from contextlib import closing, contextmanager
 from domain import ValidationError, ConflictError, clean_record, clean_release_info, clean_modules, clean_start_page, clean_showcase_group, clean_showcase_groups, clean_listing, validate_packaging_photos, MODULE_NAMES, cost, number, money, day, allocate, set_return_postage, STATUSES
+from domain import clean_listing_details
 from decimal import Decimal
 import financial_rates
 import domain_trade_sync as trade_sync
@@ -287,9 +288,7 @@ class Store:
             if action == 'list' and isinstance(before, dict) and before.get('listed'):
                 continue  # Updating an existing mark keeps its position.
             if action == '登记闲鱼上架回执':
-                item_id = record.get('xianyuItemId')
-                if not item_id or event.get('itemId') != item_id:
-                    continue
+                # 平台或链接更正属于同一次上架，仍沿用当时核实的时间。
                 at = event.get('verifiedAt')
             try:
                 timestamp = datetime.fromisoformat(at).timestamp()
@@ -842,6 +841,32 @@ class Store:
 
     def last_to_overseas(self, db, id):
         return self.last_audit(db,'to_overseas',id)
+
+    def save_listing_details(self, data):
+        mode, entries = clean_listing_details(data)
+        editing = mode == 'edit'
+        self.checkpoint()
+        with closing(self.connect()) as db, db:
+            db.execute('BEGIN IMMEDIATE')
+            self.require_module('trading', db)
+            for record_id, (revision, listing) in entries.items():
+                record = self.get(db, 'records', record_id)
+                if record['revision'] != revision or bool(record.get('listed')) != editing:
+                    raise ConflictError('专辑的上架状态或资料已变更，请重新打开表单')
+                before = dict(record)
+                _mark_listed(record, listing)
+                if editing and all(before.get(key, '') == value for key, value in listing.items()):
+                    continue
+                item_id = trade_sync.listing_item_id(record)
+                if item_id and (not editing or trade_sync.listing_item_id(before) != item_id):
+                    owner = self._xianyu_listing_copy(db, item_id)
+                    receipt = self.meta_get(db, trade_sync.RECEIPT_PREFIX + item_id)
+                    if (owner and owner['id'] != record_id) or (receipt and receipt['id'] != record_id):
+                        raise ConflictError('该闲鱼商品已关联其他副本，请核对上架资料')
+                record['revision'] += 1
+                self.put(db, 'records', record)
+                self.audit(db, '修改上架信息' if editing else 'list', {'id': record_id, 'before': before})
+        return {'count': len(entries)}
 
     def bulk(self, data):
         ids=list(dict.fromkeys(data.get('ids',[])));action=data.get('action')

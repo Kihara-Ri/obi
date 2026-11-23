@@ -28,13 +28,15 @@ export type ToastKind = 'ok' | 'warn' | 'err';
 /** toast 里的一个操作按钮（如「撤销」）；带按钮的 toast 停留更久 */
 export interface ToastAction {label: string; run(): void}
 
+export type ShelfSortChoice = SortMode | 'old' | 'listed-old';
+export type ShelfSortChoices = {base: ShelfSortChoice; listed: ShelfSortChoice};
+
 export interface AppCtx {
   state: AppState;
   modules: ModuleFlags;
   page: string;
   query: string; setQuery(v: string): void;
-  sort: SortMode; setSort(v: SortMode): void;
-  flip: boolean; setFlip(v: boolean): void;
+  shelfSort: ShelfSortChoices; setShelfSort(v: ShelfSortChoices): void;
   tradeFilter: string; setTradeFilter(v: string): void;
   shelfFilter: string; setShelfFilter(v: string): void;
   shelfView: 'list' | 'cards'; setShelfView(v: 'list' | 'cards'): void;

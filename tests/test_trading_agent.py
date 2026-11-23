@@ -11,6 +11,7 @@ import threading
 import unittest
 
 from app import build
+from domain import ConflictError
 from server import make_handler
 from storage import Store
 from tools.seed_samples import seed
@@ -112,6 +113,23 @@ class TradingAgentTests(unittest.TestCase):
         self.assertEqual((final['receivedDate'], final['items'][0]['net']), (SETTLED, '80.00'))
         actions = [r['action'] for r in self.store.backup()['audit']]
         self.assertEqual(actions.count('销售 receive'), 2)  # 样本已有一笔
+
+    def test_editing_listing_details_preserves_receipt_time_and_product_owner(self):
+        receipt = self.post(RECEIPTS, self.receipt())
+        self.store.bulk({'action': 'list', 'ids': [self.ids['dookie-jp']]})
+        def order():
+            return {r['id']: r.get('listingOrder') for r in self.store.state()['records'] if r.get('listed')}
+
+        before = order()
+        self.store.save_listing_details({'mode': 'edit', 'entries': [
+            {'id': self.ids['lift-fists'], 'revision': receipt['revision'],
+             'channel': '示例二手平台', 'url': 'https://example.com/listings/copy'}]})
+        self.assertEqual(order(), before)
+        other = self.record('minecraft')
+        with self.assertRaises(ConflictError):
+            self.store.save_listing_details({'mode': 'list', 'entries': [
+                {'id': other['id'], 'revision': other['revision'], 'channel': '闲鱼', 'url': receipt['url']}]})
+        self.post(ORDERS, PAYMENT, 409)
 
     def test_duplicate_order_and_out_of_order_events(self):
         self.post(RECEIPTS, self.receipt())

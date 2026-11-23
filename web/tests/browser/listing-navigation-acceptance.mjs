@@ -58,13 +58,12 @@ async function verifyMobile(context, filename) {
   assert.equal(await page.getByRole('option', {name: '最近上架', exact: true}).count(), 0);
   await sort.press('Escape');
   await filter.getByRole('button', {name: '已上架', exact: true}).tap();
+  assert.match(await sort.textContent(), /最近上架/u);
+  assert.deepEqual(await order(), [newer.id, older.id]);
   await sort.tap();
   await settle(page, ['.dd-list', '.shelf-page .grid']);
   assert.deepEqual(errors, []);
   await page.screenshot({caret: 'initial', path: join(output, `${filename}-sort.png`)});
-  await pick('最近上架');
-  assert.deepEqual(await order(), [newer.id, older.id]);
-  await sort.tap();
   await pick('最早上架');
   assert.deepEqual(await order(), [older.id, newer.id]);
   await page.getByRole('button', {name: '卡片视图'}).tap();
@@ -88,7 +87,7 @@ async function verifyMobile(context, filename) {
   await platformIcon.waitFor();
   assert.ok(await platformIcon.evaluate(async icon => {
     await icon.decode();
-    return icon.naturalWidth > 0 && icon.getBoundingClientRect().width === 16;
+    return icon.naturalWidth > 0 && getComputedStyle(icon).width === '16px';
   }));
   assert.ok(await button.evaluate(el => {
     const style = getComputedStyle(el);
@@ -124,6 +123,45 @@ async function verifyMobile(context, filename) {
   assert.deepEqual(errors.filter(message => !filename.startsWith('webkit-') || message !== screenshotCsp), []);
 }
 
+async function verifyMobileBatchForm(context) {
+  const page = await context.newPage();
+  const titles = ['Shall We Dance? Shall We Talk!', "Larks' Tongues in Aspic"];
+  const links = ['https://example.com/listing/1010', 'https://example.com/listing/1011'];
+  await page.goto(base + '/#domestic');
+  await page.getByRole('button', {name: '选择', exact: true}).tap();
+  for (const title of titles) {
+    const checkbox = page.getByRole('checkbox', {name: `选择 ${title}`, exact: true});
+    await page.locator('label.select-lead').filter({has: checkbox}).tap();
+  }
+  await page.getByRole('toolbar', {name: '批量操作'}).getByRole('button', {name: '标记上架', exact: true}).tap();
+  await page.getByRole('heading', {name: '批量上架', exact: true}).waitFor();
+  const form = page.locator('#listing-form');
+  const enter = async (field, label, value) => {
+    await field.tap();
+    const focus = page.getByRole('dialog', {name: label, exact: true});
+    await focus.getByRole('textbox').fill(value);
+    await focus.getByRole('button', {name: '完成', exact: true}).tap();
+  };
+  await enter(form.getByLabel('平台', {exact: true}), '平台', '示例二手平台');
+  for (const [index, title] of titles.entries()) {
+    const copy = form.locator('.form-section').filter({hasText: title});
+    await enter(copy.getByLabel('商品链接', {exact: true}), '商品链接', links[index]);
+  }
+  await settle(page, ['#panel', '#listing-form']);
+  await page.screenshot({caret: 'initial', path: join(output, 'listing-batch-mobile.png')});
+  const [reply] = await Promise.all([
+    page.waitForResponse(response => new URL(response.url()).pathname === '/api/listing/details'),
+    form.getByRole('button', {name: '确认上架', exact: true}).tap(),
+  ]);
+  assert.equal(reply.status(), 200);
+  const {records: current} = await (await fetch(base + '/api/state')).json();
+  for (const [index, title] of titles.entries()) {
+    const record = current.find(r => r.title === title);
+    assert.deepEqual([record.listed, record.listingChannel, record.listingUrl], [true, '示例二手平台', links[index]]);
+  }
+  await page.close();
+}
+
 for (const engine of engines) {
   const browser = await engine.launch({headless: true});
   try {
@@ -134,6 +172,7 @@ for (const engine of engines) {
       const context = fastFail(await browser.newContext({...devices['iPhone 13'],
         viewport: {width, height: 844}, deviceScaleFactor: 2, colorScheme}));
       await verifyMobile(context, `${engine.name()}-${width}-${colorScheme}`);
+      if (engine === chromium && width === 390 && colorScheme === 'light') await verifyMobileBatchForm(context);
       await context.close();
     }
   } catch (error) {
@@ -141,4 +180,4 @@ for (const engine of engines) {
     throw error;
   } finally {await browser.close();}
 }
-console.log('长按菜单、App 唤起与网页回退、上架顺序通过：' + engines.map(engine => engine.name()).join('、'));
+console.log('长按菜单、App 跳转、默认上架顺序与手机批量填报通过：' + engines.map(engine => engine.name()).join('、'));

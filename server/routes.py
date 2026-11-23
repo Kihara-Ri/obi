@@ -359,6 +359,7 @@ def api_records(h, svc, body, *, metadata_only=False):
 def api_bulk(h, svc, body):
     h.send(svc.store.bulk(body))
     prewarm(svc)
+def api_listing_details(h, svc, body): h.send(svc.store.save_listing_details(body))
 def api_sales(h, svc, body): financial_command(h, svc, body, 'sell')
 def api_sale_action(h, svc, body): h.send(svc.store.sale_action(body))
 def api_sale_update(h, svc, body): financial_command(h, svc, body, 'update_sale')
@@ -646,6 +647,7 @@ POST = {
     '/api/login': (api_login, False, False),
     '/api/logout': (api_logout, True, False),
     '/api/password': (api_password, True, True),
+    '/api/listing/details': (api_listing_details, True, True),
     '/api/listing/agent/receipts': (api_listing_receipt, authorize_trading_agent, True),
     '/api/trading/agent/orders': (api_paid_order, authorize_trading_agent, True),
     '/api/trading/agent/settlements': (api_order_settlement, authorize_trading_agent, True),

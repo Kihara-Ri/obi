@@ -169,6 +169,24 @@ def clean_listing(data):
     return {'listingChannel': channel, 'listingUrl': url}
 
 
+def clean_listing_details(data):
+    if not isinstance(data, dict) or set(data) != {'mode', 'entries'} or data['mode'] not in ('list', 'edit'):
+        raise ValidationError('上架资料格式不正确')
+    entries = data['entries']
+    if not isinstance(entries, list) or not entries:
+        raise ValidationError('请先选择专辑')
+    result = {}
+    for entry in entries:
+        if (not isinstance(entry, dict) or set(entry) != {'id', 'revision', 'channel', 'url'}
+                or not all(isinstance(entry[k], str) for k in ('id', 'channel', 'url'))
+                or not entry['id'] or type(entry['revision']) is not int or entry['revision'] < 0):
+            raise ValidationError('上架资料格式不正确')
+        if entry['id'] in result:
+            raise ValidationError('上架副本重复')
+        result[entry['id']] = (entry['revision'], clean_listing(entry))
+    return data['mode'], result
+
+
 def number(value, name='金额', optional=False):
     if value in ('', None):
         if optional: return None
@@ -210,7 +228,7 @@ def clean_record(data):
     if r['currency'] == 'CNY': r['actual'] = ''
     r.pop('rate', None)
     r.pop('rateSource', None)
-    r.pop('listed', None)  # 上架标记只经 storage.bulk 的 list/unlist 写入，表单通道不可改
+    r.pop('listed', None)  # 普通专辑保存不写上架标记与资料，由上架事务处理
     r.pop('listingChannel', None)
     r.pop('listingUrl', None)
     r.pop('listingOrder', None)

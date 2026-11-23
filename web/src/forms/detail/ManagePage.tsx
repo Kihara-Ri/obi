@@ -8,6 +8,7 @@ import type {AppCtx} from '../../state/AppContext';
 import {fmt, fmtJPY, jpyCost, rmb, shipFeeText, yuan} from '../../core/format';
 import {SALE_NAMES} from '../../types';
 import {openPurchaseForm} from '../PurchaseForm';
+import {openListingForm} from '../ListingForm';
 import {Rows} from './Rows';
 import {FlowSection} from './FlowSection';
 
@@ -103,6 +104,10 @@ function ManageBody({id}: {id: string}) {
             }}>打开商品页面 ↗</button>
         ) : <a href={r.listingUrl} target="_blank" rel="noopener noreferrer">打开商品页面 ↗</a>},
       ]}/>
+      {r.listed && ['overseas', 'domestic'].includes(r.status) ? (
+        <button type="button" className="entry-btn" onClick={() => openListingForm(app, [id], {edit: true, back: '返回管理'})}>
+          编辑上架信息<Chevron dir="right"/></button>
+      ) : null}
     </> : null}
     {modules.circulation && shipment && shipment.status !== 'cancelled' ? <>
       <h3 className="section-title">运输</h3>

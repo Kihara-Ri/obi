@@ -5,6 +5,7 @@
 import {useEffect, useRef, useState} from 'react';
 import {useApp} from '../state/AppContext';
 import {openSaleForm} from '../forms/SaleForm';
+import {openListingForm} from '../forms/ListingForm';
 import {openShipForm} from '../forms/ShipForm';
 import {openJoinShipment} from '../forms/JoinShipmentForm';
 import {bulkAction} from '../forms/shared';
@@ -60,7 +61,7 @@ export function BulkBar({page, ids, allIds, isTrash}: {page: string; ids: string
     const listed = new Set(app.state.records.filter(r => r.listed).map(r => r.id));
     const on = sel.filter(id => listed.has(id)), off = sel.filter(id => !listed.has(id));
     const mixed = on.length > 0 && off.length > 0;
-    if (off.length || none) add(mixed ? `上架 ${off.length} 张` : '标记上架', () => bulkAction(app, 'list', off, `已标记上架 ${off.length} 张`));
+    if (off.length || none) add(mixed ? `上架 ${off.length} 张` : '标记上架', () => openListingForm(app, off));
     if (on.length) add(mixed ? `下架 ${on.length} 张` : '取消上架', () => bulkAction(app, 'unlist', on, `已取消上架 ${on.length} 张`));
   }
   if (page === 'domestic' && modules.circulation) add('调回海外', () => bulkAction(app, 'to_overseas', sel, '已调回海外', {action: 'undo_to_overseas'}));

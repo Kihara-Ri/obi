@@ -19,6 +19,7 @@ from tools.seed_samples import open_store, seed_legacy_listing_copy, seed_listin
 
 
 PACKAGE = '/api/listing/agent/package'
+DETAILS = '/api/listing/details'
 
 
 class ListingRouteTests(unittest.TestCase):
@@ -73,6 +74,7 @@ class ListingRouteTests(unittest.TestCase):
         self.assertEqual(self.request(search, agent='wrong')[0], 401)
         self.assertEqual(self.request(search, agent=self.token, origin='https://other.test')[0], 403)
         self.assertEqual(self.request('/api/state', agent=self.token)[0], 401)
+        self.assertEqual(self.request(DETAILS, {}, agent=self.token)[0], 401)
         self.assertEqual(self.request('/api/listing/agent/receipts', {}, agent=self.token)[0], 404)
         for path in ('/api/listing/status', '/api/listing/agent/copies', '/api/listing/agent/materials',
                      '/api/listing/agent/photos', '/api/listing/photos'):
@@ -81,6 +83,49 @@ class ListingRouteTests(unittest.TestCase):
             self.assertEqual(self.request(path, {}, browser=True)[0], 404)
         self.services.listing_agent_secret = None
         self.assertEqual(self.request(search, agent=self.token)[0], 404)
+
+    def test_manual_listing_details_use_browser_session_and_preserve_order(self):
+        rid = self.ids['minecraft']
+        def record():
+            return next(row for row in self.store.state()['records'] if row['id'] == rid)
+
+        original = record()
+        entry = {'id': rid, 'revision': original['revision'], 'channel': ' 闲鱼 ',
+                 'url': 'https://www.goofish.com/item?id=1006'}
+        data = {'mode': 'list', 'entries': [entry]}
+        self.assertEqual(self.request(DETAILS, data)[0], 401)
+        self.assertEqual(self.request(DETAILS, data, browser=True)[0], 200)
+        listed = record()
+        self.assertTrue(listed['listed'])
+        self.assertEqual((listed['listingChannel'], listed['listingUrl'], listed['xianyuItemId']),
+                         ('闲鱼', entry['url'], '1006'))
+        self.store.bulk({'action': 'list', 'ids': [self.ids['dookie-jp']]})
+
+        data = {'mode': 'edit', 'entries': [{**entry, 'revision': listed['revision'],
+                                          'channel': '示例二手平台', 'url': ''}]}
+        self.assertEqual(self.request(DETAILS, data, browser=True)[0], 200)
+        changed = record()
+        self.assertEqual((changed['listingChannel'], changed['listingUrl']), ('示例二手平台', ''))
+        self.assertNotIn('xianyuItemId', changed)
+        self.assertEqual((changed['listed'], changed['listingOrder']), (True, listed['listingOrder']))
+        self.assertEqual(changed['revision'], listed['revision'] + 1)
+        self.assertEqual(self.request(DETAILS, data, browser=True)[0], 409)
+
+    def test_batch_listing_rolls_back_conflict_and_saves_distinct_links(self):
+        copies = [self.ids['minecraft'], self.ids['dookie-jp']]
+        def records():
+            return {row['id']: row for row in self.store.state()['records'] if row['id'] in copies}
+
+        url = 'https://www.goofish.com/item?id=1007'
+        entries = [{'id': rid, 'revision': r['revision'], 'channel': '闲鱼', 'url': url}
+                   for rid, r in records().items()]
+        data = {'mode': 'list', 'entries': entries}
+        self.assertEqual(self.request(DETAILS, data, browser=True)[0], 409)
+        self.assertTrue(all(not r.get('listed') for r in records().values()))
+        entries[1]['url'] = 'https://www.goofish.com/item?id=1008'
+        self.assertEqual(self.request(DETAILS, data, browser=True)[0], 200)
+        self.assertEqual({r['xianyuItemId'] for r in records().values()}, {'1007', '1008'})
+        self.assertTrue(all(r['listed'] for r in records().values()))
 
     def test_search_preserves_disambiguation_and_exact_catalog_numbers(self):
         _, data, _ = self.request(PACKAGE + '?q=Green+Day+Dookie', agent=self.token)
