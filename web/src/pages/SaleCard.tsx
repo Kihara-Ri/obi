@@ -62,7 +62,7 @@ export function SaleCard({s, onArtist, onEditCosts}: {s: Sale; onArtist: (artist
         {badge}
         <span className="when info">
           {/* 售出平台用品牌图标（与买入渠道同一套 ShopMark），读屏与长按悬停仍给出平台名 */}
-          {s.channel ? <span className="sale-channel" role="img" aria-label={`平台 ${s.channel}`} title={s.channel}><ShopMark name={s.channel}/></span> : null}
+          {s.channel ? <span className="shop-mark-inline" role="img" aria-label={`平台 ${s.channel}`} title={s.channel}><ShopMark name={s.channel}/></span> : null}
           {/* 每项整体不断开（单号不会被拆成两行），只在「 · 」处折行 */}
           {info.map((x, k) => <span key={k}>{k ? ' · ' : ''}<span className="nowrap">{x}</span></span>)}
         </span>

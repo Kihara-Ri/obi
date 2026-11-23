@@ -84,6 +84,12 @@ async function verifyMobile(context, filename) {
   const rows = manage.locator('dl').filter({has: page.getByText('链接', {exact: true})});
   assert.deepEqual(await rows.locator('dt').allTextContents(), ['状态', '平台', '链接']);
   assert.deepEqual(await rows.locator('dd').allTextContents(), ['已上架', '闲鱼', '打开商品页面 ↗']);
+  const platformIcon = rows.locator('.shop-mark-inline[aria-hidden="true"] img');
+  await platformIcon.waitFor();
+  assert.ok(await platformIcon.evaluate(async icon => {
+    await icon.decode();
+    return icon.naturalWidth > 0 && icon.getBoundingClientRect().width === 16;
+  }));
   assert.ok(await button.evaluate(el => {
     const style = getComputedStyle(el);
     return style.padding === '0px' && style.borderTopWidth === '0px' &&

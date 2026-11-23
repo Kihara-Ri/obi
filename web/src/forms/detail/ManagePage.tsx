@@ -2,6 +2,7 @@
 // 按用户的操作顺序排，不按字段排；流转操作放最底并保留原有的移除确认语义（回收站可恢复）。
 import {useEffect, useRef} from 'react';
 import {Chevron} from '../../components/ui/Chevron';
+import {ShopMark} from '../../components/ShopField';
 import {useApp} from '../../state/AppContext';
 import type {AppCtx} from '../../state/AppContext';
 import {fmt, fmtJPY, jpyCost, rmb, shipFeeText, yuan} from '../../core/format';
@@ -54,7 +55,7 @@ function ManageBody({id}: {id: string}) {
   const app = useApp();
   const {modules} = app;
   const r = app.rec(id);
-  const mobileItemId = isMobile() && r?.listingUrl ? r.xianyuItemId : undefined;
+  const mobileItemId = r?.listed && r.listingUrl && isMobile() ? r.xianyuItemId : undefined;
   const listingAttempt = useRef<AbortController | null>(null);
   useEffect(() => () => listingAttempt.current?.abort(), [mobileItemId]);
   if (!r) return null;
@@ -89,8 +90,11 @@ function ManageBody({id}: {id: string}) {
       <h3 className="section-title">上架</h3>
       <Rows rows={[
         {label: '状态', value: r.listed ? '已上架' : '未上架'},
-        {label: '平台', value: r.listingChannel || '未记录'},
-        {label: '链接', value: !r.listingUrl ? '未记录' : mobileItemId ? (
+        r.listed && {label: '平台', value: r.listingChannel ? <>
+          <span className="shop-mark-inline" aria-hidden="true"><ShopMark name={r.listingChannel}/></span>
+          <span>{r.listingChannel}</span>
+        </> : '未记录'},
+        r.listed && {label: '链接', value: !r.listingUrl ? '未记录' : mobileItemId ? (
           <button type="button" className="listing-entry" onContextMenu={e => e.preventDefault()}
             onClick={() => {
               if (listingAttempt.current && !listingAttempt.current.signal.aborted) return;

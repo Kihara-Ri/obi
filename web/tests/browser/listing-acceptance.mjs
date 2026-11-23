@@ -47,7 +47,9 @@ try {
   assert.equal(await panel.getByRole('heading', {name: '上架', exact: true}).count(), 1);
   const rows = panel.locator('dl').filter({has: listing.getByText('链接', {exact: true})});
   assert.deepEqual(await rows.locator('dt').allTextContents(), ['状态', '平台', '链接']);
-  assert.deepEqual(await rows.locator('dd').allTextContents(), ['已上架', '示例二手平台', '打开商品页面 ↗']);
+  assert.equal(await rows.locator('dd').first().textContent(), '已上架');
+  await rows.getByText('示例二手平台', {exact: true}).waitFor();
+  assert.equal(await rows.locator('.shop-mark-inline[aria-hidden="true"] .shop-letter').textContent(), '示');
   const savedUrl = 'https://example.com/listing/1002';
   assert.equal(await website.getAttribute('href'), savedUrl);
   await context.route(savedUrl, route => route.fulfill({body: '<title>固定样本商品</title>'}));
@@ -60,18 +62,22 @@ try {
   const unlisted = await openPage('domestic');
   await unlisted.getByRole('button', {name: 'Minecraft: Volume Alpha', exact: true}).click();
   await manage(unlisted);
-  const emptyRows = unlisted.locator('.detail-page dl').filter({has: unlisted.getByText('链接', {exact: true})});
-  await emptyRows.waitFor();
-  assert.deepEqual(await emptyRows.locator('dt').allTextContents(), ['状态', '平台', '链接']);
-  assert.deepEqual(await emptyRows.locator('dd').allTextContents(), ['未上架', '未记录', '未记录']);
-  assert.equal(await emptyRows.getByRole('link').count(), 0);
+  const unlistedSection = unlisted.locator('.detail-page');
+  await unlistedSection.getByRole('heading', {name: '上架', exact: true}).waitFor();
+  const unlistedRows = unlistedSection.locator('dl').filter({has: unlisted.getByText('未上架', {exact: true})});
+  assert.deepEqual(await unlistedRows.locator('dt').allTextContents(), ['状态']);
+  assert.deepEqual(await unlistedRows.locator('dd').allTextContents(), ['未上架']);
+  assert.equal(await unlistedSection.getByText('平台', {exact: true}).count(), 0);
+  assert.equal(await unlistedSection.getByText('链接', {exact: true}).count(), 0);
+  await settle(unlisted, ['#panel', '.detail-page']);
+  await unlisted.screenshot({path: join(output, 'listing-unlisted.png')});
 
   const settings = await openPage('settings');
   await settings.getByRole('button', {name: '账户', exact: true}).click();
   await settings.getByRole('heading', {name: '登录与安全', exact: true}).waitFor();
   assert.equal(await settings.getByText('已连接服务', {exact: true}).count(), 0);
   assert.deepEqual(errors, []);
-  console.log('原图包、上架三行、历史商品链接和账户页面通过');
+  console.log('原图包、上架字段与平台图标、历史商品链接和账户页面通过');
 } catch (error) {
   await reportFailure(browser, output, 'listing');
   throw error;

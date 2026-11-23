@@ -3,9 +3,6 @@
 .sale-top{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
 .sale-top .when{color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums}
 .sale-top .spacer{flex:1}
-/* 售出平台图标：放在日期前，与一行文字同高 */
-.sale-channel{display:inline-flex;vertical-align:-3px;margin-right:6px}
-.sale-channel img,.sale-channel .shop-letter{width:16px;height:16px;border-radius:4px}
 /* 售出中统计卡片：两个大数字并排，下面一行笔数与待处理提示 */
 .summary.sale-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;padding:14px 18px}
 .sale-metric{display:flex;flex-direction:column;gap:2px;min-width:0}
