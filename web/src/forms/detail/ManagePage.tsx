@@ -1,5 +1,6 @@
 // 管理页（详情的二级页）：买入信息、备注、上架状态与链接、运输、交易历史及流转。
 // 按用户的操作顺序排，不按字段排；流转操作放最底并保留原有的移除确认语义（回收站可恢复）。
+import {useEffect, useRef} from 'react';
 import {Chevron} from '../../components/ui/Chevron';
 import {useApp} from '../../state/AppContext';
 import type {AppCtx} from '../../state/AppContext';
@@ -14,10 +15,28 @@ function isMobile() {
   return /Android|iPhone|iPad|iPod/.test(userAgent) || (platform === 'MacIntel' && maxTouchPoints > 1);
 }
 
-function openXianyuItem(itemId: string) {
-  // Keep the link out of the long-press hit target, but navigate in the tap's activation.
+function openXianyuItem(itemId: string, attempt: AbortController) {
+  const id = encodeURIComponent(itemId);
+  const {signal} = attempt;
+  const cancel = () => attempt.abort();
+  const fallback = () => {
+    if (document.hidden) { cancel(); return; }
+    // 系统的「打开 App」确认框可能在切换应用之前先让网页失焦。
+    if (!document.hasFocus()) {
+      window.addEventListener('focus', fallback, {once: true, signal});
+      return;
+    }
+    cancel();
+    window.location.assign(`https://h5.m.goofish.com/item?id=${id}`);
+  };
+  const timer = window.setTimeout(fallback, 1500);
+  signal.addEventListener('abort', () => window.clearTimeout(timer), {once: true});
+  document.addEventListener('visibilitychange', () => { if (document.hidden) cancel(); }, {signal});
+  window.addEventListener('pagehide', cancel, {signal});
+
+  // 在原始点按手势内走闲鱼 App 的商品入口，避免先加载商品网页。
   const link = document.createElement('a');
-  link.href = `https://h5.m.goofish.com/item?id=${encodeURIComponent(itemId)}`;
+  link.href = `fleamarket://awesome_detail?id=${id}&flutter=true`;
   link.rel = 'noreferrer';
   link.hidden = true;
   document.body.append(link);
@@ -35,12 +54,14 @@ function ManageBody({id}: {id: string}) {
   const app = useApp();
   const {modules} = app;
   const r = app.rec(id);
+  const mobileItemId = isMobile() && r?.listingUrl ? r.xianyuItemId : undefined;
+  const listingAttempt = useRef<AbortController | null>(null);
+  useEffect(() => () => listingAttempt.current?.abort(), [mobileItemId]);
   if (!r) return null;
   const sales = app.state.sales.filter(s => s.items.some(i => i.recordId === id));
   const shipment = r.shipmentId ? app.state.shipments.find(s => s.id === r.shipmentId) : undefined;
   const shipItem = shipment?.items.find(i => i.recordId === id);
   const approx = jpyCost(r);
-  const mobileItemId = isMobile() ? r.xianyuItemId : undefined;
   return <div className="detail-page">
     <Rows rows={[{label: '录入时间', value: r.createdAt?.replace('T', ' ') || '未记录'}]}/>
     {modules.acquisition ? <>
@@ -71,7 +92,11 @@ function ManageBody({id}: {id: string}) {
         {label: '平台', value: r.listingChannel || '未记录'},
         {label: '链接', value: !r.listingUrl ? '未记录' : mobileItemId ? (
           <button type="button" className="listing-entry" onContextMenu={e => e.preventDefault()}
-            onClick={() => openXianyuItem(mobileItemId)}>打开商品页面 ↗</button>
+            onClick={() => {
+              if (listingAttempt.current && !listingAttempt.current.signal.aborted) return;
+              listingAttempt.current = new AbortController();
+              openXianyuItem(mobileItemId, listingAttempt.current);
+            }}>打开商品页面 ↗</button>
         ) : <a href={r.listingUrl} target="_blank" rel="noopener noreferrer">打开商品页面 ↗</a>},
       ]}/>
     </> : null}

@@ -18,6 +18,7 @@ assert.equal(newer.listingChannel, '闲鱼');
 assert.equal(newer.listed, true);
 assert.ok(!('listingDescription' in newer) && !('listingDraft' in newer));
 const mobileUrl = 'https://h5.m.goofish.com/item?id=1004';
+const appUrl = 'fleamarket://awesome_detail?id=1004&flutter=true';
 const engines = process.env.OBI_LISTING_WEBKIT === '1' ? [chromium, webkit] : [chromium];
 const screenshotCsp = "Refused to apply a stylesheet because its hash, its nonce, or 'unsafe-inline' does not appear in the style-src directive of the Content Security Policy.";
 
@@ -29,7 +30,22 @@ async function verifyMobile(context, filename) {
   page.on('console', message => {if (message.type() === 'error') errors.push(message.text());});
   await context.route(mobileUrl, route => {
     opened++;
-    return route.fulfill({body: '<title>固定样本商品</title>'});
+    return route.fulfill({contentType: 'text/html', body: '<h1>Sample product</h1>'});
+  });
+  await page.addInitScript(() => {
+    // 无 App 分支让浏览器实际尝试未注册的协议。有 App 分支模拟系统切到后台再返回。
+    const click = HTMLAnchorElement.prototype.click;
+    window.xianyuAttempts = [];
+    window.xianyuInstalled = true;
+    HTMLAnchorElement.prototype.click = function () {
+      if (this.protocol !== 'fleamarket:') return click.call(this);
+      window.xianyuAttempts.push({url: this.href, activated: navigator.userActivation?.isActive});
+      if (!window.xianyuInstalled) return click.call(this);
+      Object.defineProperty(document, 'hidden', {configurable: true, value: true});
+      document.dispatchEvent(new Event('visibilitychange'));
+      delete document.hidden;
+      document.dispatchEvent(new Event('visibilitychange'));
+    };
   });
   await page.goto(base + '/#overseas');
   const filter = page.getByRole('group', {name: '上架筛选'});
@@ -83,8 +99,21 @@ async function verifyMobile(context, filename) {
   await settle(page, ['#panel', '.detail-page', '.listing-entry']);
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await page.screenshot({caret: 'initial', path: join(output, `${filename}-manage.png`)});
-  await Promise.all([page.waitForURL(mobileUrl, {timeout: STEP_TIMEOUT}), button.tap()]);
+  await page.clock.install();
+  await button.tap();
+  assert.deepEqual(await page.evaluate(() => window.xianyuAttempts), [{url: appUrl, activated: true}]);
+  await page.clock.runFor(2000);
+  assert.equal(opened, 0, '返回 Obi 后也不应再打开商品网页');
+  assert.equal(page.url(), base + '/#overseas');
+  assert.equal(context.pages().length, 1, '唤起 App 不另开标签页');
+
+  await page.evaluate(() => {window.xianyuInstalled = false;});
+  // WebKit may report a canceled navigation for the native scheme before requesting the HTTPS fallback.
+  await Promise.all([page.waitForRequest(mobileUrl, {timeout: STEP_TIMEOUT}), button.tap()]);
+  await page.getByRole('heading', {name: 'Sample product', exact: true}).waitFor();
+  assert.equal(page.url(), mobileUrl);
   assert.equal(opened, 1);
+  assert.equal(context.pages().length, 1, '网页回退不另开标签页');
   // WebKit 的截图实现有时会注入临时光标样式，站点 CSP 会拒绝它。
   assert.deepEqual(errors.filter(message => !filename.startsWith('webkit-') || message !== screenshotCsp), []);
 }
@@ -106,4 +135,4 @@ for (const engine of engines) {
     throw error;
   } finally {await browser.close();}
 }
-console.log('长按菜单、商品跳转目标及上架顺序通过：' + engines.map(engine => engine.name()).join('、'));
+console.log('长按菜单、App 唤起与网页回退、上架顺序通过：' + engines.map(engine => engine.name()).join('、'));
