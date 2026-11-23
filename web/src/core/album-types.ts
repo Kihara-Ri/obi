@@ -124,8 +124,6 @@ export interface AlbumRecord {
   rawRemark?: string;
   storage?: string;         // 实物存放位置，与购买渠道 location 分开
   releaseInfo?: ReleaseInfo;
-  listingDescription?: string;
-  listingDraft?: {title: string; description: string};
 }
 
 export interface ReleaseTrack {
@@ -147,13 +145,6 @@ export interface ReleaseInfo {
   manualRelease?: string; unofficial?: string; label?: string; country?: string;
   releaseDate?: string; edition?: string; packaging?: string; format?: string; discCount?: string;
   matrix?: string; extras?: string; observations?: string; tracklist?: string[]; media?: ReleaseMedium[];
-}
-
-/** 上架描述用到的专辑字段（原 RecognitionFields）。 */
-export interface ListingFields {
-  title?: string; artist?: string; price?: string; version?: string; pressing?: string;
-  obi?: string; note?: string; releaseInfo?: ReleaseInfo; listingDescription?: string;
-  cover?: string; coverSource?: CoverSource;
 }
 
 export interface ReleaseCandidate {

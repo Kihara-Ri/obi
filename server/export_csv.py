@@ -42,7 +42,7 @@ def sales_csv(state):
 def albums_csv(state):
     rows = [['专辑', '艺人', '状态', '上架', '购买日期', '渠道', '碟盒', '版次', '侧标', '币种',
              '买入金额', '100日元兑人民币', '实际人民币支出', '额外买入费用', '人民币成本', '笔记', '存放位置', '上架平台', '商品链接',
-             '唱片编号', '条码', '厂牌', '发行地区', '本版发行日期', '发行版本', '介质', '碟数', '内圈刻码', '可见附件', '照片可见情况', '曲目', '上架描述']]
+             '唱片编号', '条码', '厂牌', '发行地区', '本版发行日期', '发行版本', '介质', '碟数', '内圈刻码', '可见附件', '照片可见情况', '曲目']]
     for r in state['records']:
         release = r.get('releaseInfo', {})
         rows.append([_cell(v) for v in [
@@ -52,5 +52,5 @@ def albums_csv(state):
             r.get('currency'), r.get('price'), r.get('rate'), r.get('actual'),
             r.get('fees'), r.get('cost'), r.get('note'), r.get('storage'), r.get('listingChannel'), r.get('listingUrl'),
             *[release.get(k) for k in ('catalogNumber','barcode','label','country','releaseDate','edition','format','discCount','matrix','extras','observations')],
-            '\n'.join(release.get('tracklist',[])), r.get('listingDescription')]])
+            '\n'.join(release.get('tracklist',[]))]])
     return _csv_bytes(rows)

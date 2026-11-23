@@ -1,4 +1,4 @@
-"""售卖草稿协议：保留观察来源与人工确认，不参与库存/金额语义。"""
+"""售卖照片顺序与历史准备资料的校验。"""
 from domain import ValidationError
 
 
@@ -14,12 +14,6 @@ def photo_order(value, count=30):
             or len(set(value)) != len(value)):
         raise ValidationError('照片选择无效，请重新选择')
     return list(value)
-
-
-def has_listing_copy(record):
-    saved = record.get('listingDraft') or {}
-    return any(str(value or '').strip() for value in
-               (saved.get('title'), saved.get('description'), record.get('listingDescription')))
 
 
 def clean_analysis(value):
@@ -60,11 +54,10 @@ def clean_analysis(value):
     return out
 
 
-def clean_draft(value):
-    if not isinstance(value, dict): raise ValidationError('售卖草稿格式无效')
+def clean_listing_preparation(value):
+    if not isinstance(value, dict): raise ValidationError('历史上架准备资料格式无效')
     out = {key: text(value.get(key, ''), limit) for key, limit in
-           (('title', 500), ('description', 50000), ('versionText', 3000),
-            ('conditionText', 6000), ('selectedRelease', 100))}
+           (('versionText', 3000), ('conditionText', 6000), ('selectedRelease', 100))}
     out['photoOrder'] = photo_order(value.get('photoOrder'))
     revision = value.get('photoRevision')
     if type(revision) is not int or revision < 0: raise ValidationError('照片版本无效')

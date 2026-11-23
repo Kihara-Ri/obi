@@ -6,7 +6,7 @@ import re
 from zipfile import ZipFile
 
 from domain import ConflictError, ValidationError
-from domain_listing import has_listing_copy, photo_order, text
+from domain_listing import photo_order, text
 from .agent_auth import authorize_agent, load_secret
 from .listing_context import public_context
 from .listing_photos import listing_record, read_photos
@@ -101,7 +101,7 @@ def _package(store, params):
         raise ValidationError('打包模式只接受 id、order、photoRevision 和 photos')
     rid = params['id']
     record = listing_record(store, rid)
-    saved = record.get('listingDraft') or {}
+    saved = record.get('listingPreparation') or {}
     order = _package_order(params, record, saved)
     revision = record.get('photoRevision', 0)
     images = []
@@ -109,13 +109,9 @@ def _package(store, params):
         snapshot, images = read_photos(store, rid, order, revision)
         if snapshot['revision'] != record['revision']:
             raise ConflictError('副本已变更，请重新获取资料包')
-    draft = None
-    if has_listing_copy(record):
-        draft = {'title': saved.get('title', ''),
-                 'description': saved.get('description') or record.get('listingDescription', '')}
     manifest = {'id': rid, 'revision': record['revision'], 'photoRevision': revision,
                 'photoCount': record.get('photoCount', 0), 'photoOrder': order, 'photos': [],
-                'listed': bool(record.get('listed')), 'facts': public_context(record), 'draft': draft}
+                'listed': bool(record.get('listed')), 'facts': public_context(record)}
     output = io.BytesIO()
     with ZipFile(output, 'w') as archive:
         for position, (index, extension, content) in enumerate(images, 1):

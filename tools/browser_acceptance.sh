@@ -40,6 +40,8 @@ step "复制一份干净实例到 ${RUN}/instance"
 if [ "$(uname)" = Darwin ]; then cp -Rc "${HOME_DIR}/instance" "${RUN}/instance"; else cp -R "${HOME_DIR}/instance" "${RUN}/instance"; fi
 seed() { python3 -c "import sys; from pathlib import Path; import tools.seed_samples as s; getattr(s, sys.argv[1])(Path(sys.argv[2]))" "$1" "${RUN}/instance"; }
 seed seed_listing_reference_photos
+seed seed_listing_navigation
+seed seed_legacy_listing_copy
 
 step "启动固定样本验收服务"
 python3 tests/serve_listing_acceptance.py --data-dir "${RUN}/instance" > "${RUN}/server.log" 2>&1 &
@@ -62,7 +64,6 @@ fail() {
 }
 step "上架记录与照片下载验收"
 LISTING_ACCEPTANCE_URL="$url" node web/tests/browser/listing-acceptance.mjs || fail "上架记录与照片下载验收"
-seed seed_listing_navigation
 step "商品入口与上架排序验收"
 LISTING_ACCEPTANCE_URL="$url" node web/tests/browser/listing-navigation-acceptance.mjs || fail "商品入口与上架排序验收"
 printf '\n✓ 上架记录、商品入口、排序与照片下载验收通过（截图：%s）\n' "$OBI_PREVIEW_SCREENSHOTS"

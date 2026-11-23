@@ -17,6 +17,7 @@ from domain import ValidationError, ConflictError, clean_record, clean_release_i
 from decimal import Decimal
 import financial_rates
 import domain_trade_sync as trade_sync
+from domain_listing import clean_listing_preparation
 from photo_uploads import staged_bytes
 from twins import TWIN_KEY, SKILL_VERSION, ID as TWIN_ID, ASSET as TWIN_ASSET, UUID as TWIN_RELEASE_ID, appearance, same_appearance, clean_barcode, clean_registry, image_type, entity_assets
 
@@ -94,6 +95,42 @@ def _strip_cover_blobs(x):
         for v in x: hit = _strip_cover_blobs(v) or hit
     return hit
 
+def _strip_listing_copy(value):
+    """Discard the retired copy, keeping the historical photo selection and other preparation facts."""
+    changed = False
+    if isinstance(value, dict):
+        changed = 'listingDescription' in value or 'listingDraft' in value
+        value.pop('listingDescription', None)
+        draft = value.pop('listingDraft', None)
+        if isinstance(draft, dict):
+            preparation = {key: item for key, item in draft.items() if key not in ('title', 'description')}
+            if preparation:
+                existing = value.get('listingPreparation')
+                if isinstance(existing, dict):
+                    preparation.update(existing)
+                value['listingPreparation'] = preparation
+        preparation = value.get('listingPreparation')
+        if isinstance(preparation, dict):
+            for key in ('title', 'description'):
+                if key in preparation:
+                    del preparation[key]
+                    changed = True
+        children = value.values()
+    elif isinstance(value, list):
+        children = value
+    else:
+        return False
+    for child in children:
+        changed = _strip_listing_copy(child) or changed
+    return changed
+
+def _without_listing_copy(raw):
+    try:
+        document = json.loads(raw)
+    except (TypeError, ValueError):
+        return raw
+    return dumps(document) if _strip_listing_copy(document) else raw
+
 def uid(): return uuid.uuid4().hex
 
 def now(): return datetime.now().isoformat(timespec='seconds')
@@ -170,31 +207,44 @@ class Store:
         db.execute(sql,(r['id'],dumps(r)))
     def audit(self, db, action, data):
         db.execute('INSERT INTO audit(at,action,data) VALUES(?,?,?)',(now(),action,dumps(data)))
+    def _retire_listing_copy(self, db):
+        changed = False
+        for table in ('records', 'audit'):
+            rows = db.execute(
+                f"SELECT id, data FROM {table} WHERE EXISTS (SELECT 1 FROM "
+                "json_tree(CASE WHEN json_valid(data) THEN data END) "
+                "WHERE key IN ('listingDescription', 'listingDraft'))").fetchall()
+            for ident, raw in rows:
+                cleaned = _without_listing_copy(raw)
+                if cleaned != raw:
+                    db.execute(f'UPDATE {table} SET data=? WHERE id=?', (cleaned, ident))
+                    changed = True
+        return changed
     def migrate(self):
-        """One-way upgrades; idempotent. Schema 3: shipments. Schema 4: covers to files."""
+        """Apply idempotent JSON cleanup and older schema upgrades."""
         with closing(self.connect()) as db, db:
             db.execute(f"DELETE FROM meta WHERE key IN {RETIRED_META}")  # 退役的 RYM 直达：历史绑定与令牌每次启动都清掉
+            changed = self._retire_listing_copy(db)
             version = db.execute("SELECT data FROM meta WHERE key='schema'").fetchone()
-            if version and json.loads(version[0]) >= SCHEMA: return
-            changed = False
-            for r in self.rows(db,'records'):
-                touched = False
-                if r.get('status') == 'review':
-                    r['status'] = 'domestic'; touched = True
-                if r.get('previousStatus') == 'review':
-                    r['previousStatus'] = 'domestic'; touched = True
-                for k in ('rate','rateSource'):
-                    if k in r: r.pop(k); touched = True
-                if isinstance(r.get('cover'),str) and r['cover'].startswith('data:image/'):
-                    self.stash_cover(r); touched = True
-                if touched: self.put(db,'records',r); changed = True
-            # 历史审计行里的封面快照是纯体积（base64 整图），只删数据 URL 形式的值
-            for aid,data in db.execute('SELECT id,data FROM audit').fetchall():
-                try: blob=json.loads(data)
-                except Exception: continue
-                if _strip_cover_blobs(blob):
-                    db.execute('UPDATE audit SET data=? WHERE id=?',(dumps(blob),aid)); changed = True
-            db.execute("INSERT OR REPLACE INTO meta VALUES('schema',?)",(dumps(SCHEMA),))
+            if not version or json.loads(version[0]) < SCHEMA:
+                for r in self.rows(db,'records'):
+                    touched = False
+                    if r.get('status') == 'review':
+                        r['status'] = 'domestic'; touched = True
+                    if r.get('previousStatus') == 'review':
+                        r['previousStatus'] = 'domestic'; touched = True
+                    for k in ('rate','rateSource'):
+                        if k in r: r.pop(k); touched = True
+                    if isinstance(r.get('cover'),str) and r['cover'].startswith('data:image/'):
+                        self.stash_cover(r); touched = True
+                    if touched: self.put(db,'records',r); changed = True
+                # 历史审计行里的封面快照是纯体积（base64 整图），只删数据 URL 形式的值
+                for aid,data in db.execute('SELECT id,data FROM audit').fetchall():
+                    try: blob=json.loads(data)
+                    except Exception: continue
+                    if _strip_cover_blobs(blob):
+                        db.execute('UPDATE audit SET data=? WHERE id=?',(dumps(blob),aid)); changed = True
+                db.execute("INSERT OR REPLACE INTO meta VALUES('schema',?)",(dumps(SCHEMA),))
         if changed: self.vacuum()
     def vacuum(self):
         db = sqlite3.connect(self.path, isolation_level=None)
@@ -271,6 +321,7 @@ class Store:
             for record in b['records']:
                 record.pop('listingOrder', None)
                 record.pop('xianyuItemId', None)
+                record.pop('listingPreparation', None)
                 item_id = trade_sync.listing_item_id(record)
                 if item_id:
                     record['xianyuItemId'] = item_id
@@ -677,13 +728,12 @@ class Store:
                     old=self.get(db,'records',item['id'])
                     if item.get('revision')!=old['revision']: raise ValidationError('记录已变更，请关闭详情并重新打开')
                     r=clean_record({**old,**item})
-                    for k in ('id','status','sourceId','original','saleId','shipmentId','previousStatus','createdAt','listed','listingChannel','listingUrl','listingDraft'):
+                    for k in ('id','status','sourceId','original','saleId','shipmentId','previousStatus','createdAt','listed','listingChannel','listingUrl','listingPreparation'):
                         if k in old: r[k]=old[k]
                         else: r.pop(k,None)
                     r['revision']=old['revision']+1
                     self.audit(db,'修改专辑',{'id':r['id'],'before':old})
                 else:
-                    item.pop('listingDraft', None)  # 草稿只经受交易模块保护的独立事务写入
                     r=clean_record({'currency': 'CNY', **item} if modules is not None and not modules['circulation'] else item)
                     status=r.get('status') if r.get('status') in ('overseas','domestic') else default_status(r['currency'])
                     if modules is not None and not modules['circulation']:
@@ -718,6 +768,7 @@ class Store:
                     if 'photoRevision' in old: r['photoRevision'] = old['photoRevision']
                 else: r['photoCount']=0
                 validate_packaging_photos(r)
+                _strip_listing_copy(r)
                 self.put(db,'records',r);result.append(r['id'])
                 # 专辑笔记在同专辑所有副本间共享：保存时传播给同名同艺人的其他记录
                 if item.get('id') and 'noteAlbum' in item:
@@ -742,40 +793,6 @@ class Store:
                 audit = [dict(r) for r in db.execute('SELECT * FROM audit ORDER BY id DESC LIMIT 100')][::-1]
             return {'ids': result, 'records': records, 'audit': audit}
         return {'ids':result}
-    def save_listing_draft(self, data, *, replace_existing=True):
-        """把售卖草稿及显式上架操作保存到当前副本。"""
-        from domain_listing import clean_draft, has_listing_copy, photo_order
-        draft = clean_draft(data.get('draft'))
-        mark = data.get('markListed', False)
-        if type(mark) is not bool: raise ValidationError('上架状态无效')
-        listing = data.get('listing', {})
-        if not isinstance(listing, dict): raise ValidationError('上架资料无效')
-        listing = clean_listing({'channel': listing.get('channel', ''), 'url': listing.get('url', '')}) if 'listing' in data else {}
-        with closing(self.connect()) as db, db:
-            db.execute('BEGIN IMMEDIATE')
-            self.require_module('trading', db)
-            r = self.get(db, 'records', data.get('id'))
-            if r['status'] not in ('domestic', 'overseas'):
-                raise ValidationError('只有库存中的副本可保存售卖草稿')
-            if data.get('revision') != r['revision']:
-                raise ValidationError('记录已变更，请关闭后重新打开')
-            if draft['photoRevision'] != r.get('photoRevision', 0):
-                raise ValidationError('照片已变更，请重新核对')
-            if not replace_existing and has_listing_copy(r):
-                raise ConflictError('已有上架草稿，请确认后再替换')
-            photo_order(draft['photoOrder'], r.get('photoCount', 0))
-            if draft.get('analysis') and draft['analysis']['photoRevision'] != draft['photoRevision']:
-                raise ValidationError('分析依据的照片已变更，请重新分析')
-            if draft.get('analysis'):
-                for row in draft['analysis']['identifiers'] + draft['analysis']['observations']:
-                    photo_order(row['photos'], r.get('photoCount', 0))
-            r.update(listingDraft=draft, listingDescription=draft['description'], revision=r['revision'] + 1)
-            if mark: _mark_listed(r, listing)
-            else: r.update(listing)
-            self.put(db, 'records', r)
-            self.audit(db, '保存并标记上架' if mark else '保存售卖草稿', {'id': r['id']})
-        return {'id': r['id'], 'revision': r['revision']}
-
     def _xianyu_listing_copy(self, db, item_id):
         copies = [r for r in self.rows(db, 'records') if trade_sync.listing_item_id(r) == item_id]
         if not copies:
@@ -1322,7 +1339,10 @@ class Store:
         if not isinstance(shipments,list): raise ValidationError('备份的运输数据无效')
         ids=set()
         for r in b['records']:
+            _strip_listing_copy(r)
             normalized=clean_record(r)
+            if 'listingPreparation' in r:
+                clean_listing_preparation(r['listingPreparation'])
             validate_packaging_photos(normalized)
             if 'packaging' in r:
                 if 'packaging' in normalized: r['packaging'] = normalized['packaging']
@@ -1365,7 +1385,9 @@ class Store:
             for r in b['records']: self.put(db,'records',r)
             for s in b['sales']: self.put(db,'sales',s)
             for sh in shipments: self.put(db,'shipments',sh)
-            for a in b.get('audit',[]): db.execute('INSERT INTO audit(at,action,data) VALUES(?,?,?)',(a['at'],a['action'],a['data']))
+            for a in b.get('audit',[]):
+                db.execute('INSERT INTO audit(at,action,data) VALUES(?,?,?)',
+                           (a['at'],a['action'],_without_listing_copy(a['data'])))
             for k,v in settings.items():
                 if k!='schema' and k not in RETIRED_META: db.execute('INSERT INTO meta VALUES(?,?)',(k,dumps(v)))
             db.execute("INSERT OR REPLACE INTO meta VALUES('schema',?)",(dumps(SCHEMA),))

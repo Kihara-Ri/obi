@@ -15,7 +15,7 @@ from urllib.parse import urlencode
 from security import Auth
 from server import Services, make_handler
 from server.listing_agent import load_agent_secret
-from tools.seed_samples import open_store, seed_listing_photos
+from tools.seed_samples import open_store, seed_legacy_listing_copy, seed_listing_photos
 
 
 PACKAGE = '/api/listing/agent/package'
@@ -93,18 +93,17 @@ class ListingRouteTests(unittest.TestCase):
         self.assertEqual(self.request(PACKAGE, agent=self.token)[0], 400)
         self.assertEqual(self.request(PACKAGE + '?id=bad&q=a', agent=self.token)[0], 400)
 
-    def test_package_preserves_historical_copy_order_and_original_bytes(self):
+    def test_package_preserves_historical_photo_order_and_original_bytes(self):
         rid = self.ids['lift-fists']
         manifest, original = self.package(id=rid)
-        self.assertIsNone(manifest['draft'])
+        self.assertNotIn('draft', manifest)
         self.assertEqual(set(manifest['facts']), {'album', 'release', 'copy'})
         self.assertEqual(manifest['photoOrder'], [0, 1])
         version = manifest['photoRevision']
-        self.store.save_listing_draft({'id': rid, 'revision': manifest['revision'], 'draft': {
-            'title': '历史标题', 'description': '历史正文', 'photoOrder': [1, 0],
-            'photoRevision': version, 'conditionConfirmed': False, 'versionConfirmed': False}})
+        seed_legacy_listing_copy(self.store.path.parent)
+        self.store.migrate()
         old, archive = self.package(id=rid)
-        self.assertEqual(old['draft'], {'title': '历史标题', 'description': '历史正文'})
+        self.assertNotIn('draft', old)
         self.assertEqual(old['photos'], [{'index': 1, 'file': 'photos/01.png'}, {'index': 0, 'file': 'photos/02.png'}])
         self.assertEqual(archive, original[::-1])
         selected, subset = self.package(id=rid, order='0', photoRevision=version)

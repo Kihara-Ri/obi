@@ -42,17 +42,19 @@ try {
   await listing.getByRole('button', {name: 'Parachutes', exact: true}).click();
   await manage(listing);
   const panel = listing.locator('.detail-page');
-  const website = panel.getByRole('button', {name: '打开商品网页', exact: true});
+  const website = panel.getByRole('link', {name: '打开商品页面 ↗', exact: true});
   await website.waitFor();
-  assert.equal(await panel.getByText('已上架', {exact: true}).count(), 0);
-  assert.equal(await panel.getByText('示例上架描述：碟面无划痕，附原装侧标。', {exact: true}).count(), 0);
-  assert.equal(await panel.getByRole('heading', {name: '上架', exact: true}).count(), 0);
+  assert.equal(await panel.getByRole('heading', {name: '上架', exact: true}).count(), 1);
+  const rows = panel.locator('dl').filter({has: listing.getByText('链接', {exact: true})});
+  assert.deepEqual(await rows.locator('dt').allTextContents(), ['状态', '平台', '链接']);
+  assert.deepEqual(await rows.locator('dd').allTextContents(), ['已上架', '示例二手平台', '打开商品页面 ↗']);
   const savedUrl = 'https://example.com/listing/1002';
+  assert.equal(await website.getAttribute('href'), savedUrl);
   await context.route(savedUrl, route => route.fulfill({body: '<title>固定样本商品</title>'}));
   const [popup] = await Promise.all([context.waitForEvent('page'), website.click()]);
   await popup.waitForURL(savedUrl);
   await popup.close();
-  await settle(listing, ['#panel', '.detail-page', '.listing-entry']);
+  await settle(listing, ['#panel', '.detail-page']);
   await listing.screenshot({path: join(output, 'listing-website.png')});
 
   const settings = await openPage('settings');

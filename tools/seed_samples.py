@@ -30,8 +30,8 @@
 
 seed_rate_review 为现有 Dookie 副本提供未缓存的虚构买入日期，验证账本先显示、汇率补取与失败重试；不增加副本或素材。
 
-seed_listing_navigation 为现有 lift-fists 和 tpab 副本登记虚构的闲鱼回执；
-lift-fists 同时保留一段历史长文案，供商品跳转、排序及管理页收起文案的验收。
+seed_listing_navigation 为现有 lift-fists 和 tpab 副本登记虚构的闲鱼回执。
+seed_legacy_listing_copy 在 lift-fists 及其审计历史中写入退役前的固定文案，供启动迁移验收。
 
 安全约束：只能写入 --data-dir 指定的目录；拒绝指向仓库 data/，拒绝覆盖已存在
 且非样本库的 albums.sqlite3；已灌过的目录幂等跳过。写入全部走 storage.py 的
@@ -228,15 +228,13 @@ def seed(data_dir):
     result = store.save({'items': [dict(item) for _, item in RECORDS]})
     ids = {key: rid for (key, _), rid in zip(RECORDS, result['ids'])}
 
-    # 售出中：上架（带渠道/链接/描述）→ 成交，停在买家未确认收货
+    # 售出中：上架（带渠道和链接）→ 成交，停在买家未确认收货
     store.bulk({'ids': [ids['m83']], 'action': 'list',
-                'listing': {'channel': '示例二手平台', 'url': 'https://example.com/listing/1001',
-                            'description': '示例上架描述：全程箱装，碟面无划痕。'}})
+                'listing': {'channel': '示例二手平台', 'url': 'https://example.com/listing/1001'}})
     # 另有两张在售上架（国内库存），用于验证列表上的「已上架」标签与详情的上架资料
     for key, number in (('parachutes', '1002'), ('illinois', '1003')):
         store.bulk({'ids': [ids[key]], 'action': 'list',
-                    'listing': {'channel': '示例二手平台', 'url': f'https://example.com/listing/{number}',
-                                'description': '示例上架描述：碟面无划痕，附原装侧标。'}})
+                    'listing': {'channel': '示例二手平台', 'url': f'https://example.com/listing/{number}'}})
     store.sell({'ids': [ids['m83']], 'currency': 'CNY', 'gross': '88.00', 'fees': '4.40',
                 'date': '2026-09-05', 'channel': '示例二手平台', 'orderId': 'DEMO-1001',
                 'note': '示例：售出中（买家未确认收货）'})
@@ -329,23 +327,35 @@ def seed_listing_reference_photos(data_dir):
     return ids
 
 
-LISTING_LONG_DESCRIPTION = '\n\n'.join(
-    f'文案样本第 {i + 1} 段：这段虚构说明供验收管理页，不代表实物品相。'
-    '段落分开保存，用于确认即使副本留有完整长文，管理页也只有单点商品入口。'
-    for i in range(18))
+LEGACY_LISTING_TITLE = '示例历史上架标题'
+LEGACY_LISTING_DESCRIPTION = '示例历史上架正文。' * 120
+
+
+def seed_legacy_listing_copy(data_dir):
+    """在隔离样本库模拟旧版记录和审计，调用方随后重开存储以测试迁移。"""
+    if check_target(data_dir): raise ValueError('只能向固定样本库准备历史文案')
+    ids = existing_ids(data_dir)
+    store = open_store(data_dir)
+    with closing(store.connect()) as db, db:
+        record = store.get(db, 'records', ids['lift-fists'])
+        record['listingDescription'] = LEGACY_LISTING_DESCRIPTION
+        record['listingDraft'] = {
+            'title': LEGACY_LISTING_TITLE, 'description': LEGACY_LISTING_DESCRIPTION,
+            'versionText': '示例版次核对', 'conditionText': '示例品相核对',
+            'versionConfirmed': True, 'conditionConfirmed': False,
+            'photoRevision': record.get('photoRevision', 0),
+            'photoOrder': list(reversed(range(record.get('photoCount', 0)))),
+        }
+        store.put(db, 'records', record)
+        store.audit(db, '修改专辑', {'id': record['id'], 'before': record})
+    return ids
 
 
 def seed_listing_navigation(data_dir):
-    """复用两张海外副本，设置与买入顺序不同的闲鱼回执及一份历史草稿。"""
+    """复用两张海外副本，设置与买入顺序不同的闲鱼回执。"""
     if check_target(data_dir): raise ValueError('只能向固定样本库准备上架回执')
     ids = existing_ids(data_dir)
     store = open_store(data_dir)
-    with closing(store.connect()) as db: record = store.get(db, 'records', ids['lift-fists'])
-    if record.get('listingDescription') != LISTING_LONG_DESCRIPTION:
-        store.save_listing_draft({'id': record['id'], 'revision': record['revision'], 'draft': {
-            'title': record['artist'] + ' ' + record['title'] + ' CD', 'description': LISTING_LONG_DESCRIPTION,
-            'versionText': '', 'conditionText': '', 'versionConfirmed': False, 'conditionConfirmed': False,
-            'photoRevision': record.get('photoRevision', 0), 'photoOrder': list(range(record.get('photoCount', 0)))}})
     for key, item_id, verified_at in (
         ('lift-fists', '1004', '2026-10-08T14:00:00+09:00'),
         ('tpab', '1005', '2026-10-08T04:00:00Z'),

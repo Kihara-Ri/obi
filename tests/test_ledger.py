@@ -438,9 +438,12 @@ class LedgerTests(unittest.TestCase):
     def test_csv_export_lists_listed(self):
         from server.export_csv import albums_csv
         c=self.buy(currency='CNY',price='100',date='2026-09-07')
-        self.store.bulk({'action':'list','ids':[c]})
+        self.store.bulk({'action':'list','ids':[c], 'listing': {'channel': '示例二手平台',
+                                                             'url': 'https://example.com/item/1'}})
         rows=albums_csv(self.store.state()).decode().splitlines()
         self.assertIn('上架',rows[0]);self.assertIn(',是,',rows[1])
+        self.assertNotIn('上架描述', rows[0])
+        self.assertIn(',示例二手平台,https://example.com/item/1,', rows[1])
     # ── misc ──
     def test_edit_conflict_and_profit_recalc(self):
         id=self.buy();r=self.record(id);sid=self.sell([id]);

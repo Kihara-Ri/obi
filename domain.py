@@ -166,12 +166,7 @@ def clean_listing(data):
     except ValueError:
         valid = False
     if url and not valid: raise ValidationError('请填写 http 或 https 商品链接')
-    result = {'listingChannel': channel, 'listingUrl': url}
-    if 'description' in data:
-        description = data['description']
-        if not isinstance(description, str) or len(description)>50000: raise ValidationError('上架描述过长或格式不正确')
-        result['listingDescription'] = description
-    return result
+    return {'listingChannel': channel, 'listingUrl': url}
 
 
 def number(value, name='金额', optional=False):
@@ -220,6 +215,8 @@ def clean_record(data):
     r.pop('listingUrl', None)
     r.pop('listingOrder', None)
     r.pop('xianyuItemId', None)
+    for k in ('listingDescription', 'listingDraft', 'listingPreparation'):
+        r.pop(k, None)
     for k in ('location','note','noteAlbum','tradeNote','version','pressing','obi','condition','tag','storage','releaseYear','rawRemark'):
         r[k] = str(r.get(k,'')).strip()
         if len(r[k]) > 50000: raise ValidationError('备注过长')
@@ -234,12 +231,6 @@ def clean_record(data):
         packaging = clean_packaging(r['packaging'])
         if packaging: r['packaging'] = packaging
         else: r.pop('packaging', None)
-    if 'listingDescription' in r:
-        if not isinstance(r['listingDescription'], str) or len(r['listingDescription']) > 50000:
-            raise ValidationError('上架描述过长或格式不正确')
-    if 'listingDraft' in r:
-        from domain_listing import clean_draft
-        r['listingDraft'] = clean_draft(r['listingDraft'])
     return r
 
 

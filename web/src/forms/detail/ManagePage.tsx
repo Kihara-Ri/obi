@@ -1,4 +1,4 @@
-// 管理页（详情的二级页）：买入信息、备注、商品入口、运输、交易历史及流转。
+// 管理页（详情的二级页）：买入信息、备注、上架状态与链接、运输、交易历史及流转。
 // 按用户的操作顺序排，不按字段排；流转操作放最底并保留原有的移除确认语义（回收站可恢复）。
 import {Chevron} from '../../components/ui/Chevron';
 import {useApp} from '../../state/AppContext';
@@ -9,13 +9,12 @@ import {openPurchaseForm} from '../PurchaseForm';
 import {Rows} from './Rows';
 import {FlowSection} from './FlowSection';
 
-function openListing(url: string, itemId?: string) {
+function isMobile() {
   const {userAgent, platform, maxTouchPoints} = navigator;
-  const mobile = /Android|iPhone|iPad|iPod/.test(userAgent) || (platform === 'MacIntel' && maxTouchPoints > 1);
-  if (!itemId || !mobile) {
-    window.open(url, '_blank', 'noopener,noreferrer');
-    return;
-  }
+  return /Android|iPhone|iPad|iPod/.test(userAgent) || (platform === 'MacIntel' && maxTouchPoints > 1);
+}
+
+function openXianyuItem(itemId: string) {
   // Keep the link out of the long-press hit target, but navigate in the tap's activation.
   const link = document.createElement('a');
   link.href = `https://h5.m.goofish.com/item?id=${encodeURIComponent(itemId)}`;
@@ -41,7 +40,7 @@ function ManageBody({id}: {id: string}) {
   const shipment = r.shipmentId ? app.state.shipments.find(s => s.id === r.shipmentId) : undefined;
   const shipItem = shipment?.items.find(i => i.recordId === id);
   const approx = jpyCost(r);
-  const listingUrl = modules.trading ? r.listingUrl : undefined;
+  const mobileItemId = isMobile() ? r.xianyuItemId : undefined;
   return <div className="detail-page">
     <Rows rows={[{label: '录入时间', value: r.createdAt?.replace('T', ' ') || '未记录'}]}/>
     {modules.acquisition ? <>
@@ -65,12 +64,17 @@ function ManageBody({id}: {id: string}) {
       {r.note ? <p className="note-text"><b>这张副本</b>{r.note}</p> : null}
       {r.noteAlbum ? <p className="note-text"><b>这张专辑（所有副本共享）</b>{r.noteAlbum}</p> : null}
     </> : null}
-    {listingUrl && /^https?:\/\//i.test(listingUrl) ? (
-      <button type="button" className="entry-btn listing-entry" onContextMenu={e => e.preventDefault()}
-        onClick={() => openListing(listingUrl, r.xianyuItemId)}>
-        {r.xianyuItemId ? '打开闲鱼' : '打开商品网页'}<i aria-hidden="true">↗</i>
-      </button>
-    ) : null}
+    {modules.trading && (r.listed || r.listingChannel || r.listingUrl) ? <>
+      <h3 className="section-title">上架</h3>
+      <Rows rows={[
+        r.listed && {label: '状态', value: '已上架'},
+        r.listingChannel && {label: '平台', value: r.listingChannel},
+        r.listingUrl && {label: '链接', value: mobileItemId ? (
+          <button type="button" className="listing-entry" onContextMenu={e => e.preventDefault()}
+            onClick={() => openXianyuItem(mobileItemId)}>打开商品页面 ↗</button>
+        ) : <a href={r.listingUrl} target="_blank" rel="noopener noreferrer">打开商品页面 ↗</a>},
+      ]}/>
+    </> : null}
     {modules.circulation && shipment && shipment.status !== 'cancelled' ? <>
       <h3 className="section-title">运输</h3>
       <Rows rows={[

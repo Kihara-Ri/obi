@@ -468,7 +468,7 @@ if __name__ == '__main__':
 
 class ListingNavigationSampleTests(unittest.TestCase):
     def test_listing_fixture_reuses_existing_copies_and_is_idempotent(self):
-        from tools.seed_samples import seed_listing_photos, seed_listing_navigation, LISTING_LONG_DESCRIPTION, open_store
+        from tools.seed_samples import seed_listing_photos, seed_listing_navigation, open_store
         with tempfile.TemporaryDirectory() as directory:
             ids = seed_listing_photos(directory)
             store = open_store(directory)
@@ -479,8 +479,6 @@ class ListingNavigationSampleTests(unittest.TestCase):
             record = next(r for r in after['records'] if r['id'] == ids['lift-fists'])
             older = next(r for r in after['records'] if r['id'] == ids['tpab'])
             old = next(r for r in before['records'] if r['id'] == ids['lift-fists'])
-            self.assertEqual(record['listingDraft']['description'], LISTING_LONG_DESCRIPTION)
-            self.assertGreater(len(LISTING_LONG_DESCRIPTION), 1000)
             self.assertTrue(record['listed'] and older['listed'])
             self.assertEqual((record['xianyuItemId'], older['xianyuItemId']), ('1004', '1005'))
             self.assertLess(record['date'], older['date'])

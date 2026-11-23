@@ -117,12 +117,13 @@
 .detail-summary .record-detail-tail .copy-btn svg{display:block}
 .detail-summary .record-detail-main{gap:4px}
 
-/* 管理页通栏按钮的边框和箭头与编辑买入入口一致。 */
+/* 管理页的编辑买入入口。 */
 .detail-page .entry-btn{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:48px;margin-top:8px;padding:0 14px;
   border-radius:var(--radius-sm);border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text);font-size:14px;font-weight:600}
 .detail-page .entry-btn i{font-style:normal;font-size:22px;color:var(--faint)}
 .detail-page .entry-btn:hover{border-color:var(--accent-deep)}
-.detail-page .listing-entry{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+.detail-page .listing-entry{display:inline;padding:0;border:0;background:none;color:inherit;font:inherit;text-decoration:underline;
+  -webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 
 /* 详情封面点开就地放大（与查询页 / 编辑页共用 useArtExpand；.rcc-break 为换行占位） */
 .record-detail .big-zoom{cursor:zoom-in}

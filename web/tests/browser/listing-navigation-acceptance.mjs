@@ -12,8 +12,11 @@ await mkdir(output, {recursive: true});
 const {records} = await (await fetch(base + '/api/state')).json();
 const newer = records.find(record => record.xianyuItemId === '1004');
 const older = records.find(record => record.xianyuItemId === '1005');
-assert.ok(newer?.listingDraft && older);
-assert.match(newer.listingDraft.description, /文案样本第 18 段/u);
+assert.ok(newer && older);
+assert.equal(newer.listingUrl, 'https://www.goofish.com/item?id=1004');
+assert.equal(newer.listingChannel, '闲鱼');
+assert.equal(newer.listed, true);
+assert.ok(!('listingDescription' in newer) && !('listingDraft' in newer));
 const mobileUrl = 'https://h5.m.goofish.com/item?id=1004';
 const engines = process.env.OBI_LISTING_WEBKIT === '1' ? [chromium, webkit] : [chromium];
 const screenshotCsp = "Refused to apply a stylesheet because its hash, its nonce, or 'unsafe-inline' does not appear in the style-src directive of the Content Security Policy.";
@@ -59,10 +62,19 @@ async function verifyMobile(context, filename) {
   await page.getByRole('button', {name: newer.title, exact: true}).tap();
   await page.getByRole('button', {name: '管理', exact: true}).tap();
   const manage = page.locator('.detail-page');
-  const button = manage.getByRole('button', {name: '打开闲鱼', exact: true});
+  const button = manage.getByRole('button', {name: '打开商品页面 ↗', exact: true});
   await button.waitFor();
-  assert.equal(await manage.getByRole('heading', {name: '上架', exact: true}).count(), 0);
-  assert.equal(await manage.getByText(newer.listingDraft.title, {exact: true}).count(), 0);
+  assert.equal(await manage.getByRole('heading', {name: '上架', exact: true}).count(), 1);
+  const rows = manage.locator('dl').filter({has: page.getByText('链接', {exact: true})});
+  assert.deepEqual(await rows.locator('dt').allTextContents(), ['状态', '平台', '链接']);
+  assert.deepEqual(await rows.locator('dd').allTextContents(), ['已上架', '闲鱼', '打开商品页面 ↗']);
+  assert.ok(await button.evaluate(el => {
+    const style = getComputedStyle(el);
+    return style.padding === '0px' && style.borderTopWidth === '0px' &&
+      style.fontSize === getComputedStyle(el.parentElement).fontSize && style.textDecorationLine === 'underline';
+  }));
+  assert.equal(await manage.getByText('示例历史上架标题', {exact: true}).count(), 0);
+  assert.equal(await manage.getByText(/示例历史上架正文/u).count(), 0);
   assert.equal(await manage.getByRole('button', {name: '复制上架描述'}).count(), 0);
   assert.equal(await manage.locator('a[href*="goofish.com"]').count(), 0);
   assert.equal(await button.evaluate(el => el.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true}))), false);

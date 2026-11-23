@@ -8,7 +8,7 @@ export interface RecordValues {
   title: string; artist: string; price: string; date: string; currency: Currency; location: string;
   fees: string; version: string; packaging: PackagingSpec | null; pressing: string; obi: string;
   note: string; noteAlbum: string; storage: string; status: Status | undefined;
-  releaseInfo: ReleaseInfo; listingDescription: string;
+  releaseInfo: ReleaseInfo;
 }
 
 export interface FormCtx {
@@ -40,7 +40,6 @@ export function initialValues(base: Partial<AlbumRecord>, where: Status | null):
     storage: base.storage || '',
     status: (where ?? base.status) as Status | undefined,
     releaseInfo: base.releaseInfo ?? {},
-    listingDescription: base.listingDescription ?? '',
   };
 }
 
