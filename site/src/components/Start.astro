@@ -51,7 +51,7 @@ for (const ch of `*${catalog}*`) {
                   <span class="len">{t.len}</span>
                   <svg class="chev" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
                 </summary>
-                <div class="body">
+                <div class="body"><div class="inner">
                   {t.cmd && (
                     <div class="code">
                       <pre class:list={{ prose: t.prose }}><code>{t.cmd}</code></pre>
@@ -63,7 +63,7 @@ for (const ch of `*${catalog}*`) {
                   )}
                   {t.links && <div class="links">{t.links.map((l) => <a class="btn" href={l.href}>{l.t}</a>)}</div>}
                   <p class="note">{t.note}</p>
-                </div>
+                </div></div>
               </details>
             </li>
           ))}
@@ -130,8 +130,9 @@ for (const ch of `*${catalog}*`) {
   details[open]:not([data-closing]) .no{ color:var(--accent-deep); }
   @media (hover:hover){ summary:hover .title{ color:var(--accent-deep); } }
 
-  .body{ display:flex; flex-direction:column; gap:var(--s-3); padding:0 0 var(--s-5) calc(1.5rem + var(--s-3)); }
-  @media (max-width:39.99rem){ .body{ padding-left:0; } }
+  /* .body 是做高度动画的外壳，不带内边距（否则高度缩到 0 时内边距还撑着，收回末尾会留一截空白再跳掉）；留白都放在 .inner */
+  .inner{ display:flex; flex-direction:column; gap:var(--s-3); padding:0 0 var(--s-5) calc(1.5rem + var(--s-3)); }
+  @media (max-width:39.99rem){ .inner{ padding-left:0; } }
   .code{ position:relative; }
   pre{ margin:0; padding:var(--s-4); padding-right:3.5rem; overflow-x:auto; border-radius:var(--radius-sm); background:var(--surface-2); border:1px solid var(--hairline); font-size:var(--fs-xs); line-height:1.7; }
   /* 提示词是自然语言：自动换行，用正文字体 */
