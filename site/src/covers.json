@@ -7,23 +7,13 @@
       "artist": "Pink Floyd"
     },
     {
-      "file": "spiderland.png",
-      "title": "Spiderland",
-      "artist": "Slint"
-    },
-    {
       "file": "mbdtf.png",
       "title": "My Beautiful Dark Twisted Fantasy",
       "artist": "Kanye West"
     },
     {
-      "file": "synchronicity.png",
-      "title": "Synchronicity",
-      "artist": "The Police"
-    },
-    {
-      "file": "islands.png",
-      "title": "Islands",
+      "file": "court.png",
+      "title": "In the Court of the Crimson King",
       "artist": "King Crimson"
     },
     {
@@ -32,9 +22,24 @@
       "artist": "King Crimson"
     },
     {
-      "file": "yehui.png",
-      "title": "叶惠美",
-      "artist": "周杰伦"
+      "file": "meddle.png",
+      "title": "Meddle",
+      "artist": "Pink Floyd"
+    },
+    {
+      "file": "spiderland.png",
+      "title": "Spiderland",
+      "artist": "Slint"
+    },
+    {
+      "file": "synchronicity.png",
+      "title": "Synchronicity",
+      "artist": "The Police"
+    },
+    {
+      "file": "glow.png",
+      "title": "The Glow Pt. 2",
+      "artist": "The Microphones"
     },
     {
       "file": "illinois.png",
@@ -42,54 +47,19 @@
       "artist": "Sufjan Stevens"
     },
     {
+      "file": "yehui.png",
+      "title": "叶惠美",
+      "artist": "周杰伦"
+    },
+    {
+      "file": "fainfinity.png",
+      "title": "F♯ A♯ ∞",
+      "artist": "Godspeed You! Black Emperor"
+    },
+    {
       "file": "lyskf.png",
       "title": "Lift Your Skinny Fists Like Antennas to Heaven",
       "artist": "Godspeed You! Black Emperor"
-    },
-    {
-      "file": "rmp.png",
-      "title": "Racing Mount Pleasant",
-      "artist": "Racing Mount Pleasant"
-    },
-    {
-      "file": "slowriot.png",
-      "title": "Slow Riot for New Zero Kanada",
-      "artist": "Godspeed You! Black Emperor"
-    },
-    {
-      "file": "avici.png",
-      "title": "AVĪCI (01) - EP",
-      "artist": "Avicii"
-    },
-    {
-      "file": "dookie-en.png",
-      "title": "Dookie",
-      "artist": "Green Day"
-    },
-    {
-      "file": "ex-all-time.png",
-      "title": "“Ex” All Time Favourites",
-      "artist": "關淑怡"
-    },
-    {
-      "file": "first-love.png",
-      "title": "First Love - EP",
-      "artist": "宇多田ヒカル"
-    },
-    {
-      "file": "larks.png",
-      "title": "Larks’ Tongues in Aspic",
-      "artist": "King Crimson"
-    },
-    {
-      "file": "loveless.png",
-      "title": "Loveless",
-      "artist": "My Bloody Valentine"
-    },
-    {
-      "file": "m83.png",
-      "title": "Hurry up, We're Dreaming",
-      "artist": "M83"
     },
     {
       "file": "minecraft.png",
@@ -97,19 +67,19 @@
       "artist": "C418"
     },
     {
-      "file": "moon.png",
-      "title": "A Moon Shaped Pool",
-      "artist": "Radiohead"
+      "file": "frengers.png",
+      "title": "Frengers",
+      "artist": "Mew"
     },
     {
-      "file": "parachutes.png",
-      "title": "Parachutes",
-      "artist": "Coldplay"
+      "file": "natsukusa.png",
+      "title": "夏草が邪魔をする",
+      "artist": "ヨルシカ"
     },
     {
-      "file": "remain.png",
-      "title": "Remain In Light",
-      "artist": "Talking Heads"
+      "file": "whats-going-on.png",
+      "title": "What's Going On...?",
+      "artist": "陳奕迅"
     },
     {
       "file": "shall-we.png",
@@ -117,14 +87,69 @@
       "artist": "陳奕迅"
     },
     {
-      "file": "tasogare.png",
-      "title": "盗作",
-      "artist": "ヨルシカ"
+      "file": "american-football.png",
+      "title": "American Football",
+      "artist": "American Football"
     },
     {
-      "file": "tpab.png",
-      "title": "To Pimp a Butterfly",
-      "artist": "Kendrick Lamar"
+      "file": "rmp.png",
+      "title": "Racing Mount Pleasant",
+      "artist": "Racing Mount Pleasant"
+    },
+    {
+      "file": "remain.png",
+      "title": "Remain In Light",
+      "artist": "Talking Heads"
+    },
+    {
+      "file": "slowriot.png",
+      "title": "Slow Riot for New Zero Kanada",
+      "artist": "Godspeed You! Black Emperor"
+    },
+    {
+      "file": "poppin.png",
+      "title": "It's a Poppin' Time",
+      "artist": "山下達郎"
+    },
+    {
+      "file": "carrie.png",
+      "title": "Carrie & Lowell",
+      "artist": "Sufjan Stevens"
+    },
+    {
+      "file": "wywh.png",
+      "title": "Wish You Were Here",
+      "artist": "Pink Floyd"
+    },
+    {
+      "file": "ants.png",
+      "title": "Ants From Up There",
+      "artist": "Black Country, New Road"
+    },
+    {
+      "file": "one-last-kiss.png",
+      "title": "One Last Kiss",
+      "artist": "宇多田ヒカル"
+    },
+    {
+      "file": "no-title.png",
+      "title": "NO TITLE AS OF 13 FEBRUARY 2024 28,340 DEAD",
+      "artist": "Godspeed You! Black Emperor"
+    },
+    {
+      "file": "allelujah.png",
+      "title": "'Allelujah! Don't Bend! Ascend!",
+      "artist": "Godspeed You! Black Emperor"
+    },
+    {
+      "file": "life-continues.png",
+      "title": "Life Continues",
+      "artist": "陳奕迅"
+    },
+    {
+      "file": "ex-all-time.png",
+      "title": "“Ex” All Time Favourites",
+      "artist": "關淑怡"
     }
   ]
 }
