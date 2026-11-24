@@ -75,7 +75,7 @@ export async function compressPhoto(file: File): Promise<string> {
 
 // 照片队列条目：existing = 已有照片的序号；data = 新照片的 data URL；
 // pending/error = 处理中的占位与失败态
-export const MAX_PHOTOS = 30;
+export const MAX_PHOTOS = 9;
 export type PhotoSlot = ({existing: number} | {data: string; upload?: string; transfer?: 'uploading' | 'failed'; transferError?: string}
   | {pending: true} | {error: string}) & {token?: string};
 

@@ -83,7 +83,7 @@ def clean_work_links(value):
     return out
 
 PHOTO_MIME = {'jpeg': '.jpg', 'png': '.png', 'webp': '.webp'}
-MAX_PHOTOS = 30
+MAX_PHOTOS = 9
 
 def _strip_cover_blobs(x):
     """递归剔除 data-URL 形式的封面快照（audit 里的纯体积）；返回是否有剔除。"""
@@ -642,9 +642,15 @@ class Store:
         if not isinstance(entries, list): raise ValidationError('照片数据不正确')
         d = self.photos_dir / rid
         existing = sorted([p for p in d.iterdir() if p.is_file()], key=lambda p: int(p.stem)) if d.exists() else []
+        # 已超限的旧副本仍可编辑资料或逐步删减照片。
+        if len(entries) > MAX_PHOTOS and not (
+            len(entries) <= len(existing)
+            and all(type(e) is int for e in entries)
+            and len(set(entries)) == len(entries)
+        ):
+            raise ValidationError(f'每个副本最多可上传 {MAX_PHOTOS} 张实物照片')
         plan = []
         for e in entries:
-            if len(plan) >= MAX_PHOTOS: raise ValidationError(f'每张专辑最多 {MAX_PHOTOS} 张照片')
             if isinstance(e, int) and not isinstance(e, bool):
                 if not 0 <= e < len(existing): raise ValidationError('照片序号不存在，请刷新页面后重试')
                 plan.append((existing[e].suffix, existing[e]))

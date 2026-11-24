@@ -9,6 +9,7 @@ import unittest
 from contextlib import closing
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from unittest.mock import patch
 
 from domain import ValidationError
 from security import Auth
@@ -63,6 +64,33 @@ class PhotoStagingTests(unittest.TestCase):
         self.assertEqual(self.request('/api/photos/stage?token=' + 'b' * 32, b'not an image')[0], 400)
         self.assertEqual(self.request('/api/photos/stage?token=' + 'b' * 32, self.raw)[0], 200)
         self.assertEqual(self.request('/api/photos/stage?token=' + 'b' * 32, self.raw + b'different')[0], 400)
+
+    def test_photo_limit_preserves_existing_over_limit_records(self):
+        token = 'b' * 32
+        self.assertEqual(self.request('/api/photos/stage?token=' + token, self.raw)[0], 200)
+        upload = {'upload': token}
+
+        def save(photos):
+            row = self.row()
+            return self.request('/api/records/metadata', json.dumps({
+                'id': row['id'], 'revision': row['revision'], 'photos': photos,
+            }).encode(), 'application/json')
+
+        status, body = save([0] + [upload] * 8)
+        self.assertEqual(status, 200, body)
+        self.assertEqual(self.row()['photoCount'], 9)
+        before = self.row()
+        self.assertEqual(save(list(range(9)) + [upload])[0], 400)
+        self.assertEqual(self.row(), before)
+
+        with patch('storage.MAX_PHOTOS', 30):
+            self.assertEqual(save(list(range(9)) + [upload] * 2)[0], 200)
+        self.assertEqual(save(list(range(11)))[0], 200)
+        self.assertEqual(save(list(range(10)))[0], 200)
+        before = self.row()
+        self.assertEqual(save(list(range(9)) + [upload])[0], 400)
+        self.assertEqual(save(list(range(9)) + [0])[0], 400)
+        self.assertEqual(self.row(), before)
 
     def test_missing_reference_does_not_change_ledger_or_existing_photos(self):
         before = self.row()
