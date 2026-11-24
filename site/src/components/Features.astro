@@ -1,8 +1,7 @@
 ---
-// 五个功能模块卡片：图标 + 名称 + 至多三个短标签（少字原则，解释交给文档）。
-// 五张卡同一结构（图标 → 名称 → 竖排标签），宽屏一行五列；手机两列，「整理收藏」占满首行，其余 2×2，不留孤卡。
-// 只有「整理收藏」带「始终可用」文字徽标（不只靠颜色），其余不再逐张标「可选」，由副标题一句说明。
-// 标签竖排，不用「·」分隔，换行时不会把分隔符甩到行首。
+// 五个功能模块 = 架上五张日版 CD：每张左缘一条腰封（帯），竖排写模块名，底部是编号；封面放图标和至多三个短标签（少字原则）。
+// 「整理收藏」的腰封是常亮的黄色，并带「始终可用」文字徽标（不只靠颜色）；其余四张腰封是灰的，鼠标移上去才亮起，暗示「按需打开」。
+// 宽屏一行五张方形唱片盒；手机两列，「整理收藏」占满首行，其余 2×2，不留孤卡。
 const modules = [
   { name: '整理收藏', base: true, tags: ['条码录入', '实物照片', '艺人资料'],
     icon: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3a9 9 0 0 1 9 9"/>' },
@@ -20,13 +19,18 @@ const modules = [
   <div class="wrap">
     <h2 class="section-title">五个模块，按需打开</h2>
     <p class="section-sub">整理收藏始终可用，其余四个按需打开；关闭只收起入口，不删任何记录。</p>
-    <ul class="cards">
-      {modules.map((m) => (
-        <li class:list={['card', { base: m.base }]}>
-          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" set:html={m.icon} />
-          {m.base && <span class="badge">始终可用</span>}
-          <div class="body">
+    <ul class="shelf">
+      {modules.map((m, i) => (
+        <li class:list={['case', { base: m.base }]}>
+          <div class="obi">
             <h3>{m.name}</h3>
+            <span class="no" aria-hidden="true">{`OBI-0${i + 1}`}</span>
+          </div>
+          <div class="cover">
+            <div class="top">
+              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" set:html={m.icon} />
+              {m.base && <span class="badge">始终可用</span>}
+            </div>
             <ul class="tags">{m.tags.map((t) => <li>{t}</li>)}</ul>
           </div>
         </li>
@@ -36,21 +40,47 @@ const modules = [
 </section>
 
 <style>
-  .cards{ display:grid; grid-template-columns:repeat(2,1fr); gap:var(--s-4); margin:var(--s-6) 0 0; padding:0; list-style:none; }
-  .card{
-    display:grid; grid-template-columns:auto 1fr; grid-template-areas:'ico badge' 'body body'; align-items:center; row-gap:var(--s-4);
-    padding:var(--s-5); border-radius:var(--radius); background:var(--surface); border:1px solid var(--border);
+  .shelf{ display:grid; grid-template-columns:repeat(2,1fr); gap:var(--s-4); margin:var(--s-6) 0 0; padding:0; list-style:none; }
+  .case{
+    display:grid; grid-template-columns:auto minmax(0,1fr); min-height:11rem;
+    border-radius:var(--radius-sm); overflow:hidden;
+    background:var(--surface); border:1px solid var(--border); box-shadow:var(--shadow-sm);
   }
-  .card.base{ grid-column:1 / -1; border-color:var(--border-strong); }
-  .ico{ grid-area:ico; width:2.5rem; height:2.5rem; padding:var(--s-2); border-radius:var(--radius-sm); background:var(--accent-wash); color:var(--accent-deep);
+  .case.base{ grid-column:1 / -1; border-color:var(--border-strong); }
+
+  /* 腰封：竖排（vertical-rl）下 row 是竖直方向，名称在上、编号在下 */
+  .obi{
+    display:flex; flex-direction:row; align-items:center; justify-content:space-between;
+    width:2.75rem; padding-inline:var(--s-4);
+    writing-mode:vertical-rl; white-space:nowrap;
+    background:var(--surface-2); color:var(--muted); border-right:1px solid var(--border);
+    transition:background var(--dur) var(--ease-soft), color var(--dur) var(--ease-soft);
+  }
+  .obi h3{ font-size:var(--fs-md); font-weight:800; letter-spacing:.2em; color:var(--text); transition:color var(--dur) var(--ease-soft); }
+  .no{ font-family:var(--mono); font-size:var(--fs-xs); letter-spacing:.08em; opacity:.75; }
+  .base .obi{ background:var(--accent); color:var(--accent-ink); border-right-color:transparent; }
+  .base .obi h3{ color:var(--accent-ink); }
+
+  .cover{ display:flex; flex-direction:column; justify-content:space-between; gap:var(--s-4); padding:var(--s-4); }
+  .top{ display:flex; align-items:flex-start; justify-content:space-between; gap:var(--s-2); }
+  .ico{ width:2.5rem; height:2.5rem; padding:var(--s-2); border-radius:var(--radius-sm); background:var(--accent-wash); color:var(--accent-deep);
     fill:none; stroke:currentColor; stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round; }
-  .badge{ grid-area:badge; justify-self:end; font-size:var(--fs-xs); font-weight:600; padding:0 var(--s-2); border-radius:999px; white-space:nowrap;
+  .badge{ font-size:var(--fs-xs); font-weight:600; padding:0 var(--s-2); border-radius:999px; white-space:nowrap;
     background:var(--accent); color:var(--accent-ink); }
-  .body{ grid-area:body; }
-  h3{ font-size:var(--fs-lg); }
-  .tags{ display:grid; gap:var(--s-1); margin:var(--s-2) 0 0; padding:0; list-style:none; color:var(--muted); font-size:var(--fs-sm); }
+  .tags{ display:grid; gap:var(--s-1); margin:0; padding:0; list-style:none; color:var(--muted); font-size:var(--fs-sm); }
+
+  /* 鼠标移上去：灰腰封亮起，像把这个模块「打开」 */
+  @media (hover:hover){
+    .case:not(.base):hover .obi{ background:var(--accent); color:var(--accent-ink); }
+    .case:not(.base):hover .obi h3{ color:var(--accent-ink); }
+  }
+
   @media (min-width:64rem){
-    .cards{ grid-template-columns:repeat(5,1fr); }
-    .card.base{ grid-column:auto; }
+    .shelf{ grid-template-columns:repeat(5,1fr); }
+    .case{ aspect-ratio:1; min-height:0; }
+    .case.base{ grid-column:auto; }
+  }
+  @media (prefers-reduced-motion:reduce){
+    .obi, .obi h3{ transition:none; }
   }
 </style>
