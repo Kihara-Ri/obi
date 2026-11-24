@@ -1,22 +1,24 @@
-// 包装类型示意图：线性、currentColor，画「这种包装拿在手里长什么样」（塑料盒看厚度、纸套看开口、折页看面数）。
+// 包装类型示意图：线性、currentColor，画「这种包装拿在手里长什么样」（塑料盒看身后叠了几层、纸套看开口、折页看面数）。
 // kind 为 PACKAGING_PRESETS 的 value、'other' 或 ''（未填写）。PackagingLabel = 图标 + 中文名 + 原术语，详情页用。
 import type {ReactNode} from 'react';
 import {PACKAGING_PRESETS, PACKAGING_ZH, packagingDisplay, packagingKind} from '../core/album-packaging';
 import {OptionCards} from './ui/OptionCards';
 import './PackagingIcon.css';
 
-// 立体盒：正面 + 顶面 + 右侧面，d 为厚度
-const box = (x: number, y: number, w: number, h: number, d: number) => <>
-  <rect x={x} y={y} width={w} height={h} rx="1"/>
-  <path d={`M${x} ${y}l${d} ${-d}h${w}l${-d} ${d}M${x + w + d} ${y - d}v${h}l${-d} ${d}`}/>
-</>;
-// 塑料盒：正面带铰链条与光盘，厚度 d 决定顶面 / 侧面的宽；多碟盒（trays>1）侧面再加托盘分层线
-const jewel = (d: number, trays = 1) => {
-  const x = 6, y = 7, w = 19, h = 19, cx = x + 3 + (w - 3) / 2, cy = y + h / 2;
-  return <>{box(x, y, w, h, d)}
-    <path d={`M${x + 3} ${y}v${h}`}/>
-    <circle cx={cx} cy={cy} r="6"/><circle cx={cx} cy={cy} r="1.3"/>
-    {Array.from({length: trays - 1}, (_, i) => <path key={i} d={`M${x + w + d * (i + 1) / trays} ${y - d * (i + 1) / trays}v${h}`}/>)}</>;
+// 塑料盒：和纸套一样画正面——左侧铰链条 + 透过盒盖看到的光盘。厚度用身后错开的边表示（同 digibook 的书背）：
+// 薄盒（slimline）没有，普通盒一层，多碟盒每多一层托盘再错开一层。整体在画布里居中。
+const jewel = (layers: number) => {
+  const s = 20, step = 2.4, ext = s + step * layers;
+  const x = (36 - ext) / 2, y = (28 - ext) / 2, hinge = x + 3.5;
+  const cx = hinge + (s - 3.5) / 2, cy = y + s / 2;
+  return <>
+    <rect x={x} y={y} width={s} height={s} rx="1"/>
+    <path d={`M${hinge} ${y}v${s}`}/>
+    <circle cx={cx} cy={cy} r="5.6"/><circle cx={cx} cy={cy} r="1.4"/>
+    {Array.from({length: layers}, (_, i) => {
+      const o = step * (i + 1);
+      return <path key={i} d={`M${x + s + o - step} ${y + o}h${step}v${s}H${x + o}V${y + s + o - step}`}/>;
+    })}</>;
 };
 // 硬纸盒：天地盖，盖子略宽出一圈，前沿有开盖缺口
 const rigidBox = <>
@@ -31,9 +33,9 @@ const peek = (cx: number, top: number, r: number) => {
 };
 
 const ICONS: Record<string, ReactNode> = {
-  'jewel': jewel(3),
-  'slimline': jewel(1.5),
-  'multi': jewel(5.5, 2),
+  'jewel': jewel(1),
+  'slimline': jewel(0),
+  'multi': jewel(2),
   'card-sleeve': <><rect x="5" y="4" width="20" height="21" rx="1"/>
     <path d="M25 6.2A9 9 0 0 1 25 22.8"/><path d="M25 12a2.6 2.6 0 0 1 0 5"/></>,
   'mini-lp': <><rect x="5" y="4" width="20" height="21" rx="1"/><path d="M8.5 4v21"/>
