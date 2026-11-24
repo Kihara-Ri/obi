@@ -1,10 +1,12 @@
 ---
 // 页眉：标志 + 锚点导航 + GitHub。吸顶半透明，与应用顶栏同一套 chrome token。
 // 「接口」是独立页面（给外部 Agent 的接口说明），前面加一个代码括号图标，和三个页内锚点区分开。
+// 在「接口」页上它标为当前页（aria-current）。
 // 手机上只留标志和 GitHub，锚点导航收起（少字原则）。其他页面（如「接口」）上锚点带首页前缀。
 const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
 const home = Astro.url.pathname.replace(/\/?$/, '/') === base ? '' : base;
 const repo = 'https://github.com/Kihara-Ri/obi';
+const onApi = Astro.url.pathname.replace(/\/?$/, '/') === `${base}api/`;
 ---
 <header class="head">
   <div class="wrap row">
@@ -16,7 +18,7 @@ const repo = 'https://github.com/Kihara-Ri/obi';
       <a href={`${home}#features`}>功能</a>
       <a href={`${home}#gallery`}>展示</a>
       <a href={`${home}#start`}>开始使用</a>
-      <a class="api" href={`${base}api/`}>
+      <a class="api" href={`${base}api/`} aria-current={onApi ? 'page' : undefined}>
         <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="m8 7-5 5 5 5M16 7l5 5-5 5M13.5 5l-3 14" /></svg>接口
       </a>
     </nav>
@@ -39,6 +41,7 @@ const repo = 'https://github.com/Kihara-Ri/obi';
   .nav{ display:none; gap:var(--s-5); margin-left:auto; font-size:var(--fs-sm); color:var(--muted); }
   .nav a{ padding-block:var(--s-2); transition:color var(--dur-fast) var(--ease-soft); }
   .nav .api{ display:inline-flex; align-items:center; gap:var(--s-1); }
+  .nav [aria-current='page']{ color:var(--text); font-weight:600; }
   .api svg{ fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
   .gh{ display:grid; place-items:center; width:2.75rem; height:2.75rem; margin-left:auto; border-radius:50%; color:var(--muted); transition:color var(--dur-fast) var(--ease-soft), background var(--dur-fast) var(--ease-soft); }
   @media (hover:hover){

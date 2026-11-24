@@ -1,0 +1,46 @@
+---
+// 「接口」页 A 面的一个 MCP 工具：名称、标题、权限与读写，用途，参数表，返回与对应的 HTTP 接口。
+import type { Tool } from '../lib/api-mcp';
+import ApiFields from './ApiFields.astro';
+interface Props { tool: Tool }
+const { tool: t } = Astro.props;
+---
+<article id={t.name} class="tool" aria-labelledby={`${t.name}-t`}>
+  <div class="line">
+    <h4 id={`${t.name}-t`}><code>{t.name}</code></h4>
+    <span class:list={['rw', { w: t.write }]}>{t.write ? '写 · 可重试' : '只读'}</span>
+    <span class="scope">{t.scope}</span>
+  </div>
+  <p class="does"><b>{t.title}</b>　{t.does}</p>
+  <dl class="args">
+    {t.args.map((a) => (
+      <div>
+        <dt><code class:list={{ need: a.need }}>{a.k}</code>{a.need && <span class="visually-hidden">（必填）</span>}</dt>
+        <dd>{a.v}</dd>
+      </div>
+    ))}
+  </dl>
+  <p class="foot"><span>返回</span> <ApiFields text={t.ret} /></p>
+  <p class="foot"><span>同</span> <code>{t.http}</code></p>
+</article>
+
+<style>
+  .tool{ display:grid; gap:var(--s-2); padding:var(--s-4); border-radius:var(--radius); background:var(--surface); border:1px solid var(--border); min-width:0; }
+  .line{ display:flex; flex-wrap:wrap; align-items:center; gap:var(--s-1) var(--s-2); }
+  h4{ margin:0 auto 0 0; font-size:var(--fs-md); font-weight:700; overflow-wrap:anywhere; }
+  .rw, .scope{ font-size:var(--fs-xs); padding:0 var(--s-2); border-radius:999px; border:1px solid var(--hairline); color:var(--muted); white-space:nowrap; }
+  .scope{ font-family:var(--mono); background:var(--surface-2); }
+  .rw.w{ border-color:var(--accent-deep); color:var(--text); }
+  .does{ font-size:var(--fs-sm); color:var(--muted); }
+  .does b{ color:var(--text); font-weight:600; }
+
+  .args{ display:grid; margin:0; font-size:var(--fs-sm); border-top:1px solid var(--hairline); }
+  .args div{ display:grid; grid-template-columns:minmax(0,9rem) minmax(0,1fr); gap:var(--s-3); padding-block:var(--s-1); border-bottom:1px solid var(--hairline); }
+  dt code{ font-size:.92em; overflow-wrap:anywhere; }
+  .need{ font-weight:700; }
+  .need::after{ content:''; display:inline-block; width:.3rem; height:.3rem; margin-left:.15rem; vertical-align:.45em; border-radius:50%; background:var(--accent-deep); }
+  dd{ margin:0; color:var(--muted); min-width:0; overflow-wrap:anywhere; }
+  .foot{ font-size:var(--fs-xs); color:var(--muted); overflow-wrap:anywhere; }
+  .foot > span:first-child{ color:var(--faint); margin-right:var(--s-1); }
+  @media (max-width:30rem){ .args div{ grid-template-columns:minmax(0,1fr); gap:0; } }
+</style>

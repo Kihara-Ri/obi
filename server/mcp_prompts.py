@@ -1,6 +1,6 @@
 """MCP 提示模板（D-051）：把 docs/接口场景指南.md 的三个场景写成 Agent 可直接执行的步骤。
 
-模板只按令牌权限列出；内容改动时同步场景指南与站点 site/src/lib/api-flows.ts。
+模板只按令牌权限列出；内容改动时同步场景指南与站点 site/src/lib/api-mcp.ts。
 """
 from domain import ValidationError
 

@@ -1,105 +1,186 @@
 ---
-// 「接口」页：服务器版对外接口按使用场景排成流程轴。顺序：标题 → 签发令牌与权限 → 用 MCP 连接 → 场景流程 → 共用约定 → 页脚。
-// 内容来自 lib/api-flows.ts，与 docs/接口场景指南.md 同步；完整字段链到仓库里的接口契约。
+// 「接口」页：服务器版的完整接口参考，像一张唱片分两面。
+// A 面给 Agent：MCP 接入、权限、按场景分组的工具、场景模板、协议细节（lib/api-mcp.ts）。
+// B 面给脚本与自动化：HTTP 鉴权与调用、对外接口（lib/api-http.ts）、应用内部接口按功能分组（lib/api-app.ts）。
+// 左侧汇总栏 ApiToc 两面分开；数据与 server/routes.py、server/mcp_tools.py 逐项对应，改动时同步 docs/HTTP接口一览.md 与 docs/MCP接入.md。
 import Base from '../layouts/Base.astro';
 import Header from '../components/Header.astro';
-import ApiFlow from '../components/ApiFlow.astro';
 import Footer from '../components/Footer.astro';
-import { flows, scopes, issue, connect, rules } from '../lib/api-flows';
+import ApiToc from '../components/ApiToc.astro';
+import ApiTool from '../components/ApiTool.astro';
+import ApiGroup from '../components/ApiGroup.astro';
+import { scopes, issue, clients, toolGroups, prompts, protocol } from '../lib/api-mcp';
+import { curl, login, conventions, errors, open } from '../lib/api-http';
+import { app } from '../lib/api-app';
 const docs = 'https://github.com/Kihara-Ri/obi/blob/main/docs';
+// 同一路由在多个分组出现（如 /api/bulk）或按参数分两行（资料包）时只算一次
+const total = new Set([open, ...app].flatMap((g) => g.routes.map((r) => `${r.m} ${r.p.split('?')[0]}`))).size;
+const tools = toolGroups.reduce((n, g) => n + g.tools.length, 0);
 ---
-<Base title="接口 · Obi" description="让 Agent 上架闲鱼、登记订单与到账、查询已购唱片、挑出值得买的唱片：Obi 服务器版的对外接口，按使用场景串成流程。">
+<Base title="接口 · Obi" description="Obi 服务器版的完整接口参考：A 面是给 Agent 的 MCP 工具与场景模板，B 面是全部 HTTP 路由，含鉴权方式、参数与返回。">
   <Header />
-  <main>
-    <section class="section intro">
-      <div class="wrap">
-        <h1>接口</h1>
-        <p class="lede">服务器版可以把上架、跟单、查重和采购评估交给 Agent。Agent 通过 MCP 直接连上 Obi，按令牌的权限看到对应的工具和场景模板；脚本和自动化也可以直接调用同样的 HTTP 接口。</p>
-        <nav class="jump" aria-label="场景">
-          {flows.map((f, i) => <a href={`#${f.id}`}>{i + 1}. {f.title}</a>)}
-        </nav>
-      </div>
-    </section>
+  <main class="wrap">
+    <header class="intro">
+      <h1>接口</h1>
+      <p class="lede">一张唱片，两面。A 面给 Agent，连上 MCP 就能用；B 面是同一套能力的 HTTP 路由，给脚本和自动化。</p>
+      <p class="sides">
+        <a href="#side-a"><span class="mark" aria-hidden="true">A</span>MCP · {tools} 个工具</a>
+        <a href="#side-b"><span class="mark" aria-hidden="true">B</span>HTTP · {total} 条路由</a>
+      </p>
+    </header>
 
-    <section class="section band" aria-labelledby="tokens-title">
-      <div class="wrap">
-        <h2 id="tokens-title" class="section-title">先签发令牌</h2>
-        <p class="section-sub">在「设置 → 高级 → MCP 服务」为每个调用方签发带权限的令牌。网页也可换令牌和撤销。需要在服务器上操作时可用下面的命令。</p>
-        <pre class="issue"><code>{issue}</code></pre>
-        <ul class="tokens">
-          {scopes.map((t) => (
-            <li>
-              <code class="file">{t.name}</code>
-              <span class="can">{t.can}</span>
-              <span class="meta">需开启：{t.needs}</span>
-            </li>
+    <div class="layout">
+      <ApiToc />
+      <div class="content">
+        <section id="side-a" class="side" aria-labelledby="side-a-t">
+          <header class="sh"><span class="disc" aria-hidden="true">A</span><div><h2 id="side-a-t">Agent · MCP</h2><p>Claude Code、Cursor 等客户端填上地址和令牌，只看得到令牌权限内的工具。</p></div></header>
+
+          <section id="mcp-connect" class="block" aria-labelledby="mcp-connect-t">
+            <h3 id="mcp-connect-t">接入与权限</h3>
+            <ol class="steps">
+              <li>
+                <p><b>签发令牌</b>　在「设置 → 高级 → MCP 服务」为每个调用方签发，也可在服务器上：</p>
+                <pre><code>{issue}</code></pre>
+                <ul class="scopes">
+                  {scopes.map((s) => <li><code>{s.name}</code><span>{s.can}</span>{s.needs && <small>需开启{s.needs}</small>}</li>)}
+                </ul>
+              </li>
+              <li>
+                <p><b>连接</b>　地址 <code>https://your.domain/mcp</code>，请求头 <code>Authorization: Bearer obi_client_…</code></p>
+                <div class="clients">
+                  {clients.map((c, i) => (
+                    <details name="mcp-client" open={i === 0}>
+                      <summary>{c.label}</summary>
+                      <pre><code>{c.code}</code></pre>
+                    </details>
+                  ))}
+                </div>
+              </li>
+            </ol>
+          </section>
+
+          {toolGroups.map((g) => (
+            <section id={g.id} class="block" aria-labelledby={`${g.id}-t`}>
+              <h3 id={`${g.id}-t`}>{g.title}<span class="count" aria-hidden="true">{g.tools.length}</span></h3>
+              <div class="tools">{g.tools.map((t) => <ApiTool tool={t} />)}</div>
+            </section>
           ))}
-        </ul>
-      </div>
-    </section>
 
-    <section class="section mcp" aria-labelledby="mcp-title">
-      <div class="wrap">
-        <h2 id="mcp-title" class="section-title">用 MCP 连接 Agent</h2>
-        <p class="section-sub">Claude Code、Cursor 等支持 MCP 的客户端填上地址和令牌即可。连上后 Agent 只看得到令牌权限对应的工具；每个场景还有一个模板，选中就能把整套步骤交给 Agent。</p>
-        <pre class="issue"><code>{connect}</code></pre>
-      </div>
-    </section>
+          <section id="mcp-prompts" class="block" aria-labelledby="mcp-prompts-t">
+            <h3 id="mcp-prompts-t">场景模板<span class="count" aria-hidden="true">{prompts.length}</span></h3>
+            <p class="sub">在客户端里选一个、填参数，Agent 就拿到整套步骤；发布、下单前都会先问你。</p>
+            <ul class="prompts">
+              {prompts.map((p) => <li><code>{p.name}</code><b>{p.title}</b><span>{p.args}</span><small>{p.scopes}</small></li>)}
+            </ul>
+          </section>
 
-    <div class="section flows">
-      <div class="wrap stack">
-        {flows.map((f, i) => <ApiFlow flow={f} index={i} />)}
-      </div>
-    </div>
+          <section id="mcp-protocol" class="block" aria-labelledby="mcp-protocol-t">
+            <h3 id="mcp-protocol-t">协议细节</h3>
+            <dl class="kv">{protocol.map((r) => <div><dt>{r.k}</dt><dd>{r.v}</dd></div>)}</dl>
+          </section>
+        </section>
 
-    <section class="section band" aria-labelledby="rules-title">
-      <div class="wrap">
-        <h2 id="rules-title" class="section-title">共用约定</h2>
-        <p class="section-sub">写入口原样重发是安全的，不会重复建单。金额是人民币字符串，日期 YYYY-MM-DD。</p>
-        <dl class="rules">
-          {rules.map((r) => <div><dt>{r.k}</dt><dd>{r.v}</dd></div>)}
-        </dl>
+        <section id="side-b" class="side" aria-labelledby="side-b-t">
+          <header class="sh"><span class="disc" aria-hidden="true">B</span><div><h2 id="side-b-t">HTTP</h2><p>带 <span class="need-dot" aria-hidden="true"></span> 的字段必填。对外接口用令牌，应用接口用登录会话。</p></div></header>
+
+          <section id="http-auth" class="block" aria-labelledby="http-auth-t">
+            <h3 id="http-auth-t">鉴权与调用</h3>
+            <dl class="kv">{conventions.map((r) => <div><dt>{r.k}</dt><dd>{r.v}</dd></div>)}</dl>
+            <div class="pair">
+              <figure><figcaption>令牌</figcaption><pre><code>{curl}</code></pre></figure>
+              <figure><figcaption>会话</figcaption><pre><code>{login}</code></pre></figure>
+            </div>
+            <ul class="errors" aria-label="状态码">{errors.map((e) => <li><code>{e.k}</code><span>{e.v}</span></li>)}</ul>
+          </section>
+
+          <ApiGroup group={open} auth="令牌" />
+          <p class="divider"><span>应用接口</span>网页应用自己用的路由；接口随版本调整，脚本优先用上面的对外接口。</p>
+          {app.map((g) => <ApiGroup group={g} auth="会话" />)}
+        </section>
+
         <p class="more">
-          <a href={`${docs}/接口场景指南.md`}>场景指南</a>
           <a href={`${docs}/MCP接入.md`}>MCP 接入</a>
-          <a href={`${docs}/Agent上架接口.md`}>资料包与交易同步</a>
-          <a href={`${docs}/已购唱片查询接口.md`}>已购唱片查询</a>
-          <a href={`${docs}/采购评估接口.md`}>采购评估</a>
+          <a href={`${docs}/HTTP接口一览.md`}>HTTP 接口一览</a>
+          <a href={`${docs}/接口场景指南.md`}>场景指南</a>
           <a href={`${docs}/对外令牌.md`}>对外令牌</a>
-          <a href={`${docs}/HTTP接口一览.md`}>全部接口</a>
+          <a href={`${docs}/Agent上架接口.md`}>资料包与交易同步</a>
+          <a href={`${docs}/采购评估接口.md`}>采购评估</a>
         </p>
       </div>
-    </section>
+    </div>
   </main>
   <Footer />
+  <script src="../scripts/api-toc.ts"></script>
 </Base>
 
+
 <style>
-  .intro{ padding-bottom:var(--s-6); }
+  .intro{ padding-block:var(--s-7) var(--s-6); }
   h1{ font-size:var(--fs-2xl); font-weight:800; letter-spacing:-.02em; }
   .lede{ margin-top:var(--s-3); max-width:36rem; color:var(--muted); }
-  .jump{ display:flex; flex-wrap:wrap; gap:var(--s-2); margin-top:var(--s-5); }
-  .jump a, .more a{ display:inline-flex; align-items:center; min-height:2.75rem; padding-inline:var(--s-4); border-radius:999px; border:1px solid var(--border); font-size:var(--fs-sm); }
-  .band{ background:var(--surface-2); }
-  code{ font-size:.92em; }
+  .sides{ display:flex; flex-wrap:wrap; gap:var(--s-2); margin-top:var(--s-5); }
+  .sides a, .more a{ display:inline-flex; align-items:center; gap:var(--s-2); min-height:2.75rem; padding-inline:var(--s-3) var(--s-4); border-radius:999px; border:1px solid var(--border); font-size:var(--fs-sm); }
+  .mark{ display:grid; place-items:center; width:1.5rem; height:1.5rem; border-radius:50%; background:var(--accent); color:var(--accent-ink); font-size:.7rem; font-weight:700; }
 
-  .tokens{ display:grid; gap:var(--s-3); margin:var(--s-5) 0 0; padding:0; list-style:none; }
-  @media (min-width:40rem){ .tokens{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
-  @media (min-width:64rem){ .tokens{ grid-template-columns:repeat(4,minmax(0,1fr)); } }
-  .issue{ margin:var(--s-5) 0 0; padding:var(--s-4); border-radius:var(--radius); background:var(--surface); border:1px solid var(--border); overflow-x:auto; font-size:var(--fs-sm); line-height:1.6; }
-  .tokens li{ display:grid; gap:var(--s-1); padding:var(--s-4); border-radius:var(--radius); background:var(--surface); border:1px solid var(--border); min-width:0; }
-  .file{ font-weight:600; overflow-wrap:anywhere; }
-  .can{ font-weight:600; }
-  .meta{ color:var(--muted); font-size:var(--fs-xs); }
+  .layout{ display:grid; grid-template-columns:minmax(0,1fr); gap:var(--s-5); padding-bottom:var(--s-8); }
+  @media (min-width:64rem){ .layout{ grid-template-columns:14rem minmax(0,1fr); gap:var(--s-7); } }
+  /* 窄屏多了一条吸顶目录：页内跳转的落点再往下让出它的高度 */
+  @media (max-width:63.99rem){ :global(html){ scroll-padding-top:calc(6.75rem + env(safe-area-inset-top)); } }
+  .content{ display:grid; gap:var(--s-8); min-width:0; }
 
-  .mcp{ padding-bottom:0; }
-  .stack{ display:grid; grid-template-columns:minmax(0,1fr); gap:var(--s-8); }
+  .side{ display:grid; gap:var(--s-7); }
+  .sh{ display:flex; align-items:center; gap:var(--s-4); padding-bottom:var(--s-4); border-bottom:2px solid var(--text); }
+  /* 面标记：一张唱片——外圈是盘，中间是写着 A / B 的标签 */
+  .disc{ flex:none; display:grid; place-items:center; width:3.5rem; height:3.5rem; border-radius:50%;
+    background:radial-gradient(circle, var(--accent) 0 38%, var(--vinyl-body) 39% 100%); color:var(--accent-ink); font-weight:800; font-size:var(--fs-md);
+    box-shadow:inset 0 0 0 1px var(--vinyl-rim); }
+  .sh h2{ font-size:var(--fs-xl); font-weight:800; letter-spacing:-.01em; }
+  .sh p{ margin-top:var(--s-1); color:var(--muted); font-size:var(--fs-sm); }
+  .need-dot{ display:inline-block; width:.35rem; height:.35rem; vertical-align:.2em; border-radius:50%; background:var(--accent-deep); }
 
-  .rules{ display:grid; gap:var(--s-2); margin:var(--s-5) 0 0; }
-  @media (min-width:48rem){ .rules{ grid-template-columns:repeat(4,minmax(0,1fr)); } }
-  .rules div{ display:flex; gap:var(--s-3); align-items:baseline; padding:var(--s-3) var(--s-4); border-radius:var(--radius-sm); background:var(--surface); border:1px solid var(--hairline); }
-  dt{ font-family:var(--mono); font-weight:700; }
-  dd{ margin:0; color:var(--muted); font-size:var(--fs-sm); }
-  .more{ display:flex; flex-wrap:wrap; gap:var(--s-2); margin-top:var(--s-5); }
-  @media (hover:hover){ .jump a:hover, .more a:hover{ background:var(--surface); } }
+  .block{ display:grid; gap:var(--s-3); }
+  .block h3{ display:flex; align-items:baseline; gap:var(--s-2); font-size:var(--fs-lg); font-weight:700; }
+  .count{ font-size:var(--fs-xs); font-weight:400; font-variant-numeric:tabular-nums; color:var(--muted); }
+  .sub{ color:var(--muted); font-size:var(--fs-sm); }
+  code{ font-size:.92em; overflow-wrap:anywhere; }
+  pre{ margin:0; padding:var(--s-3) var(--s-4); overflow-x:auto; border-radius:var(--radius-sm); background:var(--surface-2); border:1px solid var(--hairline); font-size:var(--fs-xs); line-height:1.7; }
+  pre code{ overflow-wrap:normal; }
+
+  .steps{ display:grid; gap:var(--s-5); margin:0; padding:0; list-style:none; counter-reset:step; }
+  .steps > li{ display:grid; grid-template-columns:minmax(0,1fr); gap:var(--s-3); padding-left:2.25rem; position:relative; counter-increment:step; min-width:0; }
+  .steps > li::before{ content:counter(step); position:absolute; left:0; top:-.1rem; display:grid; place-items:center; width:1.5rem; height:1.5rem; border-radius:50%; border:2px solid var(--accent-deep); font-size:var(--fs-xs); font-weight:700; }
+  .steps p{ font-size:var(--fs-sm); color:var(--muted); }
+  .steps b{ color:var(--text); }
+  .scopes{ display:grid; gap:var(--s-2); margin:0; padding:0; list-style:none; }
+  @media (min-width:40rem){ .scopes{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  .scopes li{ display:grid; gap:2px; padding:var(--s-3); border-radius:var(--radius-sm); background:var(--surface); border:1px solid var(--border); font-size:var(--fs-sm); }
+  .scopes code{ font-weight:700; }
+  small{ color:var(--muted); font-size:var(--fs-xs); }
+  .clients{ display:grid; grid-template-columns:minmax(0,1fr); border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--surface); }
+  .clients details + details{ border-top:1px solid var(--hairline); }
+  .clients summary{ display:flex; align-items:center; min-height:2.75rem; padding-inline:var(--s-3); cursor:pointer; font-size:var(--fs-sm); font-weight:600; }
+  .clients details[open] summary{ color:var(--accent-text); }
+  .clients pre{ margin:0 var(--s-3) var(--s-3); }
+
+  .tools{ display:grid; gap:var(--s-3); grid-template-columns:minmax(0,1fr); }
+  .prompts, .errors{ display:grid; gap:var(--s-2); margin:0; padding:0; list-style:none; }
+  .prompts li{ display:grid; grid-template-columns:minmax(0,1fr); gap:2px; padding:var(--s-3) var(--s-4); border-radius:var(--radius-sm); background:var(--surface); border:1px solid var(--border); font-size:var(--fs-sm); }
+  .prompts code{ font-weight:700; }
+  .prompts span{ color:var(--muted); }
+  .kv{ display:grid; margin:0; border-top:1px solid var(--hairline); font-size:var(--fs-sm); }
+  .kv div{ display:grid; grid-template-columns:3rem minmax(0,1fr); gap:var(--s-3); padding-block:var(--s-2); border-bottom:1px solid var(--hairline); }
+  dt{ font-weight:600; }
+  dd{ margin:0; color:var(--muted); min-width:0; overflow-wrap:anywhere; }
+  .pair{ display:grid; gap:var(--s-3); grid-template-columns:minmax(0,1fr); }
+  @media (min-width:48rem){ .pair{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  figure{ margin:0; display:grid; gap:var(--s-1); min-width:0; }
+  figcaption{ font-size:var(--fs-xs); color:var(--muted); }
+  .errors{ grid-template-columns:repeat(auto-fill,minmax(min(100%,13rem),1fr)); }
+  .errors li{ display:flex; gap:var(--s-2); align-items:baseline; font-size:var(--fs-xs); color:var(--muted); }
+  .errors code{ font-weight:700; color:var(--text); font-size:var(--fs-sm); }
+
+  .divider{ display:grid; gap:var(--s-1); padding-top:var(--s-5); border-top:1px dashed var(--border-strong); color:var(--muted); font-size:var(--fs-sm); }
+  .divider span{ color:var(--text); font-size:var(--fs-lg); font-weight:800; }
+  .more{ display:flex; flex-wrap:wrap; gap:var(--s-2); }
+  @media (hover:hover){ .sides a:hover, .more a:hover{ background:var(--surface-2); } .clients summary:hover{ color:var(--text); } }
 </style>

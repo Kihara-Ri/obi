@@ -1,6 +1,6 @@
 # MCP 接入：让 Agent 直接调用 Obi
 
-> 状态：生效中（2026-11-24 实现）。决策见 D-051。实现：`server/mcp_server.py`（协议入口）、`server/mcp_protocol.py`（版本与请求校验）、`server/mcp_tools.py`（工具表）、`server/mcp_prompts.py`（场景模板）、`server/mcp_files.py`（限时下载链接）。测试：`tests/test_mcp.py`。
+> 状态：生效中（2026-11-24 实现）。决策见 D-051。实现：`server/mcp_server.py`（协议入口）、`server/mcp_protocol.py`（版本与请求校验）、`server/mcp_tools.py`（工具表）、`server/mcp_prompts.py`（场景模板）、`server/mcp_files.py`（限时下载链接）。测试：`tests/test_mcp.py`。介绍站「接口」页的工具与模板数据在 `site/src/lib/api-mcp.ts`，工具或参数变化时同步。
 
 服务器版在 `POST /mcp` 提供 [MCP](https://modelcontextprotocol.io)（Model Context Protocol）入口。Claude Code、Claude Desktop、Cursor 等支持 MCP 的客户端填上地址和令牌，就能看到 Obi 的工具和场景模板，不用给 Agent 贴接口文档。HTTP 接口照旧保留，给脚本和 n8n 一类自动化用；两边是同一套处理逻辑。
 

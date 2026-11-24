@@ -1,0 +1,59 @@
+---
+// 「接口」页 B 面的一组 HTTP 路由：组标题 + 每条路由一行（方法、路径、凭据、用途，下面是参数、请求体与返回）。
+// 路径在手机上按字符折行，不撑宽页面。
+import type { Group } from '../lib/api-http';
+import ApiFields from './ApiFields.astro';
+interface Props { group: Group; auth: string }
+const { group, auth } = Astro.props;
+---
+<section id={group.id} class="group" data-spy aria-labelledby={`${group.id}-t`}>
+  <header class="gh">
+    <h3 id={`${group.id}-t`}>{group.title}</h3>
+    <span class="count" aria-hidden="true">{group.routes.length}</span>
+    {group.lead && <p>{group.lead}</p>}
+  </header>
+  <ul class="routes">
+    {group.routes.map((r) => (
+      <li class="route">
+        <div class="line">
+          <span class:list={['m', r.m.toLowerCase()]}>{r.m}</span>
+          <code class="p">{r.p}</code>
+          <span class:list={['auth', { scope: (r.auth ?? auth).includes(':') }]}>{r.auth ?? auth}</span>
+        </div>
+        <p class="does">{r.does}</p>
+        {(r.q || r.body || r.ret) && (
+          <dl class="io">
+            {r.q && <div><dt>参数</dt><dd><ApiFields text={r.q} /></dd></div>}
+            {r.body && <div><dt>请求体</dt><dd><ApiFields text={r.body} /></dd></div>}
+            {r.ret && <div><dt>返回</dt><dd><ApiFields text={r.ret} /></dd></div>}
+          </dl>
+        )}
+      </li>
+    ))}
+  </ul>
+</section>
+
+<style>
+  .group{ display:grid; gap:var(--s-3); }
+  .gh{ display:flex; flex-wrap:wrap; align-items:baseline; gap:var(--s-2); }
+  .gh h3{ font-size:var(--fs-lg); font-weight:700; }
+  .count{ font-size:var(--fs-xs); font-variant-numeric:tabular-nums; color:var(--muted); }
+  .gh p{ flex-basis:100%; color:var(--muted); font-size:var(--fs-sm); }
+
+  .routes{ margin:0; padding:0; list-style:none; border-radius:var(--radius); border:1px solid var(--border); background:var(--surface); }
+  .route{ display:grid; gap:var(--s-1); padding:var(--s-3) var(--s-4); min-width:0; }
+  .route + .route{ border-top:1px solid var(--hairline); }
+  .line{ display:flex; flex-wrap:wrap; align-items:center; gap:var(--s-1) var(--s-2); min-width:0; }
+  .m{ flex:none; min-width:3.25rem; text-align:center; font-family:var(--mono); font-size:var(--fs-xs); font-weight:700; padding:0 var(--s-2); border-radius:var(--radius-sm); }
+  .get{ background:var(--surface-2); color:var(--text); border:1px solid var(--border); }
+  .post{ background:var(--accent); color:var(--accent-ink); border:1px solid var(--accent); }
+  .p{ min-width:0; font-size:var(--fs-sm); font-weight:600; overflow-wrap:anywhere; margin-right:auto; }
+  .auth{ font-size:var(--fs-xs); color:var(--muted); white-space:nowrap; }
+  .auth.scope{ font-family:var(--mono); padding:0 var(--s-2); border-radius:999px; background:var(--surface-2); border:1px solid var(--hairline); }
+  .does{ font-size:var(--fs-sm); }
+
+  .io{ display:grid; gap:2px; margin:0; font-size:var(--fs-xs); color:var(--muted); line-height:1.7; }
+  .io div{ display:grid; grid-template-columns:3rem minmax(0,1fr); gap:var(--s-2); }
+  dt{ color:var(--faint); }
+  dd{ margin:0; overflow-wrap:anywhere; }
+</style>

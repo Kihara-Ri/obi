@@ -1,0 +1,40 @@
+---
+// 「接口」页的一行字段说明：把「a* · b（说明）· c」拆成片段，字段名用等宽字，带 * 的必填字段加粗并带一个圆点。
+// 不以字段名开头的片段（如「同上」「单个副本，或 …」）原样显示。
+interface Props { text: string }
+const { text } = Astro.props;
+// 只在括号外的「 · 」处断开：括号里的枚举（如「mode*（list · edit）」）留在同一片段
+const split = (s: string) => {
+  const out = [''];
+  let depth = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c === '（' || c === '(') depth++;
+    if (c === '）' || c === ')') depth--;
+    if (depth === 0 && s.startsWith(' · ', i)) { out.push(''); i += 2; continue; }
+    out[out.length - 1] += c;
+  }
+  return out;
+};
+const parts = split(text).map((part) => {
+  const m = part.match(/^([A-Za-z_][\w.[\]=+-]*)(\*?)(.*)$/s);
+  return m ? { name: m[1], need: m[2] === '*', rest: m[3] } : { name: '', need: false, rest: part };
+});
+---
+<span class="fields">
+  {parts.map((f) => (
+    <span class="f">
+      {f.name && <code class:list={['k', { need: f.need }]}>{f.name}</code>}
+      {f.need && <span class="visually-hidden">（必填）</span>}
+      {f.rest}
+    </span>
+  ))}
+</span>
+
+<style>
+  .fields{ display:inline; }
+  .f:not(:last-child)::after{ content:' · '; color:var(--faint); }
+  .k{ font-size:.92em; color:var(--text); }
+  .need{ font-weight:700; }
+  .need::after{ content:''; display:inline-block; width:.3rem; height:.3rem; margin-left:.15rem; vertical-align:.45em; border-radius:50%; background:var(--accent-deep); }
+</style>

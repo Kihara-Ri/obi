@@ -1,0 +1,78 @@
+---
+// 「接口」页的汇总栏：A 面（Agent · MCP）与 B 面（HTTP）两张曲目表，按功能分组，点击跳到对应条目。
+// 宽屏（≥64rem）吸顶常开；窄屏收成页眉下的一条「目录 · 当前分组」，点开向下展开、选中即收回。
+// 开合与「当前分组」高亮由 scripts/api-toc.ts 负责；没有脚本时是一个普通的可展开目录。
+import { toolGroups } from '../lib/api-mcp';
+import { open } from '../lib/api-http';
+import { app } from '../lib/api-app';
+const sideA = [
+  { id: 'mcp-connect', title: '接入与权限' },
+  ...toolGroups.map((g) => ({ id: g.id, title: g.title, n: g.tools.length, items: g.tools.map((t) => t.name) })),
+  { id: 'mcp-prompts', title: '场景模板', n: 3 },
+  { id: 'mcp-protocol', title: '协议细节' },
+];
+const sideB = [
+  { id: 'http-auth', title: '鉴权与调用' },
+  { id: open.id, title: open.title, n: open.routes.length },
+  ...app.map((g) => ({ id: g.id, title: g.title, n: g.routes.length })),
+];
+const sides = [
+  { key: 'A', label: 'Agent · MCP', href: '#side-a', rows: sideA },
+  { key: 'B', label: 'HTTP', href: '#side-b', rows: sideB },
+];
+---
+<nav class="toc" aria-label="接口目录">
+  <details class="box" data-toc>
+    <summary>
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h13" /></svg>
+      <span>目录</span><span class="now" data-toc-now></span>
+    </summary>
+    <div class="body" data-toc-body>
+      {sides.map((s) => (
+        <div class="side">
+          <a class="sh" href={s.href}><span class="mark" aria-hidden="true">{s.key}</span><span class="visually-hidden">{s.key} 面：</span>{s.label}</a>
+          <ol>
+            {s.rows.map((r) => (
+              <li>
+                <a href={`#${r.id}`} data-toc-link>{r.title}{r.n && <span class="n" aria-hidden="true">{r.n}</span>}</a>
+                {r.items && (
+                  <ol class="sub">{r.items.map((name) => <li><a href={`#${name}`}><code>{name}</code></a></li>)}</ol>
+                )}
+              </li>
+            ))}
+          </ol>
+        </div>
+      ))}
+    </div>
+  </details>
+</nav>
+
+<style>
+  .toc{ position:sticky; top:calc(3.5rem + env(safe-area-inset-top)); z-index:5; margin-inline:calc(-1 * var(--site-gutter)); }
+  summary{ display:flex; align-items:center; gap:var(--s-2); min-height:2.75rem; padding-inline:var(--site-gutter); list-style:none; cursor:pointer;
+    background:var(--chrome-head); border-bottom:1px solid var(--chrome-line); backdrop-filter:saturate(1.6) blur(16px); -webkit-backdrop-filter:saturate(1.6) blur(16px); font-size:var(--fs-sm); font-weight:600; }
+  summary::-webkit-details-marker{ display:none; }
+  summary svg{ fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; color:var(--muted); }
+  .now{ margin-left:auto; color:var(--muted); font-weight:400; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .body{ position:absolute; inset-inline:0; top:100%; max-height:min(70dvh, 34rem); overflow-y:auto; overscroll-behavior:contain;
+    display:grid; gap:var(--s-4); padding:var(--s-4) var(--site-gutter); background:var(--surface); border-bottom:1px solid var(--border); box-shadow:var(--shadow); }
+
+  .side{ display:grid; gap:var(--s-1); }
+  .sh{ display:flex; align-items:center; gap:var(--s-2); min-height:2.25rem; font-size:var(--fs-xs); font-weight:700; letter-spacing:.06em; color:var(--muted); }
+  /* 面标记：唱片标签式的实心圆，写 A / B */
+  .mark{ position:relative; display:grid; place-items:center; width:1.5rem; height:1.5rem; border-radius:50%; background:var(--accent); color:var(--accent-ink); font-size:.7rem; letter-spacing:0; }
+  ol{ margin:0; padding:0; list-style:none; display:grid; }
+  a[data-toc-link], .sub a{ display:flex; align-items:center; gap:var(--s-2); min-height:2.25rem; padding-inline:var(--s-3); border-radius:var(--radius-sm); font-size:var(--fs-sm); color:var(--muted);
+    transition:color var(--dur-fast) var(--ease-soft), background var(--dur-fast) var(--ease-soft); }
+  .n{ margin-left:auto; font-size:var(--fs-xs); font-variant-numeric:tabular-nums; color:var(--faint); }
+  .sub{ margin-left:var(--s-3); padding-left:var(--s-2); border-left:1px solid var(--hairline); }
+  .sub a{ min-height:1.875rem; font-size:var(--fs-xs); }
+  [aria-current='true']{ color:var(--text); background:var(--surface-2); font-weight:600; }
+  @media (hover:hover){ .toc a:hover{ color:var(--text); } }
+
+  @media (min-width:64rem){
+    .toc{ top:calc(3.5rem + var(--s-5)); margin:0; align-self:start; }
+    summary{ display:none; }
+    .body{ position:static; max-height:calc(100dvh - 3.5rem - var(--s-7)); padding:0 var(--s-2) var(--s-4) 0; background:none; border:0; box-shadow:none; }
+  }
+</style>
