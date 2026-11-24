@@ -1,86 +1,235 @@
 ---
-// 五个功能模块 = 架上五张日版 CD：每张左缘一条腰封（帯），竖排写模块名，底部是编号；封面放图标和至多三个短标签（少字原则）。
-// 「整理收藏」的腰封是常亮的黄色，并带「始终可用」文字徽标（不只靠颜色）；其余四张腰封是灰的，鼠标移上去才亮起，暗示「按需打开」。
-// 宽屏一行五张方形唱片盒；手机两列，「整理收藏」占满首行，其余 2×2，不留孤卡。
+// 五个功能模块 = 应用里真实的模块开关 + 一部迷你手机。手机里照着应用手机版「库存」页还原：
+// 顶栏（选择 · 标题或「库存｜展示」切换 · ＋）、国内 / 海外、统计卡、搜索、上架筛选、按月分组的列表、底部悬浮底栏。
+// 每个开关收起 / 露出的部分与应用一致（web/src/pages/ShelfPage.tsx、ShelfSummary.tsx、core/page-motion.ts 的 mobileTabs）：
+//   收藏展示 → 顶栏「库存｜展示」切换；购入记录 → 总成本、买入价、搜索渠道；
+//   二手交易 → 已上架、上架筛选、「售出中」标签；海外周转 → 国内 / 海外、「在途」标签，「收藏」改叫「库存」。
+// 海外周转依赖购入记录（与应用 ModuleTiles 一致）：开海外自动带上购入，关购入同时关海外，由 scripts/modules.ts 联动。
+// 示例专辑取自首屏封面墙的 30 张（src/covers.json），价格是演示数据。
+// 显隐用纯 CSS（:has）；无 JS 时开关和手机仍各自可用，只是没有依赖联动。
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
 const modules = [
-  { name: '整理收藏', base: true, tags: ['条码录入', '实物照片', '艺人资料'],
-    icon: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3a9 9 0 0 1 9 9"/>' },
-  { name: '展示收藏', tags: ['九种布局', '自动巡游', '2D / 3D'],
-    icon: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>' },
-  { name: '购入记录', tags: ['原币金额', '当日汇率', '缺失待补'],
-    icon: '<path d="M4 7h16l-1.5 12h-13z"/><path d="M9 7a3 3 0 0 1 6 0"/>' },
-  { name: '二手交易', tags: ['上架资料', '成交到账', '利润'],
-    icon: '<path d="M7 7h11l-3-3"/><path d="M17 17H6l3 3"/>' },
-  { name: '海外周转', tags: ['打包', '运费均摊', '在途'],
-    icon: '<path d="M3 7h11v9H3z"/><path d="M14 10h4l3 3v3h-7"/><circle cx="7" cy="17.5" r="1.5"/><circle cx="17" cy="17.5" r="1.5"/>' },
+  { key: 'base', name: '整理收藏', base: true, tags: ['条码录入', '实物照片', '艺人资料'],
+    icon: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/>' },
+  { key: 'showcase', name: '收藏展示', tags: ['九种布局', '自动巡游', '2D / 3D'],
+    icon: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>' },
+  { key: 'acq', name: '购入记录', tags: ['原币金额', '当日汇率', '缺失待补'],
+    icon: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/>' },
+  { key: 'trade', name: '二手交易', tags: ['上架资料', '成交到账', '利润'],
+    icon: '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="7.5" r="1.3"/>' },
+  { key: 'circ', name: '海外周转', off: true, needs: '含购入', tags: ['打包', '运费均摊', '在途'],
+    icon: '<path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>' },
 ];
+// 演示列表：封面墙里的真实专辑，价格为演示
+const months = [
+  { m: '2026年11月', n: 2, rows: [
+    { cover: 'natsukusa.png', title: '夏草が邪魔をする', artist: 'ヨルシカ', ed: '日版 · 标准塑料盒', price: '2,750', unit: '円', cny: '≈ ¥130.5', listed: true },
+    { cover: 'one-last-kiss.png', title: 'One Last Kiss', artist: '宇多田ヒカル', ed: '日版 · 纸套', price: '1,320', unit: '円', cny: '≈ ¥62.6' },
+  ] },
+  { m: '2026年10月', n: 3, rows: [
+    { cover: 'court.png', title: 'In the Court of the Crimson King', artist: 'King Crimson', ed: '日版 · 迷你 LP 纸套', price: '—' },
+    { cover: 'life-continues.png', title: 'Life Continues', artist: '陳奕迅', ed: '港版 · 标准塑料盒', price: '138.00', unit: '元' },
+  ] },
+];
+const svg = (d: string) => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+const navIco = {
+  shelf: '<path d="M4 17.5h16"/><path d="M5.5 13h13"/><rect x="3.5" y="5" width="17" height="14.5" rx="2.4"/><path d="M8 9h8"/>',
+  transit: '<path d="M21 3.5 10.2 14"/><path d="M21 3.5 14.5 20.5l-4.3-6.5L3.5 9.8z"/>',
+  shipping: '<path d="M20.5 8.2v8.3a2 2 0 0 1-1 1.7l-6.5 3.7a2 2 0 0 1-2 0L4.5 18.2a2 2 0 0 1-1-1.7V8.2"/><path d="M3.7 7.4 12 12l8.3-4.6M12 12v9.4"/>',
+  more: '<circle cx="5.5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18.5" cy="12" r="1.3"/>',
+};
 ---
 <section id="features" class="section">
   <div class="wrap">
     <h2 class="section-title">五个模块，按需打开</h2>
-    <p class="section-sub">整理收藏始终可用，其余四个按需打开；关闭只收起入口，不删任何记录。</p>
-    <ul class="shelf">
-      {modules.map((m, i) => (
-        <li class:list={['case', { base: m.base }]}>
-          <div class="obi">
-            <h3>{m.name}</h3>
-            <span class="no" aria-hidden="true">{`OBI-0${i + 1}`}</span>
-          </div>
-          <div class="cover">
-            <div class="top">
+    <p class="section-sub">整理收藏始终可用，其余四个按需打开。试着拨一下：关闭只收起入口，不删任何记录。</p>
+    <div class="demo">
+      <ul class="mods">
+        {modules.map((m) => (
+          <li>
+            <label class="row" for={`mod-${m.key}`}>
               <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" set:html={m.icon} />
-              {m.base && <span class="badge">始终可用</span>}
-            </div>
-            <ul class="tags">{m.tags.map((t) => <li>{t}</li>)}</ul>
+              <span class="text">
+                <span class="name">{m.name}{m.base && <span class="badge">始终可用</span>}{m.needs && <small class="needs">{m.needs}</small>}</span>
+                <span class="tags">{m.tags.map((t) => <span>{t}</span>)}</span>
+              </span>
+              <input id={`mod-${m.key}`} type="checkbox" role="switch" checked={!m.off} disabled={m.base} />
+              <span class="switch" aria-hidden="true"><span class="knob"></span></span>
+            </label>
+          </li>
+        ))}
+      </ul>
+
+      <figure class="phone" aria-label="手机版库存页预览，随左侧开关变化">
+        <div class="screen" aria-hidden="true">
+          <div class="head">
+            <span class="chip">选择</span>
+            <span class="title">
+              <span class="seg2 if-showcase"><b>库存</b><span>展示</span></span>
+              <span class="plain if-no-showcase"><span class="if-circ-inline">国内库存</span><span class="if-no-circ-inline">我的收藏</span></span>
+            </span>
+            <span class="add">＋</span>
           </div>
-        </li>
-      ))}
-    </ul>
+
+          <div class="opt if-circ"><div><div class="loc"><b>国内 24</b><span>海外 6</span></div></div></div>
+
+          <div class="card">
+            <div class="sum">
+              <span class="if-acq-inline">总成本 · 30 张</span><span class="if-no-acq-inline">专辑</span>
+              <strong><span class="if-acq-inline">¥3,412.60</span><span class="if-no-acq-inline">30 张</span></strong>
+              <small class="if-acq-inline">另有 3 张成本待补，未计入</small>
+            </div>
+            <span class="side if-trade-inline">已上架 <b>2</b></span>
+          </div>
+
+          <div class="search">⌕ <span class="if-acq-inline">搜索专辑、艺人或渠道…</span><span class="if-no-acq-inline">搜索专辑或艺人…</span></div>
+
+          <div class="opt if-trade"><div><div class="seg3"><b>全部专辑</b><span>已上架</span><span>未上架</span></div></div></div>
+
+          <div class="list">
+            {months.map((g) => (
+              <>
+                <p class="month">{g.m}<span>{g.n} 张</span></p>
+                {g.rows.map((r) => (
+                  <div class="item">
+                    <span class="cv">
+                      <img src={`${base}covers/${r.cover}`} alt="" width="64" height="64" loading="lazy" decoding="async" />
+                      {r.listed && <i class="tick if-trade-inline">✓</i>}
+                    </span>
+                    <span class="meta"><b>{r.title}</b><span>{r.artist}</span><small>{r.ed}</small></span>
+                    <span class="price if-acq-inline">
+                      <span>买入 <b>{r.price}</b>{r.unit}</span>
+                      {r.cny && <small>{r.cny}</small>}
+                    </span>
+                  </div>
+                ))}
+              </>
+            ))}
+          </div>
+
+          <nav class="nav">
+            <span class="tab on"><span set:html={svg(navIco.shelf)} /><span class="lbl"><span class="if-circ-inline">库存</span><span class="if-no-circ-inline">收藏</span></span><i class="badge-n"><span class="if-circ-inline">24</span><span class="if-no-circ-inline">30</span></i></span>
+            <span class="tab t-circ"><span set:html={svg(navIco.transit)} /><i class="badge-n">6</i></span>
+            <span class="tab t-trade"><span set:html={svg(navIco.shipping)} /><i class="badge-n">1</i></span>
+            <span class="tab"><span set:html={svg(navIco.more)} /></span>
+          </nav>
+        </div>
+      </figure>
+    </div>
   </div>
 </section>
+<script src="../scripts/modules.ts"></script>
 
 <style>
-  .shelf{ display:grid; grid-template-columns:repeat(2,1fr); gap:var(--s-4); margin:var(--s-6) 0 0; padding:0; list-style:none; }
-  .case{
-    display:grid; grid-template-columns:auto minmax(0,1fr); min-height:11rem;
-    border-radius:var(--radius-sm); overflow:hidden;
-    background:var(--surface); border:1px solid var(--border); box-shadow:var(--shadow-sm);
-  }
-  .case.base{ grid-column:1 / -1; border-color:var(--border-strong); }
+  .demo{ display:grid; gap:var(--s-6); margin-top:var(--s-6); }
 
-  /* 腰封：竖排（vertical-rl）下 row 是竖直方向，名称在上、编号在下 */
-  .obi{
-    display:flex; flex-direction:row; align-items:center; justify-content:space-between;
-    width:2.75rem; padding-inline:var(--s-4);
-    writing-mode:vertical-rl; white-space:nowrap;
-    background:var(--surface-2); color:var(--muted); border-right:1px solid var(--border);
-    transition:background var(--dur) var(--ease-soft), color var(--dur) var(--ease-soft);
-  }
-  .obi h3{ font-size:var(--fs-md); font-weight:800; letter-spacing:.2em; color:var(--text); transition:color var(--dur) var(--ease-soft); }
-  .no{ font-family:var(--mono); font-size:var(--fs-xs); letter-spacing:.08em; opacity:.75; }
-  .base .obi{ background:var(--accent); color:var(--accent-ink); border-right-color:transparent; }
-  .base .obi h3{ color:var(--accent-ink); }
-
-  .cover{ display:flex; flex-direction:column; justify-content:space-between; gap:var(--s-4); padding:var(--s-4); }
-  .top{ display:flex; align-items:flex-start; justify-content:space-between; gap:var(--s-2); }
+  /* ── 开关列表 ── */
+  .mods{ margin:0; padding:0; list-style:none; border-radius:var(--radius); background:var(--surface); border:1px solid var(--border); overflow:hidden; }
+  .mods li + li{ border-top:1px solid var(--hairline); }
+  .row{ display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:var(--s-4); padding:var(--s-4) var(--s-5); cursor:pointer; }
+  .row:has(input:disabled){ cursor:default; }
   .ico{ width:2.5rem; height:2.5rem; padding:var(--s-2); border-radius:var(--radius-sm); background:var(--accent-wash); color:var(--accent-deep);
-    fill:none; stroke:currentColor; stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round; }
-  .badge{ font-size:var(--fs-xs); font-weight:600; padding:0 var(--s-2); border-radius:999px; white-space:nowrap;
-    background:var(--accent); color:var(--accent-ink); }
-  .tags{ display:grid; gap:var(--s-1); margin:0; padding:0; list-style:none; color:var(--muted); font-size:var(--fs-sm); }
+    fill:none; stroke:currentColor; stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round;
+    transition:opacity var(--dur) var(--ease-soft), filter var(--dur) var(--ease-soft); }
+  .text{ display:grid; gap:var(--s-1); }
+  .name{ display:flex; align-items:center; gap:var(--s-2); font-weight:700; font-size:var(--fs-md); transition:color var(--dur) var(--ease-soft); }
+  .badge{ font-size:var(--fs-xs); font-weight:600; padding:0 var(--s-2); border-radius:999px; white-space:nowrap; background:var(--accent); color:var(--accent-ink); }
+  .needs{ font-size:var(--fs-xs); font-weight:500; color:var(--muted); }
+  .tags{ display:flex; flex-wrap:wrap; column-gap:var(--s-3); color:var(--muted); font-size:var(--fs-sm); transition:opacity var(--dur) var(--ease-soft); }
+  .row:has(input:not(:checked)) .ico{ filter:grayscale(1); opacity:.5; }
+  .row:has(input:not(:checked)) .name{ color:var(--muted); }
+  .row:has(input:not(:checked)) .tags{ opacity:.5; }
 
-  /* 鼠标移上去：灰腰封亮起，像把这个模块「打开」 */
-  @media (hover:hover){
-    .case:not(.base):hover .obi{ background:var(--accent); color:var(--accent-ink); }
-    .case:not(.base):hover .obi h3{ color:var(--accent-ink); }
-  }
+  /* 开关：外观与应用 Switch 组件一致 */
+  .row input{ position:absolute; opacity:0; width:1px; height:1px; pointer-events:none; }
+  .switch{ position:relative; width:46px; height:28px; flex:none; border-radius:99px; background:var(--surface-3); border:1px solid var(--border-strong);
+    transition:background var(--dur) var(--ease-soft), border-color var(--dur) var(--ease-soft); }
+  .knob{ position:absolute; top:2px; left:2px; width:22px; height:22px; border-radius:99px; background:var(--switch-knob); box-shadow:0 1px 3px var(--shadow-ink);
+    transition:transform var(--dur) var(--ease-out); }
+  input:checked + .switch{ background:var(--accent); border-color:var(--accent); }
+  input:checked + .switch .knob{ transform:translateX(18px); }
+  input:disabled + .switch{ opacity:.6; }
+  input:focus-visible + .switch{ outline:2px solid var(--accent-deep); outline-offset:2px; }
+
+  /* ── 迷你手机：按应用手机版 390px 宽的比例缩小，内部尺寸用 em ── */
+  .phone{ order:-1; justify-self:center; width:min(17.5rem, 100%); margin:0; padding:.55rem; border-radius:2.4rem;
+    background:var(--surface-3); border:1px solid var(--border-strong); box-shadow:var(--shadow); }
+  .screen{ position:relative; height:33rem; overflow:hidden; border-radius:1.9rem; background:var(--bg);
+    padding:1.1em .9em 0; font-size:.6rem; line-height:1.35; color:var(--text); }
+
+  .head{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; margin-bottom:1em; }
+  .chip{ justify-self:start; padding:.45em 1em; border-radius:99px; border:1px solid var(--border-strong); font-weight:600; font-size:1.15em; }
+  .title{ font-weight:700; font-size:1.2em; }
+  .add{ justify-self:end; display:grid; place-items:center; width:2.4em; height:2.4em; border-radius:50%; background:var(--accent); color:var(--accent-ink); font-size:1.15em; font-weight:700; }
+  .seg2{ display:flex; gap:.2em; padding:.2em; border-radius:99px; border:1px solid var(--border-strong); font-size:.95em; }
+  .seg2 > *{ padding:.3em .9em; border-radius:99px; color:var(--muted); font-weight:600; }
+  .seg2 b, .loc b, .seg3 b{ background:var(--seg-thumb); color:var(--text); box-shadow:inset 0 0 0 1px var(--hairline); }
+
+  .loc, .seg3{ display:flex; gap:.25em; padding:.25em; border-radius:.9em; background:var(--surface-2); margin-bottom:.9em; }
+  .loc > *, .seg3 > *{ flex:1; text-align:center; padding:.55em 0; border-radius:.7em; color:var(--muted); font-weight:600; }
+  .card{ display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:end; gap:0 1em; padding:.9em 1.1em; margin-bottom:.9em;
+    border-radius:1em; background:var(--surface); border:1px solid var(--border); }
+  .sum{ display:grid; gap:.15em; }
+  .sum > span, .sum small{ color:var(--muted); }
+  .sum small{ color:var(--faint); font-size:.95em; }
+  .sum strong{ font-size:2em; font-weight:700; line-height:1.15; }
+  .side{ color:var(--muted); white-space:nowrap; }
+  .side b{ color:var(--text); }
+  .search{ padding:.75em 1em; margin-bottom:.9em; border-radius:.9em; background:var(--surface); border:1px solid var(--border); color:var(--faint); white-space:nowrap; overflow:hidden; }
+
+  .month{ margin:.6em 0 .5em; font-weight:700; }
+  .month span{ margin-left:.6em; color:var(--muted); font-weight:400; }
+  .item{ display:grid; grid-template-columns:4.6em minmax(0,1fr) auto; gap:.9em; align-items:start; padding:.7em 0; border-bottom:1px solid var(--hairline); }
+  .cv{ position:relative; }
+  .cv img{ display:block; width:4.6em; height:4.6em; border-radius:.45em; image-rendering:pixelated; }
+  .tick{ position:absolute; top:-.4em; right:-.4em; display:grid; place-items:center; width:1.5em; height:1.5em; border-radius:50%;
+    background:var(--green); color:var(--switch-knob); font-style:normal; font-size:.9em; font-weight:700; }
+  .meta{ display:grid; gap:.15em; min-width:0; }
+  .meta b{ font-size:1.15em; font-weight:650; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .meta small{ color:var(--muted); font-size:.95em; }
+  .price{ display:grid; justify-items:end; color:var(--muted); white-space:nowrap; }
+  .price b{ color:var(--text); font-size:1.2em; }
+  .price small{ font-size:.95em; }
+
+  /* 悬浮底栏：激活项是「图标 + 文字」强调色胶囊，其余只留图标，带数量徽标 */
+  .nav{ position:absolute; left:.7em; right:.7em; bottom:1em; display:flex; height:4.4em; padding:.45em; border-radius:2.2em;
+    background:var(--chrome-nav); border:1px solid var(--border-strong); box-shadow:0 .8em 2em var(--shadow-ink);
+    -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px); }
+  .tab{ position:relative; flex:1 1 0; min-width:0; display:flex; align-items:center; justify-content:center; gap:.45em;
+    border-radius:1.8em; color:var(--muted); font-weight:650; font-size:1.05em; overflow:hidden; white-space:nowrap;
+    transition:flex-grow var(--dur-slow) var(--ease-out), opacity var(--dur-slow) var(--ease-out); }
+  .tab :global(svg){ flex:none; width:1.6em; height:1.6em; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .tab > span:first-child{ display:contents; }
+  .tab.on{ flex-grow:2.3; background:var(--accent); color:var(--accent-ink); box-shadow:0 .3em 1em var(--accent-hl); }
+  .badge-n{ position:absolute; top:.35em; left:calc(50% + .2em); min-width:1.3em; padding:0 .3em; border-radius:99px; font-style:normal; font-size:.75em; font-weight:700;
+    text-align:center; background:var(--accent); color:var(--accent-ink); }
+  .tab.on .badge-n{ position:static; background:var(--accent-ink); color:var(--accent); }
+  .lbl{ display:inline; }
+
+  /* ── 开关 → 手机里的显隐（与应用一致） ── */
+  .opt{ display:grid; grid-template-rows:1fr; opacity:1; transition:grid-template-rows var(--dur-slow) var(--ease-out), opacity var(--dur-slow) var(--ease-out); }
+  .opt > div{ min-height:0; overflow:hidden; }
+  .if-no-showcase, .if-no-acq-inline, .if-no-circ-inline{ display:none; }
+  .demo:has(#mod-showcase:not(:checked)) .if-showcase{ display:none; }
+  .demo:has(#mod-showcase:not(:checked)) .if-no-showcase{ display:inline; }
+  .demo:has(#mod-acq:not(:checked)) .if-acq-inline{ display:none; }
+  .demo:has(#mod-acq:not(:checked)) .if-no-acq-inline{ display:inline; }
+  .demo:has(#mod-trade:not(:checked)) .if-trade-inline{ display:none; }
+  .demo:has(#mod-circ:not(:checked)) .if-circ-inline{ display:none; }
+  .demo:has(#mod-circ:not(:checked)) .if-no-circ-inline{ display:inline; }
+  .demo:has(#mod-trade:not(:checked)) .if-trade,
+  .demo:has(#mod-circ:not(:checked)) .if-circ{ grid-template-rows:0fr; opacity:0; }
+  .demo:has(#mod-trade:not(:checked)) .t-trade,
+  .demo:has(#mod-circ:not(:checked)) .t-circ{ flex-grow:0; opacity:0; }
+  /* 「含购入」提示只在购入关着时出现，和应用的模块方砖一样 */
+  .needs{ display:none; }
+  .demo:has(#mod-acq:not(:checked)) .needs{ display:inline; }
 
   @media (min-width:64rem){
-    .shelf{ grid-template-columns:repeat(5,1fr); }
-    .case{ aspect-ratio:1; min-height:0; }
-    .case.base{ grid-column:auto; }
+    .demo{ grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:var(--s-8); }
+    .phone{ order:0; }
   }
   @media (prefers-reduced-motion:reduce){
-    .obi, .obi h3{ transition:none; }
+    .ico, .name, .tags, .switch, .knob, .tab, .opt{ transition:none; }
   }
 </style>
