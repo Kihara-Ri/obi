@@ -1,7 +1,8 @@
 ---
 // 五个功能模块卡片：图标 + 名称 + 至多三个短标签（少字原则，解释交给文档）。
-// 「整理收藏」始终可用，单独占满一行（宽屏横排）；其余四个可选模块排在下面，手机两列、宽屏四列，不留孤卡。
-// 状态用文字徽标区分，不只靠颜色；标签竖排，不用「·」分隔，换行时不会把分隔符甩到行首。
+// 五张卡同一结构（图标 → 名称 → 竖排标签），宽屏一行五列；手机两列，「整理收藏」占满首行，其余 2×2，不留孤卡。
+// 只有「整理收藏」带「始终可用」文字徽标（不只靠颜色），其余不再逐张标「可选」，由副标题一句说明。
+// 标签竖排，不用「·」分隔，换行时不会把分隔符甩到行首。
 const modules = [
   { name: '整理收藏', base: true, tags: ['条码录入', '实物照片', '艺人资料'],
     icon: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3a9 9 0 0 1 9 9"/>' },
@@ -18,12 +19,12 @@ const modules = [
 <section id="features" class="section">
   <div class="wrap">
     <h2 class="section-title">五个模块，按需打开</h2>
-    <p class="section-sub">关闭模块只收起入口，不删任何记录。</p>
+    <p class="section-sub">整理收藏始终可用，其余四个按需打开；关闭只收起入口，不删任何记录。</p>
     <ul class="cards">
       {modules.map((m) => (
         <li class:list={['card', { base: m.base }]}>
           <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" set:html={m.icon} />
-          <span class:list={['badge', { on: m.base }]}>{m.base ? '始终可用' : '可选'}</span>
+          {m.base && <span class="badge">始终可用</span>}
           <div class="body">
             <h3>{m.name}</h3>
             <ul class="tags">{m.tags.map((t) => <li>{t}</li>)}</ul>
@@ -40,17 +41,16 @@ const modules = [
     display:grid; grid-template-columns:auto 1fr; grid-template-areas:'ico badge' 'body body'; align-items:center; row-gap:var(--s-4);
     padding:var(--s-5); border-radius:var(--radius); background:var(--surface); border:1px solid var(--border);
   }
-  .card.base{ grid-column:1 / -1; }
+  .card.base{ grid-column:1 / -1; border-color:var(--border-strong); }
   .ico{ grid-area:ico; width:2.5rem; height:2.5rem; padding:var(--s-2); border-radius:var(--radius-sm); background:var(--accent-wash); color:var(--accent-deep);
     fill:none; stroke:currentColor; stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round; }
-  .badge{ grid-area:badge; justify-self:end; font-size:var(--fs-xs); color:var(--muted); padding:0 var(--s-2); border:1px solid var(--border); border-radius:999px; white-space:nowrap; }
-  .badge.on{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); font-weight:600; }
+  .badge{ grid-area:badge; justify-self:end; font-size:var(--fs-xs); font-weight:600; padding:0 var(--s-2); border-radius:999px; white-space:nowrap;
+    background:var(--accent); color:var(--accent-ink); }
   .body{ grid-area:body; }
   h3{ font-size:var(--fs-lg); }
   .tags{ display:grid; gap:var(--s-1); margin:var(--s-2) 0 0; padding:0; list-style:none; color:var(--muted); font-size:var(--fs-sm); }
-  .base .tags{ display:flex; flex-wrap:wrap; column-gap:var(--s-5); }
-  @media (min-width:60rem){
-    .cards{ grid-template-columns:repeat(4,1fr); }
-    .card.base{ grid-template-columns:auto 1fr auto; grid-template-areas:'ico body badge'; column-gap:var(--s-5); }
+  @media (min-width:64rem){
+    .cards{ grid-template-columns:repeat(5,1fr); }
+    .card.base{ grid-column:auto; }
   }
 </style>
