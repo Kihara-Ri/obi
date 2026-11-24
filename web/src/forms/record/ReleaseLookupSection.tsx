@@ -1,13 +1,16 @@
 // 发行版检索区块：一个输入框（自动识别条码 / 唱片编号，与「查询」页同一套识别）+ 一条状态行（检索中换成与查询页同款的进度卡）+ 候选卡片 / 已确认摘要。
 // 条码与唱片编号只在这里编辑，「发行资料」折叠区不再重复提供；状态一律走 phase，文案保持一行。
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useId, useRef, useState, type ReactNode} from 'react';
+import {flushSync} from 'react-dom';
 import {barcodeFromPhotos} from '../../core/photo-barcode';
+import {Chevron} from '../../components/ui/Chevron';
+import {Collapse} from '../../components/ui/Collapse';
 import {FocusInput} from '../../components/ui/FocusInput';
 import {BarcodeScanner, ScanField} from '../../components/BarcodeScanner';
 import {ReleaseCandidateCard, ReleaseSummary, sourceName} from '../../components/ReleaseCandidateCard/ReleaseCandidateCard';
 import type {CoverOrigin} from '../../core/version-cover';
 import {boundSource, sourceUrl} from '../../core/release-source';
-import {LOOKUP_SOURCES} from '../../core/lookup';
+import {classify, LOOKUP_SOURCES} from '../../core/lookup';
 import {LookupProgress} from '../../components/LookupProgress/LookupProgress';
 import {CoverPanel} from './CoverPanel';
 import type {CoverSearch} from './useCoverSearch';
@@ -26,6 +29,26 @@ const working0 = (L: ReleaseLookup) => L.busy || L.verification === 'pending';
 const summaryShown = (v: RecordValues, L: ReleaseLookup) =>
   !!(v.title && v.artist) && !L.candidates.length;
 
+function BarcodeMiss({message, statusId, manualActions}: {
+  message: string; statusId: string; manualActions: ReactNode;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const id = useId();
+  return (
+    <>
+      <p className="lookup-status is-miss">
+        <b aria-hidden="true">{MARK.miss}</b>
+        <span id={statusId} role="status">{message}</span>
+        {manualActions ? <button type="button" className="quiet lookup-unlisted-toggle"
+          aria-expanded={expanded} aria-controls={id} onClick={() => setExpanded(open => !open)}>
+          未收录版本<Chevron/>
+        </button> : null}
+      </p>
+      {manualActions ? <Collapse open={expanded} id={id} className="lookup-unlisted-options">{manualActions}</Collapse> : null}
+    </>
+  );
+}
+
 export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, coverOrigin, photoSources = [], canLeaveManual}: {
   v: RecordValues; lookup: ReleaseLookup; cover: CoverSearch; coverSrc: string; coverOrigin?: CoverOrigin | null;
   /** 已就绪的实物照片（key 标识同一张，src 可直接加载）；条码为空时自动从中识别 */
@@ -35,8 +58,11 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, coverOrigin
 }) {
   const info = v.releaseInfo;
   const [typed, setTyped] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
+  const [editor, setEditor] = useState<{kind: 'lookup'} | {kind: 'retry'; draft: string} | null>(null);
+  const lookupField = useRef<HTMLButtonElement>(null);
+  const hintId = useId();
   const [scanning, setScanning] = useState(false);
+  const retryDraft = editor?.kind === 'retry' ? editor.draft : null;
   // 没动过输入框时显示当前模式对应的值（编辑旧记录：条码优先，只有编号时显示编号）
   const text = typed ?? (L.mode === 'barcode' ? L.barcode : L.catalogNumber);
   const change = (raw: string) => {
@@ -45,13 +71,34 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, coverOrigin
     if (kind !== L.mode) L.setMode(kind);
     if (kind === 'barcode') L.changeBarcode(raw); else L.changeCatalogNumber(raw);
   };
+  const closeEditor = () => {
+    setEditor(null);
+    if (retryDraft !== null) lookupField.current?.focus({preventScroll: true});
+  };
   // 提交后收起输入层，把输入框那一行滚到内容区顶部，下面的状态 / 候选随即可见
   const submit = () => {
-    setEditing(false); void L.lookup();
+    const replacement = retryDraft?.trim();
+    if (retryDraft !== null && !replacement) return;
+    setEditor(null);
+    if (replacement) {
+      const result = classify(replacement);
+      if (result.ok && result.kind === 'barcode') {
+        change(result.value);
+        void L.search('barcode', result.value);
+      } else {
+        // 保留原发行资料，等用户选定候选才应用编号查询的结果。
+        setTyped(replacement);
+        L.setMode('catalog');
+        L.setCatalogNumber(replacement);
+        void L.search('catalog', replacement);
+      }
+    } else {
+      void L.lookup();
+    }
     window.setTimeout(() => document.getElementById('record-lookup')?.scrollIntoView({block: 'start', behavior: 'smooth'}), 120);
   };
   const scanned = (code: string) => {
-    setScanning(false); setEditing(false); change(code); void L.search('barcode', code);
+    setScanning(false); setEditor(null); change(code); void L.search('barcode', code);
   };
   // 从照片识别条码：条码还是空时，新就绪的照片自动识别（引擎已自动读取，不再提供手动按钮）
   const [reading, setReading] = useState(false);
@@ -77,8 +124,17 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, coverOrigin
   const afterExit = (go: () => void) => { setLeaving(true); timer.current = window.setTimeout(() => { setLeaving(false); go(); }, 160); };
   const confirmed = !!boundSource(info);
   const working = L.busy || L.verification === 'pending';
-  const phase: Phase = working ? 'busy' : L.candidates.length ? 'choose' : L.notFound ? 'miss'
+  const phase: Phase = working ? 'busy' : L.candidates.length ? 'choose' : L.miss ? 'miss'
     : L.manualRelease ? 'manual' : confirmed && L.verification === 'verified' ? 'ok' : 'idle';
+  const barcodeMiss = phase === 'miss' && L.miss === 'barcode';
+  const openEditor = () => {
+    const retry = barcodeMiss || (L.miss === 'catalog' && !L.manualRelease);
+    flushSync(() => setEditor(retry ? {kind: 'retry', draft: barcodeMiss ? '' : text} : {kind: 'lookup'}));
+  };
+  const manualActions = phase === 'miss' && !L.manualRelease ? <span className="lookup-miss-actions">
+    <button type="button" className={barcodeMiss ? undefined : 'quiet'} onClick={() => L.setUnofficial(true)}>非官方发行</button>
+    <button type="button" onClick={L.enterManually}>按未收录版本录入</button>
+  </span> : null;
   const link = sourceUrl(info);
   // 已确认：来源链接只在这一行出现（摘要头部不再重复一个来源标）
   const status = phase === 'ok' ? <>已确认 · <a className="lookup-source" href={link} target="_blank" rel="noopener noreferrer"
@@ -89,7 +145,8 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, coverOrigin
       <label className="lookup-label" htmlFor="record-lookup">发行版</label>
       <div className="record-barcode-row" data-error-anchor>
         <ScanField onScan={() => setScanning(true)}>
-          <button type="button" id="record-lookup" className={'lookup-field' + (text ? '' : ' is-empty')} onClick={() => setEditing(true)}>
+          <button type="button" id="record-lookup" ref={lookupField} aria-describedby={barcodeMiss ? hintId : undefined}
+            className={'lookup-field' + (text ? '' : ' is-empty')} onClick={openEditor}>
             {text || '条码或唱片编号'}
           </button>
         </ScanField>
@@ -97,12 +154,11 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, coverOrigin
       </div>
       {readMsg ? <p className="lookup-photo-read"><span role="status">{readMsg}</span></p> : null}
       {L.searching ? <LookupProgress sources={LOOKUP_SOURCES[L.searching]} onCancel={L.cancelSearch}/> : null}
-      {status && !L.searching ? <p className={`lookup-status is-${phase}` + (leaving ? ' is-leaving' : '')} role="status">
+      {barcodeMiss ? <BarcodeMiss message={L.message} statusId={hintId} manualActions={manualActions}/>
+        : status && !L.searching ? <p className={`lookup-status is-${phase}` + (leaving ? ' is-leaving' : '')}>
         {phase === 'busy' ? <span className="lookup-spinner" aria-hidden="true"/> : <b aria-hidden="true">{phase === 'choose' ? L.candidates.length : MARK[phase]}</b>}
-        <span>{status}</span>
-        {phase === 'miss' && !L.manualRelease ? <span className="lookup-miss-actions">
-          <button type="button" className="quiet" onClick={() => L.setUnofficial(true)}>非官方发行</button>
-          <button type="button" onClick={L.enterManually}>按未收录版本录入</button></span> : null}
+        <span role="status">{status}</span>
+        {manualActions}
         {phase === 'manual' && canLeaveManual ? <button type="button" className="lookup-leave-manual" disabled={leaving} onClick={() => afterExit(L.leaveManual)}>改回查询</button> : null}
       </p> : null}
       {/* 没有条码 / 编号时不会进入「查不到」状态，入口常驻，不等查询失败 */}
@@ -123,9 +179,11 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, coverOrigin
           url={confirmed ? link : undefined}/>
         <CoverPanel cover={cover} src={coverSrc} busy={cover.busy} inline/>
       </div> : null}
-          <FocusInput open={editing} title="查询发行版" value={text} placeholder="条码或唱片编号"
-        submitLabel="查询" onChange={change} onSubmit={submit} onClose={() => setEditing(false)}/>
-    {scanning ? <BarcodeScanner onDetect={scanned} onClose={() => setScanning(false)}/> : null}
+      <FocusInput open={editor !== null} title="查询发行版"
+        value={retryDraft ?? text} placeholder={retryDraft === null ? '条码或唱片编号' : '唱片编号'}
+        submitLabel="查询" onChange={retryDraft === null ? change : draft => setEditor({kind: 'retry', draft})}
+        onSubmit={submit} onClose={closeEditor}/>
+      {scanning ? <BarcodeScanner onDetect={scanned} onClose={() => setScanning(false)}/> : null}
     </section>
   );
 }

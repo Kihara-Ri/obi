@@ -25,7 +25,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
   const [busy, setBusy] = useState(false);
   const [searching, setSearching] = useState<LookupMode | null>(null);  // 正在检索候选（不含核对 / 选用），显示进度卡
   const [message, setMessage] = useState('');
-  const [notFound, setNotFound] = useState(false);
+  const [miss, setMiss] = useState<LookupMode | 'error' | null>(null);
   const [verification, setVerification] = useState<'verified' | 'pending' | 'failed'>('verified');
   const sequence = useRef(0);
   const inflight = useRef<{key: string; promise: Promise<void>} | null>(null);
@@ -36,11 +36,11 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
   const identified = !!(identityOf(v.releaseInfo) || manualRelease);
 
   const reset = () => { ++sequence.current; abort.current?.abort(); inflight.current = null; cover.setBusy(false); };
-  const setMode = (next: LookupMode) => { reset(); setModeState(next); setCandidates([]); setMessage(''); setNotFound(false); };
+  const setMode = (next: LookupMode) => { reset(); setModeState(next); setCandidates([]); setMessage(''); setMiss(null); };
 
   const changeBarcode = (raw: string) => {
     const next = raw.replace(/[^0-9]/g, '');
-    reset(); setBarcode(next); setCandidates([]); setNotFound(false);
+    reset(); setBarcode(next); setCandidates([]); setMiss(null);
     if (manualRelease) {
       set({releaseInfo: {...live.current.releaseInfo, barcode: next}}); dirty(); return;
     }
@@ -51,7 +51,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
     dirty();
   };
   const changeCatalogNumber = (value: string) => {
-    reset(); setCatalogNumber(value); setCandidates([]); setMessage(''); setNotFound(false);
+    reset(); setCatalogNumber(value); setCandidates([]); setMessage(''); setMiss(null);
     if (manualRelease) { set({releaseInfo: {...live.current.releaseInfo, catalogNumber: value}}); dirty(); return; }
     if (!manualRelease && value !== v.releaseInfo.catalogNumber) {
       set({releaseInfo: {...v.releaseInfo, ...identityFromId(''), tracklist: [], media: []}});
@@ -67,19 +67,18 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
     const seq = ++sequence.current;
     abort.current?.abort();
     if (kind === 'barcode' && !(VALID_BARCODE.test(value) && gs1Valid(value))) {
-      setCandidates([]); setNotFound(false);
+      setCandidates([]); setMiss(null);
       setMessage(VALID_BARCODE.test(value) ? '条码校验位不对，请核对是否输错了一位' : '条码需 8、12、13 或 14 位数字');
       return Promise.resolve();
     }
     if (kind === 'catalog' && (value.length < 2 || value.length > 80)) {
-      setCandidates([]); setNotFound(false); setMessage('请输入完整编号'); return Promise.resolve();
+      setCandidates([]); setMiss(null); setMessage('请输入完整编号'); return Promise.resolve();
     }
     const controller = abort.current = new AbortController();
     // 后端两个来源各有超时；这里再兜底，避免连接卡死时界面一直停在“查询中”。
     const timer = window.setTimeout(() => controller.abort(), 70000);
     const current = () => seq === sequence.current && !!formRef.current?.isConnected;
-    setBusy(true); setSearching(kind); cover.setBusy(false); setCandidates([]); setNotFound(false); setMessage('');
-    const what = kind === 'barcode' ? '条码' : '编号';
+    setBusy(true); setSearching(kind); cover.setBusy(false); setCandidates([]); setMiss(null); setMessage('');
     // 条码查完（有无结果）即结束「校验中」：扫码后的自动检索与这次同键复用请求，否则转圈会挂到选定版本
     const settle = () => { if (kind === 'barcode') setVerification(p => p === 'pending' ? 'failed' : p); };
     const promise = (async () => {
@@ -94,12 +93,13 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
           const backupOnly = result.candidates.every(c => sourceOf(c) !== 'musicbrainz');
           setMessage(`${backupOnly ? SOURCE_LABEL[sourceOf(result.candidates[0])] + ' 找到' : '找到'} ${result.candidates.length} 个版本，请选择`);
         } else {
-          setNotFound(true);
-          setMessage(note ? `未找到，${note} 暂不可用，结果可能不全` : `各资料库都没有这个${what}`);
+          setMiss(kind);
+          setMessage(note ? `未找到，${note} 暂不可用，结果可能不全${kind === 'barcode' ? '，可试编号' : ''}`
+            : kind === 'barcode' ? '条码查不到，试试唱片编号' : '各资料库都没有这个编号');
         }
       } catch (err) {
         if (!current()) return;
-        setNotFound(true);
+        setMiss('error');
         settle();
         setMessage(controller.signal.aborted ? '查询超时，可重试或手动录入' : !navigator.onLine ? '当前没有网络，暂时无法查询，可手动录入'
           : err instanceof Error ? err.message : String(err));
@@ -155,7 +155,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
    * unofficial：私版 / Bootleg，同样按手动录入，另有「非官方」标记。 */
   const markManual = (unofficial: boolean) => {
     reset(); verified.current = '';
-    setVerification('verified'); setCandidates([]); setNotFound(false);
+    setVerification('verified'); setCandidates([]); setMiss(null);
     set({releaseInfo: {...v.releaseInfo, barcode: barcode.trim(), catalogNumber: catalogNumber.trim(),
       ...identityFromId(''), manualRelease: '1', unofficial: unofficial ? '1' : ''},
       ...(manualRelease ? {} : {packaging: null})});
@@ -190,7 +190,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
     ctx, cover, sequence, verified, setBusy, setMessage, setBarcode, setCatalogNumber,
     setCandidates, setVerification});
 
-  return {mode, setMode, barcode, catalogNumber, candidates, busy, searching, message, notFound,
+  return {mode, setMode, barcode, catalogNumber, candidates, busy, searching, message, miss,
     verification, manualRelease, identified, changeBarcode, changeCatalogNumber, lookup, cancelSearch,
     enterManually: () => markManual(false), leaveManual, setUnofficial, refreshReleaseMetadata, chooseRelease, setCatalogNumber, search};
 }

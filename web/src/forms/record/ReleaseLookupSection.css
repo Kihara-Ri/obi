@@ -23,6 +23,9 @@
 .record-barcode-entry>.rcc.is-confirmed{margin-top:10px}
 .lookup-miss-actions{margin-left:auto;display:flex;gap:6px;flex:none}
 .lookup-status .lookup-miss-actions button{margin-left:0}
+.lookup-status .lookup-unlisted-toggle{padding-inline:.375rem}
+.lookup-unlisted-options .lookup-miss-actions{padding-block:.375rem}
+.lookup-unlisted-options .lookup-miss-actions button{flex:1;min-width:0;white-space:normal}
 .lookup-photo-read{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 0;font-size:12.5px;color:var(--muted)}
 .lookup-photo-read .quiet{padding:4px 10px;font-size:12.5px}
 .lookup-manual-entry{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;margin-top:8px;padding:10px 14px;text-align:left;font-size:13px;color:var(--muted);background:var(--surface-2);border:1px dashed var(--border-strong);border-radius:12px;min-height:44px}
