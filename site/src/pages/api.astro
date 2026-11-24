@@ -51,7 +51,7 @@ const tools = toolGroups.reduce((n, g) => n + g.tools.length, 0);
                   {clients.map((c, i) => (
                     <details name="mcp-client" open={i === 0}>
                       <summary>{c.label}</summary>
-                      <pre><code>{c.code}</code></pre>
+                      <div class="body"><div class="inner"><pre><code>{c.code}</code></pre></div></div>
                     </details>
                   ))}
                 </div>
@@ -159,8 +159,9 @@ const tools = toolGroups.reduce((n, g) => n + g.tools.length, 0);
   .clients{ display:grid; grid-template-columns:minmax(0,1fr); border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--surface); }
   .clients details + details{ border-top:1px solid var(--hairline); }
   .clients summary{ display:flex; align-items:center; min-height:2.75rem; padding-inline:var(--s-3); cursor:pointer; font-size:var(--fs-sm); font-weight:600; }
-  .clients details[open] summary{ color:var(--accent-text); }
-  .clients pre{ margin:0 var(--s-3) var(--s-3); }
+  .clients details[open]:not([data-closing]) summary{ color:var(--accent-text); }
+  .clients .inner{ padding:0 var(--s-3) var(--s-3); }
+  .clients pre{ margin:0; }
 
   .tools{ display:grid; gap:var(--s-3); grid-template-columns:minmax(0,1fr); }
   .prompts, .errors{ display:grid; gap:var(--s-2); margin:0; padding:0; list-style:none; }

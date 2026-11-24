@@ -36,3 +36,12 @@ D-051 · 2026-11-24-api-scenario-guide.md
 - 用户问 HTTP 部分里带 agent / mcp 的路径算不算 MCP。B 面「对外接口」的导语加一句：路径带 agent 的也是普通 HTTP，不需要 MCP 客户端，只有 /mcp 走 MCP。
 - `POST /mcp` 注明「这一条才是 MCP」；`GET /api/mcp/package` 注明它是 MCP 工具给出的下载链接，本身是普通 HTTP 下载。
 - 只改说明文字，接口行为不变，docs/HTTP接口一览.md 无需改。构建与 CSP 检查通过，本地预览已确认文字出现。
+
+## 追加：接口页的展开 / 收起过渡（2026-11-25）
+- **范围**：新增 `site/src/scripts/details-motion.ts`；`site/src/scripts/tracks.ts`、`site/src/scripts/api-toc.ts`、`site/src/pages/api.astro`
+- **改了什么**：原生 `<details>` 开合是瞬间的，接口页漏了过渡。把首页「开始使用」曲目表的开合动画抽成共用的 `details-motion.ts`（时长、缓动读 `--dur-slow` / `--ease-out`，减少动效时直接开合）：
+  - 客户端配置（Claude Code / Codex / …）改成手风琴：内容包进 `.body > .inner`，高度加透明度过渡，打开一项时另一项平滑收回。
+  - 手机目录下拉用裁切从上往下展开，点目录项跳转时往上收回；宽屏常开不受影响。
+  - 首页曲目表改用同一份实现，行为不变。
+- **验证**：构建、CSP 检查通过；1280px 下客户端配置逐帧高度 79/0 → 33/46 → 0/79，互斥正常，结束后 overflow 复位；375px 下目录展开裁切 100% → 48% → 3% → 无，点链接收回 11% → 64% → 99% → 关闭；首页曲目表仍逐帧过渡、只开一项。
+- **可能带来的新问题**：脚本接管后去掉了 `name` 属性，由脚本负责互斥；没有 JS 时仍靠原生 `name` 互斥、无动画。

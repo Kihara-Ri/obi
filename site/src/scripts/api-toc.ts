@@ -1,13 +1,23 @@
 // 「接口」页汇总栏：宽屏常开、窄屏收起；窄屏选中条目后收回；滚动时高亮当前分组，并把分组名写进收起时的目录条。
+// 窄屏目录是浮在页面上的下拉面板，展开 / 收回带过渡（details-motion.ts 的 drop）；客户端配置是手风琴（accordion）。
+import { accordion, drop, isOpen } from './details-motion';
+
+accordion(document.querySelectorAll<HTMLDetailsElement>('.clients details'));
+
 const box = document.querySelector<HTMLDetailsElement>('[data-toc]');
 if (box) {
   const wide = matchMedia('(min-width: 64rem)');
-  const sync = () => { box.open = wide.matches; };
+  const panel = box.querySelector<HTMLElement>('[data-toc-body]');
+  const sync = () => { box.open = wide.matches; delete box.dataset.closing; };
   sync();
   wide.addEventListener('change', sync);
-  // 先于 anchors.ts（挂在 document 上）收回，再由它按收回后的版面计算落点
+  box.querySelector('summary')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    drop(box, panel, !isOpen(box));
+  });
+  // 先于 anchors.ts（挂在 document 上）收回；面板浮在页面上，收回不改版面，落点不受过渡影响
   box.addEventListener('click', (e) => {
-    if (!wide.matches && (e.target as Element).closest('a')) box.open = false;
+    if (!wide.matches && (e.target as Element).closest('a') && isOpen(box)) drop(box, panel, false);
   });
   // 宽屏下 summary 不可见，但仍拦一下键盘或脚本触发的收起
   box.addEventListener('toggle', () => { if (wide.matches && !box.open) box.open = true; });
