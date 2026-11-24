@@ -1,34 +1,81 @@
 ---
-// 开始使用：四条路径（Docker / 裸 Python / 让 AI Agent 装 / 手机本地使用），2×2 排列。Agent 提示词引导它读 README 与部署说明。命令与 README「快速开始」保持一致，改一处要同步另一处。
-// 复制按钮由 scripts/copy.ts（外链 ES module）接管；没有 JS 时命令仍可手动选中复制。
+// 开始使用：做成一张 CD 背面的曲目表（back insert）——四种装法是四首曲目，两侧是印着名字的侧脊，底下是条码和小字。
+// 每首曲目用原生 <details name="start"> 展开：同时只开一首（不支持 name 的浏览器退化为可同时展开），无 JS 也能用，默认打开 01 Docker。
+// 曲目「时长」写命令行数或交付物；命令与 README「快速开始」保持一致，改一处要同步另一处。
+// 复制按钮由 scripts/copy.ts（外链 ES module）接管，按钮只用图标：两张叠放的纸是复制，复制后换成盖章样式的对勾（形状变，不只靠颜色），读屏读 aria-label；没有 JS 时命令仍可手动选中复制。
 const repo = 'https://github.com/Kihara-Ri/obi';
 const prompt = `请帮我在这台机器上安装 Obi（${repo}）。
 先读仓库里的 README.md 和 部署说明.md：有 Docker 就按「方案一」用 docker compose 启动，没有就用 python3 app.py。
 装好后确认 http://127.0.0.1:8765 能打开，告诉我数据存在哪个目录、怎么停止和更新。`;
-const paths = [
-  { name: 'Docker', tag: '推荐', cmd: `git clone ${repo}\ncd obi\ncp .env.example .env\ndocker compose up -d --build`, note: '打开 127.0.0.1:8765，数据在 ./data' },
-  { name: 'Python', cmd: `git clone ${repo}\ncd obi\npython3 app.py`, note: '零依赖，Python 3.10+' },
-  { name: '让 AI Agent 装', cmd: prompt, prose: true, note: '复制给 Claude Code、Codex 等能运行命令的 Agent' },
-  { name: '手机本地使用', links: [{ t: '下载安卓 APK', href: `${repo}/releases/latest` }, { t: '本机模式说明', href: `${repo}/blob/main/部署说明.md#方案三没有服务器本机模式主要给手机` }], note: '数据只存在手机里，不用服务器，可断网使用' },
+const docker = `git clone ${repo}\ncd obi\ncp .env.example .env\ndocker compose up -d --build`;
+const python = `git clone ${repo}\ncd obi\npython3 app.py`;
+const lines = (s: string) => `${s.split('\n').length} 行`;
+const tracks = [
+  { name: 'Docker', tag: '推荐', len: lines(docker), cmd: docker, note: '打开 127.0.0.1:8765，数据在 ./data' },
+  { name: 'Python', len: lines(python), cmd: python, note: '零依赖，Python 3.10+' },
+  { name: '让 AI Agent 装', len: '提示词', cmd: prompt, prose: true, note: '复制给 Claude Code、Codex 等能运行命令的 Agent' },
+  { name: '手机本地使用', len: 'APK', links: [{ t: '下载安卓 APK', href: `${repo}/releases/latest` }, { t: '本机模式说明', href: `${repo}/blob/main/部署说明.md#方案三没有服务器本机模式主要给手机` }], note: '数据只存在手机里，不用服务器，可断网使用' },
 ];
+// 装饰条码：由目录号逐字符决定线宽，构建时生成，每次一致。
+const catalog = 'OBI-0001';
+const bars: { x: number; w: number }[] = [];
+let x = 0;
+for (const ch of `*${catalog}*`) {
+  const c = ch.charCodeAt(0);
+  for (let i = 0; i < 4; i++) {
+    const w = ((c >> i) & 1) + 1;
+    if (i % 2 === 0) bars.push({ x, w });
+    x += w + 1;
+  }
+}
 ---
 <section id="start" class="section band">
   <div class="wrap">
     <h2 class="section-title">开始使用</h2>
-    <p class="section-sub">公网部署、登录与异地备份见<a class="link" href={`${repo}/blob/main/部署说明.md`}>部署说明</a>。</p>
-    <ol class="paths">
-      {paths.map((p) => (
-        <li class="path">
-          <div class="head">
-            <h3>{p.name}</h3>{p.tag && <span class="tag">{p.tag}</span>}
-            {p.cmd && <button type="button" class="copy" data-copy={p.cmd} aria-label={`复制 ${p.name} ${p.prose ? '提示词' : '命令'}`}>复制</button>}
-          </div>
-          {p.cmd && <pre class:list={{ prose: p.prose }}><code>{p.cmd}</code></pre>}
-          {p.links && <div class="links">{p.links.map((l) => <a class="btn" href={l.href}>{l.t}</a>)}</div>}
-          <p class="note">{p.note}</p>
-        </li>
-      ))}
-    </ol>
+    <p class="section-sub">挑一首放进去。公网部署、登录与异地备份见<a class="link" href={`${repo}/blob/main/部署说明.md`}>部署说明</a>。</p>
+
+    <div class="back">
+      <span class="spine" aria-hidden="true"><b>Obi</b>收藏与交易账本<i>{catalog}</i></span>
+      <div class="insert">
+        <p class="insert-head"><span>{catalog}</span><span>安装盘 · {tracks.length} 首</span></p>
+        <ol class="tracks">
+          {tracks.map((t, i) => (
+            <li class="track">
+              <details name="start" open={i === 0}>
+                <summary>
+                  <span class="no">{String(i + 1).padStart(2, '0')}</span>
+                  <span class="title">{t.name}</span>
+                  {t.tag && <span class="tag">{t.tag}</span>}
+                  <span class="leader" aria-hidden="true"></span>
+                  <span class="len">{t.len}</span>
+                  <svg class="chev" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
+                </summary>
+                <div class="body">
+                  {t.cmd && (
+                    <div class="code">
+                      <pre class:list={{ prose: t.prose }}><code>{t.cmd}</code></pre>
+                      <button type="button" class="copy" data-copy={t.cmd} aria-label={`复制 ${t.name} ${t.prose ? '提示词' : '命令'}`} title="复制">
+                        <svg class="i-copy" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></svg>
+                        <svg class="i-done" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
+                      </button>
+                    </div>
+                  )}
+                  {t.links && <div class="links">{t.links.map((l) => <a class="btn" href={l.href}>{l.t}</a>)}</div>}
+                  <p class="note">{t.note}</p>
+                </div>
+              </details>
+            </li>
+          ))}
+        </ol>
+        <div class="insert-foot">
+          <svg class="barcode" viewBox={`0 0 ${x} 24`} preserveAspectRatio="none" aria-hidden="true">
+            {bars.map((b) => <rect x={b.x} y="0" width={b.w} height="24" />)}
+          </svg>
+          <p class="fine">{catalog} · 开源 AGPL-3.0 · 定价 ¥0<br />收藏有来处，流转有记录。</p>
+        </div>
+      </div>
+      <span class="spine" aria-hidden="true"><b>Obi</b>收藏与交易账本<i>{catalog}</i></span>
+    </div>
   </div>
 </section>
 
@@ -37,21 +84,82 @@ const paths = [
 <style>
   .band{ background:var(--surface-2); }
   .link{ color:var(--text); text-decoration:underline; text-decoration-color:var(--accent-deep); text-underline-offset:.2em; margin-left:var(--s-1); }
-  /* 四条路径：手机单列，其余 2×2 */
-  .paths{ display:grid; grid-template-columns:1fr; gap:var(--s-4); margin:var(--s-6) 0 0; padding:0; list-style:none; }
-  @media (min-width:40rem){ .paths{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
-  .path{ display:flex; flex-direction:column; gap:var(--s-3); padding:var(--s-5); border-radius:var(--radius); background:var(--surface); border:1px solid var(--border); min-width:0; }
-  .head{ display:flex; align-items:center; gap:var(--s-2); }
-  h3{ font-size:var(--fs-lg); }
+
+  /* CD 背面插页：两侧侧脊 + 中间曲目表；窄屏收起侧脊 */
+  .back{
+    display:grid; grid-template-columns:1fr; margin-top:var(--s-6); max-width:52rem;
+    border-radius:var(--radius); background:var(--surface); border:1px solid var(--border); box-shadow:var(--shadow-sm); overflow:hidden;
+  }
+  .spine{ display:none; }
+  @media (min-width:40rem){
+    .back{ grid-template-columns:2.25rem minmax(0,1fr) 2.25rem; }
+    .spine{
+      display:flex; align-items:center; justify-content:space-between; gap:var(--s-3); padding-block:var(--s-5);
+      writing-mode:vertical-rl; white-space:nowrap; font-size:var(--fs-xs); color:var(--muted); letter-spacing:.2em;
+      border-inline:1px solid var(--hairline); background:var(--surface-2);
+    }
+    .spine:first-child{ border-left:0; }
+    .spine:last-child{ border-right:0; transform:rotate(180deg); }
+    .spine b{ color:var(--accent-deep); font-weight:900; letter-spacing:.12em; }
+    .spine i{ font-style:normal; font-family:var(--mono); letter-spacing:.05em; }
+  }
+  .insert{ padding:var(--s-5); min-width:0; }
+  @media (min-width:40rem){ .insert{ padding:var(--s-6) var(--s-7); } }
+  .insert-head{
+    display:flex; justify-content:space-between; gap:var(--s-3); padding-bottom:var(--s-3); border-bottom:2px solid var(--text);
+    font-family:var(--mono); font-size:var(--fs-xs); color:var(--muted); letter-spacing:.08em;
+  }
+
+  /* 曲目行：编号 · 名称 · 点线引导 · 时长 */
+  .tracks{ margin:0; padding:0; list-style:none; }
+  .track{ border-bottom:1px solid var(--hairline); }
+  summary{
+    display:flex; align-items:center; gap:var(--s-3); min-height:3.25rem; cursor:pointer; list-style:none;
+    border-radius:var(--radius-sm);
+  }
+  summary::-webkit-details-marker{ display:none; }
+  .no{ font-family:var(--mono); font-size:var(--fs-sm); color:var(--muted); min-width:1.5rem; }
+  .title{ font-weight:700; font-size:var(--fs-md); }
   .tag{ font-size:var(--fs-xs); font-weight:600; padding:0 var(--s-2); border-radius:999px; background:var(--accent); color:var(--accent-ink); }
-  pre{ margin:0; padding:var(--s-4); overflow-x:auto; border-radius:var(--radius-sm); background:var(--surface-2); border:1px solid var(--hairline); font-size:var(--fs-xs); line-height:1.7; }
+  .leader{ flex:1; min-width:var(--s-4); align-self:center; border-bottom:2px dotted var(--border-strong); transform:translateY(.25em); }
+  .len{ font-family:var(--mono); font-size:var(--fs-xs); color:var(--muted); white-space:nowrap; }
+  .chev{ flex:none; fill:none; stroke:currentColor; stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round; color:var(--muted);
+    transition:transform var(--dur-fast) var(--ease-soft); }
+  details[open] .chev{ transform:rotate(180deg); }
+  details[open] .no{ color:var(--accent-deep); }
+  @media (hover:hover){ summary:hover .title{ color:var(--accent-deep); } }
+
+  .body{ display:flex; flex-direction:column; gap:var(--s-3); padding:0 0 var(--s-5) calc(1.5rem + var(--s-3)); }
+  @media (max-width:39.99rem){ .body{ padding-left:0; } }
+  .code{ position:relative; }
+  pre{ margin:0; padding:var(--s-4); padding-right:3.5rem; overflow-x:auto; border-radius:var(--radius-sm); background:var(--surface-2); border:1px solid var(--hairline); font-size:var(--fs-xs); line-height:1.7; }
   /* 提示词是自然语言：自动换行，用正文字体 */
   pre.prose{ white-space:pre-wrap; font-family:inherit; line-height:1.8; }
-  .copy{ margin-left:auto; min-height:2.25rem; padding-inline:var(--s-3); border:1px solid var(--border); border-radius:999px; background:var(--surface); font-size:var(--fs-xs); cursor:pointer; }
-  .copy[data-done]{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+  .copy{
+    position:absolute; top:var(--s-2); right:var(--s-2); display:grid; place-items:center; width:2.5rem; height:2.5rem; padding:0;
+    border:1px solid var(--border); border-radius:50%; background:var(--surface); color:var(--muted); cursor:pointer;
+    transition:transform var(--dur-fast) var(--ease-soft), color var(--dur-fast) var(--ease-soft);
+  }
+  .copy svg{ grid-area:1 / 1; fill:none; stroke:currentColor; stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round; }
+  .copy .i-done{ display:none; stroke-width:2.5; }
+  /* 已复制：像二手唱片上盖的章——方框描边、略歪、对勾；形状和图标都变，不只靠颜色 */
+  .copy[data-done]{ border:2px solid var(--accent-deep); border-radius:var(--radius-sm); color:var(--accent-deep); transform:rotate(-8deg); }
+  .copy[data-done] .i-copy{ display:none; }
+  .copy[data-done] .i-done{ display:block; }
   .links{ display:flex; flex-wrap:wrap; gap:var(--s-2); }
   .btn{ display:inline-flex; align-items:center; min-height:2.75rem; padding-inline:var(--s-4); border-radius:999px; border:1px solid var(--border-strong); font-weight:600; font-size:var(--fs-sm); }
-  .note{ margin-top:auto; color:var(--muted); font-size:var(--fs-sm); }
-  /* 已复制的高亮优先于悬停，否则鼠标还停在按钮上时会被悬停底色盖掉，深色下成了黑底黑字 */
-  @media (hover:hover){ .btn:hover, .copy:not([data-done]):hover{ background:var(--surface-2); } }
+  .note{ color:var(--muted); font-size:var(--fs-sm); }
+  @media (hover:hover){ .btn:hover, .copy:not([data-done]):hover{ background:var(--surface-2); color:var(--text); } }
+
+  /* 底部：条码 + 小字，像真唱片背面右下角 */
+  .insert-foot{ display:flex; align-items:flex-end; justify-content:space-between; gap:var(--s-5); margin-top:var(--s-6); }
+  .barcode{ width:8rem; height:2.25rem; fill:currentColor; color:var(--text); opacity:.85; flex:none; }
+  .fine{ text-align:right; font-size:var(--fs-xs); color:var(--muted); line-height:1.7; }
+  /* 手机：命令自动折行（右侧给复制按钮留位，不被盖住）；条码与小字上下排，小字不在 AGPL-3.0 中间断开 */
+  @media (max-width:39.99rem){
+    pre{ white-space:pre-wrap; overflow-wrap:anywhere; }
+    .insert-foot{ flex-direction:column; align-items:flex-start; gap:var(--s-3); }
+    .fine{ text-align:left; }
+  }
+  @media (prefers-reduced-motion:reduce){ .chev, .copy{ transition:none; } }
 </style>
