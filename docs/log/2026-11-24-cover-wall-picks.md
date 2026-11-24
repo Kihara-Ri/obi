@@ -17,7 +17,8 @@
 - 验证：介绍站构建与 CSP 检查通过；本地预览桌面与 375px 手机宽度下首屏封面墙、「九种方式」封面墙正常，30 张像素图全部 200，无横向滚动。
 
 ## 可能带来的新问题
-- American Football 原图非正方形，居中裁切后右侧文字被截断（只剩 "americ"）。
+- 「"Ex" All Time Favourites」原用 CAA 上的 24K Gold 再版封面（铁锈色外框），按用户要求换成 iTunes 的原版人像封面。
+- American Football 封面上「americ / anfootball」是原设计的断行，不是裁切造成的，保持原图。
 - Racing Mount Pleasant、Slow Riot、'Allelujah! 等封面偏浅、对比低，在像素墙里辨识度较弱。
 - 同一艺人（GY!BE 5 张、陳奕迅 3 张）较多，滚动时可能出现相邻相似封面。
 - 封面地址依赖外部 CDN，首次生成需要联网；生成后只提交像素图，站点运行不依赖外网。
