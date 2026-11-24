@@ -19,28 +19,13 @@ import re
 from . import agent_clients as ac
 
 
-def find(data, name):
-    for c in data['clients']:
-        if c['name'] == name:
-            return c
-    raise SystemExit(f'没有名为「{name}」的调用方')
-
-
 def show_token(name, token):
     print(f'调用方「{name}」的令牌（只显示这一次，请存入 Agent 的密钥配置）：')
     print(token)
 
 
 def cmd_add(root, args):
-    data = ac.read(root)
-    name = ac.clean_name(args.name)
-    if any(c['name'] == name for c in data['clients']):
-        raise SystemExit(f'调用方「{name}」已存在；换令牌用 rotate，改权限用 scopes')
-    token = ac.new_token()
-    data['clients'].append({'name': name, 'scopes': ac.clean_scopes(args.scope), 'sha256': ac.digest(token),
-                            'createdAt': ac.now()})
-    ac.write(root, data)
-    show_token(name, token)
+    show_token(ac.clean_name(args.name), ac.issue(root, args.name, args.scope))
 
 
 def cmd_list(root, args):
@@ -55,26 +40,15 @@ def cmd_list(root, args):
 
 
 def cmd_scopes(root, args):
-    data = ac.read(root)
-    find(data, args.name)['scopes'] = ac.clean_scopes(args.scopes)
-    ac.write(root, data)
-    print(f'「{args.name}」的权限：' + ' '.join(find(data, args.name)['scopes']))
+    print(f'「{args.name}」的权限：' + ' '.join(ac.set_scopes(root, args.name, args.scopes)))
 
 
 def cmd_rotate(root, args):
-    data = ac.read(root)
-    token = ac.new_token()
-    client = find(data, args.name)
-    client['sha256'], client['createdAt'] = ac.digest(token), ac.now()
-    ac.write(root, data)
-    show_token(args.name, token)
+    show_token(args.name, ac.rotate(root, args.name))
 
 
 def cmd_revoke(root, args):
-    data = ac.read(root)
-    find(data, args.name)
-    data['clients'] = [c for c in data['clients'] if c['name'] != args.name]
-    ac.write(root, data)
+    ac.revoke(root, args.name)
     print(f'已撤销「{args.name}」，立即生效')
 
 

@@ -65,6 +65,7 @@
 | `NavIcon` | 手机底栏的统一线条图标（展示 / 库存 / 在途 / 售出中 / 更多），24 栅格、currentColor | `name` | 未知名称回退为「更多」点点 | — |
 | `EngineMount` | 挂载已安装 Album Engine 插件里的视图（3D 查看器、校准、编辑器） | `kind` `props` `onUnavailable?` | 未安装时不渲染；失败显示 role=alert 提示 | — |
 | `AlbumEngineSettings` | 设置「高级」里安装 / 卸载 Album Engine 插件 | 无（读 `useApp().albumEngine`） | 状态 role=status；错误 role=alert | 状态文字 |
+| `McpSettings` | 设置「高级」里的「MCP 服务」（D-052）：MCP 地址（可复制）、调用方列表（名称 / 权限 / 签发日期，换令牌、两步撤销）、新增调用方（名称 + 四项权限 `Switch`），令牌签发后只显示一次并附 Claude Code 连接命令；本机站点不显示 | 无（读 `/api/clients`） | 状态行 role=status；错误 role=alert；撤销第二下才执行 | 撤销按钮文字变「确认撤销」；令牌框描边加深 |
 | `AppUpdateSection` | 设置「高级」里的「应用更新」（只在安卓壳里显示）：当前版本、自动更新进度、「检查更新」、Android 12+ 的「允许自动安装」 | 无（读 `window.ObiAndroid` 桥） | 状态行 role=status；检查中按钮 disabled + aria-busy | 状态文字 |
 | `ImmersiveDiag` | 收藏展示沉浸模式的界面内诊断（只在安卓壳里、某一步没成功时出现）：逐步 ✓/✗ 列出安装包是否支持、调用是否成功、原生是否收到、系统栏是否真的隐藏，并附安装包 / 网页版本与机型；判断逻辑在 `core/android-immersive.ts` | `probe`（`useImmersive` 返回） | role=alert；「知道了」关闭本次 | ✓/✗ 符号 + 失败行加粗 |
 | `FeedbackSection` | 设置「高级」里的「反馈问题」：打开 GitHub 新建 issue，正文预填版本、运行方式与 UA，不附带业务数据 | 无（读 `useApp().state.service.version`） | 两个外链 `target=_blank`，文字带 ↗ | 文字 |

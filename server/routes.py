@@ -18,6 +18,7 @@ from photo_uploads import MAX_BYTES, stage
 from storage import SCHEMA, metadata_update
 from . import archive, export_csv
 from .artists import SourceUnavailableError
+from .client_api import api_client_issue, api_client_revoke, api_client_rotate, api_client_scopes, api_clients
 from .collection_api import api_purchased_copies, authorize_collection_read
 from .insight_api import api_insight_evaluate, api_insight_profile, api_insight_release, authorize_insight
 from .state_sync import send_cached_state
@@ -629,6 +630,7 @@ GET = {
     '/api/photos/archive': api_photo_archive,
     '/api/plugins/album-engine': api_engine_plugin,
     '/api/twins': api_twins,
+    '/api/clients': api_clients,
 }
 PUBLIC_GET = {  # 免登录（监控与部署探测）
     '/api/health',
@@ -663,6 +665,10 @@ POST = {
     '/api/trading/agent/settlements': (api_order_settlement, authorize_trading_agent, True),
     '/api/insight/evaluate': (api_insight_evaluate, authorize_insight, False),
     '/mcp': (api_mcp, authorize_mcp, False),        # MCP 入口；写入工具自己持锁（D-051）
+    '/api/clients/issue': (api_client_issue, True, False),      # 调用方令牌：agent_clients 自带锁（D-052）
+    '/api/clients/rotate': (api_client_rotate, True, False),
+    '/api/clients/scopes': (api_client_scopes, True, False),
+    '/api/clients/revoke': (api_client_revoke, True, False),
     '/api/catalog/barcode': (api_barcode_lookup, True, False),
     '/api/catalog/barcode/verify': (api_verify_barcode, True, False),
     '/api/catalog/number': (api_catalog_number_lookup, True, False),

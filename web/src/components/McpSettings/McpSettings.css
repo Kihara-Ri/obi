@@ -1,0 +1,23 @@
+/* McpSettings：地址与令牌代码框、调用方列表、新增表单。只用 token。 */
+.mcp-code{display:flex;align-items:center;gap:6px;padding:6px 6px 6px 12px;margin:0 0 12px;background:var(--recess-bg);
+  border:1px solid var(--border);border-radius:var(--radius-sm)}
+.mcp-code code{flex:1;min-width:0;font-size:12.5px;line-height:1.5;color:var(--text);overflow-wrap:anywhere;word-break:break-all}
+.mcp-clients{list-style:none;margin:0 0 12px;padding:0;border-top:1px solid var(--border)}
+.mcp-clients li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.mcp-client-text{display:grid;gap:2px;min-width:0}
+.mcp-client-text strong{font-size:14px;overflow-wrap:anywhere}
+.mcp-client-text small{font-size:12px;color:var(--muted)}
+.mcp-client-actions{display:flex;gap:6px;flex:none}
+.mcp-reveal{padding:12px;margin:0 0 12px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:var(--surface-2)}
+.mcp-reveal p{margin-bottom:6px}
+.mcp-reveal p strong{color:var(--text)}
+.mcp-form{display:grid;gap:12px;padding:4px 0 2px}
+.mcp-field{display:grid;gap:5px}
+.mcp-field>span{font-size:12.5px;font-weight:550;color:var(--muted)}
+.mcp-scopes{display:grid;border-top:1px solid var(--border)}
+.mcp-scope{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13.5px}
+.mcp-scope small{display:block;font-size:11.5px;color:var(--faint)}
+@media (max-width:840px){
+  .mcp-field input{min-height:44px}
+  .mcp-client-actions button{min-height:40px}
+}

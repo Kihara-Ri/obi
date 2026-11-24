@@ -92,6 +92,55 @@ def now():
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
 
 
+_EDIT = threading.Lock()   # 网页端与同进程内的并发改动串行；命令行是独立进程，按原子替换兜底
+
+
+def find(data, name):
+    for c in data['clients']:
+        if c['name'] == name:
+            return c
+    raise ValueError(f'没有名为「{name}」的调用方')
+
+
+def issue(data_dir, name, scopes):
+    """签发新调用方，返回只出现这一次的令牌。"""
+    with _EDIT:
+        data, name = read(data_dir), clean_name(name)
+        if any(c['name'] == name for c in data['clients']):
+            raise ValueError(f'调用方「{name}」已存在；换令牌请用轮换')
+        token = new_token()
+        data['clients'].append({'name': name, 'scopes': clean_scopes(scopes), 'sha256': digest(token),
+                                'createdAt': now()})
+        write(data_dir, data)
+        return token
+
+
+def rotate(data_dir, name):
+    with _EDIT:
+        data, token = read(data_dir), new_token()
+        client = find(data, name)
+        client['sha256'], client['createdAt'] = digest(token), now()
+        write(data_dir, data)
+        return token
+
+
+def set_scopes(data_dir, name, scopes):
+    with _EDIT:
+        data = read(data_dir)
+        client = find(data, name)
+        client['scopes'] = clean_scopes(scopes)
+        write(data_dir, data)
+        return client['scopes']
+
+
+def revoke(data_dir, name):
+    with _EDIT:
+        data = read(data_dir)
+        find(data, name)
+        data['clients'] = [c for c in data['clients'] if c['name'] != name]
+        write(data_dir, data)
+
+
 class ClientRegistry:
     """服务器侧的只读视图：令牌摘要 → (名称, 权限)。"""
 

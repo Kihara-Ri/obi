@@ -4,6 +4,7 @@ import {useApp} from '../state/AppContext';
 import {PageHead} from '../components/PageHead';
 import {ModuleChooser} from '../components/ModuleChooser';
 import {AlbumEngineSettings} from '../components/AlbumEngineSettings';
+import {McpSettings} from '../components/McpSettings';
 import {Disclosure} from '../components/ui/Disclosure';
 import {Seg} from '../components/ui/Seg';
 import {TabPanel} from '../components/ui/TabPanel';
@@ -54,6 +55,7 @@ export function SettingsPage() {
           </Disclosure>
         </section>
         <AlbumEngineSettings/>
+        <McpSettings/>
         <AppUpdateSection/>
         <FeedbackSection/>
       </> : null}
