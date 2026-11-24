@@ -73,22 +73,37 @@ def _package_order(params, record, saved):
     return _material_photo_order(record, saved)
 
 
-def _package(store, params):
+def _prepare(store, params):
     if params.keys() - {'id', 'order', 'photoRevision', 'photos'}:
         raise ValidationError('打包模式只接受 id、order、photoRevision 和 photos')
-    rid = params['id']
-    record = listing_record(store, rid)
-    saved = record.get('listingPreparation') or {}
-    order = _package_order(params, record, saved)
+    record = listing_record(store, params['id'])
+    return record, _package_order(params, record, record.get('listingPreparation') or {})
+
+
+def _manifest(record, order):
+    return {'id': record['id'], 'revision': record['revision'], 'photoRevision': record.get('photoRevision', 0),
+            'photoCount': record.get('photoCount', 0), 'photoOrder': order, 'photos': [],
+            'listed': bool(record.get('listed')), 'facts': public_context(record)}
+
+
+def package_preview(store, params):
+    """资料包清单（不读原图）：MCP 先给清单和下载链接，原图由调用方按需下载。"""
+    record, order = _prepare(store, params)
+    manifest = _manifest(record, order)
+    manifest['photos'] = [{'index': index, 'position': position} for position, index in enumerate(order, 1)]
+    return manifest
+
+
+def _package(store, params):
+    record, order = _prepare(store, params)
+    rid = record['id']
     revision = record.get('photoRevision', 0)
     images = []
     if order:
         snapshot, images = read_photos(store, rid, order, revision)
         if snapshot['revision'] != record['revision']:
             raise ConflictError('副本已变更，请重新获取资料包')
-    manifest = {'id': rid, 'revision': record['revision'], 'photoRevision': revision,
-                'photoCount': record.get('photoCount', 0), 'photoOrder': order, 'photos': [],
-                'listed': bool(record.get('listed')), 'facts': public_context(record)}
+    manifest = _manifest(record, order)
     output = io.BytesIO()
     with ZipFile(output, 'w') as archive:
         for position, (index, extension, content) in enumerate(images, 1):

@@ -15,6 +15,8 @@
 | GET | `/api/insight/profile` | `insight:read` | 读 | 近期加权的买卖画像：成本模型（汇率、按介质的国际运费与整批费用、平台扣费）、周转天数、利润排行。 [采购评估契约](采购评估接口.md) |
 | POST | `/api/insight/evaluate` | `insight:read` | 读 | 一次评估 1–50 条网站候选：是否已有、同版本或同专辑的历史成本与净收入、落地成本和预计利润。不保存候选。 |
 | GET | `/api/insight/releases` | `insight:read` | 读 | 按单个候选的字段查询，返回内容同 `evaluate` 的一条。 |
+| POST | `/mcp` | 任一权限的调用方令牌 | 按工具 | MCP 入口：按令牌权限列出对应上面接口的工具和场景模板。`GET /mcp` 返回 405。 [MCP 接入](MCP接入.md) |
+| GET | `/api/mcp/package` | 链接内签名（10 分钟） | 读 | `get_listing_package` 工具给出的资料包下载链接，内容同资料包 ZIP。 |
 
 授权列是调用方令牌需要的权限。管理员用 `python3 -m server.client_admin` 给每个调用方签发一枚令牌并挂上权限，改动立即生效，见[对外令牌](对外令牌.md)；旧的三个令牌文件仍按固定权限识别。客户端通过 HTTPS 的 `Authorization: Bearer` 请求头认证。浏览器和安卓本机模式下没有这些远程凭据入口。
 

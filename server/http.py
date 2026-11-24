@@ -146,6 +146,8 @@ def make_handler(svc):
                 except Exception:
                     import traceback; traceback.print_exc()
                     return self.send({'error': '读取失败，请重试'}, 500)
+            if path == '/mcp':   # 只做无状态 JSON 响应，不开 SSE 流（D-051）
+                return self.send({'error': 'MCP 入口只接受 POST'}, 405, headers={'Allow': 'POST'})
             # 服务端登录门：未登录只放行登录页及其依赖（static_files.PUBLIC）
             if not self.logged_in() and path not in static_files.PUBLIC:
                 return self.redirect_login()

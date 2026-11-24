@@ -1,11 +1,11 @@
 ---
-// 「接口」页：服务器版对外接口按使用场景排成流程轴。顺序：标题 → 令牌与权限 → 场景流程 → 共用约定 → 页脚。
+// 「接口」页：服务器版对外接口按使用场景排成流程轴。顺序：标题 → 签发令牌与权限 → 用 MCP 连接 → 场景流程 → 共用约定 → 页脚。
 // 内容来自 lib/api-flows.ts，与 docs/接口场景指南.md 同步；完整字段链到仓库里的接口契约。
 import Base from '../layouts/Base.astro';
 import Header from '../components/Header.astro';
 import ApiFlow from '../components/ApiFlow.astro';
 import Footer from '../components/Footer.astro';
-import { flows, scopes, issue, rules } from '../lib/api-flows';
+import { flows, scopes, issue, connect, rules } from '../lib/api-flows';
 const docs = 'https://github.com/Kihara-Ri/obi/blob/main/docs';
 ---
 <Base title="接口 · Obi" description="让 Agent 上架闲鱼、登记订单与到账、查询已购唱片、挑出值得买的唱片：Obi 服务器版的对外接口，按使用场景串成流程。">
@@ -14,7 +14,7 @@ const docs = 'https://github.com/Kihara-Ri/obi/blob/main/docs';
     <section class="section intro">
       <div class="wrap">
         <h1>接口</h1>
-        <p class="lede">服务器版可以把上架、跟单、查重和采购评估交给 Agent。每个调用方一枚令牌，只挂它需要的权限；没有调用方具有某项权限时，那组接口就不存在。</p>
+        <p class="lede">服务器版可以把上架、跟单、查重和采购评估交给 Agent。Agent 通过 MCP 直接连上 Obi，按令牌的权限看到对应的工具和场景模板；脚本和自动化也可以直接调用同样的 HTTP 接口。</p>
         <nav class="jump" aria-label="场景">
           {flows.map((f, i) => <a href={`#${f.id}`}>{i + 1}. {f.title}</a>)}
         </nav>
@@ -38,6 +38,14 @@ const docs = 'https://github.com/Kihara-Ri/obi/blob/main/docs';
       </div>
     </section>
 
+    <section class="section mcp" aria-labelledby="mcp-title">
+      <div class="wrap">
+        <h2 id="mcp-title" class="section-title">用 MCP 连接 Agent</h2>
+        <p class="section-sub">Claude Code、Cursor 等支持 MCP 的客户端填上地址和令牌即可。连上后 Agent 只看得到令牌权限对应的工具；每个场景还有一个模板，选中就能把整套步骤交给 Agent。</p>
+        <pre class="issue"><code>{connect}</code></pre>
+      </div>
+    </section>
+
     <div class="section flows">
       <div class="wrap stack">
         {flows.map((f, i) => <ApiFlow flow={f} index={i} />)}
@@ -53,6 +61,7 @@ const docs = 'https://github.com/Kihara-Ri/obi/blob/main/docs';
         </dl>
         <p class="more">
           <a href={`${docs}/接口场景指南.md`}>场景指南</a>
+          <a href={`${docs}/MCP接入.md`}>MCP 接入</a>
           <a href={`${docs}/Agent上架接口.md`}>资料包与交易同步</a>
           <a href={`${docs}/已购唱片查询接口.md`}>已购唱片查询</a>
           <a href={`${docs}/采购评估接口.md`}>采购评估</a>
@@ -83,6 +92,7 @@ const docs = 'https://github.com/Kihara-Ri/obi/blob/main/docs';
   .can{ font-weight:600; }
   .meta{ color:var(--muted); font-size:var(--fs-xs); }
 
+  .mcp{ padding-bottom:0; }
   .stack{ display:grid; grid-template-columns:minmax(0,1fr); gap:var(--s-8); }
 
   .rules{ display:grid; gap:var(--s-2); margin:var(--s-5) 0 0; }

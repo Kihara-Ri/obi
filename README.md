@@ -88,13 +88,15 @@ flowchart LR
   S <--> DB[("SQLite<br>data/")]
   R --> EXT["rates · covers · musicbrainz<br>汇率 · 封面 · 发行资料"]
   LOCAL["本机模式 / 安卓 APK<br>Pyodide 运行同一套后端"] --> IDB[("IndexedDB")]
-  AG["外部 Agent"] -->|独立令牌| R
+  AG["外部 Agent"] -->|MCP / HTTP · 调用方令牌| R
   PL["Album Engine 插件<br>3D 实体"] -.->|可选| R
 ```
 
 </details>
 
 ## 给外部 Agent 的接口
+
+服务器实例提供 **MCP 入口**（`/mcp`）：Claude Code、Cursor 等 Agent 填上地址和令牌就能直接调用 Obi，按权限看到对应工具和场景模板（闲鱼上架到入账、买前查重复、采购挑货），见 [MCP 接入](docs/MCP接入.md)。同样的能力也以 HTTP 接口提供，给脚本和自动化用。
 
 服务器实例用 `python3 -m server.client_admin` 给每个调用方签发独立令牌，按权限（`listing:read`、`trading:write`、`collection:read`、`insight:read`）开放接口，可单独轮换或吊销，见 [对外令牌](docs/对外令牌.md)。
 

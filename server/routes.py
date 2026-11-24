@@ -23,6 +23,8 @@ from .insight_api import api_insight_evaluate, api_insight_profile, api_insight_
 from .state_sync import send_cached_state
 from .version import uptime, version
 from .listing_agent import authorize_listing_agent, api_agent_package
+from .mcp_files import PATH as MCP_PACKAGE, api_mcp_package, open_access
+from .mcp_server import api_mcp, authorize_mcp
 from .listing_photos import api_photo_archive
 from .trading_agent import (authorize_trading_agent, api_listing_receipt, api_paid_order,
                             api_order_settlement)
@@ -647,6 +649,7 @@ TOKEN_GET = {
     '/api/collection/purchases': (api_purchased_copies, authorize_collection_read),
     '/api/insight/profile': (api_insight_profile, authorize_insight),
     '/api/insight/releases': (api_insight_release, authorize_insight),
+    MCP_PACKAGE: (api_mcp_package, open_access),   # 签名下载链接本身即凭据（D-051）
 }
 POST = {
     # path: (处理函数, 会话登录布尔值或独立鉴权函数, 需要 WRITE_LOCK)
@@ -659,6 +662,7 @@ POST = {
     '/api/trading/agent/orders': (api_paid_order, authorize_trading_agent, True),
     '/api/trading/agent/settlements': (api_order_settlement, authorize_trading_agent, True),
     '/api/insight/evaluate': (api_insight_evaluate, authorize_insight, False),
+    '/mcp': (api_mcp, authorize_mcp, False),        # MCP 入口；写入工具自己持锁（D-051）
     '/api/catalog/barcode': (api_barcode_lookup, True, False),
     '/api/catalog/barcode/verify': (api_verify_barcode, True, False),
     '/api/catalog/number': (api_catalog_number_lookup, True, False),

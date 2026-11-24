@@ -4,6 +4,7 @@ import hmac
 import re
 
 from domain import ValidationError
+from .agent_clients import SCOPES
 
 # 每项权限对应 Services 上的旧令牌摘要字段（文件方式只在启动时读取）
 LEGACY_FIELD = {'listing:read': 'listing_agent_secret', 'trading:write': 'trading_agent_secret',
@@ -46,3 +47,22 @@ def scope_guard(scope, label):
         return authorize_scope(h, svc, scope, label)
     authorize.__name__ = 'authorize_' + scope.replace(':', '_')
     return authorize
+
+
+def caller(svc, token):
+    """令牌 → (调用方名称, 权限集合)；MCP 一个入口承载多项权限时用。未知令牌返回 None。"""
+    if not token:
+        return None
+    digest = hashlib.sha256(token.encode()).digest()
+    legacy = {scope for scope, field in LEGACY_FIELD.items()
+              if (secret := getattr(svc, field, None)) is not None and hmac.compare_digest(digest, secret)}
+    if legacy:
+        return '旧令牌', frozenset(legacy)
+    registry = getattr(svc, 'agent_clients', None)
+    return registry.lookup(token) if registry else None
+
+
+def any_enabled(svc):
+    registry = getattr(svc, 'agent_clients', None)
+    return (any(getattr(svc, field, None) is not None for field in LEGACY_FIELD.values())
+            or bool(registry and any(registry.grants(scope) for scope in SCOPES)))
