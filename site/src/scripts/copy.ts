@@ -12,7 +12,7 @@ for (const btn of document.querySelectorAll<HTMLButtonElement>('button[data-copy
       btn.title = '已复制';
       setTimeout(() => { delete btn.dataset.done; btn.setAttribute('aria-label', label); btn.title = '复制'; }, 1600);
     } catch {
-      const code = btn.closest('li')?.querySelector('code');
+      const code = btn.closest('.code')?.querySelector('code');
       if (code) getSelection()?.selectAllChildren(code);
     }
   });
