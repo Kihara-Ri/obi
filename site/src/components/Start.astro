@@ -1,6 +1,7 @@
 ---
-// 开始使用：做成一张 CD 背面的曲目表（back insert）——四种装法是四首曲目，两侧是印着名字的侧脊，底下是条码和小字。
-// 每首曲目用原生 <details name="start"> 展开：同时只开一首（不支持 name 的浏览器退化为可同时展开），无 JS 也能用，默认打开 01 Docker。
+// 开始使用：做成一张 CD 背面的曲目表（back insert）——四种装法是四首曲目，左侧是印着名字的侧脊，底下是条码和小字。
+// 每首曲目用原生 <details name="start"> 展开：同时只开一首，无 JS 也能用，默认打开 01 Docker。
+// scripts/tracks.ts 接管开合，加高度过渡（展开和收回都有），并接手互斥。
 // 曲目「时长」写命令行数或交付物；命令与 README「快速开始」保持一致，改一处要同步另一处。
 // 复制按钮由 scripts/copy.ts（外链 ES module）接管，按钮只用图标：两张叠放的纸是复制，复制后换成盖章样式的对勾（形状变，不只靠颜色），读屏读 aria-label；没有 JS 时命令仍可手动选中复制。
 const repo = 'https://github.com/Kihara-Ri/obi';
@@ -74,32 +75,31 @@ for (const ch of `*${catalog}*`) {
           <p class="fine">{catalog} · 开源 AGPL-3.0 · 定价 ¥0<br />收藏有来处，流转有记录。</p>
         </div>
       </div>
-      <span class="spine" aria-hidden="true"><b>Obi</b>收藏与交易账本<i>{catalog}</i></span>
     </div>
   </div>
 </section>
 
 <script src="../scripts/copy.ts"></script>
+<script src="../scripts/tracks.ts"></script>
 
 <style>
   .band{ background:var(--surface-2); }
   .link{ color:var(--text); text-decoration:underline; text-decoration-color:var(--accent-deep); text-underline-offset:.2em; margin-left:var(--s-1); }
 
-  /* CD 背面插页：两侧侧脊 + 中间曲目表；窄屏收起侧脊 */
+  /* CD 背面插页：左侧侧脊 + 中间曲目表；窄屏收起侧脊 */
   .back{
     display:grid; grid-template-columns:1fr; margin-top:var(--s-6); max-width:52rem;
     border-radius:var(--radius); background:var(--surface); border:1px solid var(--border); box-shadow:var(--shadow-sm); overflow:hidden;
   }
   .spine{ display:none; }
   @media (min-width:40rem){
-    .back{ grid-template-columns:2.25rem minmax(0,1fr) 2.25rem; }
+    .back{ grid-template-columns:2.25rem minmax(0,1fr); }
     .spine{
       display:flex; align-items:center; justify-content:space-between; gap:var(--s-3); padding-block:var(--s-5);
       writing-mode:vertical-rl; white-space:nowrap; font-size:var(--fs-xs); color:var(--muted); letter-spacing:.2em;
       border-inline:1px solid var(--hairline); background:var(--surface-2);
     }
-    .spine:first-child{ border-left:0; }
-    .spine:last-child{ border-right:0; transform:rotate(180deg); }
+    .spine{ border-left:0; }
     .spine b{ color:var(--accent-deep); font-weight:900; letter-spacing:.12em; }
     .spine i{ font-style:normal; font-family:var(--mono); letter-spacing:.05em; }
   }
@@ -124,9 +124,10 @@ for (const ch of `*${catalog}*`) {
   .leader{ flex:1; min-width:var(--s-4); align-self:center; border-bottom:2px dotted var(--border-strong); transform:translateY(.25em); }
   .len{ font-family:var(--mono); font-size:var(--fs-xs); color:var(--muted); white-space:nowrap; }
   .chev{ flex:none; fill:none; stroke:currentColor; stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round; color:var(--muted);
-    transition:transform var(--dur-fast) var(--ease-soft); }
-  details[open] .chev{ transform:rotate(180deg); }
-  details[open] .no{ color:var(--accent-deep); }
+    transition:transform var(--dur-slow) var(--ease-out); }
+  /* 收起动画期间（data-closing）details 仍是 open，箭头和编号先回到收起态 */
+  details[open]:not([data-closing]) .chev{ transform:rotate(180deg); }
+  details[open]:not([data-closing]) .no{ color:var(--accent-deep); }
   @media (hover:hover){ summary:hover .title{ color:var(--accent-deep); } }
 
   .body{ display:flex; flex-direction:column; gap:var(--s-3); padding:0 0 var(--s-5) calc(1.5rem + var(--s-3)); }
