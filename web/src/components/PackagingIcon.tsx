@@ -20,11 +20,10 @@ const jewel = (layers: number) => {
       return <path key={i} d={`M${x + s + o - step} ${y + o}h${step}v${s}H${x + o}V${y + s + o - step}`}/>;
     })}</>;
 };
-// 硬纸盒：天地盖，盖子略宽出一圈，前沿有开盖缺口
+// 硬纸盒：天地盖，盖子一直罩到底；画成正面、盖子略微提起，下沿露出一截底盒
 const rigidBox = <>
-  <rect x="5" y="15" width="22" height="11" rx="1"/><path d="M27 15l4-4v11l-4 4"/>
-  <rect x="3.5" y="8" width="25" height="7.5" rx="1"/><path d="M3.5 8l4-4h25l-4 4M32.5 4v7.5l-4 4"/>
-  <path d="M13 20.5h6"/>
+  <rect x="6" y="2" width="24" height="18" rx="1"/>
+  <path d="M7.5 20v5a1 1 0 0 0 1 1h19a1 1 0 0 0 1-1v-5"/>
 </>;
 // 从上沿露出半张碟（纸套口袋）
 const peek = (cx: number, top: number, r: number) => {
