@@ -31,3 +31,8 @@
 
 ## 关联
 D-051 · 2026-11-24-api-scenario-guide.md
+
+## 追加：说明哪些算 MCP
+- 用户问 HTTP 部分里带 agent / mcp 的路径算不算 MCP。B 面「对外接口」的导语加一句：路径带 agent 的也是普通 HTTP，不需要 MCP 客户端，只有 /mcp 走 MCP。
+- `POST /mcp` 注明「这一条才是 MCP」；`GET /api/mcp/package` 注明它是 MCP 工具给出的下载链接，本身是普通 HTTP 下载。
+- 只改说明文字，接口行为不变，docs/HTTP接口一览.md 无需改。构建与 CSP 检查通过，本地预览已确认文字出现。

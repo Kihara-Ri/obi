@@ -37,7 +37,7 @@ export const errors = [
 const q = 'q*（1–200 字）· by（text · catalogNumber · barcode）· offset';
 
 export const open: Group = {
-  id: 'http-open', title: '对外接口', lead: '调用方令牌。每项标出所需权限；上架与交易另需开启二手交易。',
+  id: 'http-open', title: '对外接口', lead: '调用方令牌。每项标出所需权限；上架与交易另需开启二手交易。路径带 agent 的也是普通 HTTP，不需要 MCP 客户端；只有 /mcp 走 MCP。',
   routes: [
     { m: 'GET', p: '/api/health', auth: '免登录', does: '存活与版本探测，给部署脚本和监控。', ret: 'ok · version · schema · uptime；数据库不可用时 503' },
     { m: 'GET', p: '/api/collection/purchases', auth: 'collection:read', does: '查有买入依据的副本，含交易历史；不含金额。每页 20 条。',
@@ -56,7 +56,7 @@ export const open: Group = {
     { m: 'POST', p: '/api/insight/evaluate', auth: 'insight:read', does: '一次评估 1–50 条网站候选，不保存候选。',
       body: 'candidates*（ref* · catalogNumber · barcode · artist · title · format · price · currency · shippingToWarehouse）· halfLifeDays', ret: 'asOf · weighting · results[]' },
     { m: 'GET', p: '/api/insight/releases', auth: 'insight:read', does: '单条候选的查询串版本。', q: '候选字段（不要 ref）· halfLifeDays', ret: 'results 中的一条' },
-    { m: 'POST', p: '/mcp', auth: '任一权限', does: 'MCP 入口（JSON-RPC），见 A 面。' },
-    { m: 'GET', p: '/api/mcp/package', auth: '链接签名', does: 'get_listing_package 给出的 10 分钟下载链接。', q: 't*（签名）', ret: 'ZIP；签名无效 403，副本或照片变了 409' },
+    { m: 'POST', p: '/mcp', auth: '任一权限', does: 'MCP 入口（JSON-RPC），这一条才是 MCP，见 A 面。' },
+    { m: 'GET', p: '/api/mcp/package', auth: '链接签名', does: 'MCP 工具 get_listing_package 给出的 10 分钟下载链接；本身是普通 HTTP 下载，不走 MCP。', q: 't*（签名）', ret: 'ZIP；签名无效 403，副本或照片变了 409' },
   ],
 };
