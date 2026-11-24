@@ -96,26 +96,33 @@ flowchart LR
 
 ## 给外部 Agent 的接口
 
-服务器实例提供 **MCP 入口**（`/mcp`），支持 `2026-07-28` 和旧版客户端握手。Agent 按权限看到对应工具和场景模板，脚本也可直接调用 HTTP 接口。[MCP 接入](docs/MCP接入.md)
+服务器实例提供 **MCP 入口**（`/mcp`），支持 `2026-07-28` 和旧版客户端握手；脚本也可直接调 HTTP 接口。每个调用方一枚令牌，只看得到权限内的工具和场景模板。令牌在「设置 → 高级 → MCP 服务」签发、轮换或撤销，服务器命令行也能管理同一份清单。
 
-登录服务器版后，在「设置 → 高级 → MCP 服务」为各调用方签发、轮换或撤销令牌。服务器命令行也可管理同一份清单。[对外令牌](docs/对外令牌.md)
+| 接口 | 能做什么 | 文档 |
+| --- | --- | --- |
+| 上架资料包 | 查到实物副本后，一次取出发行资料和按顺序打包的原图，用来写文案、发布 | [Agent 资料包与交易同步](docs/Agent上架接口.md) |
+| 交易同步 | 回写商品上线、已付款订单、买家收货和实际到账；两项结算事实齐了自动入账 | 同上 |
+| 已购唱片查询 | 按艺人、专辑或编号查有买入依据的副本，含持有、在途和售出历史（只读） | [已购唱片查询接口](docs/已购唱片查询接口.md) |
+| 采购评估 | 交一页候选，按近期加权的历史成交、落地成本和库存重复给出预计利润；只返回汇总 | [采购评估接口](docs/采购评估接口.md) |
 
-开启「二手交易」后，可以向外部 Agent 提供只读资料包：查到实物副本后，一次取出发行资料与按顺序打包的原图，用来写文案和发布。闲鱼商品上线、已付款订单、买家收货与实际到账也可用交易权限同步回来，收齐两项结算事实后自动入账。文案、发布与订单监听都由外部系统完成，Obi 只记账。见 [Agent 资料包与交易同步](docs/Agent上架接口.md)。
+上架资料包和交易同步需要开启「二手交易」。文案、发布与订单监听由外部系统完成，Obi 只记账。
 
-**已购唱片接口**：服务器可用只读权限按艺人、专辑或编号查找有买入依据的副本，包括持有、在途和售出历史。见 [已购唱片查询接口](docs/已购唱片查询接口.md)。
-
-**采购评估接口**：Agent 在唱片网站挑货时，把一页候选交给 Obi，按近期加权的历史成交、落地成本和库存重复情况给出预计利润；接口只返回汇总，不暴露单条账本。见 [采购评估接口](docs/采购评估接口.md)。
-
-按场景串起的调用顺序见 [接口场景指南](docs/接口场景指南.md)，介绍站的[「接口」页](https://kihara-ri.github.io/obi/api/)是它的流程轴版本。
+接入步骤见 [MCP 接入](docs/MCP接入.md) 和 [对外令牌](docs/对外令牌.md)；按场景串起的调用顺序见 [接口场景指南](docs/接口场景指南.md)，介绍站的[「接口」页](https://kihara-ri.github.io/obi/api/)是它的流程轴版本。
 
 ## 开发
 
 ```sh
-python3 tools/run_tests.py                                # 后端，按模块并行；单模块：python3 tools/run_tests.py test_covers
-npm --prefix web ci && npm --prefix web run build          # 前端产物不进 git，clone 后先构建
-npm --prefix web run typecheck && npm --prefix web test    # 类型检查与前端单测
 tools/setup-hooks.sh                                      # 首次 clone：启用提交 / 推送前的个人数据扫描
+npm --prefix web ci && npm --prefix web run build          # 前端产物不进 git，clone 后先构建
 python3 tools/preview_samples.py prepare --download       # 固定样本库 + 真实封面（首次），之后直接 python3 tools/preview_samples.py
+```
+
+改完后的检查：
+
+```sh
+python3 tools/run_tests.py                                # 后端，按模块并行；单模块：python3 tools/run_tests.py test_covers
+npm --prefix web run typecheck && npm --prefix web test    # 类型检查与前端单测
+tools/browser_acceptance.sh                               # 上架记录与照片下载的浏览器验收（改界面或交易同步时；推送前钩子也会跑）
 ```
 
 > [!NOTE]
@@ -127,19 +134,24 @@ python3 tools/preview_samples.py prepare --download       # 固定样本库 + �
 ```
 app.py               入口：CLI / 服务组装 / 启动（HOST / PORT / DATA_DIR / PUBLIC_ORIGIN）
 server/              HTTP 层：路由表 · 静态服务 · CSV 导出（加接口只改路由表）
-domain.py            金额计算与校验（Decimal，纯函数）
-storage.py           SQLite 事务与持久化（五态 + 包裹 + 销售单）
-rates.py covers.py   历史汇率 · 封面抓取
+domain*.py           金额计算与校验（Decimal，纯函数）；上架资料与交易同步的输入契约
+storage.py           SQLite 事务与持久化（副本状态 + 包裹 + 销售单 + 审计）
+rates.py rate_*.py   历史汇率：ECB 报价、日缓存；financial_rates.py 负责记账前锁定报价
+covers.py            封面抓取
+musicbrainz.py       发行资料查询（全应用共用节流）；kana.py / cjkvariants.py 只用于标题比对
 security.py          登录、会话与限流
 backups.py           每日一致性快照
 photo_uploads.py     实物照片逐张上传的暂存（保存前不写账本）
+twins.py vendor/     3D 插件的宿主侧兼容层 · 引擎导出的纯数据（禁止手改）
 web/                 前端源码：React 19 + TypeScript + Vite
 static/              PWA 资源；assets/ 与 index.html 是构建产物（不进 git）
 plugins/album-engine/  官方插件 ZIP 与哈希目录
 android/             原生外壳（本机模式）
 deploy/ tools/       systemd / nginx / Litestream 配置 · 发布、打包与样本脚本
 site/                介绍站：Astro 静态页，发布到 GitHub Pages（不进镜像与发布包）
-docs/images/readme/  本 README 的截图（来自固定样本库）
+tests/               后端测试（固定样本库见 tools/seed_samples.py）
+docs/                治理文档、接口文档与开发日志；docs/images/readme/ 是本 README 的截图
+data/                运行数据（不进 git）
 ```
 
 </details>
