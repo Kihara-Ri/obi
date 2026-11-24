@@ -1,10 +1,12 @@
 ---
 // 页脚：仓库链接与许可证。只放链接，不放说明文字。
 const repo = 'https://github.com/Kihara-Ri/obi';
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
 const links = [
   { t: 'GitHub', href: repo },
   { t: '下载', href: `${repo}/releases` },
   { t: '更新记录', href: `${repo}/blob/main/CHANGELOG.md` },
+  { t: '接口', href: `${base}api/` },
   { t: '使用说明', href: `${repo}/blob/main/使用说明.md` },
 ];
 ---

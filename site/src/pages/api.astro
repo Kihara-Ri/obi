@@ -1,0 +1,95 @@
+---
+// 「接口」页：服务器版对外接口按使用场景排成流程轴。顺序：标题 → 令牌与权限 → 场景流程 → 共用约定 → 页脚。
+// 内容来自 lib/api-flows.ts，与 docs/接口场景指南.md 同步；完整字段链到仓库里的接口契约。
+import Base from '../layouts/Base.astro';
+import Header from '../components/Header.astro';
+import ApiFlow from '../components/ApiFlow.astro';
+import Footer from '../components/Footer.astro';
+import { flows, scopes, issue, rules } from '../lib/api-flows';
+const docs = 'https://github.com/Kihara-Ri/obi/blob/main/docs';
+---
+<Base title="接口 · Obi" description="让 Agent 上架闲鱼、登记订单与到账、查询已购唱片、挑出值得买的唱片：Obi 服务器版的对外接口，按使用场景串成流程。">
+  <Header />
+  <main>
+    <section class="section intro">
+      <div class="wrap">
+        <h1>接口</h1>
+        <p class="lede">服务器版可以把上架、跟单、查重和采购评估交给 Agent。每个调用方一枚令牌，只挂它需要的权限；没有调用方具有某项权限时，那组接口就不存在。</p>
+        <nav class="jump" aria-label="场景">
+          {flows.map((f, i) => <a href={`#${f.id}`}>{i + 1}. {f.title}</a>)}
+        </nav>
+      </div>
+    </section>
+
+    <section class="section band" aria-labelledby="tokens-title">
+      <div class="wrap">
+        <h2 id="tokens-title" class="section-title">先签发令牌</h2>
+        <p class="section-sub">在服务器上为每个调用方签发一枚，挂上需要的权限；立即生效，撤销也一样。令牌只显示这一次，请求带 <code>Authorization: Bearer …</code>。</p>
+        <pre class="issue"><code>{issue}</code></pre>
+        <ul class="tokens">
+          {scopes.map((t) => (
+            <li>
+              <code class="file">{t.name}</code>
+              <span class="can">{t.can}</span>
+              <span class="meta">需开启：{t.needs}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+
+    <div class="section flows">
+      <div class="wrap stack">
+        {flows.map((f, i) => <ApiFlow flow={f} index={i} />)}
+      </div>
+    </div>
+
+    <section class="section band" aria-labelledby="rules-title">
+      <div class="wrap">
+        <h2 id="rules-title" class="section-title">共用约定</h2>
+        <p class="section-sub">写入口原样重发是安全的，不会重复建单。金额是人民币字符串，日期 YYYY-MM-DD。</p>
+        <dl class="rules">
+          {rules.map((r) => <div><dt>{r.k}</dt><dd>{r.v}</dd></div>)}
+        </dl>
+        <p class="more">
+          <a href={`${docs}/接口场景指南.md`}>场景指南</a>
+          <a href={`${docs}/Agent上架接口.md`}>资料包与交易同步</a>
+          <a href={`${docs}/已购唱片查询接口.md`}>已购唱片查询</a>
+          <a href={`${docs}/采购评估接口.md`}>采购评估</a>
+          <a href={`${docs}/对外令牌.md`}>对外令牌</a>
+          <a href={`${docs}/HTTP接口一览.md`}>全部接口</a>
+        </p>
+      </div>
+    </section>
+  </main>
+  <Footer />
+</Base>
+
+<style>
+  .intro{ padding-bottom:var(--s-6); }
+  h1{ font-size:var(--fs-2xl); font-weight:800; letter-spacing:-.02em; }
+  .lede{ margin-top:var(--s-3); max-width:36rem; color:var(--muted); }
+  .jump{ display:flex; flex-wrap:wrap; gap:var(--s-2); margin-top:var(--s-5); }
+  .jump a, .more a{ display:inline-flex; align-items:center; min-height:2.75rem; padding-inline:var(--s-4); border-radius:999px; border:1px solid var(--border); font-size:var(--fs-sm); }
+  .band{ background:var(--surface-2); }
+  code{ font-size:.92em; }
+
+  .tokens{ display:grid; gap:var(--s-3); margin:var(--s-5) 0 0; padding:0; list-style:none; }
+  @media (min-width:40rem){ .tokens{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  @media (min-width:64rem){ .tokens{ grid-template-columns:repeat(4,minmax(0,1fr)); } }
+  .issue{ margin:var(--s-5) 0 0; padding:var(--s-4); border-radius:var(--radius); background:var(--surface); border:1px solid var(--border); overflow-x:auto; font-size:var(--fs-sm); line-height:1.6; }
+  .tokens li{ display:grid; gap:var(--s-1); padding:var(--s-4); border-radius:var(--radius); background:var(--surface); border:1px solid var(--border); min-width:0; }
+  .file{ font-weight:600; overflow-wrap:anywhere; }
+  .can{ font-weight:600; }
+  .meta{ color:var(--muted); font-size:var(--fs-xs); }
+
+  .stack{ display:grid; grid-template-columns:minmax(0,1fr); gap:var(--s-8); }
+
+  .rules{ display:grid; gap:var(--s-2); margin:var(--s-5) 0 0; }
+  @media (min-width:48rem){ .rules{ grid-template-columns:repeat(4,minmax(0,1fr)); } }
+  .rules div{ display:flex; gap:var(--s-3); align-items:baseline; padding:var(--s-3) var(--s-4); border-radius:var(--radius-sm); background:var(--surface); border:1px solid var(--hairline); }
+  dt{ font-family:var(--mono); font-weight:700; }
+  dd{ margin:0; color:var(--muted); font-size:var(--fs-sm); }
+  .more{ display:flex; flex-wrap:wrap; gap:var(--s-2); margin-top:var(--s-5); }
+  @media (hover:hover){ .jump a:hover, .more a:hover{ background:var(--surface); } }
+</style>

@@ -1,0 +1,73 @@
+---
+// 「接口」页的一条场景流程轴：竖线串起编号节点，每步写谁调用、哪个接口、用哪枚令牌、Obi 里变成什么。
+// 请求体收在 <details> 里，不需要脚本；手机上接口路径可以横向滚动，不撑宽页面。
+import type { Flow } from '../lib/api-flows';
+interface Props { flow: Flow; index: number }
+const { flow, index } = Astro.props;
+---
+<section id={flow.id} class="flow" aria-labelledby={`${flow.id}-title`}>
+  <header class="top">
+    <span class="no">场景 {index + 1}</span>
+    <h2 id={`${flow.id}-title`}>{flow.title}</h2>
+    <p>{flow.sub}</p>
+  </header>
+  <ol class="axis">
+    {flow.steps.map((s, i) => (
+      <li class="step" data-who={s.who}>
+        <span class="dot" aria-hidden="true">{i + 1}</span>
+        <div class="card">
+          <div class="line">
+            <h3>{s.title}</h3>
+            <span class="who">{s.who}</span>
+            {s.token && <span class="token">{s.token}</span>}
+          </div>
+          {s.path && (
+            <p class="call"><span class="method">{s.method}</span><code>{s.path}</code></p>
+          )}
+          <p class="note">{s.note}</p>
+          {s.result && <p class="result"><span aria-hidden="true">→</span><span class="visually-hidden">结果：</span>{s.result}</p>}
+          {s.body && (
+            <details>
+              <summary>{s.method === 'POST' ? '请求体示例' : '内容'}</summary>
+              <pre><code>{s.body}</code></pre>
+            </details>
+          )}
+        </div>
+      </li>
+    ))}
+  </ol>
+</section>
+
+<style>
+  .flow{ display:grid; grid-template-columns:minmax(0,1fr); gap:var(--s-5); }
+  @media (min-width:56rem){ .flow{ grid-template-columns:16rem minmax(0,1fr); gap:var(--s-7); } .top{ position:sticky; top:calc(3.5rem + var(--s-5)); align-self:start; } }
+  .top{ display:grid; gap:var(--s-2); }
+  .no{ font-size:var(--fs-xs); font-weight:600; color:var(--accent-deep); letter-spacing:.06em; }
+  .top h2{ font-size:var(--fs-xl); font-weight:700; letter-spacing:-.01em; }
+  .top p{ color:var(--muted); font-size:var(--fs-sm); }
+
+  /* 竖线在节点中心；最后一步之后不再延伸 */
+  .axis{ margin:0; padding:0; list-style:none; display:grid; grid-template-columns:minmax(0,1fr); gap:var(--s-4); }
+  .step{ position:relative; display:grid; grid-template-columns:2rem minmax(0,1fr); gap:var(--s-3); }
+  .step:not(:last-child)::before{ content:''; position:absolute; left:calc(1rem - 1px); top:2rem; bottom:calc(-1 * var(--s-4)); width:2px; background:var(--border); }
+  .dot{ display:grid; place-items:center; width:2rem; height:2rem; border-radius:50%; background:var(--surface); border:2px solid var(--accent-deep); font-size:var(--fs-sm); font-weight:700; font-variant-numeric:tabular-nums; }
+  .step[data-who='外部系统'] .dot{ border-style:dashed; border-color:var(--muted); color:var(--muted); }
+
+  .card{ display:grid; grid-template-columns:minmax(0,1fr); gap:var(--s-2); padding:var(--s-4); border-radius:var(--radius); background:var(--surface); border:1px solid var(--border); min-width:0; }
+  .line{ display:flex; flex-wrap:wrap; align-items:center; gap:var(--s-2); }
+  h3{ font-size:var(--fs-md); font-weight:700; margin-right:auto; }
+  .who, .token{ font-size:var(--fs-xs); padding:0 var(--s-2); border-radius:999px; border:1px solid var(--border); color:var(--muted); white-space:nowrap; }
+  .token{ background:var(--surface-2); border-color:var(--hairline); }
+
+  .call{ display:flex; align-items:baseline; gap:var(--s-2); min-width:0; font-size:var(--fs-sm); }
+  .method{ flex:none; font-family:var(--mono); font-size:var(--fs-xs); font-weight:700; padding:0 var(--s-2); border-radius:var(--radius-sm); background:var(--accent); color:var(--accent-ink); }
+  .call code{ overflow-x:auto; white-space:nowrap; padding-bottom:2px; }
+  .note{ color:var(--muted); font-size:var(--fs-sm); }
+  .result{ display:flex; gap:var(--s-2); font-size:var(--fs-sm); font-weight:600; }
+  .result span[aria-hidden]{ color:var(--accent-deep); }
+
+  details{ font-size:var(--fs-sm); }
+  summary{ cursor:pointer; color:var(--muted); width:fit-content; padding-block:var(--s-1); }
+  pre{ margin:var(--s-2) 0 0; padding:var(--s-3); overflow-x:auto; border-radius:var(--radius-sm); background:var(--surface-2); border:1px solid var(--hairline); font-size:var(--fs-xs); line-height:1.7; }
+  @media (hover:hover){ summary:hover{ color:var(--text); } }
+</style>

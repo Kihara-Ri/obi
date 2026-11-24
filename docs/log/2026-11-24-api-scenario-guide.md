@@ -15,5 +15,8 @@
 ## 可能带来的新问题
 指南和 `lib/api-flows.ts` 是两份内容，接口变化时需同步（已在两处注释与 site/README 写明）。手机页眉不显示导航，「接口」入口在手机上只在页脚。已验证：check_docs、站点 build 与 CSP check 通过；1280 与 390 宽、浅色与深色无横向溢出。
 
+## 发布
+站点接口页随 D-049 / D-050 补上权限签发区块与「采购时挑出值得买的」流程，单独提交推送到 main，由 site.yml 发布到 GitHub Pages。
+
 ## 关联
 D-044 · D-047 · 2026-11-24-purchased-record-query.md
