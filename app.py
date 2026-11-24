@@ -32,8 +32,10 @@ from server.catalog_art import ArtClient
 from server.shop_brands import ShopBrandService
 from server.starter_albums import seed_starter
 from storage import Store
+from server.collection_api import load_collection_read_secret
 from server.listing_agent import load_agent_secret
 from server.trading_agent import load_trading_agent_secret
+from server.agent_clients import ClientRegistry
 
 ROOT = Path(__file__).resolve().parent
 
@@ -43,6 +45,7 @@ def build(data_dir, public_origin=None):
     data = Path(data_dir)
     listing_agent_secret = load_agent_secret(data)
     trading_agent_secret = load_trading_agent_secret(data)
+    collection_read_secret = load_collection_read_secret(data)
     rates = RateService(data / 'rates.sqlite3')
     store = Store(data / 'albums.sqlite3', rates)
     mb = MusicBrainzClient()
@@ -52,6 +55,8 @@ def build(data_dir, public_origin=None):
     return Services(store=store, shops=ShopBrandService(store), plugins=plugins, catalog_art=ArtClient(),
                     listing_agent_secret=listing_agent_secret,
                     trading_agent_secret=trading_agent_secret,
+                    collection_read_secret=collection_read_secret,
+                    agent_clients=ClientRegistry(data),
                     auth=Auth(data / 'auth.sqlite3'),
                     covers=covers, releases=releases, twins=plugins.facade,
                     artists=ArtistService(store, mb, covers, write_lock=WRITE_LOCK),

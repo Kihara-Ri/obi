@@ -82,6 +82,22 @@ class SampleLibraryTests(unittest.TestCase):
             for key in ('price', 'date', 'currency', 'status', 'photoCount'):
                 self.assertEqual(after.get(key), before.get(key), key)
 
+    def test_purchase_review_reuses_existing_copies_and_keeps_missing_data(self):
+        with tempfile.TemporaryDirectory() as folder:
+            ids = self.seed.seed_purchase_review(folder)
+            records = {r['id']: r for r in self.seed.open_store(folder).backup()['records']}
+        self.assertEqual(set(records), set(ids.values()))
+        self.assertEqual(len(records), 21)
+        islands = records[ids['islands-jp']]
+        self.assertEqual((islands['price'], islands['actual']), ('', '58.00'))
+        minecraft = records[ids['minecraft']]
+        self.assertEqual((minecraft['price'], minecraft['actual']), ('0.00', ''))
+        self.assertTrue(minecraft['date'] and minecraft['location'])
+        self.assertEqual((records[ids['moon']]['status'], records[ids['moon']]['price']), ('sold', ''))
+        remain = records[ids['remain']]
+        self.assertEqual((remain['status'], remain['releaseInfo']['format']), ('sold', ''))
+        self.assertEqual(remain['releaseInfo']['media'][0]['format'], '12" Vinyl')
+
     def test_rate_review_uses_existing_copy_and_explicitly_prepares_missing_quote(self):
         with tempfile.TemporaryDirectory() as folder:
             ids = self.seed.seed_rate_review(folder)

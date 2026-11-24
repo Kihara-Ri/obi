@@ -18,6 +18,8 @@ from photo_uploads import MAX_BYTES, stage
 from storage import SCHEMA, metadata_update
 from . import archive, export_csv
 from .artists import SourceUnavailableError
+from .collection_api import api_purchased_copies, authorize_collection_read
+from .insight_api import api_insight_evaluate, api_insight_profile, api_insight_release, authorize_insight
 from .state_sync import send_cached_state
 from .version import uptime, version
 from .listing_agent import authorize_listing_agent, api_agent_package
@@ -640,7 +642,12 @@ GET_PREFIX = {  # 带路径参数的接口
     '/api/twin-review-assets/': api_twin_review_asset,
     '/api/twin-source-preview/': api_twin_source_preview,
 }
-AGENT_GET = {'/api/listing/agent/package': api_agent_package}
+TOKEN_GET = {
+    '/api/listing/agent/package': (api_agent_package, authorize_listing_agent),
+    '/api/collection/purchases': (api_purchased_copies, authorize_collection_read),
+    '/api/insight/profile': (api_insight_profile, authorize_insight),
+    '/api/insight/releases': (api_insight_release, authorize_insight),
+}
 POST = {
     # path: (处理函数, 会话登录布尔值或独立鉴权函数, 需要 WRITE_LOCK)
     '/api/rates/prepare': (api_prepare_rates, True, False),
@@ -651,6 +658,7 @@ POST = {
     '/api/listing/agent/receipts': (api_listing_receipt, authorize_trading_agent, True),
     '/api/trading/agent/orders': (api_paid_order, authorize_trading_agent, True),
     '/api/trading/agent/settlements': (api_order_settlement, authorize_trading_agent, True),
+    '/api/insight/evaluate': (api_insight_evaluate, authorize_insight, False),
     '/api/catalog/barcode': (api_barcode_lookup, True, False),
     '/api/catalog/barcode/verify': (api_verify_barcode, True, False),
     '/api/catalog/number': (api_catalog_number_lookup, True, False),
@@ -701,7 +709,7 @@ UPLOAD = {
 
 
 def resolve_get(path):
-    if path in AGENT_GET: return AGENT_GET[path], authorize_listing_agent
+    if path in TOKEN_GET: return TOKEN_GET[path]
     if path in GET: return GET[path], path not in PUBLIC_GET
     for prefix, fn in GET_PREFIX.items():
         if path.startswith(prefix): return fn, True

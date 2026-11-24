@@ -16,12 +16,14 @@ albums-backup-*.sqlite3
 service.env
 update.env
 vision-config.json
-# 售卖凭据：即使误放在 data 外也不进库
+# 外部接口凭据：即使误放在 data 外也不进库
 listing-chatgpt.json
 listing-chatgpt.tmp
 listing-chatgpt.lock
 listing-agent.token
 trading-agent.token
+collection-read.token
+credentials/
 litestream.env
 # 历史数据导入与成交凭证
 albums.json

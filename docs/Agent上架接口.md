@@ -2,11 +2,19 @@
 
 服务器版开启「二手交易」后，Agent 可查找库存副本并下载上架资料。文案、选图、发布与订单监听由外部系统完成，Obi 接收其回报的交易事实。已存商品链接可从专辑详情 → 管理打开。见 D-047。
 
+查询持有、在途或已售的购买记录使用独立的[已购唱片查询接口](已购唱片查询接口.md)。从找副本到入账的完整调用顺序见[接口场景指南](接口场景指南.md)。
+
 ## 启用资料包
 
-在服务端数据目录（Docker 内为 `/data`）的 `credentials/listing-agent.token` 保存一枚独立令牌。用 `python3 -c 'import secrets; print("obi_listing_" + secrets.token_urlsafe(32))'` 生成，文件权限设为 `0600`，仅服务用户可读。重启 Obi 后生效。删除文件并重启可关闭接口，换令牌也需要重启。令牌由实例管理，账本备份只包含账本与业务资产。
+给调用方签发一枚带 `listing:read` 权限的令牌（见[对外令牌](对外令牌.md)），立即生效，不用重启。同一个 Agent 还要回报上架和订单时，一并挂上 `trading:write`：
 
-资料包请求带 `Authorization: Bearer <LISTING_TOKEN>`。远程使用实例的 HTTPS 地址，隔离本机测试可使用回环 HTTP。浏览器本机模式与安卓本机模式不提供这两个 Agent 能力。
+```sh
+docker compose exec obi python3 -m server.client_admin add 上架Agent --scope listing:read --scope trading:write
+```
+
+`revoke` 立即撤销，`rotate` 换新令牌。令牌由实例管理，清单只存摘要，账本备份只包含账本与业务资产。旧方式 `credentials/listing-agent.token`（`obi_listing_` 前缀，重启后生效）仍按 `listing:read` 识别，可用 `import-legacy` 迁移。
+
+资料包请求带 `Authorization: Bearer <令牌>`。远程使用实例的 HTTPS 地址，隔离本机测试可使用回环 HTTP。浏览器本机模式与安卓本机模式不提供这两个 Agent 能力。
 
 ## 查找与下载
 
@@ -41,9 +49,9 @@ GET /api/listing/agent/package?id=0123456789abcdef0123456789abcdef
 
 ### 单独启用
 
-在服务器数据目录的 `credentials/trading-agent.token` 写入交易令牌。用 `python3 -c 'import secrets; print("obi_trading_" + secrets.token_urlsafe(32))'` 生成，权限为 `0600`，服务重启后生效。删除文件并重启可关闭。每个下文请求使用 `Authorization: Bearer <TRADING_TOKEN>`，远程使用既有 HTTPS 地址。资料包令牌只读，交易令牌只用于本节的三个写入口。
+下文三个写入口需要 `trading:write` 权限。无人值守的订单监听器单独签发一枚只有 `trading:write` 的令牌，出问题时单独撤销，不影响上架 Agent。旧方式 `credentials/trading-agent.token`（`obi_trading_` 前缀，重启后生效）仍按 `trading:write` 识别。每个请求使用 `Authorization: Bearer <令牌>`，远程使用既有 HTTPS 地址。`listing:read` 只读，`trading:write` 只用于本节的三个写入口。
 
-交易同步也要求开启「二手交易」。错误返回 `{"error":"…"}`。停用接口返回 404，令牌无效返回 401，字段无效或模块关闭返回 400。遇到副本版本、商品绑定、订单或到账日期冲突时返回 409，由调用方保留事实供核对。
+交易同步也要求开启「二手交易」。错误返回 `{"error":"…"}`。没有调用方具有 `trading:write` 时返回 404，令牌无效返回 401，令牌缺少该权限返回 403，字段无效或模块关闭返回 400。遇到副本版本、商品绑定、订单或到账日期冲突时返回 409，由调用方保留事实供核对。
 
 ### 登记上架回执
 

@@ -2,15 +2,14 @@
 from contextlib import closing
 import io
 import json
-import re
 from zipfile import ZipFile
 
 from domain import ConflictError, ValidationError
 from domain_listing import photo_order, text
-from .agent_auth import authorize_agent, load_secret
+from .agent_auth import load_secret, scope_guard
+from .copy_search import lookup_value, matches_copy
 from .listing_context import public_context
 from .listing_photos import listing_record, read_photos
-from .release_merge import _catnos, _code
 
 PAGE_SIZE = 20
 
@@ -19,18 +18,7 @@ def load_agent_secret(data_dir):
     return load_secret(data_dir, 'listing-agent.token', b'obi_listing_', '上架 Agent')
 
 
-def authorize_listing_agent(h, svc):
-    return authorize_agent(h, svc.listing_agent_secret, '上架 Agent')
-
-
-def _matches(record, by, query):
-    release = record.get('releaseInfo') or {}
-    if by == 'barcode':
-        return query == _code(release.get('barcode'))
-    if by == 'catalogNumber':
-        return query in _catnos(release.get('catalogNumber'))
-    name = f"{record.get('artist', '')} {record.get('title', '')}".casefold()
-    return all(term in name for term in query)
+authorize_listing_agent = scope_guard('listing:read', '上架 Agent')
 
 
 def _candidate(record):
@@ -49,22 +37,11 @@ def _candidates(store, params):
     offset = int(params.get('offset', '0'))
     if not term or offset < 0:
         raise ValidationError('请提供查找内容和有效的分页位置')
-    if by == 'barcode':
-        if not re.fullmatch(r'[0-9 -]+', term) or not (value := _code(term)):
-            raise ValidationError('请提供有效条码')
-    elif by == 'catalogNumber':
-        numbers = _catnos(term)
-        if len(numbers) != 1:
-            raise ValidationError('请提供一个唱片编号')
-        value = next(iter(numbers))
-    elif by == 'text':
-        value = term.casefold().split()
-    else:
-        raise ValidationError('查找方式无效')
+    value = lookup_value(by, term)
     with closing(store.connect()) as db:
         store.require_module('trading', db)
         copies = [r for r in store.rows(db, 'records') if r.get('status') in ('domestic', 'overseas')
-                  and _matches(r, by, value)]
+                  and matches_copy(r, by, value)]
     copies.sort(key=lambda r: (r['artist'].casefold(), r['title'].casefold(), r['id']))
     end = offset + PAGE_SIZE
     return {'copies': [_candidate(r) for r in copies[offset:end]],

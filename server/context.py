@@ -22,3 +22,5 @@ class Services:
     listing_agent_secret: Optional[bytes] = None  # 摘要，独立于浏览器会话和模型凭据
     state_cache: Any = field(default_factory=StateCache)  # 上一份 /api/state，按库与汇率指纹复用
     trading_agent_secret: Optional[bytes] = None  # 只授予外部交易事实的入账接口
+    collection_read_secret: Optional[bytes] = None  # 只授予已购唱片查询
+    agent_clients: Optional[Any] = None  # agent_clients.ClientRegistry —— 按调用方与权限授权，热加载（D-050）

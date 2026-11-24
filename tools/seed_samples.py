@@ -32,6 +32,7 @@ seed_rate_review 为现有 Dookie 副本提供未缓存的虚构买入日期，�
 
 seed_listing_navigation 为现有 lift-fists 和 tpab 副本登记虚构的闲鱼回执。
 seed_legacy_listing_copy 在 lift-fists 及其审计历史中写入退役前的固定文案，供启动迁移验收。
+seed_purchase_review 复用三张副本，覆盖实际支出、零金额以及只在介质明细中登记的黑胶格式。
 
 安全约束：只能写入 --data-dir 指定的目录；拒绝指向仓库 data/，拒绝覆盖已存在
 且非样本库的 albums.sqlite3；已灌过的目录幂等跳过。写入全部走 storage.py 的
@@ -272,6 +273,23 @@ def seed_rate_review(data_dir):
     record = next(r for r in store.backup()['records'] if r['id'] == ids['dookie-jp'])
     if record['date'] != '2026-10-01':
         store.save({'id': record['id'], 'revision': record['revision'], 'date': '2026-10-01'})
+    return ids
+
+
+def seed_purchase_review(data_dir):
+    """Verify the purchase query with the same roster and isolated edition metadata."""
+    ids = seed(data_dir)
+    store = open_store(data_dir)
+    overrides = {
+        'islands-jp': {'actual': '58.00'},
+        'minecraft': {'price': '0.00'},
+        'remain': {'releaseInfo': {'catalogNumber': 'DEMO-LP-0001', 'edition': '示例再版',
+                                   'media': [{'format': '12" Vinyl', 'tracks': [{'title': '示例曲目'}]}]}},
+    }
+    with closing(store.connect()) as db:
+        records = {key: store.get(db, 'records', ids[key]) for key in overrides}
+    store.save({'items': [dict(id=r['id'], revision=r['revision'], **overrides[key])
+                          for key, r in records.items()]})
     return ids
 
 

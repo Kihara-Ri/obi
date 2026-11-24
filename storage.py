@@ -197,6 +197,29 @@ class Store:
         # 同日副本沿用既有行顺序；备份也按此顺序写出，恢复后保持相对位置。
         order = ' ORDER BY rowid' if table == 'records' else ''
         return [json.loads(r['data']) for r in db.execute(f'SELECT data FROM {table}{order}')]
+    def purchased_copies(self):
+        """Read the purchase catalog without returning amounts or loading other ledger data."""
+        with closing(self.connect()) as db:
+            rows = db.execute('''
+                SELECT json_object(
+                    'artist', json_extract(data, '$.artist'), 'title', json_extract(data, '$.title'),
+                    'status', json_extract(data, '$.status'), 'version', json_extract(data, '$.version'),
+                    'pressing', json_extract(data, '$.pressing'), 'obi', json_extract(data, '$.obi'),
+                    'releaseInfo', json_object(
+                        'catalogNumber', json_extract(data, '$.releaseInfo.catalogNumber'),
+                        'barcode', json_extract(data, '$.releaseInfo.barcode'),
+                        'country', json_extract(data, '$.releaseInfo.country'),
+                        'edition', json_extract(data, '$.releaseInfo.edition'),
+                        'format', COALESCE(NULLIF(json_extract(data, '$.releaseInfo.format'), ''),
+                            (SELECT group_concat(NULLIF(json_extract(disc.value, '$.format'), ''), ' + ')
+                             FROM json_each(data, '$.releaseInfo.media') AS disc))
+                    )
+                ) AS copy, json_extract(data, '$.price') AS price, json_extract(data, '$.actual') AS actual
+                FROM records ORDER BY rowid
+            ''')
+            # Date and shop can be filled by the new-copy form without a purchase.
+            return [json.loads(row['copy']) for row in rows
+                    if number(row['price'], optional=True) or number(row['actual'], optional=True)]
     def get(self, db, table, id):
         row = db.execute(f'SELECT data FROM {table} WHERE id=?',(id,)).fetchone()
         if not row: raise ValidationError('记录不存在，请刷新页面')
