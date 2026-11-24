@@ -4,24 +4,31 @@ import io
 import re
 import zipfile
 
-from domain import ValidationError
+from domain import ConflictError, ValidationError
 from domain_listing import photo_order
 
 
-def _photo_record(store, rid, stock_only):
+def _photo_record(store, rid, stock_only, *, expected_revision=None):
     if not isinstance(rid, str) or not re.fullmatch(r'[0-9a-f]{32}', rid):
         raise ValidationError('副本编号无效')
     with closing(store.connect()) as db, db:
         if stock_only:
             store.require_module('trading', db)
-        record = store.get(db, 'records', rid)
+        try:
+            record = store.get(db, 'records', rid)
+        except ValidationError as error:
+            if expected_revision is None:
+                raise
+            raise ConflictError('副本已变更，请重新获取资料包') from error
+    if expected_revision is not None and record['revision'] != expected_revision:
+        raise ConflictError('副本已变更，请重新获取资料包')
     if stock_only and record['status'] not in ('domestic', 'overseas'):
         raise ValidationError('只有库存中的副本可准备售卖资料')
     return record
 
 
-def listing_record(store, rid):
-    return _photo_record(store, rid, stock_only=True)
+def listing_record(store, rid, *, expected_revision=None):
+    return _photo_record(store, rid, stock_only=True, expected_revision=expected_revision)
 
 
 def read_photos(store, rid, order, revision, *, stock_only=True):

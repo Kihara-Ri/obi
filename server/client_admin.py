@@ -1,7 +1,7 @@
 """对外调用方令牌管理（D-050）：签发、列出、改权限、轮换、撤销、迁移旧令牌文件。
 
 在仓库根目录、Obi 服务用户下执行；随服务器代码进入 Docker 镜像（tools/ 不进镜像）：
-docker compose exec obi python3 -m server.client_admin …（镜像已设 DATA_DIR=/data）。
+docker compose exec app python3 -m server.client_admin …（镜像已设 DATA_DIR=/data）。
 改动立即生效，服务器无需重启。令牌只在 add / rotate 时打印一次，清单里只存 SHA-256。
 
     python3 -m server.client_admin --data-dir /data add 采购Agent --scope insight:read
@@ -52,7 +52,7 @@ def cmd_revoke(root, args):
     print(f'已撤销「{args.name}」，立即生效')
 
 
-def cmd_import_legacy(root, args):
+def _import_legacy(root):
     data = ac.read(root)
     hashes = {c['sha256'] for c in data['clients']}
     moved = []
@@ -70,10 +70,17 @@ def cmd_import_legacy(root, args):
             raise SystemExit(f'调用方「{name}」已存在，未迁移任何文件')
         data['clients'].append({'name': name, 'scopes': [scope], 'sha256': ac.digest(token), 'createdAt': ac.now()})
         moved.append(filename)
+    if moved:
+        ac.write(root, data)
+    return moved
+
+
+def cmd_import_legacy(root, args):
+    with ac.edit_lock(root):
+        moved = _import_legacy(root)
     if not moved:
         print('没有需要迁移的旧令牌文件')
         return
-    ac.write(root, data)
     print('已迁移：' + '、'.join(moved) + '。令牌不变，Agent 无需改配置。')
     print('确认可用后删除这些旧文件并重启 Obi。')
 

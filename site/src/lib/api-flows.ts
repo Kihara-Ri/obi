@@ -21,7 +21,7 @@ export const scopes: Scope[] = [
   { name: 'insight:read', can: '采购评估：成本与利润汇总', needs: '无' },
 ];
 
-export const issue = 'docker compose exec obi python3 -m server.client_admin \\\n  add 上架Agent --scope listing:read --scope trading:write';
+export const issue = 'docker compose exec app python3 -m server.client_admin \\\n  add 上架Agent --scope listing:read --scope trading:write';
 
 export const connect = 'claude mcp add --transport http obi https://your.domain/mcp \\\n  --header "Authorization: Bearer obi_client_…"';
 
@@ -35,7 +35,7 @@ export const flows: Flow[] = [
     sub: 'Agent 写文案、发布、跟单；Obi 提供资料，接收核实过的事实并记账。',
     steps: [
       { title: '找到要卖的那一张', who: 'Agent', tool: 'find_listing_copies', method: 'GET', path: `${pkg}?by=catalogNumber&q=…`, token: 'listing:read', note: '按名称、编号或条码搜索库存，每页 20 项。', result: '候选副本 id' },
-      { title: '下载资料包', who: 'Agent', tool: 'get_listing_package', method: 'GET', path: `${pkg}?id=…`, token: 'listing:read', note: '发行资料、副本信息和按顺序编号的原图；不含成本与备注。MCP 给 10 分钟有效的下载链接。', result: 'ZIP：materials.json + photos/', body: 'materials.json\n  id, revision, photoRevision\n  album / release / copy\nphotos/01.jpg, 02.jpg …' },
+      { title: '下载资料包', who: 'Agent', tool: 'get_listing_package', method: 'GET', path: `${pkg}?id=…`, token: 'listing:read', note: '含发行资料、副本信息和有序原图。MCP 的下载链接有效期为 10 分钟，副本或照片版本变化后需重新取包。', result: 'ZIP：materials.json + photos/', body: 'materials.json\n  id, revision, photoRevision\n  album / release / copy\nphotos/01.jpg, 02.jpg …' },
       { title: '发布并核实在线', who: '外部系统', note: '文案、选图、定价、发布都在 Obi 之外；发布后回读商品页确认在线。' },
       { title: '登记上架回执', who: 'Agent', tool: 'record_listing_receipt', method: 'POST', path: '/api/listing/agent/receipts', token: 'trading:write', note: '带资料包里的 revision；一件闲鱼商品只绑一张副本。', result: '已上架', body: '{"id": "…", "revision": 2,\n "itemId": "100000000001", "status": "online",\n "price": "95.00", "shipping": {"mode": "free"},\n "verifiedAt": "2026-10-08T05:30:00Z"}' },
       { title: '买家付款', who: 'Agent', tool: 'record_paid_order', method: 'POST', path: '/api/trading/agent/orders', token: 'trading:write', note: '以闲鱼订单号为键，成交价、平台扣费、寄出运费分开记。', result: '售出中', body: '{"orderId": "DEMO-XIANYU-001",\n "itemId": "100000000001", "date": "2026-10-09",\n "gross": "90.00", "fees": "3.00", "postage": "7.00"}' },

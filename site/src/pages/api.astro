@@ -24,7 +24,7 @@ const docs = 'https://github.com/Kihara-Ri/obi/blob/main/docs';
     <section class="section band" aria-labelledby="tokens-title">
       <div class="wrap">
         <h2 id="tokens-title" class="section-title">先签发令牌</h2>
-        <p class="section-sub">在服务器上为每个调用方签发一枚，挂上需要的权限；立即生效，撤销也一样。令牌只显示这一次，请求带 <code>Authorization: Bearer …</code>。</p>
+        <p class="section-sub">在「设置 → 高级 → MCP 服务」为每个调用方签发带权限的令牌。网页也可换令牌和撤销。需要在服务器上操作时可用下面的命令。</p>
         <pre class="issue"><code>{issue}</code></pre>
         <ul class="tokens">
           {scopes.map((t) => (

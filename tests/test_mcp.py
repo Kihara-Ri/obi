@@ -81,6 +81,38 @@ class McpTests(unittest.TestCase):
         bad = self.http('POST', '/mcp', message, token, {'MCP-Protocol-Version': '1999-01-01'})
         self.assertEqual(bad[0], 400)
 
+    def test_current_protocol_discovery_and_calls(self):
+        token = self.token('采购Agent', 'insight:read')
+        prefix, current = 'io.modelcontextprotocol/', '2026-07-28'
+
+        def request(method, params=None, *, version=current, header_method=None):
+            body = {'jsonrpc': '2.0', 'id': 1, 'method': method, 'params': {
+                '_meta': {prefix + 'protocolVersion': version, prefix + 'clientCapabilities': {}}, **(params or {})}}
+            headers = {'MCP-Protocol-Version': version, 'Mcp-Method': header_method or method}
+            if params and 'name' in params:
+                headers['Mcp-Name'] = params['name']
+            status, raw, _ = self.http('POST', '/mcp', body, token, headers)
+            return status, json.loads(raw)
+
+        status, reply = request('tools/list')  # Current clients can call directly without discovery.
+        self.assertEqual(status, 200)
+        self.assertEqual(reply['result']['resultType'], 'complete')
+        self.assertEqual([t['name'] for t in reply['result']['tools']], ['get_purchase_profile', 'evaluate_candidates'])
+        discovery = request('server/discover')[1]['result']
+        self.assertEqual(discovery['supportedVersions'][:2], [current, '2025-11-25'])
+        self.assertEqual(discovery['_meta'][prefix + 'serverInfo']['name'], 'obi')
+        prompt = request('prompts/get', {'name': 'purchase_scouting', 'arguments': {'source': 'sample'}})[1]
+        self.assertEqual(prompt['result']['resultType'], 'complete')
+        result = request('tools/call', {'name': 'get_purchase_profile', 'arguments': {'halfLifeDays': 365}})[1]['result']
+        self.assertEqual((result['resultType'], result['structuredContent']['weighting']['halfLifeDays']), ('complete', 365))
+        status, reply = request('tools/list', header_method='prompts/list')
+        self.assertEqual((status, reply['error']['code']), (400, -32020))
+        status, reply = request('server/discover', version='2099-01-01')
+        self.assertEqual((status, reply['error']['code']), (400, -32022))
+        self.assertIn(current, reply['error']['data']['supported'])
+        status, reply = request('resources/list')
+        self.assertEqual((status, reply['error']['code']), (404, -32601))
+
     def test_tools_and_prompts_follow_scopes(self):
         buyer, full = self.token('采购Agent', 'insight:read'), self.token('全部', *ALL)
         names = lambda token: [t['name'] for t in self.rpc(token, 'tools/list')['result']['tools']]
@@ -138,11 +170,18 @@ class McpTests(unittest.TestCase):
         self.assertEqual((materials['revision'], materials['photoOrder']), (package['revision'], package['photoOrder']))
         self.assertEqual(self.http('GET', f'{url.path}?{url.query}x')[0], 403)
         self.assertEqual(self.http('GET', f'{url.path}?' + urlencode({'t': 'a.b'}))[0], 403)
-        signed, _ = mcp_files.sign(rid, [], 0, now=0)
+        open_store(self.root).save({'id': rid, 'revision': package['revision'], 'title': 'Lift Fists (sample edit)'})
+        self.assertEqual(self.http('GET', f'{url.path}?{url.query}')[0], 409)
+        _, refreshed = self.call(token, 'get_listing_package', {'id': rid})
+        self.assertEqual(refreshed['photoRevision'], package['photoRevision'])
+        self.assertGreater(refreshed['revision'], package['revision'])
+        fresh_url = urlsplit(refreshed['download']['url'])
+        self.assertEqual(self.http('GET', f'{fresh_url.path}?{fresh_url.query}')[0], 200)
+        signed, _ = mcp_files.sign(rid, refreshed['revision'], [], 0, now=0)
         with self.assertRaises(ValidationError):
             mcp_files.verify(signed)                                                  # expired
 
-        receipt = {'id': rid, 'revision': package['revision'], 'itemId': '100000000001', 'status': 'online',
+        receipt = {'id': rid, 'revision': refreshed['revision'], 'itemId': '100000000001', 'status': 'online',
                    'price': '95.00', 'shipping': {'mode': 'free'}, 'verifiedAt': '2026-10-08T05:30:00Z'}
         first, again = self.call(token, 'record_listing_receipt', receipt)[1], self.call(token, 'record_listing_receipt', receipt)[1]
         self.assertTrue(first['listed'])

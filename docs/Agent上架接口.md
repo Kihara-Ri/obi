@@ -9,7 +9,7 @@
 给调用方签发一枚带 `listing:read` 权限的令牌（见[对外令牌](对外令牌.md)），立即生效，不用重启。同一个 Agent 还要回报上架和订单时，一并挂上 `trading:write`：
 
 ```sh
-docker compose exec obi python3 -m server.client_admin add 上架Agent --scope listing:read --scope trading:write
+docker compose exec app python3 -m server.client_admin add 上架Agent --scope listing:read --scope trading:write
 ```
 
 `revoke` 立即撤销，`rotate` 换新令牌。令牌由实例管理，清单只存摘要，账本备份只包含账本与业务资产。旧方式 `credentials/listing-agent.token`（`obi_listing_` 前缀，重启后生效）仍按 `listing:read` 识别，可用 `import-legacy` 迁移。

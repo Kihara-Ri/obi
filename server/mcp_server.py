@@ -7,22 +7,16 @@ import json
 import traceback
 
 from domain import ConflictError, ValidationError
-from . import mcp_prompts, mcp_tools
+from . import mcp_prompts, mcp_protocol, mcp_tools
 from .agent_auth import any_enabled, caller
+from .mcp_protocol import LEGACY_VERSIONS, PROTOCOL_META, SUPPORTED_VERSIONS, RpcError
 from .version import version
 
-VERSIONS = ('2025-11-25', '2025-06-18', '2025-03-26')
 INSTRUCTIONS = (
     'Obi 是唱片收藏与二手买卖账本。工具按场景分三组：采购评估（get_purchase_profile、evaluate_candidates）、'
     '买前查重复（find_purchases）、闲鱼上架到入账（find_listing_copies、get_listing_package、record_*）。'
     '金额是人民币字符串，日期 YYYY-MM-DD。写入工具只提交已核实的事实，可原样重试；遇到冲突停下来交给用户核对。'
     'prompts 里有每个场景的完整步骤。')
-
-
-class RpcError(Exception):
-    def __init__(self, code, message):
-        super().__init__(message)
-        self.code = code
 
 
 def authorize_mcp(h, svc):
@@ -38,12 +32,19 @@ def authorize_mcp(h, svc):
     return True
 
 
+def server_info():
+    return {'name': 'obi', 'title': 'Obi 唱片账本', 'version': version()}
+
+
+def describe_server():
+    return {'capabilities': {'tools': {'listChanged': False}, 'prompts': {'listChanged': False}},
+            'instructions': INSTRUCTIONS}
+
+
 def initialize(params):
     asked = params.get('protocolVersion')
-    return {'protocolVersion': asked if asked in VERSIONS else VERSIONS[1],
-            'capabilities': {'tools': {'listChanged': False}, 'prompts': {'listChanged': False}},
-            'serverInfo': {'name': 'obi', 'title': 'Obi 唱片账本', 'version': version()},
-            'instructions': INSTRUCTIONS}
+    return {'protocolVersion': asked if asked in LEGACY_VERSIONS else LEGACY_VERSIONS[1],
+            'serverInfo': server_info(), **describe_server()}
 
 
 def tool_result(data, error=False):
@@ -56,12 +57,15 @@ def tool_result(data, error=False):
 
 def call_tool(h, svc, scopes, params):
     from .routes import WRITE_LOCK
-    t = mcp_tools.BY_NAME.get(params.get('name'))
+    name = params.get('name')
+    if not isinstance(name, str):
+        raise RpcError(-32602, '工具名需为字符串')
+    t = mcp_tools.BY_NAME.get(name)
     if not t:
         raise RpcError(-32602, f"未知工具：{params.get('name')}")
     if t['scope'] not in scopes:
         return tool_result(f"这枚令牌没有 {t['scope']} 权限，不能调用 {t['name']}", True)
-    args = params.get('arguments') or {}
+    args = params.get('arguments', {})
     if not isinstance(args, dict):
         raise RpcError(-32602, 'arguments 需为对象')
     try:
@@ -84,19 +88,25 @@ def call_tool(h, svc, scopes, params):
 
 
 def get_prompt(scopes, params):
-    p = mcp_prompts.BY_NAME.get(params.get('name'))
+    name = params.get('name')
+    arguments = params.get('arguments', {})
+    if not isinstance(name, str) or not isinstance(arguments, dict):
+        raise RpcError(-32602, '提示模板名需为字符串，参数需为对象')
+    p = mcp_prompts.BY_NAME.get(name)
     if not p or not p['scopes'] <= scopes:
         raise RpcError(-32602, f"未知提示模板：{params.get('name')}")
     try:
-        return mcp_prompts.render(p, params.get('arguments'))
+        return mcp_prompts.render(p, arguments)
     except ValidationError as e:
         raise RpcError(-32602, str(e)) from None
 
 
-def dispatch(h, svc, method, params):
+def dispatch(h, svc, method, params, modern):
     scopes = h.mcp_caller[1]
-    if method == 'initialize':
+    if method == 'initialize' and not modern:
         return initialize(params)
+    if method == 'server/discover' and modern:
+        return {'supportedVersions': list(SUPPORTED_VERSIONS), **describe_server()}
     if method == 'ping':
         return {}
     if method == 'tools/list':
@@ -111,18 +121,31 @@ def dispatch(h, svc, method, params):
 
 
 def api_mcp(h, svc, body):
-    header = h.headers.get('MCP-Protocol-Version')
-    if header and header not in VERSIONS:
-        return h.send({'error': f'不支持的 MCP 协议版本：{header}'}, 400)
-    method, params, rid = body.get('method'), body.get('params') or {}, body.get('id')
-    if body.get('jsonrpc') != '2.0' or (method is None and rid is None):
-        return h.send({'jsonrpc': '2.0', 'id': rid, 'error': {'code': -32600, 'message': '无效的 JSON-RPC 请求'}})
-    if 'id' not in body or method is None:     # 通知或客户端发来的响应：无需回复
-        return h.send(b'', 202)
+    method, params, rid = body.get('method'), body.get('params', {}), body.get('id')
+    modern = mcp_protocol.is_modern(h.headers, method, params)
     try:
+        mcp_protocol.validate_version(h.headers)
+        if body.get('jsonrpc') != '2.0' or (method is None and rid is None):
+            raise RpcError(-32600, '无效的 JSON-RPC 请求')
+        if not modern:
+            if 'id' not in body or method is None:   # 旧版通知或客户端发来的响应
+                return h.send(b'', 202)
+            params = params or {}
         if not isinstance(method, str) or not isinstance(params, dict):
             raise RpcError(-32600, '无效的 JSON-RPC 请求')
-        reply = {'result': dispatch(h, svc, method, params)}
+        if modern:
+            if 'id' in body and type(rid) not in (str, int):
+                raise RpcError(-32600, 'JSON-RPC 请求 ID 需为字符串或整数')
+            mcp_protocol.validate_modern(h.headers, method, params)
+            if 'id' not in body:
+                return h.send(b'', 202)
+        result = dispatch(h, svc, method, params, modern)
     except RpcError as e:
-        reply = {'error': {'code': e.code, 'message': str(e)}}
-    h.send({'jsonrpc': '2.0', 'id': rid, **reply})
+        status, error = e.response(modern)
+        reply = {'jsonrpc': '2.0', 'error': error}
+        if not modern or type(rid) in (str, int):
+            reply['id'] = rid
+        return h.send(reply, status)
+    if modern:
+        result.update(resultType='complete', _meta={PROTOCOL_META + 'serverInfo': server_info()})
+    h.send({'jsonrpc': '2.0', 'id': rid, 'result': result})

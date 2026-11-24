@@ -16,9 +16,9 @@
 | POST | `/api/insight/evaluate` | `insight:read` | 读 | 一次评估 1–50 条网站候选：是否已有、同版本或同专辑的历史成本与净收入、落地成本和预计利润。不保存候选。 |
 | GET | `/api/insight/releases` | `insight:read` | 读 | 按单个候选的字段查询，返回内容同 `evaluate` 的一条。 |
 | POST | `/mcp` | 任一权限的调用方令牌 | 按工具 | MCP 入口：按令牌权限列出对应上面接口的工具和场景模板。`GET /mcp` 返回 405。 [MCP 接入](MCP接入.md) |
-| GET | `/api/mcp/package` | 链接内签名（10 分钟） | 读 | `get_listing_package` 工具给出的资料包下载链接，内容同资料包 ZIP。 |
+| GET | `/api/mcp/package` | 链接内签名（10 分钟） | 读 | 下载 `get_listing_package` 对应版本的 ZIP，副本或照片版本变化时返回 409。 |
 
-授权列是调用方令牌需要的权限。管理员用 `python3 -m server.client_admin` 给每个调用方签发一枚令牌并挂上权限，改动立即生效，见[对外令牌](对外令牌.md)；旧的三个令牌文件仍按固定权限识别。客户端通过 HTTPS 的 `Authorization: Bearer` 请求头认证。浏览器和安卓本机模式下没有这些远程凭据入口。
+授权列是调用方令牌需要的权限。管理员在「设置 → 高级 → MCP 服务」或用 `python3 -m server.client_admin` 签发带权限的令牌，见[对外令牌](对外令牌.md)。旧令牌按固定权限识别。客户端通过 HTTPS 的 `Authorization: Bearer` 请求头认证。
 
 ## 账户与实例管理
 
@@ -27,6 +27,8 @@
 | POST | `/api/login` | 实例密码 | 写会话 | 建立登录会话。 |
 | POST | `/api/logout` | 登录会话 | 写会话 | 注销当前会话。 |
 | POST | `/api/password` | 登录会话和当前密码 | 写凭据 | 修改密码并使其他设备退出。 |
+| GET | `/api/clients` | 服务器版登录会话 | 读 | 列出 MCP 地址、调用方名称、权限和签发时间。 |
+| POST | `/api/clients/issue`、`/api/clients/rotate`、`/api/clients/scopes`、`/api/clients/revoke` | 服务器版登录会话 | 写凭据 | 签发、轮换、改权限或撤销。仅签发和轮换响应返回明文令牌。 |
 | GET | `/api/backup` | 登录会话 | 读 | 下载包含账本和业务资产的完整 ZIP。 |
 | GET | `/api/export` | 登录会话 | 读 | 导出专辑 CSV，`scope=sales` 时导出交易 CSV。 |
 | POST | `/api/restore` | 登录会话 | 写账本 | 从 JSON 恢复账本。 |

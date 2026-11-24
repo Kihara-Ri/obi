@@ -4,12 +4,17 @@ from http.client import HTTPConnection
 from http.server import ThreadingHTTPServer
 import json
 from pathlib import Path
+from select import select
+import subprocess
+import sys
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 
 from app import build
 from server import make_handler
+from server import agent_clients as ac
 
 PING = {'jsonrpc': '2.0', 'id': 1, 'method': 'ping'}
 
@@ -85,6 +90,51 @@ class ClientApiTests(unittest.TestCase):
         self.assertEqual(data['clients'], [])
         self.assertEqual(self.http('/api/clients/revoke', {'name': '采购 Agent'})[0], 400)
         self.assertEqual(self.http('/mcp', PING, rotated['token'])[0], 404)
+
+    def test_web_issue_and_cli_revoke_share_the_write_lock(self):
+        self.login()
+        revoked = self.http('/api/clients/issue', {'name': '旧调用方', 'scopes': ['insight:read']})[1]['token']
+        write = ac.write
+        process = None
+        cli = '''
+import fcntl, sys
+from server.client_admin import main
+
+flock = fcntl.flock
+def observe(fd, operation):
+    try:
+        flock(fd, operation | fcntl.LOCK_NB)
+    except BlockingIOError:
+        print('waiting', flush=True)
+        flock(fd, operation)
+
+fcntl.flock = observe
+main(sys.argv[1:])
+'''
+
+        def write_with_cli(root, snapshot):
+            nonlocal process
+            process = subprocess.Popen([sys.executable, '-c', cli, '--data-dir', str(root), 'revoke', '旧调用方'],
+                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            self.assertTrue(select([process.stdout], [], [], 4)[0])
+            self.assertEqual(process.stdout.readline().strip(), 'waiting')
+            write(root, snapshot)
+
+        try:
+            with patch.object(ac, 'write', side_effect=write_with_cli):
+                status, issued, _ = self.http('/api/clients/issue', {'name': '新调用方', 'scopes': ['insight:read']})
+            self.assertEqual(status, 200, issued)
+            _, error = process.communicate(timeout=5)
+            self.assertEqual(process.returncode, 0, error)
+            self.assertEqual(self.http('/mcp', PING, revoked)[0], 401)
+            self.assertEqual(self.http('/mcp', PING, issued['token'])[0], 200)
+        finally:
+            if process is not None:
+                if process.poll() is None:
+                    process.kill()
+                process.stdout.close()
+                process.stderr.close()
+                process.wait()
 
 
 if __name__ == '__main__':

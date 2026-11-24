@@ -69,7 +69,7 @@ def listing_package(h, svc, args):
     if args.get('photoRevision') is not None:
         params['photoRevision'] = str(args['photoRevision'])
     manifest = package_preview(svc.store, params)
-    manifest['download'] = link(h, svc, manifest['id'], manifest['photoOrder'], manifest['photoRevision'])
+    manifest['download'] = link(h, svc, manifest)
     call = Capture(h.path, h.headers)
     call.send(manifest)
     return call
@@ -106,7 +106,7 @@ TOOLS = [
     tool('get_listing_package', '取上架资料', 'listing:read',
          '返回副本的发行资料、实物资料、照片顺序和 revision（登记上架回执要用），以及 10 分钟内有效的 ZIP 下载链接'
          '（materials.json + 按顺序编号的原图，不需令牌）。不含成本、渠道和私人备注；品相只以照片和确认过的实物信息为准。'
-         '换图或调顺序时同时给 order 和当前 photoRevision；photos=false 只要资料。',
+         '副本或照片变更后，请重新取资料。调顺序时同时给 order 和当前 photoRevision；photos=false 只要资料。',
          obj({'id': {'type': 'string', 'pattern': '^[0-9a-f]{32}$'}, 'photos': {'type': 'boolean', 'default': True},
               'order': {'type': 'array', 'items': {'type': 'integer', 'minimum': 0}},
               'photoRevision': {'type': 'integer', 'minimum': 0}}, ['id']), listing_package, READ),

@@ -1,8 +1,9 @@
 """对外调用方清单 credentials/clients.json：每个调用方一枚令牌、若干权限（D-050）。
 
 只保存令牌的 SHA-256。服务器按文件修改时间热加载，签发、改权限、轮换、撤销都不需要重启；
-文件损坏时拒绝全部调用方（失败即关闭），不沿用旧内容。server/client_admin.py（管理命令）用同一模块读写。
+文件损坏时拒绝全部调用方。网页与管理命令在同一个文件锁内读、改、写。
 """
+from contextlib import contextmanager
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -92,7 +93,16 @@ def now():
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
 
 
-_EDIT = threading.Lock()   # 网页端与同进程内的并发改动串行；命令行是独立进程，按原子替换兜底
+@contextmanager
+def edit_lock(data_dir):
+    """锁住完整的读改写。独立锁文件的 inode 不受清单原子替换影响。"""
+    from fcntl import LOCK_EX, flock  # 只有服务器版调用方清单会走到这里（D-019）。
+
+    path = clients_path(data_dir).with_suffix('.lock')
+    path.parent.mkdir(mode=0o700, exist_ok=True)
+    with os.fdopen(os.open(path, os.O_RDWR | os.O_CREAT, 0o600), 'r+b') as guard:
+        flock(guard, LOCK_EX)
+        yield
 
 
 def find(data, name):
@@ -104,7 +114,7 @@ def find(data, name):
 
 def issue(data_dir, name, scopes):
     """签发新调用方，返回只出现这一次的令牌。"""
-    with _EDIT:
+    with edit_lock(data_dir):
         data, name = read(data_dir), clean_name(name)
         if any(c['name'] == name for c in data['clients']):
             raise ValueError(f'调用方「{name}」已存在；换令牌请用轮换')
@@ -116,7 +126,7 @@ def issue(data_dir, name, scopes):
 
 
 def rotate(data_dir, name):
-    with _EDIT:
+    with edit_lock(data_dir):
         data, token = read(data_dir), new_token()
         client = find(data, name)
         client['sha256'], client['createdAt'] = digest(token), now()
@@ -125,7 +135,7 @@ def rotate(data_dir, name):
 
 
 def set_scopes(data_dir, name, scopes):
-    with _EDIT:
+    with edit_lock(data_dir):
         data = read(data_dir)
         client = find(data, name)
         client['scopes'] = clean_scopes(scopes)
@@ -134,7 +144,7 @@ def set_scopes(data_dir, name, scopes):
 
 
 def revoke(data_dir, name):
-    with _EDIT:
+    with edit_lock(data_dir):
         data = read(data_dir)
         find(data, name)
         data['clients'] = [c for c in data['clients'] if c['name'] != name]

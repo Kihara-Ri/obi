@@ -1,22 +1,30 @@
 # MCP 接入：让 Agent 直接调用 Obi
 
-> 状态：生效中（2026-11-24 实现）。决策见 D-051。实现：`server/mcp_server.py`（协议入口）、`server/mcp_tools.py`（工具表）、`server/mcp_prompts.py`（场景模板）、`server/mcp_files.py`（限时下载链接）。测试：`tests/test_mcp.py`。
+> 状态：生效中（2026-11-24 实现）。决策见 D-051。实现：`server/mcp_server.py`（协议入口）、`server/mcp_protocol.py`（版本与请求校验）、`server/mcp_tools.py`（工具表）、`server/mcp_prompts.py`（场景模板）、`server/mcp_files.py`（限时下载链接）。测试：`tests/test_mcp.py`。
 
 服务器版在 `POST /mcp` 提供 [MCP](https://modelcontextprotocol.io)（Model Context Protocol）入口。Claude Code、Claude Desktop、Cursor 等支持 MCP 的客户端填上地址和令牌，就能看到 Obi 的工具和场景模板，不用给 Agent 贴接口文档。HTTP 接口照旧保留，给脚本和 n8n 一类自动化用；两边是同一套处理逻辑。
 
 ## 连接
 
-先按[对外令牌](对外令牌.md)签发一枚令牌，挂上这个 Agent 要用的权限：
+在 Obi 服务器版登录后，打开「设置 → 高级 → MCP 服务」，复制地址并为调用方选择权限。签发或轮换时保存令牌，页面只展示一次。也可用[服务器命令行](对外令牌.md)签发。
 
 ```sh
-docker compose exec obi python3 -m server.client_admin add 采购Agent --scope insight:read
-docker compose exec obi python3 -m server.client_admin add 上架Agent --scope listing:read --scope trading:write
+docker compose exec app python3 -m server.client_admin add 采购Agent --scope insight:read
+docker compose exec app python3 -m server.client_admin add 上架Agent --scope listing:read --scope trading:write
 ```
 
 **Claude Code**
 
 ```sh
 claude mcp add --transport http obi https://your.domain/mcp --header "Authorization: Bearer obi_client_…"
+```
+
+**Codex CLI**
+
+从客户端的密钥配置提供 `OBI_MCP_TOKEN` 环境变量，再登记 MCP 地址。
+
+```sh
+codex mcp add obi --url https://your.domain/mcp --bearer-token-env-var OBI_MCP_TOKEN
 ```
 
 **能填请求头的客户端**（Cursor、VS Code 等）：传输方式选 HTTP（Streamable HTTP），地址 `https://your.domain/mcp`，请求头 `Authorization: Bearer obi_client_…`。
@@ -33,7 +41,7 @@ claude mcp add --transport http obi https://your.domain/mcp --header "Authorizat
                         "--header", "Authorization:Bearer obi_client_…"]}}}
 ```
 
-claude.ai 网页版的自定义连接器要求 OAuth 登录，当前不支持（见 D-051「何时重新评估」）。
+**Claude 网页版和桌面版的远程连接器**。如果添加自定义连接器时显示「Request headers」，填入 Obi 的 HTTPS MCP 地址，选择「No sign-in」，将 `Authorization` 的值设为 `Bearer <Obi 令牌>`。请求头认证是逐步开放的测试功能。没有此入口的账户可使用 Claude Code，桌面版也可按上面的本机命令方式中转。[Claude 请求头认证说明](https://claude.com/docs/connectors/custom/add-unlisted#authenticate-with-request-headers)
 
 ## 工具
 
@@ -52,7 +60,7 @@ claude.ai 网页版的自定义连接器要求 OAuth 登录，当前不支持（
 
 - 每个工具带 JSON Schema 参数说明和 `readOnlyHint` / `idempotentHint` 标记，客户端可据此决定哪些调用先问你。
 - 成功时结果同时放在 `structuredContent`（JSON 对象）和文本里。参数无效、模块关闭、权限不足或冲突时返回 `isError: true` 和中文原因；冲突以「冲突：」开头，Agent 应停下交给你核对，不要改数据重试。
-- **`get_listing_package` 不直接返回原图**：十几张原图会占满 Agent 的上下文。它返回资料包清单（发行与实物资料、照片顺序、`revision`）和 `download.url`。链接 10 分钟内有效，不需令牌，下载得到与 HTTP 资料包相同的 ZIP；过期或服务器重启后重新调用即可。副本或照片在此期间变了，下载返回 409，不会给出旧图。
+- **`get_listing_package`** 返回资料包清单（发行与实物资料、照片顺序、`revision`）和 `download.url`。签名链接 10 分钟内可直接下载 ZIP。链接绑定清单的副本版本、照片版本和顺序。链接返回 409 时重新获取资料包并核对新版清单。链接过期或服务器重启后也需重新获取。
 
 ## 场景模板（prompts）
 
@@ -68,10 +76,11 @@ claude.ai 网页版的自定义连接器要求 OAuth 登录，当前不支持（
 
 ## 协议细节
 
-- 传输：Streamable HTTP，无状态、只回 `application/json`，不开 SSE 流（`GET /mcp` 返回 405），不发会话 id。支持协议版本 `2025-11-25`、`2025-06-18`、`2025-03-26`；客户端请求其他版本时回 `2025-06-18`。请求头 `MCP-Protocol-Version` 不受支持时返回 400。
-- 方法：initialize、ping、tools/list、tools/call、prompts/list、prompts/get；通知返回 202。其他方法返回 JSON-RPC `-32601`，未知工具或模板、缺参数返回 `-32602`。
+- 传输采用无状态 Streamable HTTP，响应为 `application/json`，`GET /mcp` 返回 405。`2026-07-28` 客户端可调用 server/discover，也可直接调用工具和模板。请求带协议版本、方法和适用的名称请求头以及匹配的请求元数据，成功结果带 `resultType: complete`。见 [现代 Streamable HTTP 规范](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http)。
+- 旧版客户端继续通过 initialize 协商 `2025-11-25`、`2025-06-18` 或 `2025-03-26`。旧版握手提出其他版本时回 `2025-06-18`。请求头指定不支持的版本时返回 HTTP 400 与 `-32022`，附支持版本列表。
+- 两种协议均提供 ping、tools/list、tools/call、prompts/list、prompts/get。未知方法返回 JSON-RPC `-32601`，新版同时返回 HTTP 404。通知返回 202，未知工具或模板及结构无效的参数返回 `-32602`。
 - 鉴权在 HTTP 层：没有任何调用方令牌时 404，令牌缺失或无效 401（带 `WWW-Authenticate: Bearer`）。Host 与 Origin 校验同其他接口，浏览器跨站请求返回 403。旧的单文件令牌也能连，只看到它对应的那一组工具。
 
 ## 验证
 
-`python3 -m unittest tests.test_mcp` 用固定样本覆盖握手、按权限过滤、工具结果与 HTTP 接口一致、下载链接（不带令牌可下、篡改与过期拒绝）和写入重试与冲突。另用官方 MCP TypeScript SDK 客户端连接本机实例，完成握手、列工具与模板、调用和取模板。
+`python3 -m unittest tests.test_mcp tests.test_client_api` 用固定样本验证新旧协议、权限、工具结果与 HTTP 接口一致性、资料包版本、交易写入重试和令牌管理。测试通过真实 HTTP 请求连接隔离实例。

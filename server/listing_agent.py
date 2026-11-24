@@ -73,10 +73,10 @@ def _package_order(params, record, saved):
     return _material_photo_order(record, saved)
 
 
-def _prepare(store, params):
+def _prepare(store, params, *, expected_revision=None):
     if params.keys() - {'id', 'order', 'photoRevision', 'photos'}:
         raise ValidationError('打包模式只接受 id、order、photoRevision 和 photos')
-    record = listing_record(store, params['id'])
+    record = listing_record(store, params['id'], expected_revision=expected_revision)
     return record, _package_order(params, record, record.get('listingPreparation') or {})
 
 
@@ -94,8 +94,8 @@ def package_preview(store, params):
     return manifest
 
 
-def _package(store, params):
-    record, order = _prepare(store, params)
+def _package(store, params, *, expected_revision=None):
+    record, order = _prepare(store, params, expected_revision=expected_revision)
     rid = record['id']
     revision = record.get('photoRevision', 0)
     images = []
