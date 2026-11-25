@@ -3,7 +3,7 @@ import type {ReleaseCandidate, ReleaseInfo} from '../types';
 import {sourceName} from './release-source';
 import {releaseLabels} from './release-text';
 import {discLabel, trackDiscs, trackDuration} from './tracklist';
-import {recordMedium, type Medium} from './medium';
+import {reportedMedium, type Medium} from './medium';
 
 const ASK_MEDIUM: Record<Medium, string> = {cd: ' CD ', vinyl: '黑胶', other: '唱片'};
 
@@ -31,6 +31,7 @@ export function releaseText(c: ReleaseCandidate, info: ReleaseInfo, owned = ''):
 
 /** 带一句提问：让 AI 介绍版本，并要求不确定处明说，避免编造。 */
 export function askText(body: string, info?: ReleaseInfo): string {
-  return `下面是我查到的一张${ASK_MEDIUM[recordMedium(info)]}发行版资料。` + '请介绍这张专辑和这个具体版本（收录内容、与其他版次的区别、值不值得收），'
+  const medium = reportedMedium(info);
+  return `下面是我查到的一份${medium ? ASK_MEDIUM[medium] : ''}发行版资料。` + '请介绍这张专辑和这个具体版本（收录内容、与其他版次的区别、值不值得收），'
     + '不确定或资料里没有的地方请直接说明，不要编造。\n\n' + body;
 }

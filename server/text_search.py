@@ -1,14 +1,14 @@
 """查询页的文字模糊搜索：先按专辑（MusicBrainz release group）去重列出，再按需展开某张专辑的所选介质版本（D-053）。
 MusicBrainz 优先，没有结果或不可用时用 Discogs master 兜底；版本候选与条码 / 编号检索同形。
-展开 MusicBrainz 专辑时，再按「艺人 + 专辑名」严格对上 Discogs 的同一张 master，把它的 CD 版本并进来：
-唱片编号相同的记入 MusicBrainz 版本的 `alsoIn`，只有 Discogs 有的单列；Discogs 不可用时只返回 MusicBrainz 的。"""
+展开 MusicBrainz 专辑时，按「艺人 + 专辑名」对上 Discogs 的同一张 master，再补充所选介质的版本。
+唱片编号相同且介质兼容的记入 MusicBrainz 版本的 `alsoIn`，只有 Discogs 有的单列。"""
 import re
 from urllib.parse import urlencode
 
 from domain import ValidationError, clean_release_info
 from musicbrainz import lucene_quote
 from server.discogs_catalog import COUNTRIES, _artist, _digits
-from server.release_merge import _attach, _catnos
+from server.release_merge import _attach, _catnos, _media_compatible
 
 GROUP = re.compile(r'[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}')
 MASTER = re.compile(r'discogs-m([1-9][0-9]{0,9})')
@@ -129,7 +129,8 @@ def _with_discogs(cat, found, title, artist, medium='cd'):
     mb = list(out)
     for v in extra:
         mine = _catnos(v['releaseInfo'].get('catalogNumber'))
-        hosts = [c for c in mb if mine & _catnos(c['releaseInfo'].get('catalogNumber'))]
+        hosts = [c for c in mb if mine & _catnos(c['releaseInfo'].get('catalogNumber'))
+                 and _media_compatible(c['releaseInfo'], v['releaseInfo'])]
         for host in hosts: _attach(host, v, lend=False)
         if not hosts: out.append(dict(v))
     return sorted(out, key=_rank)
@@ -148,6 +149,6 @@ def group_versions(cat, ident, title='', artist='', medium='cd'):
     for c in (cat.candidate(r, medium=medium) for r in data.get('releases', [])):
         if not c: continue
         i = c['releaseInfo']   # 同编号 / 地区 / 日期 / 厂牌 / 条码的重复收录只留一个，免得列表里一排一模一样的行
-        key = tuple(i.get(k, '') for k in ('catalogNumber', 'country', 'releaseDate', 'label', 'barcode', 'edition'))
+        key = tuple(i.get(k, '') for k in ('catalogNumber', 'country', 'releaseDate', 'label', 'barcode', 'edition', 'format'))
         if key not in seen: seen.add(key); found.append(c)
     return _with_discogs(cat, sorted(found, key=_rank), title, artist, medium)

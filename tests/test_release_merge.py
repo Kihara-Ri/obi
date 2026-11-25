@@ -63,6 +63,18 @@ class MergeTests(unittest.TestCase):
         self.assertEqual([c['id'] for c in merge({'musicbrainz': [us, jp]}, JAN)], ['uuid-jp', 'uuid-us'])
         self.assertEqual([c['id'] for c in merge({'musicbrainz': [us, jp]}, '0602537000000')], ['uuid-us', 'uuid-jp'])
 
+    def test_known_different_media_are_separate_candidates(self):
+        cd = cand('uuid-1', 'musicbrainz', JAN, 'AVCA-29189')
+        lp = cand('discogs-1', 'discogs', JAN, 'AVCA-29189')
+        ndl_cd = cand('ndl-000010099246', 'ndl', '', 'AVCA-29189')
+        for candidate, format_name in ((cd, 'CD'), (lp, 'Vinyl'), (ndl_cd, 'CD')):
+            candidate['releaseInfo']['format'] = format_name
+        found = merge({'musicbrainz': [cd], 'discogs': [lp], 'ndl': [ndl_cd]})
+        self.assertEqual([c['id'] for c in found], ['uuid-1', 'discogs-1'])
+        self.assertEqual([ref['id'] for ref in found[0]['alsoIn']], [ndl_cd['id']])
+        self.assertNotIn('alsoIn', found[1])
+        self.assertEqual([c['id'] for c in merge({'discogs': [lp], 'ndl': [ndl_cd]})], [lp['id'], ndl_cd['id']])
+
     def test_physical_before_digital_and_unrelated_digital_listed(self):
         found = merge({'itunes': [cand('itunes-9', 'itunes', '4988064000001')],
                        'musicbrainz': [cand('uuid-1', 'musicbrainz', JAN)]}, JAN)

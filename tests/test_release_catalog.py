@@ -25,6 +25,29 @@ class ReleaseCatalogTests(unittest.TestCase):
         self.assertIn('barcode', request.call_args.args[0])
         self.assertEqual(candidates[0]['releaseInfo']['country'], 'JP')
 
+    def test_automatic_lookup_preserves_all_exact_release_formats_and_sources(self):
+        from types import SimpleNamespace
+        from tools.seed_samples import VINYL_REVIEW
+
+        info = VINYL_REVIEW['meddle']
+        fields = {'title': '', 'artist': '', 'releaseInfo': info}
+        rows = [
+            {'id': f'{number:036x}', 'barcode': info['barcode'], 'media': [{'format': format_name}],
+             'label-info': [{'catalog-number': info['catalogNumber']}]}
+            for number, format_name in enumerate(('CD', info['format'], None), 1)
+        ]
+        blank = SimpleNamespace(search=lambda **_: [])
+        service = ReleaseCatalog(discogs=blank, deezer=blank, itunes=blank, ndl=blank)
+        with patch.object(service, '_mb_json', return_value={'releases': rows}):
+            self.assertEqual([c['releaseInfo']['format'] for c in service.catalog(fields)], ['CD'])
+            auto = service.catalog(fields, 'auto')
+            self.assertEqual([c['releaseInfo']['format'] for c in auto], ['CD', info['format'], ''])
+            self.assertTrue(all(c['identifierMatch'] for c in auto))
+        self.assertEqual([name for name, _ in service.backups(barcode=info['barcode'], medium='auto')],
+                         ['discogs', 'deezer', 'itunes'])
+        self.assertEqual([name for name, _ in service.backups(catno=info['catalogNumber'], medium='auto')],
+                         ['discogs', 'ndl'])
+
     def test_leading_zero_ean_also_queries_registered_upc_a(self):
         from urllib.parse import parse_qs, urlsplit
         release = {'id': '33333333-3333-3333-3333-333333333333', 'title': 'Random Access Memories', 'barcode': '888837168618',

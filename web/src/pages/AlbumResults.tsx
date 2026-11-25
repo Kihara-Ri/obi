@@ -1,6 +1,6 @@
-// 查询页的文字搜索结果：先按专辑列出（封面、年份、类型），点开再看这张专辑的 CD 版本卡片。
+// 查询页的文字搜索结果：先按专辑列出，点开再看所选介质的版本卡片。
 // 库里已有的专辑排在最前并标出；版本日本版 / 有条码的在前，其余折叠。
-import type {Medium} from '../core/medium';
+import type {LookupMedium} from '../core/medium';
 import {useEffect, useState} from 'react';
 import {useApp} from '../state/AppContext';
 import {api} from '../core/api';
@@ -23,7 +23,7 @@ function reveal(img: HTMLImageElement) {
   img.style.opacity = '1';
 }
 
-function Album({hit, owned, confirming, medium, onAdd}: {hit: AlbumHit; owned: AlbumRecord[]; confirming: boolean; medium: Medium; onAdd: (c: ReleaseCandidate, info: ReleaseInfo) => void}) {
+function Album({hit, owned, confirming, medium, onAdd}: {hit: AlbumHit; owned: AlbumRecord[]; confirming: boolean; medium: LookupMedium; onAdd: (c: ReleaseCandidate, info: ReleaseInfo) => void}) {
   const app = useApp();
   const [open, setOpen] = useState(false);
   const [more, setMore] = useState(false);
@@ -65,8 +65,9 @@ function Album({hit, owned, confirming, medium, onAdd}: {hit: AlbumHit; owned: A
     </div>
     {open ? <div className="ah-versions">
       {error ? <p className="lookup-msg is-error" role="alert">{error}</p> : !versions ? <p className="lookup-msg" role="status">读取版本中…</p>
-        : !versions.length ? <p className="lookup-msg">没有找到 CD 版本</p> : <ul>
-          {list.map(c => <LookupCard key={c.id} c={c} owned={note} tag={isMine(c) ? '库里这张' : undefined} fallbackArt={src} confirming={confirming} onAdd={info => onAdd(c, info)}/>)}
+        : !versions.length ? <p className="lookup-msg">没有找到匹配的版本</p> : <ul>
+          {list.map(c => <LookupCard key={c.id} c={c} owned={note} tag={isMine(c) ? '库里这张' : undefined} fallbackArt={src}
+            medium={medium} confirming={confirming} onAdd={info => onAdd(c, info)}/>)}
           {!more && versions.length > SHOWN
             ? <button type="button" className="quiet" onClick={() => setMore(true)}>还有 {versions.length - SHOWN} 个版本</button> : null}
         </ul>}
@@ -75,7 +76,7 @@ function Album({hit, owned, confirming, medium, onAdd}: {hit: AlbumHit; owned: A
 }
 
 export function AlbumResults({albums, records, confirming, medium, onAdd}: {
-  albums: AlbumHit[]; medium: Medium; records: AlbumRecord[]; confirming: boolean; onAdd: (c: ReleaseCandidate, info: ReleaseInfo) => void;
+  albums: AlbumHit[]; medium: LookupMedium; records: AlbumRecord[]; confirming: boolean; onAdd: (c: ReleaseCandidate, info: ReleaseInfo) => void;
 }) {
   const rows = albums.map(hit => ({hit, owned: ownedAlbums(records, hit.title, hit.artist)}))
     .sort((a, b) => Number(!!b.owned.length) - Number(!!a.owned.length));

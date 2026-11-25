@@ -90,6 +90,15 @@ class DiscogsVersionMergeTests(unittest.TestCase):
         self.assertEqual(_catno_list('TOCP-8254, TOCP 8254, CDP 8297492'), 'TOCP-8254 / CDP 8297492')
         self.assertEqual(_catno_list('none'), '')
 
+    def test_auto_group_keeps_different_media_with_same_identifiers(self):
+        cd = self.MB['releases'][0]
+        lp = {**cd, 'id': '44444444-4444-4444-4444-444444444444', 'media': [{'format': 'Vinyl'}]}
+        dc = FakeDiscogs([{'id': 9, 'title': 'Sufjan Stevens - Illinois'}],
+                         [{'id': 2, 'catno': 'X-1', 'format': 'Cassette'}])
+        with patch('server.release_catalog.read_json', return_value={'releases': [cd, lp]}):
+            found = group_versions(ReleaseCatalog(discogs=dc), GID, 'Illinois', 'Sufjan Stevens', 'auto')
+        self.assertCountEqual([candidate['releaseInfo']['format'] for candidate in found], ['CD', 'Vinyl', 'Cassette'])
+
     def test_different_album_or_artist_not_merged(self):
         dc = FakeDiscogs([{'id': 9, 'title': 'Sufjan Stevens - Illinoise (Live)'}, {'id': 10, 'title': 'Other - Illinois'}],
                          [{'id': 2, 'catno': 'Y-2'}])

@@ -1,6 +1,6 @@
 // 条码 / 唱片编号查询的纯逻辑：输入识别、条码校验位、本地库命中、最近查询（只存本浏览器）。
 import {prefs} from './prefs';
-import type {Medium} from './medium';
+import type {LookupMedium} from './medium';
 import {identityOf, type ReleaseSource} from './release-source';
 import type {AlbumRecord} from '../types';
 
@@ -94,6 +94,6 @@ const LOOKUP_SOURCES: Record<LookupKind | 'text', ReleaseSource[]> = {
   catalog: ['musicbrainz', 'discogs', 'ndl'],
   text: ['musicbrainz', 'discogs'],
 };
-/** 按介质实际会问的资料库：Deezer、iTunes、NDL 只收 CD，查黑胶 / 其他时不问（D-053） */
-export const lookupSources = (kind: LookupKind | 'text', medium: Medium): ReleaseSource[] =>
-  medium === 'cd' ? LOOKUP_SOURCES[kind] : LOOKUP_SOURCES[kind].filter(s => s === 'musicbrainz' || s === 'discogs');
+/** 自动和 CD 查询包含数字资料库与 NDL；手动查黑胶或其他时只问 MusicBrainz / Discogs。 */
+export const lookupSources = (kind: LookupKind | 'text', medium: LookupMedium): ReleaseSource[] =>
+  medium === 'cd' || medium === 'auto' ? LOOKUP_SOURCES[kind] : LOOKUP_SOURCES[kind].filter(s => s === 'musicbrainz' || s === 'discogs');

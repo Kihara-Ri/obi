@@ -3,10 +3,10 @@
 import {useEffect, useRef, useState} from 'react';
 import {api} from '../../core/api';
 import {gs1Valid} from '../../core/lookup';
-import {MEDIUM_FORMAT, recordMedium, type Medium} from '../../core/medium';
+import {isLookupMedium, isMedium, MEDIUM_FORMAT, reportedMedium, type LookupMedium} from '../../core/medium';
 import {SOURCE_LABEL, identityFromId, sourceOf} from '../../core/release-source';
 import type {AlbumRecord, ReleaseCandidate} from '../../types';
-import type {FormCtx} from './context';
+import {initialPackaging, type FormCtx} from './context';
 import {identityOf, failedSources, pickRelease, refreshRelease} from './pickRelease';
 import type {CoverSearch} from './useCoverSearch';
 
@@ -20,8 +20,8 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
   const initialInfo = r?.releaseInfo ?? ctx.base.current.releaseInfo;
   const [barcode, setBarcode] = useState(initialInfo?.barcode || '');
   const [catalogNumber, setCatalogNumber] = useState(initialInfo?.catalogNumber || '');
-  // 介质：先选 CD / 黑胶 / 其他再查（D-053）；旧记录从已存的格式认出来，没写按 CD
-  const [medium, setMediumState] = useState<Medium>(recordMedium(initialInfo));
+  const [medium, setMediumState] = useState<LookupMedium>('auto');
+  const [reviewMedium, setReviewMedium] = useState(!r);
   const [mode, setModeState] = useState<LookupMode>(initialInfo?.catalogNumber && !initialInfo?.barcode ? 'catalog' : 'barcode');
   const [candidates, setCandidates] = useState<ReleaseCandidate[]>([]);
   const [busy, setBusy] = useState(false);
@@ -36,6 +36,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
   const verified = useRef(initialInfo ? identityOf(initialInfo) : '');
   const manualRelease = v.releaseInfo.manualRelease === '1' && !identityOf(v.releaseInfo);
   const identified = !!(identityOf(v.releaseInfo) || manualRelease);
+  const needsMedium = identified && reviewMedium && !reportedMedium(v.releaseInfo);
 
   const reset = () => { ++sequence.current; abort.current?.abort(); inflight.current = null; cover.setBusy(false); };
   const setMode = (next: LookupMode) => { reset(); setModeState(next); setCandidates([]); setMessage(''); setMiss(null); };
@@ -156,12 +157,12 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
   /** 手动录入（资料库都查不到）：带入已输入的条码 / 编号，由用户手填名称、艺人；明确标记为未经核对。
    * unofficial：私版 / Bootleg，同样按手动录入，另有「非官方」标记。 */
   const markManual = (unofficial: boolean) => {
-    reset(); verified.current = '';
+    reset(); verified.current = ''; setReviewMedium(true);
+    const format = medium === 'auto' ? '' : MEDIUM_FORMAT[medium];
     setVerification('verified'); setCandidates([]); setMiss(null);
     set({releaseInfo: {...v.releaseInfo, barcode: barcode.trim(), catalogNumber: catalogNumber.trim(),
       ...identityFromId(''), manualRelease: '1', unofficial: unofficial ? '1' : '',
-      // 介质写进资料，之后从格式就能认回来（已有的格式只在介质对得上时保留）
-      format: recordMedium(v.releaseInfo) === medium && v.releaseInfo.format ? v.releaseInfo.format : MEDIUM_FORMAT[medium]},
+      ...(manualRelease || (identified && !miss) ? {} : {format, media: []})},
       ...(manualRelease ? {} : {packaging: null})});
     setMessage(unofficial ? '非官方发行 · 请填写专辑名、艺人，版本说明里写明来源' : '手动录入 · 请填专辑名、艺人');
     dirty();
@@ -173,20 +174,24 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
     set({releaseInfo: {...v.releaseInfo, manualRelease: '', unofficial: ''}}); setMessage(''); dirty(); };
   const deps = {ctx, cover, sequence, verified, setBusy, setMessage, setBarcode, setCatalogNumber,
     setCandidates, setVerification, medium};
-  const chooseRelease = (candidate: ReleaseCandidate) => pickRelease(candidate, deps);
+  const chooseRelease = (candidate: ReleaseCandidate) => { setReviewMedium(true); return pickRelease(candidate, deps); };
   const refreshReleaseMetadata = () => refreshRelease(deps);
 
-  /** 换介质：候选作废；已经查过（有候选或查不到）就在新介质生效后重查同一个号；手动录入时改写资料里的介质 */
+  /** 查过的号码，按新筛选重查。 */
   const requery = useRef(false);
-  const setMedium = (next: Medium) => {
-    if (next === medium) return;
-    requery.current = !manualRelease && (candidates.length > 0 || miss === 'barcode' || miss === 'catalog');
+  const setMedium = (next: string) => {
+    if (!isLookupMedium(next) || next === medium) return;
+    requery.current = candidates.length > 0 || miss === 'barcode' || miss === 'catalog';
     reset(); setMediumState(next); setCandidates([]); setMiss(null); setMessage('');
-    if (manualRelease) { set({releaseInfo: {...live.current.releaseInfo, format: MEDIUM_FORMAT[next], media: []}}); dirty(); }
+  };
+  const chooseMedium = (next: string) => {
+    if (!isMedium(next) || reportedMedium(v.releaseInfo) === next) return;
+    const releaseInfo = {...v.releaseInfo, format: MEDIUM_FORMAT[next], ...(manualRelease ? {media: []} : {})};
+    set({releaseInfo, ...(needsMedium && !manualRelease ? {version: initialPackaging(releaseInfo)} : {})}); dirty();
   };
   useEffect(() => { if (requery.current) { requery.current = false; void lookup(); } }, [medium]);
 
-  return {medium, setMedium, mode, setMode, barcode, catalogNumber, candidates, busy, searching, message, miss,
+  return {medium, setMedium, needsMedium, chooseMedium, mode, setMode, barcode, catalogNumber, candidates, busy, searching, message, miss,
     verification, manualRelease, identified, changeBarcode, changeCatalogNumber, lookup, cancelSearch,
     enterManually: () => markManual(false), leaveManual, setUnofficial, refreshReleaseMetadata, chooseRelease, setCatalogNumber, search};
 }

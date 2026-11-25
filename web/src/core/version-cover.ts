@@ -3,7 +3,7 @@
 // ②③ 由服务端 covers/fallback 判定，只认名字精确对上的；借来的封面要提示「不一定是这个版本的包装」。
 import {api} from './api';
 import {displayReleaseTitle} from './release-metadata';
-import {recordMedium} from './medium';
+import {reportedMedium} from './medium';
 import type {CoverSource, ReleaseCandidate} from '../types';
 
 export interface BorrowedCover {
@@ -26,7 +26,7 @@ const asked = new Map<string, Promise<BorrowedCover | null>>();
 /** ②③：同一版本只问一次服务端（卡片折叠 / 展开、选用后匹配都复用这次结果）；网络失败按没有处理且允许下次重试。
  * 借同专辑的封面时优先同介质的版本（黑胶借黑胶的，CD 借 CD 的），介质取这个候选自己的格式。 */
 export function borrowedCover(c: ReleaseCandidate): Promise<BorrowedCover | null> {
-  const medium = recordMedium(c.releaseInfo), key = c.id + ':' + medium;
+  const medium = reportedMedium(c.releaseInfo) ?? 'auto', key = c.id + ':' + medium;
   const hit = asked.get(key);
   if (hit) return hit;
   const ask = api<{candidate: BorrowedCover | null}>('covers/fallback', {

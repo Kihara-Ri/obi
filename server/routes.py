@@ -435,7 +435,7 @@ def lookup_sources(svc, barcode, catno, exact, deadline=LOOKUP_DEADLINE, medium=
 
 
 def api_barcode_lookup(h, svc, body):
-    """精确条形码检索所选介质的发行版（MusicBrainz / Discogs，查 CD 时再加 Deezer / iTunes；并发，合并去重），复用各来源的节流与缓存。"""
+    """精确条码检索所选介质，auto 查全部；自动和 CD 查询也并发查 Deezer / iTunes。"""
     barcode = body.get('barcode', '')
     from twins import clean_barcode
     barcode = clean_barcode(barcode)

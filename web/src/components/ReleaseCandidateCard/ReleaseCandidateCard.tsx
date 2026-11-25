@@ -3,6 +3,7 @@
 import {useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode} from 'react';
 import {api} from '../../core/api';
 import {dedupeCatalog, regionName} from '../../core/release-metadata';
+import {MEDIUM_LABEL, mergeCatalogDetails, reportedMedium} from '../../core/medium';
 import {OriginTag, ReleaseSummary, SourceTags, sourceName} from './ReleaseSummary';
 import {candidateSources, SOURCE_LABEL, sourceOf} from '../../core/release-source';
 import type {ReleaseCandidate, ReleaseInfo} from '../../types';
@@ -121,7 +122,7 @@ export function ReleaseCandidateCard({c, fold, tag, fallbackArt, children}: {c: 
     setBusy(true); setError('');
     try {
       const detail = (await api<{releaseInfo: ReleaseInfo}>('release-details?id=' + encodeURIComponent(c.id))).releaseInfo;
-      const merged = {...c.releaseInfo, ...detail};
+      const merged = mergeCatalogDetails(c.releaseInfo, detail);
       setFull(merged);
       return merged;
     } catch (err) {
@@ -136,6 +137,7 @@ export function ReleaseCandidateCard({c, fold, tag, fallbackArt, children}: {c: 
     ['碟数', info.discCount ? info.discCount + ' 张' : '']];
 
   const i0 = c.releaseInfo;
+  const medium = reportedMedium(info);
   const body = <>
     <ReleaseSummary title={c.title} artist={c.artist} info={c.releaseInfo} source={SOURCE_LABEL[sourceOf(c)]} url={c.url} alsoIn={c.alsoIn} art={art} origin={artState === 'ok' ? origin : null} headless={fold}/>
     <button type="button" className="rcc-more" aria-expanded={open} onClick={toggle}>
@@ -166,7 +168,7 @@ export function ReleaseCandidateCard({c, fold, tag, fallbackArt, children}: {c: 
       <span className="rcc-break" aria-hidden="true"/>
       <span className="rcc-main">
         <strong>{dedupeCatalog(i0.catalogNumber) || c.title}{tag ? <em className="rcc-tag">{tag}</em> : null}</strong>
-        <span>{[regionName(i0.country), i0.releaseDate, i0.label].filter(Boolean).join(' · ')}</span>
+        <span>{[medium && MEDIUM_LABEL[medium], regionName(i0.country), i0.releaseDate, i0.label].filter(Boolean).join(' · ')}</span>
         {i0.barcode ? <span className="num">{i0.barcode}</span> : null}
         <SourceTags names={candidateSources(c)}/>
       </span>

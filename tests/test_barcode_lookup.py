@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 from domain import ValidationError
-from server.routes import GET, POST, api_barcode_lookup, api_release_front_cover
+from server.routes import GET, POST, api_barcode_lookup, api_catalog_number_lookup, api_release_front_cover
 
 
 class BarcodeLookupTests(unittest.TestCase):
@@ -40,6 +40,17 @@ class BarcodeLookupTests(unittest.TestCase):
         api_barcode_lookup(self.http, self.service, {'barcode': '96385074'})
         self.http.send.assert_called_once_with({'barcode': '96385074', 'candidates': [],
             'sources': {'musicbrainz': 'none', 'deezer': 'none', 'itunes': 'none'}})
+
+    def test_barcode_and_catalog_number_forward_explicit_auto(self):
+        from tools.seed_samples import VINYL_REVIEW
+        info = VINYL_REVIEW['meddle']
+        self.vision.catalog.return_value = [{'id': 'lp', 'identifierMatch': True, 'releaseInfo': info}]
+        for key, lookup in (('barcode', api_barcode_lookup), ('catalogNumber', api_catalog_number_lookup)):
+            with self.subTest(key=key):
+                lookup(self.http, self.service, {key: info[key], 'medium': 'auto'})
+                self.assertEqual(self.vision.catalog.call_args.args[1], 'auto')
+                [found] = self.http.send.call_args.args[0]['candidates']
+                self.assertEqual(found['releaseInfo']['format'], info['format'])
 
     def test_musicbrainz_miss_still_returns_backup_candidates(self):
         found = {'id': 'deezer-7714607', 'source': 'deezer', 'identifierMatch': True,

@@ -11,7 +11,7 @@ import {ReleaseCandidateCard, ReleaseSummary, sourceName} from '../../components
 import type {CoverOrigin} from '../../core/version-cover';
 import {boundSource, sourceUrl} from '../../core/release-source';
 import {classify, lookupSources} from '../../core/lookup';
-import {MEDIA, MEDIUM_LABEL, isMedium} from '../../core/medium';
+import {LOOKUP_MEDIUM_OPTIONS, MEDIUM_OPTIONS, reportedMedium} from '../../core/medium';
 import {Seg} from '../../components/ui/Seg';
 import {LookupProgress} from '../../components/LookupProgress/LookupProgress';
 import {CoverPanel} from './CoverPanel';
@@ -125,6 +125,7 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, coverOrigin
   useEffect(() => () => window.clearTimeout(timer.current), []);
   const afterExit = (go: () => void) => { setLeaving(true); timer.current = window.setTimeout(() => { setLeaving(false); go(); }, 160); };
   const confirmed = !!boundSource(info);
+  const choosingMedium = L.manualRelease || L.needsMedium;
   const working = L.busy || L.verification === 'pending';
   const phase: Phase = working ? 'busy' : L.candidates.length ? 'choose' : L.miss ? 'miss'
     : L.manualRelease ? 'manual' : confirmed && L.verification === 'verified' ? 'ok' : 'idle';
@@ -139,17 +140,16 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, coverOrigin
   </span> : null;
   const link = sourceUrl(info);
   // 已确认：来源链接只在这一行出现（摘要头部不再重复一个来源标）
-  const status = phase === 'ok' ? <>已确认 · <a className="lookup-source" href={link} target="_blank" rel="noopener noreferrer"
+  const status = L.needsMedium && !working ? '请选择实物介质' : phase === 'ok' ? <>已确认 · <a className="lookup-source" href={link} target="_blank" rel="noopener noreferrer"
     aria-label={`在 ${sourceName(info)} 查看`}>{sourceName(info)} ↗</a></> : L.message
     || (phase === 'manual' ? (info.unofficial === '1' ? '非官方发行 · 未经资料库核对' : '手动录入 · 未经资料库核对') : v.title && !confirmed ? '尚未确认发行版' : '');
   return (
     <section className="record-barcode-entry form-section">
-      <div className="lookup-head">
+      <div className="lookup-head" data-error-anchor>
         <label className="lookup-label" htmlFor="record-lookup">发行版</label>
-        {/* 先选介质再查：查询、核对、封面都按它找；已确认版本后由版本资料决定，不再显示 */}
-        {!confirmed ? <Seg className="seg-medium" ariaLabel="介质" value={L.medium} disabled={working}
-          options={MEDIA.map(m => ({value: m, label: MEDIUM_LABEL[m]}))}
-          onValue={m => { if (isMedium(m)) L.setMedium(m); }}/> : null}
+        {!confirmed || L.needsMedium ? <Seg className="seg-medium" ariaLabel={choosingMedium ? '实物介质' : '介质'} disabled={working}
+          value={choosingMedium ? reportedMedium(info) || '' : L.medium} options={choosingMedium ? MEDIUM_OPTIONS : LOOKUP_MEDIUM_OPTIONS}
+          onValue={choosingMedium ? L.chooseMedium : L.setMedium}/> : null}
       </div>
       <div className="record-barcode-row" data-error-anchor>
         <ScanField onScan={() => setScanning(true)}>

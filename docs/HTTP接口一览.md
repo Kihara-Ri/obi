@@ -57,8 +57,8 @@
 | GET | `/api/cover/{内容哈希}.{扩展名}` | 读 | 按内容哈希读取已保存的封面图。 |
 | POST | `/api/covers/search`、`/api/covers/fallback` | 读和缓存 | 搜索封面或按版本和专辑查找备用封面。`fallback` 可带 `medium`，借同专辑封面时优先同介质版本。 |
 | POST | `/api/covers/download` | 读，可缓存封面 | 下载已选封面，`stash: true` 时保存封面文件。 |
-| POST | `/api/catalog/barcode`、`/api/catalog/barcode/verify`、`/api/catalog/number` | 读和缓存 | 精确查找条码或唱片编号，核对选择的发行版是否对应条码。查找可带 `medium`（`cd` / `vinyl` / `other`，缺省 `cd`），见 D-053。 |
-| POST | `/api/catalog/search`、`/api/catalog/versions` | 读和缓存 | 从公开目录查找专辑及其发行版本。`versions` 可带 `medium`，缺省只列 CD 版本。 |
+| POST | `/api/catalog/barcode`、`/api/catalog/barcode/verify`、`/api/catalog/number` | 读和缓存 | 精确查找条码或唱片编号，核对选择的发行版是否对应条码。查找可带 `medium`（`auto` 跨介质，或 `cd` / `vinyl` / `other`，缺省 `cd`），见 D-053。 |
+| POST | `/api/catalog/search`、`/api/catalog/versions` | 读和缓存 | 从公开目录查找专辑及其发行版本。`versions` 可带 `medium`，`auto` 查各介质，缺省只列 CD 版本。 |
 | GET | `/api/release-details` | 读和缓存 | 读取指定发行版的元数据与曲目资料。带 `medium` 时核对这一版有该介质。 |
 | GET | `/api/catalog/front-cover` | 读，可缓存封面 | 查已确认版本的正面封面，`stash=1` 时保存封面文件。 |
 | GET | `/api/artists/profile`、`/api/artists/catalog` | 读和缓存 | 读取艺人面板、收藏摘要及作品目录。 |

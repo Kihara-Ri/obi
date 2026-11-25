@@ -3,7 +3,7 @@ import type {Dispatch, MutableRefObject, SetStateAction} from 'react';
 import {api} from '../../core/api';
 import {displayReleaseTitle, releaseRegion} from '../../core/release-metadata';
 import {SOURCE_LABEL, identityFromCandidate, identityOf} from '../../core/release-source';
-import type {Medium} from '../../core/medium';
+import {mergeCatalogDetails, withLookupMedium, type LookupMedium} from '../../core/medium';
 import type {ReleaseCandidate, ReleaseInfo} from '../../types';
 import {initialPackaging, type FormCtx} from './context';
 import {matchReleaseCover} from './releaseCover';
@@ -37,7 +37,7 @@ export interface PickDeps {
   setCatalogNumber: Dispatch<SetStateAction<string>>; setCandidates: Dispatch<SetStateAction<ReleaseCandidate[]>>;
   setVerification: Dispatch<SetStateAction<'verified' | 'pending' | 'failed'>>;
   /** 所选介质：服务端核对这一版确实有这种介质 */
-  medium: Medium;
+  medium: LookupMedium;
 }
 
 export async function pickRelease(candidate: ReleaseCandidate, d: PickDeps) {
@@ -56,9 +56,10 @@ export async function pickRelease(candidate: ReleaseCandidate, d: PickDeps) {
   let detailUnavailable = false;
   try {
     const detail = await api<{releaseInfo: ReleaseInfo}>('release-details?id=' + encodeURIComponent(candidate.id) + '&medium=' + d.medium);
-    releaseInfo = {...releaseInfo, ...detail.releaseInfo, ...identity};
+    releaseInfo = {...mergeCatalogDetails(releaseInfo, detail.releaseInfo), ...identity};
   } catch { detailUnavailable = true; } // 曲目请求失败时保留精确匹配的基本资料。
   if (!current()) return;
+  releaseInfo = withLookupMedium(releaseInfo, d.medium);
   d.setBarcode(releaseInfo.barcode || '');
   d.setCatalogNumber(releaseInfo.catalogNumber || '');
   verified.current = candidate.id;

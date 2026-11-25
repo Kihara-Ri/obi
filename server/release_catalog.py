@@ -88,7 +88,8 @@ class ReleaseCatalog:
         """MusicBrainz release JSON → 候选（没有所选介质或编号异常返回 None）。"""
         if not re.fullmatch(r'[0-9a-f-]{36}', str(r.get('id',''))): return None
         media = r.get('media',[])
-        if not medium_accepts(medium, [str(m.get('format') or '') for m in media]): return None
+        formats = [str(m['format']) for m in media if m.get('format')]
+        if not medium_accepts(medium, formats): return None
         labels = r.get('label-info',[])
         numbers = [l.get('catalog-number','') for l in labels if l.get('catalog-number')]
         digits = lambda s: re.sub(r'\D','',s)
@@ -101,7 +102,7 @@ class ReleaseCatalog:
         ri = clean_release_info({'catalogNumber':' / '.join(numbers), 'barcode':r.get('barcode',''),
             'label':' / '.join(l.get('label',{}).get('name','') for l in labels if l.get('label')),
             'country':r.get('country',''), 'releaseDate':'' if re.fullmatch(r'[0-]*', str(r.get('date') or '')) else r.get('date',''), 'edition':r.get('disambiguation',''),
-            'packaging': r.get('packaging') or '', 'format':' + '.join(str(m.get('format','')) for m in media), 'discCount':str(len(media)) if media else ''})
+            'packaging': r.get('packaging') or '', 'format': ' + '.join(formats), 'discCount':str(len(media)) if media else ''})
         return {'id':r['id'],'title':display_release_title(r.get('title','')),
             'artist':''.join(a.get('name','') + a.get('joinphrase','') for a in r.get('artist-credit',[]) if isinstance(a,dict)),
             'releaseInfo':ri,'identifierMatch':matched,'url':'https://musicbrainz.org/release/' + r['id']}
@@ -132,8 +133,8 @@ class ReleaseCatalog:
         条码查 Discogs、Deezer、iTunes：它们都按登记原样精确索引，12 位 UPC-A 与补零的 13 位 EAN 查不到对方，
         所以原样查不到时再用另一种写法查一次（扫码枪 / 手机常把美国盘的 UPC-A 读成补零的 EAN-13）。
         编号查 Discogs、NDL（Deezer / iTunes 没有编号索引，NDL 不登记条码）。未配置的来源不列出。
-        Deezer / iTunes 是数字版目录（日本 CD 的 JAN 与数字版同码），NDL 只收 CD：这三个只在查 CD 时参与。"""
-        cd_only = medium == 'cd'
+        Deezer / iTunes 是数字版目录，NDL 在这里提供 CD 资料；自动与查 CD 时保留这些来源。"""
+        include_cd_sources = medium in ('cd', 'auto')
         if barcode:
             forms = [f for f in (barcode, barcode_twin(re.sub(r'\D', '', barcode))) if f]
             def first_hit(client):
@@ -141,18 +142,18 @@ class ReleaseCatalog:
                     found = client.search(barcode=form, medium=medium) if client is self.discogs else client.search(barcode=form)
                     if found: return found
                 return []
-            chain = [('discogs', self.discogs)] + ([('deezer', self.deezer), ('itunes', self.itunes)] if cd_only else [])
+            chain = [('discogs', self.discogs)] + ([('deezer', self.deezer), ('itunes', self.itunes)] if include_cd_sources else [])
             return [(name, lambda c=client: first_hit(c)) for name, client in chain if client]
         if catno:
             jobs = [('discogs', lambda: self.discogs.search(catno=catno, medium=medium))] if self.discogs else []
-            if cd_only and self.ndl: jobs.append(('ndl', lambda: self.ndl.search(catno=catno)))
+            if include_cd_sources and self.ndl: jobs.append(('ndl', lambda: self.ndl.search(catno=catno)))
             return jobs
         return []
 
     def release_details(self, ident, medium=None):
         """发行版详情；带 medium 时核对这一版有没有所选介质（选用候选时），不带则只取资料（保存核对条码等）。"""
         info = self._details(ident)
-        # Deezer / iTunes 不给介质：不知道就不拦（它们只在查 CD 时出现）
+        # Deezer / iTunes 不给介质，界面会提示确认实物介质。
         formats = [f for f in [str(m.get('format') or '') for m in info.get('media') or []] + [info.get('format') or ''] if f]
         if medium and formats and not medium_accepts(medium, formats):
             raise ValidationError({'cd': '这一发行版本没有 CD 介质，请选择正确版本',

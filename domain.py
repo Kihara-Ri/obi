@@ -40,8 +40,8 @@ _VINYL = re.compile(r'vinyl|\blp\b|(?<![\d.])(7|10|12)\s*(″|"|”|inch|in\b|�
 
 
 def clean_medium(value, default='cd'):
-    """请求里的介质参数；缺省或认不出按 default（旧客户端不带参数时仍是只查 CD）。"""
-    return value if value in MEDIA else default
+    """查询可显式选择自动；缺省时沿用调用方的默认值。"""
+    return value if value in (*MEDIA, 'auto') else default
 
 
 def medium_of(text):
@@ -61,8 +61,8 @@ def release_medium(info):
 
 
 def medium_accepts(medium, formats):
-    """发行版的各碟格式里有没有所选介质；「其他」不过滤。"""
-    if medium == 'other': return True
+    """发行版的各碟格式里有没有所选介质；自动和原有的「其他」查询均不限制格式。"""
+    if medium in ('auto', 'other'): return True
     return any(medium_of(f) == medium for f in formats)
 
 

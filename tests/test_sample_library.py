@@ -98,7 +98,7 @@ class SampleLibraryTests(unittest.TestCase):
         self.assertEqual((remain['status'], remain['releaseInfo']['format']), ('sold', ''))
         self.assertEqual(remain['releaseInfo']['media'][0]['format'], '12" Vinyl')
 
-    def test_vinyl_review_reuses_three_copies_with_sides(self):
+    def test_vinyl_review_reuses_fixed_copies_with_sides_and_barcode(self):
         from domain import medium_of
         with tempfile.TemporaryDirectory() as folder:
             ids = self.seed.seed_vinyl_review(folder)
@@ -112,6 +112,7 @@ class SampleLibraryTests(unittest.TestCase):
                              (*self.seed.VINYL_COPY[key][:1], None, self.seed.VINYL_COPY[key][1]), key)
             self.assertTrue(r['releaseInfo']['catalogNumber'].startswith('DEMO-LP-'))
         self.assertEqual(vinyl['one-last-kiss']['releaseInfo']['format'], '7" Vinyl')
+        self.assertEqual(vinyl['meddle']['releaseInfo']['barcode'], self.seed.ean13('200100000201'))
         double = vinyl['mbdtf']
         self.assertEqual((double['obi'], double['releaseInfo']['country']), ('带侧标', 'JP'))
         self.assertEqual([[t['number'] for t in m['tracks']] for m in double['releaseInfo']['media']],

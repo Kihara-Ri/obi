@@ -4,7 +4,7 @@ import {test} from 'node:test';
 import {join} from 'node:path';
 
 const {output, require} = compiledSources();
-const {mediumOf, recordMedium} = require(join(output, 'core/medium.js'));
+const {mediumOf, recordMedium, reportedMedium, mergeCatalogDetails, withLookupMedium} = require(join(output, 'core/medium.js'));
 const {lookupSources} = require(join(output, 'core/lookup.js'));
 const {trackNo, discLabel, trackDiscs} = require(join(output, 'core/tracklist.js'));
 
@@ -29,6 +29,23 @@ test('黑胶不问只收 CD 的资料库', () => {
   assert.deepEqual(lookupSources('barcode', 'cd'), ['musicbrainz', 'discogs', 'deezer', 'itunes']);
   assert.deepEqual(lookupSources('barcode', 'vinyl'), ['musicbrainz', 'discogs']);
   assert.deepEqual(lookupSources('catalog', 'vinyl'), ['musicbrainz', 'discogs']);
+});
+
+test('自动查询包含实物与备用来源，空格式和数字发行等待实物介质', () => {
+  assert.deepEqual(lookupSources('barcode', 'auto'), ['musicbrainz', 'discogs', 'deezer', 'itunes']);
+  assert.deepEqual(lookupSources('catalog', 'auto'), ['musicbrainz', 'discogs', 'ndl']);
+  assert.equal(reportedMedium({format: '2×LP'}), 'vinyl');
+  assert.equal(reportedMedium({media: [{format: 'Cassette'}]}), 'other');
+  for (const info of [{}, {format: ''}, {format: 'Digital Media'}, {format: 'File, FLAC'}, {itunesId: '1'}]) {
+    assert.equal(reportedMedium(info), null);
+    assert.equal(withLookupMedium(info, 'auto'), info);
+    assert.equal(withLookupMedium(info, 'vinyl').format, 'Vinyl');
+  }
+  const known = {format: '2×LP'};
+  assert.equal(withLookupMedium(known, 'cd'), known);
+  assert.equal(mergeCatalogDetails(known, {format: ''}).format, '2×LP');
+  const detail = mergeCatalogDetails(known, {format: '', media: [{format: 'CD'}]});
+  assert.equal(reportedMedium(detail), 'cd');
 });
 
 test('黑胶曲目显示面的编号，碟名用格式', () => {

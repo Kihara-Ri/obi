@@ -1,6 +1,7 @@
 // 发行版摘要：头部（封面 + 来源角标、名称、艺人、资料来源小字）+ 关键信息网格。
 // 版本卡片展开后与专辑表单里的已确认版本共用。
 import {dedupeCatalog, regionName} from '../../core/release-metadata';
+import {MEDIUM_LABEL, reportedMedium} from '../../core/medium';
 import {ORIGIN_LABEL, type CoverOrigin} from '../../core/version-cover';
 import {SOURCE_LABEL, sourceName, type ReleaseSource} from '../../core/release-source';
 import type {ReleaseCandidate, ReleaseInfo} from '../../types';
@@ -30,9 +31,11 @@ export function ReleaseSummary({title, artist, info, source, url, art, origin, h
   // 并发检索合并：同一版本在其他资料库的条目（折叠卡片没有头部，就单独一行，连同主来源）
   const also = alsoIn?.length ? alsoIn.map((ref, i) => <span key={ref.id}>{i ? ' · ' : ''}
     {link(SOURCE_LABEL[ref.source as ReleaseSource] ?? ref.source, ref.url)}</span>) : null;
+  const medium = reportedMedium(info);
   const facts: [string, string | undefined][] = [
     ['唱片编号', dedupeCatalog(info.catalogNumber)], ['条码', info.barcode], ['厂牌', info.label],
-    ['发行地区', regionName(info.country)], ['发行日', info.releaseDate]];
+    ['发行地区', regionName(info.country)], ['发行日', info.releaseDate],
+    ['介质', !headless && medium ? MEDIUM_LABEL[medium] : undefined]];
   return <>
     {headless ? null : <header className={'rcc-head' + (expand.big ? ' is-big' : '')} ref={expand.head}>
       {art ? <span className="rcc-art-frame">

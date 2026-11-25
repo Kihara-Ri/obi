@@ -91,6 +91,7 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
     if (!control) return;
     if ((control.id === 'f-title' && v.title.trim()) || (control.id === 'f-artist' && v.artist.trim())
         || (control.closest('#record-packaging') && reviewedPackaging(v))
+        || (control.closest('.lookup-head') && !lookup.needsMedium)
         || (control.closest('.record-copy-edition') && (!japan || v.obi === '带侧标' || v.obi === '无侧标'))
         || (control.id === 'record-lookup' && identified && lookup.verification === 'verified'
           && lookup.barcode === (v.releaseInfo.barcode || '')
@@ -111,6 +112,7 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
     const miss = ([['title', '专辑名'], ['artist', '艺人']] as const).filter(([k]) => !v[k].trim());
     if (miss.length) { fieldError(id || manualRelease ? `#f-${miss[0][0]}` : '#record-lookup', id || manualRelease ? `请填写${miss[0][1]}` : '请先通过条码或唱片编号匹配发行版'); return; }
     if (!id && !identified) {fieldError('#record-lookup', '请先确认发行版本；资料库都查不到时可选择手动录入');return;}
+    if (lookup.needsMedium) {fieldError('.lookup-head [role="group"]', '请选择实物介质');return;}
     if (lookup.verification !== 'verified' || lookup.barcode !== (v.releaseInfo.barcode || '')) {
       fieldError('#record-lookup', '条码尚未通过资料库校验，请确认对应发行版本后保存');return;
     }
@@ -158,7 +160,7 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
           ))}
         </div> : null}
         {id && !mbId && dupHint ? <p className="dup-hint">{dupHint}</p> : null}
-        {id || identified ? <><h3 className="section-title form-group-title">这一张</h3><PackageReview ctx={ctx}/></> : null}
+        {(id || identified) && !lookup.needsMedium ? <><h3 className="section-title form-group-title">这一张</h3><PackageReview ctx={ctx}/></> : null}
         {japan ? <CopyEditionFields obi={v.obi} onChange={change => { set(change); dirty(); }}/> : null}
         {/* 编辑已有专辑时不含买入信息：钱的部分在「管理」里编辑（PurchaseForm） */}
         {!id && (modules.acquisition || modules.circulation) ? <>

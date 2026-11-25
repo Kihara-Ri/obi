@@ -10,7 +10,7 @@ import {displayReleaseTitle} from '../core/release-metadata';
 import {statusName} from '../core/modules';
 import {classify, isTextQuery, lookupSources, localMatches, loadRecent, pushRecent, saveRecent, type LookupKind} from '../core/lookup';
 import {failedSources} from '../forms/record/pickRelease';
-import {MEDIA, MEDIUM_LABEL, isMedium, type Medium} from '../core/medium';
+import {LOOKUP_MEDIUM_OPTIONS, isLookupMedium, type LookupMedium} from '../core/medium';
 import {prefs} from '../core/prefs';
 import {Seg} from '../components/ui/Seg';
 import {openDetail} from '../forms/DetailDrawer';
@@ -38,10 +38,13 @@ export function LookupPage() {
   const [scanning, setScanning] = useState(false);
   const [recent, setRecent] = useState(loadRecent);
   const [target, setTarget] = useState<AlbumRecord | null>(null);  // 正在为库里这张确认发行版
-  // 查哪种介质（D-053）：记在本浏览器，下次打开沿用
-  const [medium, setMediumState] = useState<Medium>(() => { const m = prefs.get('lookup-medium', 'cd'); return isMedium(m) ? m : 'cd'; });
+  // 默认跨介质查询，保留用户主动设置的筛选。
+  const [medium, setMediumState] = useState<LookupMedium>(() => {
+    const saved = prefs.get('lookup-medium', 'auto');
+    return isLookupMedium(saved) ? saved : 'auto';
+  });
   const abort = useRef<AbortController | null>(null);
-  const search = async (input = text, fallback = '', want: Medium = medium) => {
+  const search = async (input = text, fallback = '', want: LookupMedium = medium) => {
     const wantText = isTextQuery(input);
     const parsed = wantText ? ({ok: true, kind: 'text', value: input.trim()} as const) : classify(input);
     if (!parsed.ok) { setError(parsed.error); setFound(null); return; }
@@ -84,7 +87,7 @@ export function LookupPage() {
 
   /** 换介质：记下来；已有结果时按新介质重查同一个词 */
   const setMedium = (next: string) => {
-    if (!isMedium(next) || next === medium) return;
+    if (!isLookupMedium(next) || next === medium) return;
     setMediumState(next);
     try { prefs.set('lookup-medium', next); } catch { /* 隐私模式：只是不记 */ }
     if (found) void search(found.value, '', next);
@@ -135,8 +138,7 @@ export function LookupPage() {
       </form>
       <div className="lookup-medium">
         <span aria-hidden="true">介质</span>
-        <Seg ariaLabel="介质" value={medium} disabled={busy}
-          options={MEDIA.map(m => ({value: m, label: MEDIUM_LABEL[m]}))} onValue={setMedium}/>
+        <Seg ariaLabel="介质" value={medium} disabled={busy} options={LOOKUP_MEDIUM_OPTIONS} onValue={setMedium}/>
       </div>
       {target ? <div className="lookup-target" role="status">
         <span>正在为「{displayReleaseTitle(target.title)}」确认发行版</span>
@@ -173,7 +175,7 @@ export function LookupPage() {
           {found.note ? <p className="lookup-msg">{found.note} 暂不可用，结果可能不全</p> : null}
           {!found.candidates.length && !found.note
             ? <p className="lookup-msg">各资料库都没有这个{what}；不会按标题猜测相似版本。</p> : null}
-          <ul>{found.candidates.map(c => <LookupCard key={c.id} c={c} owned={ownedNote} confirming={!!target}
+          <ul>{found.candidates.map(c => <LookupCard key={c.id} c={c} owned={ownedNote} medium={medium} confirming={!!target}
             onAdd={info => addToLibrary(c, info)}/>)}</ul>
         </section>
       </> : null}

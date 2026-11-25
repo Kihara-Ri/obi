@@ -339,8 +339,9 @@ VINYL_REVIEW = {
                                ('C', ['示例曲目 4']), ('D', ['示例曲目 5', '示例曲目 6']))),
     'one-last-kiss': dict(format='7" Vinyl', catalogNumber='DEMO-LP-0003', country='JP',
                   media=_sides(('A', ['示例曲目 1']), ('B', ['示例曲目 2']))),
-    # 国内库存里的一张：库存列表能看到黑胶标签与介质筛选
+    # 国内库存的黑胶样本，含虚构 EAN，供扫描与唱片编号查询共同验收。
     'meddle': dict(format='12" Vinyl', catalogNumber='DEMO-LP-0004', country='GB',
+                   barcode=ean13('200100000201'),
                    media=_sides(('A', ['示例曲目 1', '示例曲目 2']), ('B', ['示例曲目 3']))),
 }
 # 黑胶包装预设与规格 / 品相（D-055）：单封套 + 评过级、对开彩胶、7″ 只填转速（尺寸从格式认）
@@ -363,7 +364,8 @@ def seed_vinyl_review(data_dir):
         info = dict(VINYL_REVIEW[key])
         prior = r.get('releaseInfo') or {}
         version, vinyl = VINYL_COPY[key]
-        if prior.get('format') == info['format'] and r.get('vinyl') == vinyl: continue   # 已灌过：幂等
+        if (prior.get('format') == info['format'] and prior.get('barcode', '') == info.get('barcode', '')
+                and r.get('vinyl') == vinyl): continue
         info['media'] = [{**m, 'format': info['format'].replace('2×', '')} for m in info['media']]
         info['tracklist'] = []
         items.append(dict(id=r['id'], revision=r['revision'], version=version, packaging=None, vinyl=vinyl,
