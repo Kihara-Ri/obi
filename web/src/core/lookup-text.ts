@@ -2,7 +2,10 @@
 import type {ReleaseCandidate, ReleaseInfo} from '../types';
 import {sourceName} from './release-source';
 import {releaseLabels} from './release-text';
-import {trackDiscs, trackDuration} from './tracklist';
+import {discLabel, trackDiscs, trackDuration} from './tracklist';
+import {recordMedium, type Medium} from './medium';
+
+const ASK_MEDIUM: Record<Medium, string> = {cd: ' CD ', vinyl: '黑胶', other: '唱片'};
 
 // 照片可见情况 / 内圈刻码 / 附件是实物观察，资料库查询结果里没有，不进文字
 const SKIP = new Set<keyof ReleaseInfo>(['observations', 'matrix', 'extras']);
@@ -17,17 +20,17 @@ export function releaseText(c: ReleaseCandidate, info: ReleaseInfo, owned = ''):
   if (owned) lines.push(`我的收藏：${owned}`);
   const discs = trackDiscs(info);
   discs.forEach(disc => {
-    lines.push('', discs.length > 1 ? `${disc.format || 'CD'} ${disc.position}` : '曲目');
+    lines.push('', discs.length > 1 ? discLabel(disc) : '曲目');
     for (const t of disc.tracks) {
       const time = trackDuration(t.lengthMs);
-      lines.push(`${t.position}. ${t.title}${time ? ` (${time})` : ''}`);
+      lines.push(`${t.number || t.position}. ${t.title}${time ? ` (${time})` : ''}`);
     }
   });
   return lines.join('\n');
 }
 
 /** 带一句提问：让 AI 介绍版本，并要求不确定处明说，避免编造。 */
-export function askText(body: string): string {
-  return '下面是我查到的一张 CD 发行版资料。请介绍这张专辑和这个具体版本（收录内容、与其他版次的区别、值不值得收），'
+export function askText(body: string, info?: ReleaseInfo): string {
+  return `下面是我查到的一张${ASK_MEDIUM[recordMedium(info)]}发行版资料。` + '请介绍这张专辑和这个具体版本（收录内容、与其他版次的区别、值不值得收），'
     + '不确定或资料里没有的地方请直接说明，不要编造。\n\n' + body;
 }

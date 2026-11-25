@@ -33,6 +33,11 @@ export function trackDiscs(info: ReleaseInfo): TrackDisc[] {
   return discs;
 }
 
+/** 曲目号：黑胶用面的编号（A1、B2），其余补零（01） */
+export const trackNo = (t: ReleaseTrack) => t.number || String(t.position).padStart(2, '0');
+/** 一张碟的名字：CD 1、12" Vinyl 2；没写格式按 CD */
+export const discLabel = (d: TrackDisc) => `${d.format || 'CD'} ${d.position}`;
+
 export function trackDuration(lengthMs: number | undefined): string | null {
   if (typeof lengthMs !== 'number' || !Number.isFinite(lengthMs) || lengthMs <= 0) return null;
   const seconds = Math.round(lengthMs / 1000);

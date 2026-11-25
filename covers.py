@@ -12,7 +12,7 @@ import unicodedata
 from difflib import SequenceMatcher
 from urllib.parse import urlencode, urlsplit, quote
 from urllib.request import Request, build_opener, HTTPRedirectHandler
-from domain import ValidationError
+from domain import ValidationError, medium_accepts
 from cjkvariants import T2S
 from kana import romaji
 from musicbrainz import SourceUnavailable as MBSourceUnavailable, BadSource as MBBadSource
@@ -288,14 +288,15 @@ class CoverService:
         with self.lock: self.choices[token]={**c,'url':re.sub(r'/100x100bb\.', '/1200x1200bb.',url),'country':country,'page':page}
         return c
 
-    def group_cd_front(self, gid):
-        """Prefer a CD-format release's front art; vinyl covers often own the group slot."""
+    def group_medium_front(self, gid, medium='cd'):
+        """Prefer the front art of a release in the chosen medium (D-053): the group slot is often another medium's cover
+        (vinyl art for a CD, or the CD art for a vinyl)."""
         try:
             releases=self.metadata('https://musicbrainz.org/ws/2/release?'+urlencode({'release-group':gid,'fmt':'json','limit':25,'inc':'media'})).get('releases',[])
         except ValidationError:
             return None
-        cd=[r['id'] for r in releases if any('CD' in (m.get('format') or '') for m in r.get('media',[]))]
-        for rid in cd[:2]:
+        same=[r['id'] for r in releases if medium_accepts(medium,[m.get('format') or '' for m in r.get('media',[])])]
+        for rid in same[:2]:
             try:
                 art=self.metadata('https://coverartarchive.org/release/'+rid)
                 front=next((i for i in art.get('images',[]) if i.get('front') and i.get('approved')),None)
@@ -307,9 +308,9 @@ class CoverService:
                 continue
         return None
 
-    def group_front(self, gid):
-        """同一张专辑（release-group）的正面图：先找其中 CD 版本的，再退到专辑组自己的图；没有返回 None。"""
-        url=self.group_cd_front(gid)
+    def group_front(self, gid, medium='cd'):
+        """同一张专辑（release-group）的正面图：先找其中所选介质版本的，再退到专辑组自己的图；没有返回 None。"""
+        url=self.group_medium_front(gid, medium)
         if url:return url
         art=self.metadata('https://coverartarchive.org/release-group/'+gid)
         front=next((i for i in art.get('images',[]) if i.get('front') and i.get('approved')),None)
@@ -317,19 +318,19 @@ class CoverService:
         url=front.get('thumbnails',{}).get('500') or front.get('thumbnails',{}).get('large') or front.get('image','')
         return 'https://'+url[7:] if url.startswith('http://') else url
 
-    def fallback(self, title, artist, release_id=None):
+    def fallback(self, title, artist, release_id=None, medium='cd'):
         """版本自己没有正面图时的退路（版本卡片与选用后的自动匹配共用）：
         同一张专辑的封面（已确认 MusicBrainz 版本的 release-group；否则同名同艺人的专辑组）→ 同名同艺人的 iTunes 数字封面。
         只取名字精确对上的，宁可没有也不拿别的专辑；kind 说明借的是哪一种，界面据此提示「不一定是这个版本的包装」。"""
         title, artist = str(title).strip(), str(artist).strip()
-        key=(title, artist, str(release_id or ''))
+        key=(title, artist, str(release_id or ''), medium)
         with self.lock:
             if key in self.fallbacks: return self.fallbacks[key]
         found=None
         ident=self.release_identity(release_id) if release_id else None
         if ident and ident['group']:
             try:
-                url=self.group_front(ident['group'])
+                url=self.group_front(ident['group'], medium)
                 if url:
                     found={**self.candidate(ident['title'] or title, ident['artist'] or artist, ident['groupTitle'] or title,
                                             ident['artist'] or artist, 'CAA-'+ident['group'], url,

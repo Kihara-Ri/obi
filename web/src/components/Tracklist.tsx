@@ -1,12 +1,12 @@
 import {useState} from 'react';
 import {Chevron} from './ui/Chevron';
 import type {ReleaseInfo, ReleaseMedium} from '../types';
-import {trackDiscs, trackDuration} from '../core/tracklist';
+import {discLabel, trackDiscs, trackDuration, trackNo} from '../core/tracklist';
 
 function DiscTracks({disc, single = false}: {disc: ReleaseMedium; single?: boolean}) {
-  return <ol className="record-track-rows" aria-label={single ? '曲目' : `${disc.format || 'CD'} ${disc.position} 的曲目`}>
+  return <ol className="record-track-rows" aria-label={single ? '曲目' : `${discLabel(disc)} 的曲目`}>
     {disc.tracks.map((track, index) => <li className="record-track-row" key={`${track.position}-${index}`}>
-      <span className="record-track-number" aria-hidden="true">{String(track.position).padStart(2, '0')}</span>
+      <span className="record-track-number" aria-hidden="true">{trackNo(track)}</span>
       <span className="record-track-title">{track.title}</span>
       {trackDuration(track.lengthMs) ? <time className="record-track-duration" aria-label={`时长 ${trackDuration(track.lengthMs)}`}>
         {trackDuration(track.lengthMs)}
@@ -46,7 +46,7 @@ export function Tracklist({releaseInfo}: {releaseInfo: ReleaseInfo}) {
               </svg>
             </span>
             <span className="record-track-disc-heading">
-              <strong>{disc.format || 'CD'} {disc.position}</strong>
+              <strong>{discLabel(disc)}</strong>
               {disc.title ? <small>{disc.title}</small> : null}
             </span>
             <span className="record-track-disc-count">{disc.tracks.length} 首</span>

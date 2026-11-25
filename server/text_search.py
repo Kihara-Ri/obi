@@ -1,4 +1,4 @@
-"""查询页的文字模糊搜索：先按专辑（MusicBrainz release group）去重列出，再按需展开某张专辑的 CD 版本。
+"""查询页的文字模糊搜索：先按专辑（MusicBrainz release group）去重列出，再按需展开某张专辑的所选介质版本（D-053）。
 MusicBrainz 优先，没有结果或不可用时用 Discogs master 兜底；版本候选与条码 / 编号检索同形。
 展开 MusicBrainz 专辑时，再按「艺人 + 专辑名」严格对上 Discogs 的同一张 master，把它的 CD 版本并进来：
 唱片编号相同的记入 MusicBrainz 版本的 `alsoIn`，只有 Discogs 有的单列；Discogs 不可用时只返回 MusicBrainz 的。"""
@@ -78,17 +78,22 @@ def _catno_list(raw):
     return ' / '.join(out)
 
 
-def _discogs_versions(dc, master):
-    key = ('versions', master)
+DISCOGS_FORMAT = {'cd': 'CD', 'vinyl': 'Vinyl'}
+
+
+def _discogs_versions(dc, master, medium='cd'):
+    key = ('versions', master, medium)
     if key in dc.cache: return dc.cache[key]
-    data = dc._get(f'masters/{master}/versions', {'format': 'CD', 'per_page': 40})
+    params = {'per_page': 40, **({'format': DISCOGS_FORMAT[medium]} if medium in DISCOGS_FORMAT else {})}
+    data = dc._get(f'masters/{master}/versions', params)
     out = []
     for v in data.get('versions', []):
         if not isinstance(v, dict) or type(v.get('id')) is not int: continue
         out.append({'id': f"discogs-{v['id']}", 'source': 'discogs', 'title': str(v.get('title', '')), 'artist': '',
                     'releaseInfo': clean_release_info({'catalogNumber': _catno_list(v.get('catno')), 'barcode': '', 'label': str(v.get('label') or ''),
                                     'country': COUNTRIES.get(str(v.get('country', '')), str(v.get('country', ''))),
-                                    'releaseDate': str(v.get('released') or ''), 'format': 'CD'}),
+                                    'releaseDate': str(v.get('released') or ''),
+                                    'format': DISCOGS_FORMAT.get(medium) or str(v.get('format') or '')[:80]}),
                     'identifierMatch': False, 'url': 'https://www.discogs.com/release/' + str(v['id'])})
     if len(dc.cache) >= 100: dc.cache.clear()
     dc.cache[key] = out
@@ -113,11 +118,11 @@ def _discogs_master(dc, title, artist):
     return dc.cache[key]
 
 
-def _with_discogs(cat, found, title, artist):
+def _with_discogs(cat, found, title, artist, medium='cd'):
     if not (cat.discogs and title and artist): return found
     try:
         master = _discogs_master(cat.discogs, title, artist)
-        extra = _discogs_versions(cat.discogs, master) if master else []
+        extra = _discogs_versions(cat.discogs, master, medium) if master else []
     except ValidationError:
         return found
     out = [dict(c) for c in found]
@@ -130,19 +135,19 @@ def _with_discogs(cat, found, title, artist):
     return sorted(out, key=_rank)
 
 
-def group_versions(cat, ident, title='', artist=''):
-    """某张专辑下所有 CD 版本，日本版 / 有条码的排前面。title / artist 用来到 Discogs 找同一张专辑补版本。"""
+def group_versions(cat, ident, title='', artist='', medium='cd'):
+    """某张专辑下所选介质的所有版本，日本版 / 有条码的排前面。title / artist 用来到 Discogs 找同一张专辑补版本。"""
     if isinstance(ident, str) and MASTER.fullmatch(ident):
         if not cat.discogs: raise ValidationError('备用发行资料来源未启用')
-        return sorted(_discogs_versions(cat.discogs, MASTER.fullmatch(ident)[1]), key=_rank)
+        return sorted(_discogs_versions(cat.discogs, MASTER.fullmatch(ident)[1], medium), key=_rank)
     if not isinstance(ident, str) or not GROUP.fullmatch(ident): raise ValidationError('专辑编号不正确')
     with cat.catalog_lock:
         data = cat._mb_json('https://musicbrainz.org/ws/2/release/?' + urlencode(
             {'release-group': ident, 'inc': 'labels+media', 'fmt': 'json', 'limit': 100}))
     found, seen = [], set()
-    for c in (cat.candidate(r) for r in data.get('releases', [])):
+    for c in (cat.candidate(r, medium=medium) for r in data.get('releases', [])):
         if not c: continue
         i = c['releaseInfo']   # 同编号 / 地区 / 日期 / 厂牌 / 条码的重复收录只留一个，免得列表里一排一模一样的行
         key = tuple(i.get(k, '') for k in ('catalogNumber', 'country', 'releaseDate', 'label', 'barcode', 'edition'))
         if key not in seen: seen.add(key); found.append(c)
-    return _with_discogs(cat, sorted(found, key=_rank), title, artist)
+    return _with_discogs(cat, sorted(found, key=_rank), title, artist, medium)

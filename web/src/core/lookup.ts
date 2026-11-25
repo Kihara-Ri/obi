@@ -1,5 +1,6 @@
 // 条码 / 唱片编号查询的纯逻辑：输入识别、条码校验位、本地库命中、最近查询（只存本浏览器）。
 import {prefs} from './prefs';
+import type {Medium} from './medium';
 import {identityOf, type ReleaseSource} from './release-source';
 import type {AlbumRecord} from '../types';
 
@@ -88,8 +89,11 @@ export function releasePending(r: AlbumRecord): boolean {
 }
 
 /** 每种查询会并发查的资料库（与后端 `ReleaseCatalog.backups` / 文字搜索一致，只用于进度展示）。 */
-export const LOOKUP_SOURCES: Record<LookupKind | 'text', ReleaseSource[]> = {
+const LOOKUP_SOURCES: Record<LookupKind | 'text', ReleaseSource[]> = {
   barcode: ['musicbrainz', 'discogs', 'deezer', 'itunes'],
   catalog: ['musicbrainz', 'discogs', 'ndl'],
   text: ['musicbrainz', 'discogs'],
 };
+/** 按介质实际会问的资料库：Deezer、iTunes、NDL 只收 CD，查黑胶 / 其他时不问（D-053） */
+export const lookupSources = (kind: LookupKind | 'text', medium: Medium): ReleaseSource[] =>
+  medium === 'cd' ? LOOKUP_SOURCES[kind] : LOOKUP_SOURCES[kind].filter(s => s === 'musicbrainz' || s === 'discogs');

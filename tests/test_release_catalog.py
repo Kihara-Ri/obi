@@ -99,8 +99,11 @@ class ReleaseCatalogTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             self.service.release_details('../outside')
         with patch('server.release_catalog.read_json', return_value={'media': [{'format': 'Vinyl'}]}):
+            # 只取资料（保存时核对）不看介质；选用候选时带上所选介质才核对
+            self.assertEqual(self.service.release_details('22222222-2222-2222-2222-222222222222')['format'], 'Vinyl')
+            self.assertEqual(self.service.release_details('22222222-2222-2222-2222-222222222222', 'vinyl')['format'], 'Vinyl')
             with self.assertRaisesRegex(ValidationError, 'CD'):
-                self.service.release_details('22222222-2222-2222-2222-222222222222')
+                self.service.release_details('22222222-2222-2222-2222-222222222222', 'cd')
 
     def test_editorial_square_bracket_titles_are_unwrapped(self):
         self.assertEqual(display_release_title('[Untitled]'), 'Untitled')

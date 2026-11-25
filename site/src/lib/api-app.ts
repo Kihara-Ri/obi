@@ -20,12 +20,12 @@ export const app: Group[] = [
   {
     id: 'app-catalog', title: '发行资料', lead: '录入时查版本：只做精确匹配，不按标题猜。',
     routes: [
-      { m: 'POST', p: '/api/catalog/barcode', does: '条码精确查找，MusicBrainz / Discogs / Deezer / iTunes 并发，20 秒内答复。', body: 'barcode*', ret: 'barcode · candidates[] · sources' },
+      { m: 'POST', p: '/api/catalog/barcode', does: '条码精确查找，MusicBrainz / Discogs / Deezer / iTunes 并发，20 秒内答复；查黑胶时只问 MusicBrainz / Discogs。', body: 'barcode* · medium（cd / vinyl / other，缺省 cd）', ret: 'barcode · candidates[] · sources' },
       { m: 'POST', p: '/api/catalog/barcode/verify', does: '核对条码是否属于所选发行版。', body: 'barcode* · releaseId*', ret: 'barcode · releaseId · valid' },
-      { m: 'POST', p: '/api/catalog/number', does: '唱片编号精确查找（MusicBrainz / Discogs / NDL）。', body: 'catalogNumber*（2–80 字）', ret: 'catalogNumber · candidates[] · sources' },
+      { m: 'POST', p: '/api/catalog/number', does: '唱片编号精确查找（MusicBrainz / Discogs / NDL）。', body: 'catalogNumber*（2–80 字） · medium', ret: 'catalogNumber · candidates[] · sources' },
       { m: 'POST', p: '/api/catalog/search', does: '文字搜索，按专辑去重。', body: 'text*（≤120 字）', ret: 'text · albums[] · sources' },
-      { m: 'POST', p: '/api/catalog/versions', does: '展开一张专辑的 CD 版本。', body: 'id* · title · artist', ret: 'candidates[]' },
-      { m: 'GET', p: '/api/release-details', does: '发行版的元数据与曲目。', q: 'id*', ret: 'releaseInfo' },
+      { m: 'POST', p: '/api/catalog/versions', does: '展开一张专辑的版本，按介质过滤（缺省 CD）。', body: 'id* · title · artist · medium', ret: 'candidates[]' },
+      { m: 'GET', p: '/api/release-details', does: '发行版的元数据与曲目；带 medium 时核对这一版有该介质。', q: 'id* · medium', ret: 'releaseInfo' },
       { m: 'GET', p: '/api/catalog/front-cover', does: '已确认 MusicBrainz 版本的正面封面。', q: 'id* · stash=1（落盘只回引用）', ret: 'cover；无正面图时 reason: no-front' },
     ],
   },
@@ -33,7 +33,7 @@ export const app: Group[] = [
     id: 'app-covers', title: '封面',
     routes: [
       { m: 'POST', p: '/api/covers/search', does: '搜索封面候选。', body: 'title · artist · country（默认 AUTO）· releaseId' },
-      { m: 'POST', p: '/api/covers/fallback', does: '版本没有封面时的退路：同专辑封面 → iTunes 数字封面。', body: 'title · artist · releaseId', ret: 'candidate' },
+      { m: 'POST', p: '/api/covers/fallback', does: '版本没有封面时的退路：同专辑封面 → iTunes 数字封面。', body: 'title · artist · releaseId · medium', ret: 'candidate' },
       { m: 'POST', p: '/api/covers/download', does: '下载选中的封面。', body: 'token* · stash（true 落盘只回引用）', ret: 'cover' },
       { m: 'GET', p: '/api/cover/{哈希}.{jpg|png|webp}', does: '按内容哈希读已存封面，长缓存。' },
     ],

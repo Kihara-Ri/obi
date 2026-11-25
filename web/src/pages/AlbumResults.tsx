@@ -1,5 +1,6 @@
 // 查询页的文字搜索结果：先按专辑列出（封面、年份、类型），点开再看这张专辑的 CD 版本卡片。
 // 库里已有的专辑排在最前并标出；版本日本版 / 有条码的在前，其余折叠。
+import type {Medium} from '../core/medium';
 import {useEffect, useState} from 'react';
 import {useApp} from '../state/AppContext';
 import {api} from '../core/api';
@@ -22,7 +23,7 @@ function reveal(img: HTMLImageElement) {
   img.style.opacity = '1';
 }
 
-function Album({hit, owned, confirming, onAdd}: {hit: AlbumHit; owned: AlbumRecord[]; confirming: boolean; onAdd: (c: ReleaseCandidate, info: ReleaseInfo) => void}) {
+function Album({hit, owned, confirming, medium, onAdd}: {hit: AlbumHit; owned: AlbumRecord[]; confirming: boolean; medium: Medium; onAdd: (c: ReleaseCandidate, info: ReleaseInfo) => void}) {
   const app = useApp();
   const [open, setOpen] = useState(false);
   const [more, setMore] = useState(false);
@@ -42,7 +43,7 @@ function Album({hit, owned, confirming, onAdd}: {hit: AlbumHit; owned: AlbumReco
   const toggle = () => {
     setOpen(!open);
     if (open || versions) return;
-    api<{candidates: ReleaseCandidate[]}>('catalog/versions', {id: hit.id, title: hit.title, artist: hit.artist})
+    api<{candidates: ReleaseCandidate[]}>('catalog/versions', {id: hit.id, title: hit.title, artist: hit.artist, medium})
       .then(r => setVersions(r.candidates)).catch(err => setError(err instanceof Error ? err.message : String(err)));
   };
   const note = owned.length ? `已有 ${owned.length} 张（${owned.map(r => statusName(r.status, app.modules)).join('、')}）` : '还没有';
@@ -73,10 +74,10 @@ function Album({hit, owned, confirming, onAdd}: {hit: AlbumHit; owned: AlbumReco
   </li>;
 }
 
-export function AlbumResults({albums, records, confirming, onAdd}: {
-  albums: AlbumHit[]; records: AlbumRecord[]; confirming: boolean; onAdd: (c: ReleaseCandidate, info: ReleaseInfo) => void;
+export function AlbumResults({albums, records, confirming, medium, onAdd}: {
+  albums: AlbumHit[]; medium: Medium; records: AlbumRecord[]; confirming: boolean; onAdd: (c: ReleaseCandidate, info: ReleaseInfo) => void;
 }) {
   const rows = albums.map(hit => ({hit, owned: ownedAlbums(records, hit.title, hit.artist)}))
     .sort((a, b) => Number(!!b.owned.length) - Number(!!a.owned.length));
-  return <ul>{rows.map(({hit, owned}) => <Album key={hit.id} hit={hit} owned={owned} confirming={confirming} onAdd={onAdd}/>)}</ul>;
+  return <ul>{rows.map(({hit, owned}) => <Album key={hit.id + ':' + medium} hit={hit} owned={owned} confirming={confirming} medium={medium} onAdd={onAdd}/>)}</ul>;
 }

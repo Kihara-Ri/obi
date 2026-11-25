@@ -33,6 +33,8 @@ seed_rate_review 为现有 Dookie 副本提供未缓存的虚构买入日期，�
 seed_listing_navigation 为现有 lift-fists 和 tpab 副本登记虚构的闲鱼回执。
 seed_legacy_listing_copy 在 lift-fists 及其审计历史中写入退役前的固定文案，供启动迁移验收。
 seed_purchase_review 复用三张副本，覆盖实际支出、零金额以及只在介质明细中登记的黑胶格式。
+seed_vinyl_review（--vinyl）复用三张副本改成黑胶（D-053）：12″ LP（A/B 面）、带侧标的日版 2LP
+（A–D 面）、7″ 单曲；编号为虚构的 DEMO-LP-*，不增加副本或封面。
 
 安全约束：只能写入 --data-dir 指定的目录；拒绝指向仓库 data/，拒绝覆盖已存在
 且非样本库的 albums.sqlite3；已灌过的目录幂等跳过。写入全部走 storage.py 的
@@ -292,6 +294,47 @@ def seed_purchase_review(data_dir):
                           for key, r in records.items()]})
     return ids
 
+
+def _sides(*sides):
+    """黑胶曲目：每面若干首，编号 A1、A2…；两面一张碟（A/B 第 1 张，C/D 第 2 张）。"""
+    media = []
+    for i, (side, titles) in enumerate(sides):
+        disc = i // 2 + 1
+        if len(media) < disc: media.append({'position': disc, 'format': '', 'title': '', 'tracks': []})
+        start = len(media[-1]['tracks'])
+        media[-1]['tracks'] += [{'position': start + n + 1, 'number': f'{side}{n + 1}', 'title': t}
+                                for n, t in enumerate(titles)]
+    return media
+
+
+VINYL_REVIEW = {
+    'remain': dict(format='12" Vinyl', catalogNumber='DEMO-LP-0001', country='US',
+                   media=_sides(('A', ['示例曲目 1', '示例曲目 2']), ('B', ['示例曲目 3', '示例曲目 4']))),
+    'mbdtf': dict(format='2×12" Vinyl', catalogNumber='DEMO-LP-0002', country='JP', discCount='2',
+                  media=_sides(('A', ['示例曲目 1', '示例曲目 2']), ('B', ['示例曲目 3']),
+                               ('C', ['示例曲目 4']), ('D', ['示例曲目 5', '示例曲目 6']))),
+    'avici': dict(format='7" Vinyl', catalogNumber='DEMO-LP-0003', country='SE',
+                  media=_sides(('A', ['示例曲目 1']), ('B', ['示例曲目 2']))),
+}
+
+
+def seed_vinyl_review(data_dir):
+    """黑胶验收：三张现有副本换成黑胶发行资料（介质从格式认出，曲目按面编号）；包装清空待第 2 步的黑胶预设。"""
+    ids = seed(data_dir)
+    store = open_store(data_dir)
+    with closing(store.connect()) as db:
+        records = {key: store.get(db, 'records', ids[key]) for key in VINYL_REVIEW}
+    items = []
+    for key, r in records.items():
+        info = dict(VINYL_REVIEW[key])
+        prior = r.get('releaseInfo') or {}
+        if prior.get('format') == info['format']: continue   # 已灌过：幂等
+        info['media'] = [{**m, 'format': info['format'].replace('2×', '')} for m in info['media']]
+        info['tracklist'] = []
+        items.append(dict(id=r['id'], revision=r['revision'], version='', packaging=None,
+                          releaseInfo={**prior, 'barcode': '', **info}))
+    if items: store.save({'items': items})
+    return ids
 
 def seed_packaging_review(data_dir):
     """缺包装编辑验收：复用 ex-all-time 副本，只清空其形态，不改金额、状态或照片。"""
@@ -657,6 +700,7 @@ def main():
     models.add_argument('--with-models', action='store_true', help='仅引擎专项测试：发布合成 3D 几何/纹理模型，普通样本不会生成')
     models.add_argument('--with-reference-models', action='store_true', help='展示验收：获取同版真实图集并发布参考 3D（需要联网）')
     p.add_argument('--reference-cache', help='复用已冻结的发行版图集目录，仅用于 --with-reference-models')
+    p.add_argument('--vinyl', action='store_true', help='黑胶验收：三张现有副本换成黑胶发行资料（不增加副本）')
     p.add_argument('--fetch-covers', action='store_true',
                    help='优先 iTunes 精确匹配的数字封面，CAA 后备（需要联网）')
     args = p.parse_args()
@@ -667,6 +711,7 @@ def main():
         print(f'固定引擎样本已导出：{Path(args.export_engine_fixtures).resolve()}（{len(entities)} 实体）')
         return
     ids = seed_models(args.data_dir) if args.with_models else seed(args.data_dir)
+    if args.vinyl: seed_vinyl_review(args.data_dir)
     if args.fetch_covers:
         from tools.fetch_sample_covers import run as fetch_real_cover_art
         fetch_real_cover_art(args.data_dir)

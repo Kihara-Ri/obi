@@ -10,7 +10,9 @@ import {BarcodeScanner, ScanField} from '../../components/BarcodeScanner';
 import {ReleaseCandidateCard, ReleaseSummary, sourceName} from '../../components/ReleaseCandidateCard/ReleaseCandidateCard';
 import type {CoverOrigin} from '../../core/version-cover';
 import {boundSource, sourceUrl} from '../../core/release-source';
-import {classify, LOOKUP_SOURCES} from '../../core/lookup';
+import {classify, lookupSources} from '../../core/lookup';
+import {MEDIA, MEDIUM_LABEL, isMedium} from '../../core/medium';
+import {Seg} from '../../components/ui/Seg';
 import {LookupProgress} from '../../components/LookupProgress/LookupProgress';
 import {CoverPanel} from './CoverPanel';
 import type {CoverSearch} from './useCoverSearch';
@@ -142,7 +144,13 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, coverOrigin
     || (phase === 'manual' ? (info.unofficial === '1' ? '非官方发行 · 未经资料库核对' : '手动录入 · 未经资料库核对') : v.title && !confirmed ? '尚未确认发行版' : '');
   return (
     <section className="record-barcode-entry form-section">
-      <label className="lookup-label" htmlFor="record-lookup">发行版</label>
+      <div className="lookup-head">
+        <label className="lookup-label" htmlFor="record-lookup">发行版</label>
+        {/* 先选介质再查：查询、核对、封面都按它找；已确认版本后由版本资料决定，不再显示 */}
+        {!confirmed ? <Seg className="seg-medium" ariaLabel="介质" value={L.medium} disabled={working}
+          options={MEDIA.map(m => ({value: m, label: MEDIUM_LABEL[m]}))}
+          onValue={m => { if (isMedium(m)) L.setMedium(m); }}/> : null}
+      </div>
       <div className="record-barcode-row" data-error-anchor>
         <ScanField onScan={() => setScanning(true)}>
           <button type="button" id="record-lookup" ref={lookupField} aria-describedby={barcodeMiss ? hintId : undefined}
@@ -153,7 +161,7 @@ export function ReleaseLookupSection({v, lookup: L, cover, coverSrc, coverOrigin
         <button type="button" className="primary" aria-busy={working} onClick={() => void L.lookup()} disabled={working}>查询</button>
       </div>
       {readMsg ? <p className="lookup-photo-read"><span role="status">{readMsg}</span></p> : null}
-      {L.searching ? <LookupProgress sources={LOOKUP_SOURCES[L.searching]} onCancel={L.cancelSearch}/> : null}
+      {L.searching ? <LookupProgress sources={lookupSources(L.searching, L.medium)} onCancel={L.cancelSearch}/> : null}
       {barcodeMiss ? <BarcodeMiss message={L.message} statusId={hintId} manualActions={manualActions}/>
         : status && !L.searching ? <p className={`lookup-status is-${phase}` + (leaving ? ' is-leaving' : '')}>
         {phase === 'busy' ? <span className="lookup-spinner" aria-hidden="true"/> : <b aria-hidden="true">{phase === 'choose' ? L.candidates.length : MARK[phase]}</b>}

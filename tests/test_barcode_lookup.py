@@ -12,7 +12,7 @@ class BarcodeLookupTests(unittest.TestCase):
         self.http = SimpleNamespace(send=Mock())
         self.deezer, self.itunes = Mock(return_value=[]), Mock(return_value=[])
         self.vision = SimpleNamespace(catalog=Mock(return_value=[]),
-                                      backups=lambda barcode, catno: [('deezer', self.deezer), ('itunes', self.itunes)])
+                                      backups=lambda barcode, catno, medium='cd': [('deezer', self.deezer), ('itunes', self.itunes)])
         self.service = SimpleNamespace(releases=self.vision)
 
     def test_only_valid_numeric_barcodes_query_catalog(self):
@@ -31,7 +31,7 @@ class BarcodeLookupTests(unittest.TestCase):
             candidate('4006381333931'), candidate('4988013047105', False)]
         api_barcode_lookup(self.http, self.service, {'barcode': ' 4988013047105 '})
         self.vision.catalog.assert_called_once_with({
-            'title': '', 'artist': '', 'releaseInfo': {'barcode': '4988013047105', 'catalogNumber': ''}})
+            'title': '', 'artist': '', 'releaseInfo': {'barcode': '4988013047105', 'catalogNumber': ''}}, 'cd')
         response = self.http.send.call_args.args[0]
         self.assertEqual(response['barcode'], '4988013047105')
         self.assertEqual(len(response['candidates']), 2)
@@ -80,7 +80,7 @@ class ConcurrentLookupTests(unittest.TestCase):
                 barrier.wait()   # 三个来源都启动了才放行；串行执行会在这里超时
                 return result
             return run
-        service = SimpleNamespace(releases=SimpleNamespace(catalog=wait([]), backups=lambda barcode, catno: [
+        service = SimpleNamespace(releases=SimpleNamespace(catalog=wait([]), backups=lambda barcode, catno, medium='cd': [
             ('deezer', wait([])), ('itunes', wait([{'id': 'itunes-1', 'releaseInfo': {'barcode': barcode}}]))]))
         candidates, sources = lookup_sources(service, '4988064291892', '', lambda found: found)
         self.assertEqual([c['id'] for c in candidates], ['itunes-1'])
@@ -96,8 +96,8 @@ class LookupDeadlineTests(unittest.TestCase):
             release.wait(5)
             return [{'id': 'ndl-000000000001', 'source': 'ndl', 'releaseInfo': {'catalogNumber': 'X-1'}}]
         found = [{'id': 'uuid-1', 'releaseInfo': {'catalogNumber': 'X-1'}}]
-        service = SimpleNamespace(releases=SimpleNamespace(catalog=lambda fields: found,
-            backups=lambda barcode, catno: [('ndl', hung)]))
+        service = SimpleNamespace(releases=SimpleNamespace(catalog=lambda fields, medium='cd': found,
+            backups=lambda barcode, catno, medium='cd': [('ndl', hung)]))
         started = time.monotonic()
         candidates, sources = lookup_sources(service, '', 'X-1', lambda f: f, deadline=0.2)
         self.assertLess(time.monotonic() - started, 2)

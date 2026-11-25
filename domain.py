@@ -33,6 +33,31 @@ RELEASE_FIELDS = ('catalogNumber', 'barcode', 'label', 'country', 'releaseDate',
                   'discogsReleaseId', 'deezerId', 'itunesId', 'ndlBibId', 'manualRelease', 'unofficial')
 
 
+# 介质（D-053）：录入时先选 CD / 黑胶 / 其他，发行版检索、确认与封面按所选介质过滤。
+# 不单独存字段：副本的介质由发行资料的 format / media[].format 推出，没有资料按 CD。
+MEDIA = ('cd', 'vinyl', 'other')
+_VINYL = re.compile(r'vinyl|\blp\b|(?<![\d.])(7|10|12)\s*(″|"|”|inch|in\b|吋|寸)|黑胶|レコード|アナログ', re.I)
+
+
+def clean_medium(value, default='cd'):
+    """请求里的介质参数；缺省或认不出按 default（旧客户端不带参数时仍是只查 CD）。"""
+    return value if value in MEDIA else default
+
+
+def medium_of(text):
+    """一段格式文字的介质：'cd' / 'vinyl' / 'other'；空文字返回 ''。SACD、Blu-spec CD 等都算 CD。"""
+    text = str(text or '').strip()
+    if not text: return ''
+    if _VINYL.search(text): return 'vinyl'
+    return 'cd' if 'cd' in text.casefold() else 'other'
+
+
+def medium_accepts(medium, formats):
+    """发行版的各碟格式里有没有所选介质；「其他」不过滤。"""
+    if medium == 'other': return True
+    return any(medium_of(f) == medium for f in formats)
+
+
 def clean_release_info(value):
     if not isinstance(value, dict): raise ValidationError('发行资料格式不正确')
     result = {}
@@ -90,6 +115,11 @@ def clean_release_info(value):
                     raise ValidationError('曲目资料格式不正确')
                 if not name.strip(): continue
                 row = {'position': number, 'title': name.strip()}
+                label = track.get('number')
+                if label is not None:
+                    # 黑胶按面编号（A1、B2）；CD 的数字编号不存，由 position 表示
+                    if not isinstance(label, str) or len(label.strip()) > 8: raise ValidationError('曲目资料格式不正确')
+                    if label.strip(): row['number'] = label.strip()
                 ms = track.get('lengthMs')
                 if ms is not None:
                     if type(ms) is not int or not 0 <= ms <= 86400000:

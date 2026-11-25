@@ -134,7 +134,7 @@ class GroupCdFrontTests(unittest.TestCase):
                 return {'images':[{'front':True,'approved':True,'thumbnails':{'500':'https://coverartarchive.org/release/vinyl-rel/v-500.jpg'}}]}
             raise AssertionError('unexpected '+url)
         with patch.object(s,'metadata',side_effect=meta):
-            u=s.group_cd_front('g' * 36)
+            u=s.group_medium_front('g' * 36)
             self.assertEqual(u,'https://coverartarchive.org/release/cd-rel/f-500.jpg')
     def test_falls_back_to_no_cd(self):
         from covers import CoverService
@@ -144,4 +144,4 @@ class GroupCdFrontTests(unittest.TestCase):
             if url.endswith('/release/r1'): return {'images':[]}
             raise AssertionError('unexpected '+url)
         with patch.object(s,'metadata',side_effect=meta):
-            self.assertIsNone(s.group_cd_front('g' * 36))
+            self.assertIsNone(s.group_medium_front('g' * 36))

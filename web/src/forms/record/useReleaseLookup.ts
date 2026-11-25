@@ -3,11 +3,11 @@
 import {useEffect, useRef, useState} from 'react';
 import {api} from '../../core/api';
 import {gs1Valid} from '../../core/lookup';
-import {releaseRegion} from '../../core/release-metadata';
+import {MEDIUM_FORMAT, recordMedium, type Medium} from '../../core/medium';
 import {SOURCE_LABEL, identityFromId, sourceOf} from '../../core/release-source';
-import type {AlbumRecord, ReleaseCandidate, ReleaseInfo} from '../../types';
+import type {AlbumRecord, ReleaseCandidate} from '../../types';
 import type {FormCtx} from './context';
-import {identityOf, failedSources, fillMissing, pickRelease} from './pickRelease';
+import {identityOf, failedSources, pickRelease, refreshRelease} from './pickRelease';
 import type {CoverSearch} from './useCoverSearch';
 
 export type LookupMode = 'barcode' | 'catalog';
@@ -20,6 +20,8 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
   const initialInfo = r?.releaseInfo ?? ctx.base.current.releaseInfo;
   const [barcode, setBarcode] = useState(initialInfo?.barcode || '');
   const [catalogNumber, setCatalogNumber] = useState(initialInfo?.catalogNumber || '');
+  // 介质：先选 CD / 黑胶 / 其他再查（D-053）；旧记录从已存的格式认出来，没写按 CD
+  const [medium, setMediumState] = useState<Medium>(recordMedium(initialInfo));
   const [mode, setModeState] = useState<LookupMode>(initialInfo?.catalogNumber && !initialInfo?.barcode ? 'catalog' : 'barcode');
   const [candidates, setCandidates] = useState<ReleaseCandidate[]>([]);
   const [busy, setBusy] = useState(false);
@@ -62,7 +64,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
   /** 统一的检索入口（按钮、回车、输入完整条码后的自动校验共用）；相同查询进行中时复用同一次请求。 */
   const search = (kind: LookupMode, raw: string): Promise<void> => {
     const value = raw.trim();
-    const key = kind + ':' + value;
+    const key = kind + ':' + medium + ':' + value;
     if (inflight.current?.key === key) return inflight.current.promise;
     const seq = ++sequence.current;
     abort.current?.abort();
@@ -84,7 +86,7 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
     const promise = (async () => {
       try {
         const result = await api<LookupResult>(kind === 'barcode' ? 'catalog/barcode' : 'catalog/number',
-          kind === 'barcode' ? {barcode: value} : {catalogNumber: value}, {signal: controller.signal});
+          kind === 'barcode' ? {barcode: value, medium} : {catalogNumber: value, medium}, {signal: controller.signal});
         if (!current()) return;
         const note = failedSources(result.sources);
         setCandidates(result.candidates);
@@ -157,7 +159,9 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
     reset(); verified.current = '';
     setVerification('verified'); setCandidates([]); setMiss(null);
     set({releaseInfo: {...v.releaseInfo, barcode: barcode.trim(), catalogNumber: catalogNumber.trim(),
-      ...identityFromId(''), manualRelease: '1', unofficial: unofficial ? '1' : ''},
+      ...identityFromId(''), manualRelease: '1', unofficial: unofficial ? '1' : '',
+      // 介质写进资料，之后从格式就能认回来（已有的格式只在介质对得上时保留）
+      format: recordMedium(v.releaseInfo) === medium && v.releaseInfo.format ? v.releaseInfo.format : MEDIUM_FORMAT[medium]},
       ...(manualRelease ? {} : {packaging: null})});
     setMessage(unofficial ? '非官方发行 · 请填写专辑名、艺人，版本说明里写明来源' : '手动录入 · 请填专辑名、艺人');
     dirty();
@@ -167,30 +171,22 @@ export function useReleaseLookup(ctx: FormCtx, cover: CoverSearch, r: AlbumRecor
   };
   const leaveManual = () => { // 退出手动录入回到查询，已填名称 / 艺人保留
     set({releaseInfo: {...v.releaseInfo, manualRelease: '', unofficial: ''}}); setMessage(''); dirty(); };
-  const refreshReleaseMetadata = async () => {
-    const id = v.releaseInfo.musicBrainzReleaseId;
-    if (!id) return;
-    setBusy(true); setMessage('补全资料中…');
-    try {
-      const result = await api<{releaseInfo: ReleaseInfo}>('release-details?id=' + encodeURIComponent(id));
-      if (!formRef.current?.isConnected || live.current.releaseInfo.musicBrainzReleaseId !== id) return;
-      const merged = fillMissing(live.current.releaseInfo, result.releaseInfo);
-      setBarcode(merged.barcode || '');
-      setCatalogNumber(merged.catalogNumber || '');
-      set({releaseInfo: merged, version: live.current.version || merged.packaging || '',
-        pressing: releaseRegion(merged.country, live.current.pressing)});
-      setMessage('已补全缺失资料，人工修改保持不变');
-      dirty();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error));
-    } finally { setBusy(false); }
+  const deps = {ctx, cover, sequence, verified, setBusy, setMessage, setBarcode, setCatalogNumber,
+    setCandidates, setVerification, medium};
+  const chooseRelease = (candidate: ReleaseCandidate) => pickRelease(candidate, deps);
+  const refreshReleaseMetadata = () => refreshRelease(deps);
+
+  /** 换介质：候选作废；已经查过（有候选或查不到）就在新介质生效后重查同一个号；手动录入时改写资料里的介质 */
+  const requery = useRef(false);
+  const setMedium = (next: Medium) => {
+    if (next === medium) return;
+    requery.current = !manualRelease && (candidates.length > 0 || miss === 'barcode' || miss === 'catalog');
+    reset(); setMediumState(next); setCandidates([]); setMiss(null); setMessage('');
+    if (manualRelease) { set({releaseInfo: {...live.current.releaseInfo, format: MEDIUM_FORMAT[next], media: []}}); dirty(); }
   };
+  useEffect(() => { if (requery.current) { requery.current = false; void lookup(); } }, [medium]);
 
-  const chooseRelease = (candidate: ReleaseCandidate) => pickRelease(candidate, {
-    ctx, cover, sequence, verified, setBusy, setMessage, setBarcode, setCatalogNumber,
-    setCandidates, setVerification});
-
-  return {mode, setMode, barcode, catalogNumber, candidates, busy, searching, message, miss,
+  return {medium, setMedium, mode, setMode, barcode, catalogNumber, candidates, busy, searching, message, miss,
     verification, manualRelease, identified, changeBarcode, changeCatalogNumber, lookup, cancelSearch,
     enterManually: () => markManual(false), leaveManual, setUnofficial, refreshReleaseMetadata, chooseRelease, setCatalogNumber, search};
 }

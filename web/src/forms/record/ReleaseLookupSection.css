@@ -1,4 +1,7 @@
-.lookup-label{display:block;margin-bottom:8px;font-size:13px;color:var(--muted);font-weight:600}
+.lookup-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.lookup-head .seg-medium{flex:none}
+.lookup-head .seg-medium button{padding:4px 12px}
+.lookup-label{display:block;font-size:13px;color:var(--muted);font-weight:600}
 .record-barcode-entry{min-width:0}
 .record-barcode-row{display:flex;gap:8px;min-width:0}
 /* 看起来是输入框，实为按钮：点它升起 FocusInput 层，抽屉里不聚焦任何输入，页面不会为键盘滚动 */

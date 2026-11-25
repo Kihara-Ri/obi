@@ -130,6 +130,8 @@ export interface ReleaseTrack {
   position: number;
   title: string;
   lengthMs?: number;
+  /** 黑胶按面的编号（A1、B2）；CD 不写 */
+  number?: string;
 }
 
 export interface ReleaseMedium {

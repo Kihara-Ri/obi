@@ -98,6 +98,27 @@ class SampleLibraryTests(unittest.TestCase):
         self.assertEqual((remain['status'], remain['releaseInfo']['format']), ('sold', ''))
         self.assertEqual(remain['releaseInfo']['media'][0]['format'], '12" Vinyl')
 
+    def test_vinyl_review_reuses_three_copies_with_sides(self):
+        from domain import medium_of
+        with tempfile.TemporaryDirectory() as folder:
+            ids = self.seed.seed_vinyl_review(folder)
+            self.seed.seed_vinyl_review(folder)   # 幂等
+            records = {r['id']: r for r in self.seed.open_store(folder).backup()['records']}
+        self.assertEqual(len(records), 21)
+        vinyl = {key: records[ids[key]] for key in self.seed.VINYL_REVIEW}
+        for key, r in vinyl.items():
+            self.assertEqual(medium_of(r['releaseInfo']['format']), 'vinyl', key)
+            self.assertEqual((r['version'], r.get('packaging')), ('', None), key)
+            self.assertTrue(r['releaseInfo']['catalogNumber'].startswith('DEMO-LP-'))
+        self.assertEqual(vinyl['avici']['releaseInfo']['format'], '7" Vinyl')
+        double = vinyl['mbdtf']
+        self.assertEqual((double['obi'], double['releaseInfo']['country']), ('带侧标', 'JP'))
+        self.assertEqual([[t['number'] for t in m['tracks']] for m in double['releaseInfo']['media']],
+                         [['A1', 'A2', 'B1'], ['C1', 'D1', 'D2']])
+        # 其余副本仍是 CD（没写介质按 CD）
+        others = [r for r in records.values() if r['id'] not in {ids[k] for k in vinyl}]
+        self.assertTrue(all(medium_of((r.get('releaseInfo') or {}).get('format')) in ('', 'cd') for r in others))
+
     def test_rate_review_uses_existing_copy_and_explicitly_prepares_missing_quote(self):
         with tempfile.TemporaryDirectory() as folder:
             ids = self.seed.seed_rate_review(folder)

@@ -1,4 +1,4 @@
-"""MusicBrainz 发行版目录：按条码 / 唱片编号检索 CD 发行版本，读取发行版详情；运行时仅使用标准库。
+"""MusicBrainz 发行版目录：按条码 / 唱片编号检索所选介质（CD / 黑胶 / 其他，D-053）的发行版本，读取发行版详情；运行时仅使用标准库。
 
 照片识别与视觉模型已移除（数字实体的生成交给 Album Engine 项目）。"""
 import json
@@ -9,7 +9,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 
-from domain import ValidationError, clean_release_info
+from domain import ValidationError, clean_release_info, medium_accepts
 
 
 def barcode_twin(digits):
@@ -84,11 +84,11 @@ class ReleaseCatalog:
         return read_json(url)
 
     @staticmethod
-    def candidate(r, barcode='', catno=''):
-        """MusicBrainz release JSON → 候选（非 CD 或编号异常返回 None）。"""
+    def candidate(r, barcode='', catno='', medium='cd'):
+        """MusicBrainz release JSON → 候选（没有所选介质或编号异常返回 None）。"""
         if not re.fullmatch(r'[0-9a-f-]{36}', str(r.get('id',''))): return None
         media = r.get('media',[])
-        if not any('CD' in str(m.get('format','')) for m in media): return None
+        if not medium_accepts(medium, [str(m.get('format') or '') for m in media]): return None
         labels = r.get('label-info',[])
         numbers = [l.get('catalog-number','') for l in labels if l.get('catalog-number')]
         digits = lambda s: re.sub(r'\D','',s)
@@ -106,7 +106,7 @@ class ReleaseCatalog:
             'artist':''.join(a.get('name','') + a.get('joinphrase','') for a in r.get('artist-credit',[]) if isinstance(a,dict)),
             'releaseInfo':ri,'identifierMatch':matched,'url':'https://musicbrainz.org/release/' + r['id']}
 
-    def catalog(self, fields):
+    def catalog(self, fields, medium='cd'):
         info = fields['releaseInfo']; barcode = info.get('barcode',''); catno = info.get('catalogNumber','')
         quote = lambda s:'"' + re.sub(r'([\\"+\-!():^\[\]{}~*?|&/])',r'\\\1',s) + '"'
         if barcode:
@@ -117,35 +117,49 @@ class ReleaseCatalog:
         elif catno: query = 'catno:' + quote(catno)
         elif fields['title'] and fields['artist']: query = 'release:' + quote(fields['title']) + ' AND artist:' + quote(fields['artist'])
         else: return []
+        key = (query, medium)
         with self.catalog_lock:
-            if query in self.catalog_cache: return self.catalog_cache[query]
+            if key in self.catalog_cache: return self.catalog_cache[key]
             data = self._mb_json('https://musicbrainz.org/ws/2/release/?' + urlencode({'query':query,'fmt':'json','limit':15}))
-            candidates = [c for c in (self.candidate(r, barcode, catno) for r in data.get('releases',[])) if c]
+            candidates = [c for c in (self.candidate(r, barcode, catno, medium) for r in data.get('releases',[])) if c]
             result = sorted(candidates,key=lambda r:r['identifierMatch'],reverse=True)[:15]
             if len(self.catalog_cache)>=200: self.catalog_cache.clear()
-            self.catalog_cache[query] = result
+            self.catalog_cache[key] = result
             return result
 
-    def backups(self, barcode='', catno=''):
+    def backups(self, barcode='', catno='', medium='cd'):
         """MusicBrainz 之外要同时查的来源：[(来源名, 无参检索函数)]，由 routes.lookup_sources 并发执行。
         条码查 Discogs、Deezer、iTunes：它们都按登记原样精确索引，12 位 UPC-A 与补零的 13 位 EAN 查不到对方，
         所以原样查不到时再用另一种写法查一次（扫码枪 / 手机常把美国盘的 UPC-A 读成补零的 EAN-13）。
-        编号查 Discogs、NDL（Deezer / iTunes 没有编号索引，NDL 不登记条码）。未配置的来源不列出。"""
+        编号查 Discogs、NDL（Deezer / iTunes 没有编号索引，NDL 不登记条码）。未配置的来源不列出。
+        Deezer / iTunes 是数字版目录（日本 CD 的 JAN 与数字版同码），NDL 只收 CD：这三个只在查 CD 时参与。"""
+        cd_only = medium == 'cd'
         if barcode:
             forms = [f for f in (barcode, barcode_twin(re.sub(r'\D', '', barcode))) if f]
             def first_hit(client):
                 for form in forms:
-                    found = client.search(barcode=form)
+                    found = client.search(barcode=form, medium=medium) if client is self.discogs else client.search(barcode=form)
                     if found: return found
                 return []
-            chain = [('discogs', self.discogs), ('deezer', self.deezer), ('itunes', self.itunes)]
+            chain = [('discogs', self.discogs)] + ([('deezer', self.deezer), ('itunes', self.itunes)] if cd_only else [])
             return [(name, lambda c=client: first_hit(c)) for name, client in chain if client]
         if catno:
-            chain = [('discogs', self.discogs), ('ndl', self.ndl)]
-            return [(name, lambda c=client: c.search(catno=catno)) for name, client in chain if client]
+            jobs = [('discogs', lambda: self.discogs.search(catno=catno, medium=medium))] if self.discogs else []
+            if cd_only and self.ndl: jobs.append(('ndl', lambda: self.ndl.search(catno=catno)))
+            return jobs
         return []
 
-    def release_details(self, ident):
+    def release_details(self, ident, medium=None):
+        """发行版详情；带 medium 时核对这一版有没有所选介质（选用候选时），不带则只取资料（保存核对条码等）。"""
+        info = self._details(ident)
+        # Deezer / iTunes 不给介质：不知道就不拦（它们只在查 CD 时出现）
+        formats = [f for f in [str(m.get('format') or '') for m in info.get('media') or []] + [info.get('format') or ''] if f]
+        if medium and formats and not medium_accepts(medium, formats):
+            raise ValidationError({'cd': '这一发行版本没有 CD 介质，请选择正确版本',
+                                   'vinyl': '这一发行版本没有黑胶介质，请选择正确版本'}.get(medium, '发行版本介质不符'))
+        return info
+
+    def _details(self, ident):
         if isinstance(ident,str) and ident.startswith('discogs-'):
             if not self.discogs: raise ValidationError('备用发行资料来源未启用')
             return self.discogs.release_details(ident)
@@ -164,7 +178,6 @@ class ReleaseCatalog:
             if ident in self.release_cache: return self.release_cache[ident]
             r=self._mb_json('https://musicbrainz.org/ws/2/release/'+ident+'?'+urlencode({'fmt':'json','inc':'artist-credits+labels+recordings'}))
             media=r.get('media',[])
-            if not any('CD' in str(m.get('format','')) for m in media): raise ValidationError('这一发行版本没有 CD 介质，请选择正确版本')
             labels=r.get('label-info',[])
             tracks, discs = [], []
             for i, disc in enumerate(media):
@@ -178,6 +191,8 @@ class ReleaseCatalog:
                     if 'position' not in track and str(track.get('number', '')).isdigit():
                         track_position = int(track['number'])
                     row = {'position': track_position, 'title': name[:500]}
+                    label = str(track.get('number') or '').strip()
+                    if label and not label.isdigit() and len(label) <= 8: row['number'] = label   # 黑胶的 A1 / B2
                     length = track.get('length')
                     if type(length) is not int: length = (track.get('recording') or {}).get('length')
                     if type(length) is int and 0 <= length <= 86400000: row['lengthMs'] = length

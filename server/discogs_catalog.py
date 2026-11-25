@@ -10,7 +10,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-from domain import ValidationError, clean_release_info
+from domain import ValidationError, clean_release_info, medium_accepts, medium_of
 
 API_HOST = 'api.discogs.com'
 USER_AGENT = 'Obi/2.4 (personal CD catalog; local instance)'
@@ -18,6 +18,15 @@ IDENT = re.compile(r'discogs-([1-9][0-9]{0,9})')
 COUNTRIES = {'Japan': 'JP', 'USA': 'US', 'UK': 'GB', 'Germany': 'DE', 'France': 'FR', 'Canada': 'CA',
              'Australia': 'AU', 'Netherlands': 'NL', 'Italy': 'IT', 'Spain': 'ES', 'Korea': 'KR',
              'South Korea': 'KR', 'China': 'CN', 'Taiwan': 'TW', 'Hong Kong': 'HK', 'Europe': 'XE'}
+
+
+def _format_name(f):
+    """Discogs 格式 → 显示名：黑胶带上尺寸（12" Vinyl），其余用原名（CD、Cassette）。"""
+    name = str(f.get('name') or '')
+    if name == 'Vinyl':
+        size = next((d for d in f.get('descriptions') or [] if d in ('7"', '10"', '12"')), '')
+        return f'{size} Vinyl'.strip()
+    return name
 
 
 class _NoRedirect(HTTPRedirectHandler):
@@ -87,17 +96,18 @@ class DiscogsCatalog:
         if not isinstance(data, dict): raise ValidationError('Discogs 没有返回有效数据')
         return data
 
-    def search(self, barcode='', catno=''):
-        """按条码或唱片编号精确检索 CD；返回与 MusicBrainz 同形的候选，不做标题猜测。"""
+    def search(self, barcode='', catno='', medium='cd'):
+        """按条码或唱片编号精确检索所选介质（D-053）；返回与 MusicBrainz 同形的候选，不做标题猜测。"""
         if not (barcode or catno): return []
-        key = ('b', barcode) if barcode else ('c', _norm(catno))
+        key = ('b', barcode, medium) if barcode else ('c', _norm(catno), medium)
         if key in self.cache: return self.cache[key]
         params = {'type': 'release', 'per_page': 15}
         params['barcode' if barcode else 'catno'] = barcode or catno
         out = []
         for item in self._get('database/search', params).get('results', []):
             if not isinstance(item, dict) or type(item.get('id')) is not int or item.get('type') != 'release': continue
-            if 'CD' not in [str(f) for f in item.get('format', []) if isinstance(f, str)]: continue
+            formats = [str(f) for f in item.get('format', []) if isinstance(f, str)]
+            if not medium_accepts(medium, formats): continue
             codes = item.get('barcode') if isinstance(item.get('barcode'), list) else []
             matched = (bool(barcode) and any(_digits(c) == _digits(barcode) for c in codes)) if barcode \
                 else _norm(item.get('catno')) == _norm(catno)
@@ -111,7 +121,8 @@ class DiscogsCatalog:
                 'label': labels[0] if labels else '', 'country': COUNTRIES.get(str(item.get('country', '')), str(item.get('country', ''))),
                 'releaseDate': str(item.get('year') or ''), 'edition': ', '.join(
                     str(f) for f in item.get('format', []) if f in ('Limited Edition', 'Reissue', 'Remastered', 'Promo')),
-                'format': 'CD', 'discCount': str(item.get('format_quantity') or ''),
+                'format': next((f for f in formats if medium_of(f) == medium), formats[0] if formats else ''),
+                'discCount': str(item.get('format_quantity') or ''),
                 'discogsReleaseId': str(item['id'])})
             out.append({'id': f"discogs-{item['id']}", 'source': 'discogs', 'title': (title or artist).strip(),
                         'artist': _artist(artist) if title else '', 'releaseInfo': info, 'identifierMatch': True,
@@ -124,17 +135,21 @@ class DiscogsCatalog:
         match = IDENT.fullmatch(ident) if isinstance(ident, str) else None
         if not match: raise ValidationError('发行版本编号不正确')
         data = self._get('releases/' + match[1])
-        if not any(isinstance(f, dict) and f.get('name') == 'CD' for f in data.get('formats', [])):
-            raise ValidationError('这一发行版本没有 CD 介质，请选择正确版本')
+        # 介质核对在 ReleaseCatalog.release_details（按所选介质）；这里如实给出格式
+        names = [_format_name(f) for f in data.get('formats', []) if isinstance(f, dict) and f.get('name')]
         labels = [l for l in data.get('labels', []) if isinstance(l, dict)]
         codes = [_digits(i.get('value')) for i in data.get('identifiers', [])
                  if isinstance(i, dict) and i.get('type') == 'Barcode' and _digits(i.get('value'))]
         discs, tracks = {}, []
         for track in data.get('tracklist', []):
             if not isinstance(track, dict) or track.get('type_', 'track') != 'track' or not str(track.get('title', '')).strip(): continue
-            pos = re.match(r'(?:CD)?(\d+)[-.](\d+)$', str(track.get('position', '')).strip(), re.I)
-            disc, number = (int(pos[1]), int(pos[2])) if pos else (1, len(discs.get(1, [])) + 1)
+            raw = str(track.get('position', '')).strip()
+            pos = re.match(r'(?:CD)?(\d+)[-.](\d+)$', raw, re.I)
+            side = re.fullmatch(r'([A-Z])(\d{0,3})', raw)   # 黑胶按面编号：A1、B2、C（一面一首）；A/B 面是第 1 张，C/D 面第 2 张
+            disc = int(pos[1]) if pos else (ord(side[1]) - 65) // 2 + 1 if side else 1
+            number = int(pos[2]) if pos else len(discs.get(disc, [])) + 1
             row = {'position': number, 'title': str(track['title'])[:500]}
+            if side: row['number'] = raw
             if (ms := _seconds(track.get('duration'))) is not None: row['lengthMs'] = ms
             discs.setdefault(disc, []).append(row)
             if len(tracks) < 500: tracks.append(f"{disc}-{number} {row['title']}"[:500])
@@ -147,6 +162,6 @@ class DiscogsCatalog:
             'releaseDate': str(data.get('released') or data.get('year') or ''),
             'edition': ', '.join(d for d in descriptions if d in ('Limited Edition', 'Reissue', 'Remastered', 'Promo')),
             'packaging': _packaging(data.get('formats', [])),
-            'format': 'CD', 'discCount': str(max(quantity, len(discs) or 1)), 'tracklist': tracks,
-            'media': [{'position': n, 'format': 'CD', 'title': '', 'tracks': rows} for n, rows in sorted(discs.items())],
+            'format': ' + '.join(dict.fromkeys(names)), 'discCount': str(max(quantity, len(discs) or 1)), 'tracklist': tracks,
+            'media': [{'position': n, 'format': names[0] if names else '', 'title': '', 'tracks': rows} for n, rows in sorted(discs.items())],
             'discogsReleaseId': match[1]})

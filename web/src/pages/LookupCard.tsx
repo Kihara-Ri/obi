@@ -11,8 +11,8 @@ export function LookupCard({c, owned, tag, fallbackArt, confirming, onAdd}: {
   const app = useApp();
   return <ReleaseCandidateCard c={c} fold tag={tag} fallbackArt={fallbackArt}>{({load, busy}) => {
     const copy = async (ask: boolean) => {
-      const text = releaseText(c, await load(), owned);
-      app.toast(await copyText(ask ? askText(text) : text) ? (ask ? '已复制，连同提问' : '资料已复制') : '复制失败，请手动选择文字', 'warn');
+      const info = await load(), text = releaseText(c, info, owned);
+      app.toast(await copyText(ask ? askText(text, info) : text) ? (ask ? '已复制，连同提问' : '资料已复制') : '复制失败，请手动选择文字', 'warn');
     };
     return <>
       <div className="rcc-actions">

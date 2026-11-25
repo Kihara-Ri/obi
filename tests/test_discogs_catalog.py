@@ -68,9 +68,18 @@ class DiscogsCatalogTests(unittest.TestCase):
             service, _ = catalog(dict(RELEASE, formats=formats))
             self.assertEqual(service.release_details('discogs-7714607')['packaging'], expected)
 
-    def test_non_cd_release_rejected(self):
-        service, _ = catalog(dict(RELEASE, formats=[{'name': 'Vinyl'}]))
-        with self.assertRaises(ValidationError): service.release_details('discogs-7714607')
+    def test_vinyl_release_reports_size_and_sides_and_is_checked_by_medium(self):
+        tracks = [{'position': 'A1', 'title': 'One'}, {'position': 'A2', 'title': 'Two'}, {'position': 'B1', 'title': 'Three'},
+                  {'position': 'C1', 'title': 'Four'}]
+        vinyl = dict(RELEASE, formats=[{'name': 'Vinyl', 'qty': '2', 'descriptions': ['LP', '12"']}], tracklist=tracks)
+        info = catalog(vinyl)[0].release_details('discogs-7714607')
+        self.assertEqual(info['format'], '12" Vinyl')
+        self.assertEqual([[(t['position'], t.get('number')) for t in d['tracks']] for d in info['media']],
+                         [[(1, 'A1'), (2, 'A2'), (3, 'B1')], [(1, 'C1')]])
+        from server.release_catalog import ReleaseCatalog
+        self.assertEqual(ReleaseCatalog(discogs=catalog(vinyl)[0]).release_details('discogs-7714607', 'vinyl')['format'], '12" Vinyl')
+        with self.assertRaisesRegex(ValidationError, 'CD'):
+            ReleaseCatalog(discogs=catalog(vinyl)[0]).release_details('discogs-7714607', 'cd')
 
     def test_rate_limit_enters_cooldown_without_more_requests(self):
         service, opener = catalog(429)

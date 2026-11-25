@@ -13,7 +13,7 @@ import re
 import threading
 from urllib.parse import parse_qs, urlsplit
 
-from domain import ValidationError, clean_start_page
+from domain import ValidationError, clean_medium, clean_start_page
 from photo_uploads import MAX_BYTES, stage
 from storage import SCHEMA, metadata_update
 from . import archive, export_csv
@@ -215,7 +215,8 @@ def api_covers_search(h, svc, body):
 
 def api_covers_fallback(h, svc, body):
     """版本自己没有封面时的退路：同一张专辑的封面 → 同名 iTunes 数字封面（covers.fallback）。"""
-    h.send({'candidate': svc.covers.fallback(body.get('title', ''), body.get('artist', ''), body.get('releaseId'))})
+    h.send({'candidate': svc.covers.fallback(body.get('title', ''), body.get('artist', ''), body.get('releaseId'),
+                                             clean_medium(body.get('medium')))})
 
 
 def api_covers_download(h, svc, body):
@@ -393,11 +394,13 @@ def release_identity(info):
     return ''
 
 
-def api_release(h, svc): h.send({'releaseInfo':releases(svc).release_details(query(h).get('id'))})
+def api_release(h, svc):
+    q = query(h)
+    h.send({'releaseInfo': releases(svc).release_details(q.get('id'), clean_medium(q.get('medium'), None))})
 LOOKUP_DEADLINE = 20.0   # 秒：并发检索的总时限，到点没答复的来源不再等
 
 
-def lookup_sources(svc, barcode, catno, exact, deadline=LOOKUP_DEADLINE):
+def lookup_sources(svc, barcode, catno, exact, deadline=LOOKUP_DEADLINE, medium='cd'):
     """同时查所有适用来源（条码：MusicBrainz / Discogs / Deezer / iTunes；编号：MusicBrainz / Discogs / NDL），总等待只取最慢的一个，
     且不超过 deadline 秒：到点仍没答复的来源记为超时、先返回已有结果；它的线程在后台跑完，结果进各来源缓存，下次直接命中。
     MusicBrainz 结果经 exact 精确过滤，其余来源本身只做精确匹配；再由 release_merge.merge 按条码 / 编号去重排序
@@ -407,7 +410,7 @@ def lookup_sources(svc, barcode, catno, exact, deadline=LOOKUP_DEADLINE):
     from .release_merge import merge
     catalog = releases(svc)
     jobs = [('musicbrainz', lambda: exact(catalog.catalog({'title': '', 'artist': '',
-            'releaseInfo': {'barcode': barcode, 'catalogNumber': catno}})))] + catalog.backups(barcode, catno)
+            'releaseInfo': {'barcode': barcode, 'catalogNumber': catno}}, medium)))] + catalog.backups(barcode, catno, medium)
     sources, found = {}, {}
     pool = ThreadPoolExecutor(max_workers=len(jobs))
     try:
@@ -432,13 +435,14 @@ def lookup_sources(svc, barcode, catno, exact, deadline=LOOKUP_DEADLINE):
 
 
 def api_barcode_lookup(h, svc, body):
-    """精确条形码检索 CD 发行版（MusicBrainz / Discogs / Deezer / iTunes 并发，合并去重），复用各来源的节流与缓存。"""
+    """精确条形码检索所选介质的发行版（MusicBrainz / Discogs，查 CD 时再加 Deezer / iTunes；并发，合并去重），复用各来源的节流与缓存。"""
     barcode = body.get('barcode', '')
     from twins import clean_barcode
     barcode = clean_barcode(barcode)
     if not barcode: raise ValidationError('请输入完整的条形码')
     candidates, sources = lookup_sources(svc, barcode, '', lambda found: [c for c in found if c['identifierMatch']
-        and re.sub(r'\D', '', c['releaseInfo'].get('barcode', '')).lstrip('0') == barcode.lstrip('0')])
+        and re.sub(r'\D', '', c['releaseInfo'].get('barcode', '')).lstrip('0') == barcode.lstrip('0')],
+        medium=clean_medium(body.get('medium')))
     h.send({'barcode': barcode, 'candidates': candidates, 'sources': sources})
 
 
@@ -489,7 +493,8 @@ def api_catalog_number_lookup(h, svc, body):
     # A release may have multiple labels; compare each independently.
     candidates, sources = lookup_sources(svc, '', number, lambda found: [item for item in found
         if any(normalized(part) == normalized(number)
-               for part in item.get('releaseInfo', {}).get('catalogNumber', '').split(' / '))])
+               for part in item.get('releaseInfo', {}).get('catalogNumber', '').split(' / '))],
+        medium=clean_medium(body.get('medium')))
     exact = candidates
     h.send({'catalogNumber': number, 'candidates': exact, 'sources': sources})
 
@@ -506,11 +511,12 @@ def api_album_search(h, svc, body):
 
 
 def api_album_versions(h, svc, body):
-    """展开一张专辑：列出它的 CD 版本（与条码检索同形的候选）；带上专辑名 / 艺人时并入 Discogs 同一张专辑的版本。"""
+    """展开一张专辑：列出它所选介质的版本（与条码检索同形的候选）；带上专辑名 / 艺人时并入 Discogs 同一张专辑的版本。"""
     from server.text_search import group_versions
     title, artist = body.get('title', ''), body.get('artist', '')
     if not isinstance(title, str) or not isinstance(artist, str) or len(title) > 200 or len(artist) > 200: title = artist = ''
-    h.send({'candidates': group_versions(releases(svc), body.get('id', ''), title.strip(), artist.strip())})
+    h.send({'candidates': group_versions(releases(svc), body.get('id', ''), title.strip(), artist.strip(),
+                                         clean_medium(body.get('medium')))})
 
 
 def catalog_art(svc):

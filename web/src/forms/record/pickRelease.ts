@@ -3,6 +3,7 @@ import type {Dispatch, MutableRefObject, SetStateAction} from 'react';
 import {api} from '../../core/api';
 import {displayReleaseTitle, releaseRegion} from '../../core/release-metadata';
 import {SOURCE_LABEL, identityFromCandidate, identityOf} from '../../core/release-source';
+import type {Medium} from '../../core/medium';
 import type {ReleaseCandidate, ReleaseInfo} from '../../types';
 import type {FormCtx} from './context';
 import {matchReleaseCover} from './releaseCover';
@@ -35,6 +36,8 @@ export interface PickDeps {
   setMessage: Dispatch<SetStateAction<string>>; setBarcode: Dispatch<SetStateAction<string>>;
   setCatalogNumber: Dispatch<SetStateAction<string>>; setCandidates: Dispatch<SetStateAction<ReleaseCandidate[]>>;
   setVerification: Dispatch<SetStateAction<'verified' | 'pending' | 'failed'>>;
+  /** 所选介质：服务端核对这一版确实有这种介质 */
+  medium: Medium;
 }
 
 export async function pickRelease(candidate: ReleaseCandidate, d: PickDeps) {
@@ -52,7 +55,7 @@ export async function pickRelease(candidate: ReleaseCandidate, d: PickDeps) {
   let releaseInfo: ReleaseInfo = {...candidate.releaseInfo, ...identity};
   let detailUnavailable = false;
   try {
-    const detail = await api<{releaseInfo: ReleaseInfo}>('release-details?id=' + encodeURIComponent(candidate.id));
+    const detail = await api<{releaseInfo: ReleaseInfo}>('release-details?id=' + encodeURIComponent(candidate.id) + '&medium=' + d.medium);
     releaseInfo = {...releaseInfo, ...detail.releaseInfo, ...identity};
   } catch { detailUnavailable = true; } // 曲目请求失败时保留精确匹配的基本资料。
   if (!current()) return;
@@ -71,6 +74,27 @@ export async function pickRelease(candidate: ReleaseCandidate, d: PickDeps) {
   if (!coverTask) cover.setCoverStatus('保留现有封面');
   else if (!await applyCover(coverTask, ctx, cover, current)) return;
   dirty();
+}
+
+/** 旧记录「从 MusicBrainz 补全缺失发行资料」：只补空字段，人工修改保持不变；不核对介质（资料已是这一版的）。 */
+export async function refreshRelease(d: PickDeps) {
+  const {v, set, live, dirty, formRef} = d.ctx;
+  const id = v.releaseInfo.musicBrainzReleaseId;
+  if (!id) return;
+  d.setBusy(true); d.setMessage('补全资料中…');
+  try {
+    const result = await api<{releaseInfo: ReleaseInfo}>('release-details?id=' + encodeURIComponent(id));
+    if (!formRef.current?.isConnected || live.current.releaseInfo.musicBrainzReleaseId !== id) return;
+    const merged = fillMissing(live.current.releaseInfo, result.releaseInfo);
+    d.setBarcode(merged.barcode || '');
+    d.setCatalogNumber(merged.catalogNumber || '');
+    set({releaseInfo: merged, version: live.current.version || merged.packaging || '',
+      pressing: releaseRegion(merged.country, live.current.pressing)});
+    d.setMessage('已补全缺失资料，人工修改保持不变');
+    dirty();
+  } catch (error) {
+    d.setMessage(error instanceof Error ? error.message : String(error));
+  } finally { d.setBusy(false); }
 }
 
 /** 把自动匹配到的封面写进表单：只有找到新封面才写入，没找到时保持无封面，不会动任何已有封面。

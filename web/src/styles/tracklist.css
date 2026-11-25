@@ -19,7 +19,7 @@
 .record-track-rows{margin:0;padding:4px 12px 6px;list-style:none;min-width:0}
 .record-track-row{display:flex;align-items:baseline;min-height:34px;gap:12px;padding:7px 2px;border-bottom:1px solid var(--hairline);font-size:12.5px;line-height:1.55}
 .record-track-row:last-child{border-bottom:0}
-.record-track-number{flex:none;width:22px;text-align:right;color:var(--faint);font-size:11px;font-variant-numeric:tabular-nums}
+.record-track-number{flex:none;min-width:22px;text-align:right;color:var(--faint);font-size:11px;font-variant-numeric:tabular-nums}
 .record-track-title{flex:1;min-width:0;color:var(--text);overflow-wrap:anywhere}
 .record-track-duration{flex:none;min-width:35px;color:var(--muted);font-size:11px;text-align:right;font-variant-numeric:tabular-nums}
 .record-track-single{border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);overflow:hidden}

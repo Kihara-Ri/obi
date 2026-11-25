@@ -95,7 +95,7 @@ class ItunesCatalogTests(unittest.TestCase):
 
 class Source:
     def __init__(self, result=None, error=None): self.result, self.error, self.calls = result or [], error, []
-    def search(self, barcode='', catno=''):
+    def search(self, barcode='', catno='', medium='cd'):
         self.calls.append((barcode, catno))
         if self.error: raise ValidationError(self.error)
         return self.result
@@ -113,7 +113,7 @@ class BackupSourcesTests(unittest.TestCase):
     def test_scanned_ean13_with_leading_zero_retries_as_upc_a(self):
         # Pink Floyd「Meddle」美国盘：Discogs 只登记 12 位 603497914999，手机扫出的是 0603497914999
         class Exact(Source):
-            def search(self, barcode='', catno=''):
+            def search(self, barcode='', catno='', medium='cd'):
                 self.calls.append((barcode, catno))
                 return [{'id': 'discogs-1'}] if barcode == '603497914999' else []
         discogs = Exact()

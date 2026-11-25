@@ -37,11 +37,11 @@ class ReleaseMetadataTests(unittest.TestCase):
                                   'releaseInfo': {'catalogNumber': name}}
         svc = SimpleNamespace(releases=SimpleNamespace(catalog=Mock(return_value=[
             candidate('AMCY-2434'), candidate('AMCY-243'), candidate('OTHER-13')]),
-            backups=lambda barcode, catno: []))
+            backups=lambda barcode, catno, medium='cd': []))
         api_catalog_number_lookup(http, svc, {'catalogNumber':'AMCY-2434'})
         result = http.send.call_args.args[0]
         self.assertEqual([c['id'] for c in result['candidates']], ['AMCY-2434'])
         svc.releases.catalog.assert_called_once_with({
-            'title':'', 'artist':'', 'releaseInfo':{'barcode':'','catalogNumber':'AMCY-2434'}})
+            'title':'', 'artist':'', 'releaseInfo':{'barcode':'','catalogNumber':'AMCY-2434'}}, 'cd')
         with self.assertRaises(ValidationError):
             api_catalog_number_lookup(http, svc, {'catalogNumber':'*'})
