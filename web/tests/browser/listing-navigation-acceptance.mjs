@@ -88,6 +88,7 @@ async function verifyMobile(context, filename, colorScheme) {
   await page.getByRole('button', {name: '卡片视图'}).tap();
   assert.deepEqual(await order(), [older.id, newer.id]);
   await page.getByRole('button', {name: '列表视图'}).tap();
+  assert.equal(await page.locator(`article[data-id="${older.id}"] .am-pkg`).textContent(), '标准塑料盒', '库存列表显示包装名称');
   await filter.getByRole('button', {name: '全部专辑', exact: true}).tap();
   assert.match(await sort.textContent(), /最近买入/u);
   await filter.getByRole('button', {name: '已上架', exact: true}).tap();

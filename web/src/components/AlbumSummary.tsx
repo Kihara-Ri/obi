@@ -6,7 +6,7 @@ import {ArtistButton} from './ArtistButton';
 import {Cover} from './Cover';
 import {PackagingIcon} from './PackagingIcon';
 
-export function AlbumSummary({r, onDetail, onArtist, money, actions, coverOverlay, metadata}: {
+export function AlbumSummary({r, onDetail, onArtist, money, actions, coverOverlay, metadata, packagingIconOnly = false}: {
   r: AlbumRecord;
   onDetail: () => void;
   onArtist?: (artist: string) => void;
@@ -14,6 +14,7 @@ export function AlbumSummary({r, onDetail, onArtist, money, actions, coverOverla
   actions?: ReactNode;
   coverOverlay?: ReactNode;
   metadata?: ReactNode;
+  packagingIconOnly?: boolean;
 }) {
   const {region, details, packaging} = metaTokens(r);
   const version = [region, ...details, packaging?.name].filter(Boolean).join(' · ');
@@ -28,11 +29,13 @@ export function AlbumSummary({r, onDetail, onArtist, money, actions, coverOverla
       <div className="album-info">
         <button type="button" className="album-title" title={r.title} onClick={onDetail}><span>{r.title}</span></button>
         {version || metadata ? <div className="album-meta">
-          {version ? <div className="album-version" title={version}>
+          {version ? <div className={packagingIconOnly ? 'album-version packaging-icon-only' : 'album-version'} title={version}>
             {region ? <b className="am-region">{region}</b> : null}
             {details.map(d => <span key={d}>{d}</span>)}
-            {packaging ? <span className="am-pkg" role="img" aria-label={packaging.name}>
+            {packaging ? <span className="am-pkg" role={packagingIconOnly ? 'img' : undefined}
+              aria-label={packagingIconOnly ? packaging.name : undefined}>
               <PackagingIcon kind={packaging.kind} height={13}/>
+              {packagingIconOnly ? null : packaging.name}
             </span> : null}
           </div> : null}
           {metadata}

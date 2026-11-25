@@ -74,7 +74,7 @@ export function SaleCard({s, onArtist, onEditCosts}: {s: Sale; onArtist: (artist
           const r = app.rec(i.recordId);
           if (!r) return null;
           return (
-            <AlbumSummary key={i.recordId} r={r} onDetail={() => openDetail(app, r.id)} onArtist={onArtist} money={<>
+            <AlbumSummary key={i.recordId} r={r} onDetail={() => openDetail(app, r.id)} onArtist={onArtist} packagingIconOnly={shipping} money={<>
               {app.modules.acquisition ? <small>{r.cost === null ? '成本待补' : `成本 ${yuan(r.cost)}`}</small> : null}
               <div className="album-money-main">
                 <small>{shipping ? '预计到手' : '到手'}</small>

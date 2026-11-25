@@ -14,7 +14,8 @@
 /* 元信息两层：地区（美国 / 日本…）用正文色加粗，侧标与包装用次要色，之间用中点分隔 */
 .album-version .am-region{color:var(--text);font-weight:600}
 .album-version>span:not(:first-child)::before,.album-version .am-region+span::before{content:' · '}
-.album-version .am-pkg svg{display:inline-block;vertical-align:-2px;color:var(--faint)}
+.album-version .am-pkg svg{display:inline-block;vertical-align:-2px;margin-right:3px;color:var(--faint)}
+.album-version.packaging-icon-only .am-pkg svg{margin-right:0}
 .album-artist{grid-area:artist;min-width:0;max-width:280px;border-left:1px solid var(--border);padding-left:14px}
 .album-artist .artist-entry{margin:0;padding:0;border:0}
 .album-artist .artist-button>span:first-child{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -37,8 +38,8 @@
   .album-info{display:contents}
   .album-title{grid-area:title;align-self:end}
   .album-meta{grid-area:meta;margin-top:2px}
-  .album-version{white-space:normal;overflow:visible}
-  .album-version>*{display:inline-block;white-space:nowrap}
+  .album-version.packaging-icon-only{white-space:normal;overflow:visible}
+  .album-version.packaging-icon-only>*{display:inline-block;white-space:nowrap}
   .album-artist{max-width:none;border:0;padding:0}
   .album-artist .artist-entry-label{display:none}
   .album-artist .artist-button{font-size:13px;min-height:24px}

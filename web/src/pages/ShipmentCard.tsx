@@ -40,7 +40,7 @@ export function ShipmentCard({s, arrived, onArtist}: {s: Shipment; arrived: bool
       <ShipmentStack records={recs}>
         <div className="shipment-items">
           {recs.map(r => (
-            <AlbumSummary key={r.id} r={r} onDetail={() => openDetail(app, r.id)} onArtist={onArtist}
+            <AlbumSummary key={r.id} r={r} onDetail={() => openDetail(app, r.id)} onArtist={onArtist} packagingIconOnly={!arrived}
               money={<><small>运费分摊</small><b>{shipFeeText(s.currency, feeOf.get(r.id)?.feeOriginal, feeOf.get(r.id)?.fee ?? '')}</b></>}/>
           ))}
         </div>
