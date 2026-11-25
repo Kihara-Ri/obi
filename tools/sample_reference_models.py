@@ -34,19 +34,20 @@ REFERENCE_MODELS = {
         ],
         'evidence': 'https://www.discogs.com/release/1130206',
     },
-    'loveless': {
-        'releaseId': 'cd32c6cf-f979-39e7-a4ec-157d3a560d06',
-        'packaging': {'structure': 'jewel', 'tray': 'black', 'discs': 1, 'finish': 'gloss'},
+    'spiderland': {
+        'releaseId': '35ff10b7-f69d-47e8-8921-79e0ffd2a51b',
+        'packaging': {'structure': 'jewel', 'tray': 'clear', 'discs': 1, 'finish': 'gloss'},
         'surfaces': {
-            'front': {'sourceId': 'caa:25797196285'},
-            'back': {'sourceId': 'discogs:127622:1', 'region': quad(.046, 0, .956, 1)},
-            'spine': {'sourceId': 'discogs:127622:1', 'region': quad(0, 0, .046, 1)},
-            'insideLeft': {'sourceId': 'discogs:127622:4'},
-            'disc': {'sourceId': 'discogs:127622:2'},
+            'front': {'sourceId': 'caa:5946312071'},
+            # Back inlay scan carries both spines; the left strip is the spine face.
+            'back': {'sourceId': 'caa:23507077901', 'region': quad(.044, 0, .956, 1)},
+            'spine': {'sourceId': 'caa:23507077901', 'region': quad(0, 0, .044, 1)},
+            'insideLeft': {'sourceId': 'caa:11175263150'},
+            'disc': {'sourceId': 'caa:11175262732'},
         },
-        'components': [{'id': 'reference-booklet', 'kind': 'booklet', 'sourceId': 'caa:25797196285',
-                        'back': {'sourceId': 'discogs:127622:4'}}],
-        'evidence': 'https://www.discogs.com/release/127622',
+        'components': [{'id': 'reference-booklet', 'kind': 'booklet', 'sourceId': 'caa:5946312071',
+                        'back': {'sourceId': 'caa:11175263150'}}],
+        'evidence': 'https://musicbrainz.org/release/35ff10b7-f69d-47e8-8921-79e0ffd2a51b',
     },
     'illinois': {
         'releaseId': '777d51fe-b7c7-4874-9217-40abf09b4924',

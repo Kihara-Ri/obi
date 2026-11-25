@@ -21,6 +21,8 @@ from vendor.album_data.contracts import image_type, clean_entity
 from vendor.album_data import compile_document
 
 LOCK = ROOT / 'tools/sample-bundle.json'
+# 2026-11-25.1：样本换成官网首屏封面墙的 30 张专辑（32 副本），Loveless 参考模型换成 Spiderland
+SAMPLE_VERSION = '2026-11-25.1'
 
 
 def digest(raw):
@@ -65,7 +67,7 @@ def refresh_contract(bundle, lock_path=LOCK):
     history = bundle / 'history'
     history.mkdir(exist_ok=True)
     (history / (digest(encoded(value)) + '.json')).write_bytes(encoded(value))
-    value['sampleVersion'] = '2026-10-17.1'
+    value['sampleVersion'] = SAMPLE_VERSION
     value['contract'] = contract()
     raw = encoded(value)
     Path(lock_path).write_bytes(raw)
@@ -133,7 +135,7 @@ def capture(data_dir, reference_cache, bundle, lock_path=LOCK):
         raise ValueError('请先准备完整的固定样本')
     ids = existing_ids(data_dir)
     records = {r['id']: r for r in open_store(data_dir).state()['records']}
-    manifest = {'schemaVersion': 1, 'sampleVersion': '2026-10-17.1',
+    manifest = {'schemaVersion': 1, 'sampleVersion': SAMPLE_VERSION,
                 'contract': contract(), 'assets': {}, 'covers': {}, 'references': {}}
     (bundle / 'assets').mkdir(parents=True, exist_ok=True)
 
@@ -365,5 +367,5 @@ def check(bundle, data_dir, lock_path=LOCK):
         models.append({'title': record['title'], 'recordId': record['id'], 'jobId': job['id'], 'assets': assets})
     cover_assets = [{'recordId':ids[key], 'url':records[ids[key]]['cover'], 'sha256':cover['asset']}
                     for key, cover in manifest['covers'].items()]
-    return {**marker, 'copies': len(ids), 'covers': len(ids), 'galleryCount': 16,
+    return {**marker, 'copies': len(ids), 'covers': len(ids), 'galleryCount': 27,
             'coverAssets':cover_assets, 'models': models}

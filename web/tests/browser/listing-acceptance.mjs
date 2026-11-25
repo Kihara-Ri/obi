@@ -39,7 +39,7 @@ try {
   assert.equal(await photos.locator('#panel').getByRole('button', {name: /编辑上架资料|AI 生成上架资料/u}).count(), 0);
 
   const listing = await openPage('domestic');
-  await listing.getByRole('button', {name: 'Parachutes', exact: true}).click();
+  await listing.getByRole('button', {name: 'Wish You Were Here', exact: true}).click();
   await manage(listing);
   const panel = listing.locator('.detail-page');
   const website = panel.getByRole('link', {name: '打开商品页面 ↗', exact: true});
@@ -60,7 +60,7 @@ try {
   await listing.screenshot({path: join(output, 'listing-website.png')});
 
   const unlisted = await openPage('domestic');
-  await unlisted.getByRole('button', {name: 'Minecraft: Volume Alpha', exact: true}).click();
+  await unlisted.getByRole('button', {name: 'Minecraft - Volume Alpha', exact: true}).click();
   await manage(unlisted);
   const unlistedSection = unlisted.locator('.detail-page');
   await unlistedSection.getByRole('heading', {name: '上架', exact: true}).waitFor();
@@ -73,7 +73,7 @@ try {
   await unlisted.screenshot({path: join(output, 'listing-unlisted.png')});
 
   const latestCopy = async () => (await (await fetch(base + '/api/state')).json()).records
-    .find(r => r.title === 'Minecraft: Volume Alpha');
+    .find(r => r.title === 'Minecraft - Volume Alpha');
   await unlisted.getByRole('button', {name: '返回专辑详情', exact: true}).click();
   await unlisted.getByRole('button', {name: '上架', exact: true}).click();
   await unlisted.getByRole('heading', {name: '标记上架', exact: true}).waitFor();
@@ -87,7 +87,7 @@ try {
   const marked = await latestCopy();
   assert.deepEqual([marked.listed, marked.listingChannel, marked.listingUrl], [true, '闲鱼', itemUrl]);
 
-  await unlisted.getByRole('button', {name: 'Minecraft: Volume Alpha', exact: true}).click();
+  await unlisted.getByRole('button', {name: 'Minecraft - Volume Alpha', exact: true}).click();
   await manage(unlisted);
   await unlistedSection.getByRole('button', {name: '编辑上架信息', exact: true}).click();
   await unlisted.getByRole('heading', {name: '编辑上架信息', exact: true}).waitFor();

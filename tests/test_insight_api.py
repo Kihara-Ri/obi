@@ -124,7 +124,7 @@ class ModelTests(unittest.TestCase):
                  for d, p in ((5, 120), (8, 120), (400, 10), (420, 10))]
         rows = ranking(self.model(replace(self.ledger, sales=self.ledger.sales + extra)), 'artist', 'artist')
         top = rows[0]
-        self.assertEqual((top['artist'], top['format'], top['sold']), ('Sufjan Stevens', 'CD', 5))
+        self.assertEqual((top['artist'], top['format'], top['sold']), ('Sufjan Stevens', 'CD', 6))   # Illinois 外版 + Carrie & Lowell + 4 笔补充
         self.assertEqual(top['profitMedian'], '120.00')              # recent sales outweigh the old ones
         self.assertFalse(ranking(self.model(), 'artist', 'artist'))
 
@@ -172,11 +172,11 @@ class InsightHttpTests(unittest.TestCase):
                     [{**good, 'ref': str(i)} for i in range(51)]):
             self.assertEqual(self.request('/api/insight/evaluate', buyer, {'candidates': bad})[0], 400, bad[:1])
 
-        query = urlencode({'artist': 'Green Day', 'title': 'Dookie', 'price': '120', 'currency': 'CNY'})
+        query = urlencode({'artist': 'Pink Floyd', 'title': 'The Dark Side of the Moon', 'price': '120', 'currency': 'CNY'})
         status, data, _ = self.request('/api/insight/releases?' + query, buyer)
         self.assertEqual((status, data['ref'], data['match']['level']), (200, None, 'album'))
         self.assertEqual(data['owned'], {'held': 2, 'inTransit': 0})
-        self.assertEqual(self.request('/api/insight/releases?q=Dookie', buyer)[0], 400)
+        self.assertEqual(self.request('/api/insight/releases?q=Moon', buyer)[0], 400)
 
 
 if __name__ == '__main__':

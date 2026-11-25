@@ -138,14 +138,14 @@ class McpTests(unittest.TestCase):
 
     def test_read_tools_match_http(self):
         token = self.token('全部', *ALL)
-        candidates = [{'ref': 'a', 'artist': 'Green Day', 'title': 'Dookie', 'format': 'CD', 'price': '120',
+        candidates = [{'ref': 'a', 'artist': 'Pink Floyd', 'title': 'The Dark Side of the Moon', 'format': 'CD', 'price': '120',
                        'currency': 'CNY'}]
         result, data = self.call(token, 'evaluate_candidates', {'candidates': candidates})
         self.assertEqual(result['structuredContent'], data)
         http = json.loads(self.http('POST', '/api/insight/evaluate', {'candidates': candidates}, token)[1])
         self.assertEqual(data['results'], http['results'])
-        _, data = self.call(token, 'find_purchases', {'q': 'Dookie'})
-        http = json.loads(self.http('GET', '/api/collection/purchases?q=Dookie', token=token)[1])
+        _, data = self.call(token, 'find_purchases', {'q': 'Moon'})
+        http = json.loads(self.http('GET', '/api/collection/purchases?q=Moon', token=token)[1])
         self.assertEqual(data, http)
         _, profile = self.call(token, 'get_purchase_profile', {'halfLifeDays': 365})
         self.assertEqual(profile['weighting']['halfLifeDays'], 365)

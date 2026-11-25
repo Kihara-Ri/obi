@@ -65,10 +65,10 @@ class EngineRuntimeTests(unittest.TestCase):
         from unittest.mock import patch
         with tempfile.TemporaryDirectory() as directory:
             ids = seed(directory); store = open_store(directory)
-            record = next(r for r in store.state()['records'] if r['id'] == ids['dookie-jp'])
+            record = next(r for r in store.state()['records'] if r['id'] == ids['dsotm-jp'])
             store.save({'id':record['id'],'revision':record['revision'],
                         'releaseInfo':{'musicBrainzReleaseId':'11111111-1111-4111-8111-111111111111','barcode':''}})
-            record = next(r for r in store.state()['records'] if r['id'] == ids['dookie-jp'])
+            record = next(r for r in store.state()['records'] if r['id'] == ids['dsotm-jp'])
             job = store.start_twin({'recordId':record['id'],'recordRevision':record['revision'],'requestId':uid()})['job']
             claim = store.claim_twin('cancelled-runtime')
             store.cancel_twin(job['id'])

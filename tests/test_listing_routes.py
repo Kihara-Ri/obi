@@ -68,7 +68,7 @@ class ListingRouteTests(unittest.TestCase):
         return manifest, photos
 
     def test_token_is_read_only_and_retired_routes_are_absent(self):
-        search = PACKAGE + '?q=Dookie'
+        search = PACKAGE + '?q=Moon'
         self.assertEqual(self.request(search)[0], 401)
         self.assertEqual(self.request(search, browser=True)[0], 401)
         self.assertEqual(self.request(search, agent='wrong')[0], 401)
@@ -99,7 +99,7 @@ class ListingRouteTests(unittest.TestCase):
         self.assertTrue(listed['listed'])
         self.assertEqual((listed['listingChannel'], listed['listingUrl'], listed['xianyuItemId']),
                          ('闲鱼', entry['url'], '1006'))
-        self.store.bulk({'action': 'list', 'ids': [self.ids['dookie-jp']]})
+        self.store.bulk({'action': 'list', 'ids': [self.ids['dsotm-jp']]})
 
         data = {'mode': 'edit', 'entries': [{**entry, 'revision': listed['revision'],
                                           'channel': '示例二手平台', 'url': ''}]}
@@ -112,7 +112,7 @@ class ListingRouteTests(unittest.TestCase):
         self.assertEqual(self.request(DETAILS, data, browser=True)[0], 409)
 
     def test_batch_listing_rolls_back_conflict_and_saves_distinct_links(self):
-        copies = [self.ids['minecraft'], self.ids['dookie-jp']]
+        copies = [self.ids['minecraft'], self.ids['dsotm-jp']]
         def records():
             return {row['id']: row for row in self.store.state()['records'] if row['id'] in copies}
 
@@ -128,11 +128,11 @@ class ListingRouteTests(unittest.TestCase):
         self.assertTrue(all(r['listed'] for r in records().values()))
 
     def test_search_preserves_disambiguation_and_exact_catalog_numbers(self):
-        _, data, _ = self.request(PACKAGE + '?q=Green+Day+Dookie', agent=self.token)
+        _, data, _ = self.request(PACKAGE + '?q=Pink+Floyd+Moon', agent=self.token)
         self.assertEqual({row['id'] for row in json.loads(data)['copies']},
-                         {self.ids['dookie-jp'], self.ids['dookie-en']})
+                         {self.ids['dsotm-jp'], self.ids['dsotm-en']})
         _, data, _ = self.request(PACKAGE + '?by=catalogNumber&q=wpcr0001', agent=self.token)
-        self.assertEqual([r['id'] for r in json.loads(data)['copies']], [self.ids['dookie-jp']])
+        self.assertEqual([r['id'] for r in json.loads(data)['copies']], [self.ids['dsotm-jp']])
         _, data, _ = self.request(PACKAGE + '?by=catalogNumber&q=wpcr', agent=self.token)
         self.assertEqual(json.loads(data)['copies'], [])
         self.assertEqual(self.request(PACKAGE, agent=self.token)[0], 400)

@@ -12,11 +12,11 @@
 
 脱敏边界：样本骨架取自真实收藏的结构特征（日版/侧标、多副本、日元/人民币、
 在途/售出中/已售/回收站、新式包装资料），但金额、日期、渠道、订单号、备注、
-存放位置全部为虚构；专辑名与艺人属公开音乐资料。默认不合成任何封面或
+存放位置全部为虚构；专辑名与艺人属公开音乐资料，取自官网首屏封面墙展示的 30 张（site/cover-wall.json）。默认不合成任何封面或
 模拟实物照片；需要真实资料时运行 tools/fetch_sample_covers.py，
 优先使用 iTunes 精确匹配的数字封面，再以 Cover Art Archive 为后备，
 不能确认确切发行版本时只使用明确标注来源的作品封面，不伪造内页和盘面。
---with-models 可为现有 lift-fists / loveless / illinois 副本发布合成
+--with-models 可为现有 lift-fists / spiderland / illinois 副本发布合成
 双袋 Gatefold / 单口 Card Sleeve / Jewel Case 样本，复用 seed_models() 离线初始化。
 纹理为带白边、四色分区的纯代码棋盘格，含裁切与弯纸投影，包装仅供动画及贴图验收，
 不代表这些发行版的实物核对结果。模型样本另使用明确虚构的固定发行版 ID，
@@ -28,9 +28,9 @@
 --export-engine-fixtures 只导出这三种合成实体、相同棋盘 PNG 与原始 RGBA 像素，
 不创建数据库或任务；独立引擎和 Studio 使用同一组样本定义。
 
-seed_rate_review 为现有 Dookie 副本提供未缓存的虚构买入日期，验证账本先显示、汇率补取与失败重试；不增加副本或素材。
+seed_rate_review 为现有 The Dark Side of the Moon 日版副本提供未缓存的虚构买入日期，验证账本先显示、汇率补取与失败重试；不增加副本或素材。
 
-seed_listing_navigation 为现有 lift-fists 和 tpab 副本登记虚构的闲鱼回执。
+seed_listing_navigation 为现有 lift-fists 和 synchronicity 副本登记虚构的闲鱼回执。
 seed_legacy_listing_copy 在 lift-fists 及其审计历史中写入退役前的固定文案，供启动迁移验收。
 seed_purchase_review 复用三张副本，覆盖实际支出、零金额以及只在介质明细中登记的黑胶格式。
 seed_vinyl_review（--vinyl）复用三张副本改成黑胶（D-053）：12″ LP（A/B 面）、带侧标的日版 2LP
@@ -92,19 +92,19 @@ def open_store(data_dir):
     return Store(data / 'albums.sqlite3', rates)
 
 
-# ── 样本清单（21 副本 / 19 专辑；金额、日期、备注均为虚构）──────────────
+# ── 样本清单（32 副本 / 30 专辑 = 官网首屏封面墙 site/cover-wall.json 中展示的 30 张；金额、日期、备注均为虚构）──────────────
 # 渠道：多数为「示例…」；另有若干公开的连锁零售商名称（BOOKOFF、Disk union、Tower Records、tower.jp），
 # 只用于验证品牌归并与分店层级，不是任何人的真实购买记录。条码用 GS1 保留前缀（ean13），不对应真实商品。
 # 每条 (键名, 记录)。键名仅脚本与测试内部引用。
 RECORDS = [
     # 国内库存 domestic（8）
-    ('dookie-jp', dict(title='Dookie', artist='Green Day', currency='JPY', price='220',
+    ('dsotm-jp', dict(title='The Dark Side of the Moon', artist='Pink Floyd', currency='JPY', price='220',
                        date='2026-07-05', location='Book Off 松本店', version='Jewel Case',
                        pressing='日版', status='domestic',
                        releaseInfo=dict(barcode=ean13('200100000001'), catalogNumber='WPCR-0001',
                                         country='JP', releaseDate='2026-01-01', label='示例厂牌',
                                         format='CD', discCount='1'))),
-    ('parachutes', dict(title='Parachutes', artist='Coldplay', currency='JPY', price='380',
+    ('wywh', dict(title='Wish You Were Here', artist='Pink Floyd', currency='JPY', price='380',
                         date='2026-07-05', location='示例唱片行·A 店', version='Jewel Case',
                         pressing='日版', obi='带侧标', releaseYear='2000', status='domestic',
                         storage='示例书架·A-1', noteAlbum='示例专辑笔记：与外版副本共享',
@@ -113,20 +113,20 @@ RECORDS = [
                                          catalogNumber='TOCP-0002 / TOCP-0002 / TOCP-0002',
                                          country='JP', releaseDate='2026-01-02', label='示例厂牌',
                                          format='CD', discCount='1'))),
-    ('ex-all-time', dict(title='EX All Time Favourites', artist='关淑怡', currency='CNY',
+    ('ex-all-time', dict(title='“Ex” All Time Favourites', artist='關淑怡', currency='CNY',
                          price='121', date='2026-07-12', location='示例二手平台',
                          version='Digipak', status='domestic')),
-    ('larks', dict(title="Larks' Tongues in Aspic", artist='King Crimson', currency='JPY',
+    ('red', dict(title='Red', artist='King Crimson', currency='JPY',
                    price='1210', fees='35', date='2026-07-18', location='Disk union 下北沢店',
                    version='Mini LP Sleeve', pressing='日版', obi='带侧标', condition='近全新',
                    status='domestic',
                    releaseInfo=dict(barcode=ean13('200100000003'), catalogNumber='UICE-0003',
                                     country='JP', releaseDate='2026-01-03', label='示例厂牌',
                                     format='CD', discCount='1'))),
-    ('minecraft', dict(title='Minecraft: Volume Alpha', artist='C418', currency='JPY',
+    ('minecraft', dict(title='Minecraft - Volume Alpha', artist='C418', currency='JPY',
                        price='', date='2026-07-18', location='示例唱片行·B 店',
                        version='Digipak', status='domestic', note='示例：成本未知（null，不当 0）')),
-    ('shall-we', dict(title='Shall We Dance? Shall We Talk!', artist='陈奕迅', currency='CNY',
+    ('shall-we', dict(title='Shall We Dance? Shall We Talk!', artist='陳奕迅', currency='CNY',
                       price='138', date='2026-07-25', location='tower.jp', version='Rigid Box',
                       status='domestic',
                       releaseInfo=dict(barcode=ean13('200100000004'), catalogNumber='EMI-0004',
@@ -138,27 +138,27 @@ RECORDS = [
                       packaging={'structure': 'jewel', 'thickness': 'standard', 'tray': 'clear',
                                  'discs': 1, 'finish': 'matte'})),
     # 本副本包装/图片在现场核对；不把网上发行版资料冒充样本实物。
-    ('islands-jp', dict(title='Islands', artist='King Crimson', currency='JPY', price='',
+    ('court-jp', dict(title='In the Court of the Crimson King', artist='King Crimson', currency='JPY', price='',
                         date='2026-08-08', location='示例唱片行·A 店', version='Mini LP Sleeve',
                         pressing='日版', status='domestic',
                         note='示例：从实物条形码核对 Mini LP 包装，成本未知')),
     # 海外库存 overseas（5）
-    ('dookie-en', dict(title='Dookie', artist='Green Day', currency='JPY', price='300',
+    ('dsotm-en', dict(title='The Dark Side of the Moon', artist='Pink Floyd', currency='JPY', price='300',
                        date='2026-08-02', location='示例唱片行·C 店', version='Jewel Case',
                        pressing='外版', status='overseas')),
-    ('loveless', dict(title='Loveless', artist='My Bloody Valentine', currency='JPY',
+    ('spiderland', dict(title='Spiderland', artist='Slint', currency='JPY',
                       price='1500', date='2026-08-08', location='Tower Records 渋谷',
                       version='Card Sleeve', pressing='外版', status='overseas',
                       releaseInfo=dict(barcode=ean13('200100000005'), catalogNumber='CRE-0005',
                                        country='GB', releaseDate='2026-01-05', label='示例厂牌',
                                        format='CD', discCount='1'))),
-    ('tasogare', dict(title='盗作', artist='ヨルシカ', currency='JPY', price='1980',
+    ('natsukusa', dict(title='夏草が邪魔をする', artist='ヨルシカ', currency='JPY', price='1980',
                       date='2026-08-08', location='BOOKOFF 秋葉原駅前店', version='Jewel Case',
                       status='overseas',
                       releaseInfo=dict(barcode=ean13('200100000007'), catalogNumber='UPCH-0007',
                                        country='DE', releaseDate='2026-01-07', label='示例厂牌',
                                        format='CD', discCount='1'))),
-    ('tpab', dict(title='To Pimp a Butterfly', artist='Kendrick Lamar', currency='JPY',
+    ('synchronicity', dict(title='Synchronicity', artist='The Police', currency='JPY',
                   price='1700', date='2026-08-15', location='diskunion 新宿', version='Jewel Case',
                   pressing='日版', obi='带侧标', status='overseas',
                   releaseInfo=dict(barcode=ean13('200100000006'), catalogNumber='UICN-0006',
@@ -175,27 +175,50 @@ RECORDS = [
     ('mbdtf', dict(title='My Beautiful Dark Twisted Fantasy', artist='Kanye West',
                    currency='JPY', price='1100', date='2026-08-15', location='示例代购',
                    version='Jewel Case', pressing='日版', obi='带侧标', status='overseas')),
-    ('avici', dict(title='Avīci (01)', artist='Avicii', currency='JPY', price='900',
+    ('one-last-kiss', dict(title='One Last Kiss', artist='宇多田ヒカル', currency='JPY', price='900',
                    date='2026-08-15', location='示例代购', version='Digipak',
                    status='overseas')),
     # 售出中 shipping（1，上架 + 买家未确认收货）
-    ('m83', dict(title="Hurry Up, We're Dreaming.", artist='M83.', currency='JPY',
+    ('glow', dict(title='The Glow Pt. 2', artist='The Microphones', currency='JPY',
                  price='680', date='2026-08-22', location='示例唱片行·B 店', version='Digipak',
                  status='domestic')),
     # 已售 sold（3，同一笔 JPY 订单，成交价/扣费/运费按 3 副本分摊）
     ('illinois-en', dict(title='Illinois', artist='Sufjan Stevens', currency='JPY',
                          price='2600', date='2026-08-08', location='示例唱片行·C 店',
                          version='Jewel Case', pressing='外版', status='overseas')),
-    ('remain', dict(title='Remain in Light', artist='Talking Heads', currency='JPY',
+    ('remain', dict(title='Remain In Light', artist='Talking Heads', currency='JPY',
                     price='1050', date='2026-08-22', location='示例唱片行·C 店',
                     version='Jewel Case', pressing='外版', status='overseas')),
-    ('moon', dict(title='A Moon Shaped Pool', artist='Radiohead', currency='JPY', price='',
+    ('carrie', dict(title='Carrie & Lowell', artist='Sufjan Stevens', currency='JPY', price='',
                   date='2026-08-22', location='示例唱片行·C 店', version='Jewel Case',
                   status='overseas', note='示例：成本未知，利润不计入')),
     # 回收站 trash（1）
-    ('first-love', dict(title='First Love', artist='宇多田ヒカル', currency='JPY', price='220',
+    ('life-continues', dict(title='Life Continues', artist='陳奕迅', currency='JPY', price='220',
                         date='2026-07-25', location='示例唱片行·A 店', version='Jewel Case',
                         status='domestic')),
+    # 封面墙其余专辑 wall（11，国内库存，只有基础资料）：与上面合起来正好是官网首屏封面墙的 30 张
+    ('meddle', dict(title='Meddle', artist='Pink Floyd', currency='JPY', price='880', date='2026-09-02',
+                      location='示例唱片行·A 店', version='Jewel Case', pressing='日版', status='domestic')),
+    ('fainfinity', dict(title='F♯ A♯ ∞', artist='Godspeed You! Black Emperor', currency='JPY', price='1650', date='2026-09-02',
+                          location='diskunion 新宿', version='Jewel Case', pressing='外版', status='domestic')),
+    ('slowriot', dict(title='Slow Riot for New Zero Kanada', artist='Godspeed You! Black Emperor', currency='JPY', price='1200', date='2026-09-03',
+                        location='示例唱片行·C 店', version='Card Sleeve', pressing='外版', status='domestic')),
+    ('allelujah', dict(title="'Allelujah! Don't Bend! Ascend!", artist='Godspeed You! Black Emperor', currency='JPY', price='1400', date='2026-09-03',
+                         location='示例唱片行·C 店', version='Digipak', pressing='外版', status='domestic')),
+    ('no-title', dict(title='NO TITLE AS OF 13 FEBRUARY 2024 28,340 DEAD', artist='Godspeed You! Black Emperor', currency='JPY', price='2200', date='2026-09-05',
+                        location='Tower Records 渋谷', version='Digipak', pressing='外版', status='domestic')),
+    ('frengers', dict(title='Frengers', artist='Mew', currency='JPY', price='900', date='2026-09-05',
+                        location='BOOKOFF 秋葉原駅前店', version='Jewel Case', pressing='外版', status='domestic')),
+    ('whats-going-on', dict(title="What's Going On...?", artist='陳奕迅', currency='CNY', price='98', date='2026-09-06',
+                              location='示例二手平台', version='Jewel Case', status='domestic')),
+    ('american-football', dict(title='American Football', artist='American Football', currency='JPY', price='1980', date='2026-09-08',
+                                 location='diskunion 新宿', version='Jewel Case', pressing='日版', obi='带侧标', status='domestic')),
+    ('rmp', dict(title='Racing Mount Pleasant', artist='Racing Mount Pleasant', currency='JPY', price='2400', date='2026-09-08',
+                   location='示例唱片行·B 店', version='Digipak', pressing='外版', status='domestic')),
+    ('poppin', dict(title="It's a Poppin' Time", artist='山下達郎', currency='JPY', price='1100', date='2026-09-10',
+                      location='Disk union 下北沢店', version='Jewel Case', pressing='日版', obi='带侧标', status='domestic')),
+    ('ants', dict(title='Ants From Up There', artist='Black Country, New Road', currency='JPY', price='2100', date='2026-09-12',
+                    location='示例唱片行·A 店', version='Digipak', pressing='外版', status='domestic')),
 ]
 
 
@@ -233,34 +256,34 @@ def seed(data_dir):
     ids = {key: rid for (key, _), rid in zip(RECORDS, result['ids'])}
 
     # 售出中：上架（带渠道和链接）→ 成交，停在买家未确认收货
-    store.bulk({'ids': [ids['m83']], 'action': 'list',
+    store.bulk({'ids': [ids['glow']], 'action': 'list',
                 'listing': {'channel': '示例二手平台', 'url': 'https://example.com/listing/1001'}})
     # 另有两张在售上架（国内库存），用于验证列表上的「已上架」标签与详情的上架资料
-    for key, number in (('parachutes', '1002'), ('illinois', '1003')):
+    for key, number in (('wywh', '1002'), ('illinois', '1003')):
         store.bulk({'ids': [ids[key]], 'action': 'list',
                     'listing': {'channel': '示例二手平台', 'url': f'https://example.com/listing/{number}'}})
-    store.sell({'ids': [ids['m83']], 'currency': 'CNY', 'gross': '88.00', 'fees': '4.40',
+    store.sell({'ids': [ids['glow']], 'currency': 'CNY', 'gross': '88.00', 'fees': '4.40',
                 'date': '2026-09-05', 'channel': '示例二手平台', 'orderId': 'DEMO-1001',
                 'note': '示例：售出中（买家未确认收货）'})
 
     # 在途：3 副本一条 JPY 包裹，运费分摊带尾差（2249 ÷ 3）
-    store.ship({'ids': [ids['yehui'], ids['mbdtf'], ids['avici']], 'currency': 'JPY',
+    store.ship({'ids': [ids['yehui'], ids['mbdtf'], ids['one-last-kiss']], 'currency': 'JPY',
                 'cost': '2249', 'method': 'EMS', 'date': '2026-08-20', 'note': '示例在途包裹'})
 
     # 已售：3 副本一笔 JPY 订单，确认收货到账
-    sale = store.sell({'ids': [ids['illinois-en'], ids['remain'], ids['moon']],
+    sale = store.sell({'ids': [ids['illinois-en'], ids['remain'], ids['carrie']],
                        'currency': 'JPY', 'gross': '12800', 'fees': '640', 'postage': '900',
                        'date': '2026-09-18', 'channel': '示例二手平台', 'orderId': 'DEMO-1002',
                        'note': '示例：已确认收货'})
     store.sale_action({'id': sale['id'], 'action': 'receive', 'date': '2026-09-20'})
 
     # 回收站
-    store.bulk({'ids': [ids['first-love']], 'action': 'delete'})
+    store.bulk({'ids': [ids['life-continues']], 'action': 'delete'})
 
     # 收藏展示手动组：组内顺序即展示顺序
     store.change_showcase_groups({'action': 'create', 'expectedRevision': 0, 'name': '示例精选',
-                                  'recordIds': [ids['parachutes'], ids['tasogare'],
-                                                ids['loveless']]})
+                                  'recordIds': [ids['wywh'], ids['natsukusa'],
+                                                ids['spiderland']]})
 
     store.rates.warm(store.rate_days(store.backup()['records']))
     with closing(store.connect()) as db, db:
@@ -270,10 +293,10 @@ def seed(data_dir):
 
 
 def seed_rate_review(data_dir):
-    """Existing Dookie copy gets an uncached fictional purchase date for rate recovery tests."""
+    """Existing Dark Side of the Moon (JP) copy gets an uncached fictional purchase date for rate recovery tests."""
     ids = seed(data_dir)
     store = open_store(data_dir)
-    record = next(r for r in store.backup()['records'] if r['id'] == ids['dookie-jp'])
+    record = next(r for r in store.backup()['records'] if r['id'] == ids['dsotm-jp'])
     if record['date'] != '2026-10-01':
         store.save({'id': record['id'], 'revision': record['revision'], 'date': '2026-10-01'})
     return ids
@@ -284,7 +307,7 @@ def seed_purchase_review(data_dir):
     ids = seed(data_dir)
     store = open_store(data_dir)
     overrides = {
-        'islands-jp': {'actual': '58.00'},
+        'court-jp': {'actual': '58.00'},
         'minecraft': {'price': '0.00'},
         'remain': {'releaseInfo': {'catalogNumber': 'DEMO-LP-0001', 'edition': '示例再版',
                                    'media': [{'format': '12" Vinyl', 'tracks': [{'title': '示例曲目'}]}]}},
@@ -314,7 +337,7 @@ VINYL_REVIEW = {
     'mbdtf': dict(format='2×12" Vinyl', catalogNumber='DEMO-LP-0002', country='JP', discCount='2',
                   media=_sides(('A', ['示例曲目 1', '示例曲目 2']), ('B', ['示例曲目 3']),
                                ('C', ['示例曲目 4']), ('D', ['示例曲目 5', '示例曲目 6']))),
-    'avici': dict(format='7" Vinyl', catalogNumber='DEMO-LP-0003', country='SE',
+    'one-last-kiss': dict(format='7" Vinyl', catalogNumber='DEMO-LP-0003', country='JP',
                   media=_sides(('A', ['示例曲目 1']), ('B', ['示例曲目 2']))),
 }
 
@@ -420,7 +443,7 @@ def seed_listing_navigation(data_dir):
     store = open_store(data_dir)
     for key, item_id, verified_at in (
         ('lift-fists', '1004', '2026-10-08T14:00:00+09:00'),
-        ('tpab', '1005', '2026-10-08T04:00:00Z'),
+        ('synchronicity', '1005', '2026-10-08T04:00:00Z'),
     ):
         with closing(store.connect()) as db: record = store.get(db, 'records', ids[key])
         store.record_xianyu_listing({'id': record['id'], 'revision': record['revision'], 'itemId': item_id,
@@ -432,7 +455,7 @@ def seed_listing_navigation(data_dir):
 def existing_ids(data_dir):
     """已灌过的样本库：按（专辑、艺人、价格）唯一匹配出键名 → 记录ID（幂等复用）。
 
-    多副本样本（Dookie、Illinois）价格各不相同，组合键在全库唯一；
+    多副本样本（The Dark Side of the Moon、Illinois）价格各不相同，组合键在全库唯一；
     不按状态匹配——样本灌入后状态会被后续操作改写。
     """
     store = open_store(data_dir)
@@ -451,7 +474,7 @@ def existing_ids(data_dir):
 MODEL_SAMPLES = {
     'lift-fists': {'structure': 'gatefold', 'panels': 2, 'holder': 'pocket',
                    'pockets': 'both', 'pocketOpening': 'inner', 'discs': 2},
-    'loveless': {'structure': 'card-sleeve', 'discs': 1},
+    'spiderland': {'structure': 'card-sleeve', 'discs': 1},
     'illinois': {'structure': 'jewel', 'tray': 'clear', 'discs': 1},
 }
 
@@ -465,7 +488,7 @@ MODEL_SAMPLE_PRESENTATIONS = {
 # Deliberately synthetic identities, never external catalog evidence or lookups.
 MODEL_SAMPLE_RELEASES = {
     'lift-fists': '00000000-0000-4000-8000-000000000001',
-    'loveless': '00000000-0000-4000-8000-000000000002',
+    'spiderland': '00000000-0000-4000-8000-000000000002',
     'illinois': '00000000-0000-4000-8000-000000000003',
 }
 

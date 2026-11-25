@@ -17,8 +17,8 @@ from server import agent_clients as ac
 from server import client_admin as obi_client
 from tools.seed_samples import seed_purchase_review
 
-PURCHASES = '/api/collection/purchases?q=Dookie'
-PACKAGE = '/api/listing/agent/package?q=Dookie'
+PURCHASES = '/api/collection/purchases?q=Moon'
+PACKAGE = '/api/listing/agent/package?q=Moon'
 
 
 class ClientTokenTests(unittest.TestCase):

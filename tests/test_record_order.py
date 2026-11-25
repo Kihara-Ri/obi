@@ -22,13 +22,13 @@ class RecordOrderTests(unittest.TestCase):
 
     def test_edit_and_full_refresh_preserve_order_and_creation_time(self):
         before = self.order()
-        for key in ('dookie-jp', 'parachutes'):
+        for key in ('dsotm-jp', 'wywh'):
             record = self.record(key)
             self.store.save({'id': record['id'], 'revision': record['revision'],
                              'note': '同日排序回归'}, metadata_only=True)
             self.assertEqual(self.order(), before)
             self.assertEqual(self.record(key)['createdAt'], record['createdAt'])
-        record = self.record('dookie-jp')
+        record = self.record('dsotm-jp')
         self.store.save({'id': record['id'], 'revision': record['revision'], 'location': '示例渠道'})
         self.assertEqual(self.order(), before)
         self.assertEqual(self.order(open_store(self.root / 'source')), before)
@@ -36,9 +36,9 @@ class RecordOrderTests(unittest.TestCase):
     def test_listing_restore_and_new_copy_do_not_reorder_existing_copies(self):
         before = self.order()
         for action in ('list', 'unlist', 'delete', 'restore'):
-            self.store.bulk({'ids': [self.ids['dookie-jp']], 'action': action})
+            self.store.bulk({'ids': [self.ids['dsotm-jp']], 'action': action})
             self.assertEqual(self.order(), before, action)
-        record = self.record('dookie-jp')
+        record = self.record('dsotm-jp')
         for key in ('id', 'revision', 'createdAt', 'cost', 'photoCount'):
             record.pop(key, None)
         new_id = self.store.save(record)['ids'][0]

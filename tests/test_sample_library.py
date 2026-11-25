@@ -16,7 +16,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-EXPECTED_STATUS = {'domestic': 8, 'overseas': 5, 'transit': 3, 'shipping': 1,
+EXPECTED_STATUS = {'domestic': 19, 'overseas': 5, 'transit': 3, 'shipping': 1,
                    'sold': 3, 'trash': 1}
 
 
@@ -58,7 +58,7 @@ class SampleLibraryTests(unittest.TestCase):
         for r in st['records']:
             counts[r['status']] = counts.get(r['status'], 0) + 1
         self.assertEqual(counts, EXPECTED_STATUS)
-        self.assertEqual(len({(r['title'], r['artist']) for r in st['records']}), 19)
+        self.assertEqual(len({(r['title'], r['artist']) for r in st['records']}), 30)
         self.assertEqual(st['modules']['configured'], True)
         self.assertEqual(st['modules']['enabled'], {'acquisition': True, 'trading': True,
                                                     'circulation': True, 'showcase': True})
@@ -75,7 +75,7 @@ class SampleLibraryTests(unittest.TestCase):
             before = next(r for r in store.state()['records'] if r['id'] == ids['ex-all-time'])
             self.seed.seed_packaging_review(data)
             after = next(r for r in store.state()['records'] if r['id'] == ids['ex-all-time'])
-            self.assertEqual(len(store.state()['records']), 21)
+            self.assertEqual(len(store.state()['records']), 32)
             self.assertEqual(after['version'], '')
             self.assertFalse(after.get('packaging'))
             self.assertFalse(after['releaseInfo']['packaging'])
@@ -87,13 +87,13 @@ class SampleLibraryTests(unittest.TestCase):
             ids = self.seed.seed_purchase_review(folder)
             records = {r['id']: r for r in self.seed.open_store(folder).backup()['records']}
         self.assertEqual(set(records), set(ids.values()))
-        self.assertEqual(len(records), 21)
-        islands = records[ids['islands-jp']]
+        self.assertEqual(len(records), 32)
+        islands = records[ids['court-jp']]
         self.assertEqual((islands['price'], islands['actual']), ('', '58.00'))
         minecraft = records[ids['minecraft']]
         self.assertEqual((minecraft['price'], minecraft['actual']), ('0.00', ''))
         self.assertTrue(minecraft['date'] and minecraft['location'])
-        self.assertEqual((records[ids['moon']]['status'], records[ids['moon']]['price']), ('sold', ''))
+        self.assertEqual((records[ids['carrie']]['status'], records[ids['carrie']]['price']), ('sold', ''))
         remain = records[ids['remain']]
         self.assertEqual((remain['status'], remain['releaseInfo']['format']), ('sold', ''))
         self.assertEqual(remain['releaseInfo']['media'][0]['format'], '12" Vinyl')
@@ -104,13 +104,13 @@ class SampleLibraryTests(unittest.TestCase):
             ids = self.seed.seed_vinyl_review(folder)
             self.seed.seed_vinyl_review(folder)   # 幂等
             records = {r['id']: r for r in self.seed.open_store(folder).backup()['records']}
-        self.assertEqual(len(records), 21)
+        self.assertEqual(len(records), 32)
         vinyl = {key: records[ids[key]] for key in self.seed.VINYL_REVIEW}
         for key, r in vinyl.items():
             self.assertEqual(medium_of(r['releaseInfo']['format']), 'vinyl', key)
             self.assertEqual((r['version'], r.get('packaging')), ('', None), key)
             self.assertTrue(r['releaseInfo']['catalogNumber'].startswith('DEMO-LP-'))
-        self.assertEqual(vinyl['avici']['releaseInfo']['format'], '7" Vinyl')
+        self.assertEqual(vinyl['one-last-kiss']['releaseInfo']['format'], '7" Vinyl')
         double = vinyl['mbdtf']
         self.assertEqual((double['obi'], double['releaseInfo']['country']), ('带侧标', 'JP'))
         self.assertEqual([[t['number'] for t in m['tracks']] for m in double['releaseInfo']['media']],
@@ -123,33 +123,33 @@ class SampleLibraryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             ids = self.seed.seed_rate_review(folder)
             store = self.seed.open_store(folder)
-            record = next(r for r in store.state()['records'] if r['id'] == ids['dookie-jp'])
+            record = next(r for r in store.state()['records'] if r['id'] == ids['dsotm-jp'])
             self.assertEqual(record['date'], '2026-10-01')
             self.assertIsNone(record['cost'])
-            self.assertEqual(len(store.state()['records']), 21)
+            self.assertEqual(len(store.state()['records']), 32)
             store.rates.warm([record['date']])
-            after = next(r for r in store.state()['records'] if r['id'] == ids['dookie-jp'])
+            after = next(r for r in store.state()['records'] if r['id'] == ids['dsotm-jp'])
             self.assertEqual(after['cost'], '10.34')
             self.assertEqual(after['price'], '220.00')
 
     def test_unknown_cost_is_null_not_zero_and_profit_excluded(self):
         self.assertEqual(self.record('minecraft')['cost'], None)
-        self.assertEqual(self.record('moon')['cost'], None)
+        self.assertEqual(self.record('carrie')['cost'], None)
         self.assertEqual(self.record('remain')['cost'], '49.56')
         sale = self.sale('DEMO-1002')
         profit = {i['recordId']: i['profit'] for i in sale['items']}
         self.assertEqual(profit[self.ids['illinois-en']], '53.69')
         self.assertEqual(profit[self.ids['remain']], '126.84')
-        self.assertEqual(profit[self.ids['moon']], None)
+        self.assertEqual(profit[self.ids['carrie']], None)
         m83 = self.sale('DEMO-1001')
         self.assertEqual(m83['status'], 'shipping')
         self.assertEqual(next(i for i in m83['items'])['profit'], '51.50')
 
-    def test_islands_reference_fixture_starts_without_invented_artwork_or_entity(self):
-        self.assertIn('islands-jp', self.ids)
-        record = self.record('islands-jp')
+    def test_court_reference_fixture_starts_without_invented_artwork_or_entity(self):
+        self.assertIn('court-jp', self.ids)
+        record = self.record('court-jp')
         self.assertEqual((record['title'], record['artist'], record['pressing']),
-                         ('Islands', 'King Crimson', '日版'))
+                         ('In the Court of the Crimson King', 'King Crimson', '日版'))
         self.assertIsNone(record['cost'])
         self.assertEqual(record['photoCount'], 0)
         self.assertFalse(record['cover'])
@@ -157,10 +157,10 @@ class SampleLibraryTests(unittest.TestCase):
         self.assertNotIn(record['id'], self.store.twin_index()['jobs'])
 
     def test_one_click_listing_scenarios_reuse_existing_samples(self):
-        known = self.record('dookie-jp')
+        known = self.record('dsotm-jp')
         self.assertTrue(known['releaseInfo']['catalogNumber'])
         self.assertEqual(known['photoCount'], 0)
-        self.assertTrue(self.record('larks')['condition'])
+        self.assertTrue(self.record('red')['condition'])
         self.assertFalse(self.record('minecraft').get('releaseInfo', {}).get('catalogNumber'))
         self.assertFalse(self.record('minecraft').get('condition'))
         self.assertEqual(self.record('lift-fists')['status'], 'overseas')
@@ -178,10 +178,10 @@ class SampleLibraryTests(unittest.TestCase):
         # 国家：日本 / 美国 / 英国 / 德国 / 香港，列表要显示地区名而不是日版 / 外版
         self.assertEqual({r['releaseInfo']['country'] for r in with_barcode}, {'JP', 'US', 'GB', 'DE', 'HK'})
         # 回退场景：没有条码 / 国家的副本仍只显示日版 / 外版
-        self.assertFalse(self.record('islands-jp').get('releaseInfo', {}).get('barcode'))
+        self.assertFalse(self.record('court-jp').get('releaseInfo', {}).get('barcode'))
         self.assertFalse(self.record('minecraft').get('releaseInfo', {}).get('country'))
         # 编号被重复拼接的显示场景
-        self.assertEqual(self.record('parachutes')['releaseInfo']['catalogNumber'],
+        self.assertEqual(self.record('wywh')['releaseInfo']['catalogNumber'],
                          'TOCP-0002 / TOCP-0002 / TOCP-0002')
         # 连锁渠道：同品牌不同写法 / 分店 / 线上店
         shops = {r['location'] for r in records}
@@ -190,12 +190,12 @@ class SampleLibraryTests(unittest.TestCase):
             self.assertIn(name, shops)
         # 已上架：售出中的 m83 之外，国内库存里还有两张在售
         listed = {r['title'] for r in records if r.get('listed')}
-        self.assertTrue({"Hurry Up, We're Dreaming.", 'Parachutes', 'Illinois'} <= listed)
-        self.assertEqual(self.record('parachutes')['listingChannel'], '示例二手平台')
+        self.assertTrue({'The Glow Pt. 2', 'Wish You Were Here', 'Illinois'} <= listed)
+        self.assertEqual(self.record('wywh')['listingChannel'], '示例二手平台')
 
     def test_default_samples_do_not_fabricate_album_images(self):
         records = self.state()['records']
-        self.assertEqual(len(records), 21)
+        self.assertEqual(len(records), 32)
         self.assertTrue(all(not r.get('cover') and not r.get('photoCount') for r in records))
         self.assertTrue(all(not r.get('coverSource') for r in records))
         self.assertTrue(all(not r.get('packaging', {}).get('photos') for r in records))
@@ -205,7 +205,7 @@ class SampleLibraryTests(unittest.TestCase):
             ids = self.seed.seed_listing_photos(directory)
             store = self.seed.open_store(directory)
             records = store.state()['records']
-            self.assertEqual(len(records), 21)
+            self.assertEqual(len(records), 32)
             self.assertEqual(sum(r.get('photoCount', 0) for r in records), 2)
             record = next(r for r in records if r['id'] == ids['lift-fists'])
             self.assertEqual(record['photoCount'], 2)
@@ -226,7 +226,7 @@ class SampleLibraryTests(unittest.TestCase):
             self.assertNotEqual(faces['front']['sourceId'], faces['back']['sourceId'])
             self.assertNotEqual(faces['front']['sourceId'], faces['disc']['sourceId'])
             self.assertTrue(all(s['sourceId'].startswith(('caa:', 'discogs:')) for s in faces.values()))
-        self.assertEqual(REFERENCE_MODELS['loveless']['packaging']['structure'], 'jewel')
+        self.assertEqual(REFERENCE_MODELS['spiderland']['packaging']['structure'], 'jewel')
         lift = REFERENCE_MODELS['lift-fists']
         self.assertNotEqual(lift['surfaces']['disc']['sourceId'], lift['surfaces']['disc2']['sourceId'])
         self.assertEqual({c['kind'] for c in lift['components']}, {'obi', 'booklet'})
@@ -343,18 +343,18 @@ class SampleLibraryTests(unittest.TestCase):
                          ['4266.67', '4266.67', '4266.66'])
 
     def test_listed_shipping_and_trash_states(self):
-        m83 = self.record('m83')
+        m83 = self.record('glow')
         self.assertEqual(m83['status'], 'shipping')
         self.assertEqual(m83['listed'], True)
         self.assertTrue(m83.get('saleId'))
         self.assertEqual(m83['listingChannel'], '示例二手平台')
-        self.assertEqual(self.record('first-love')['status'], 'trash')
+        self.assertEqual(self.record('life-continues')['status'], 'trash')
 
     def test_showcase_group_ordered_members(self):
         groups = self.state()['settings']['showcase-groups-v1']['groups']
         self.assertEqual([g['name'] for g in groups], ['示例精选'])
         self.assertEqual(groups[0]['recordIds'],
-                         [self.ids['parachutes'], self.ids['tasogare'], self.ids['loveless']])
+                         [self.ids['wywh'], self.ids['natsukusa'], self.ids['spiderland']])
         known = {r['id'] for r in self.state()['records']}
         self.assertTrue(set(groups[0]['recordIds']) <= known)
 
@@ -380,7 +380,7 @@ class SampleLibraryTests(unittest.TestCase):
 
             store = self.seed.open_store(folder)
             jobs = store.twin_index()['jobs']
-            self.assertEqual(set(jobs), {ids[key] for key in ('lift-fists', 'loveless', 'illinois')})
+            self.assertEqual(set(jobs), {ids[key] for key in ('lift-fists', 'spiderland', 'illinois')})
             for job in jobs.values():
                 self.assertEqual(job['status'], 'succeeded')
                 self.assertIn('合成', job['message'])
@@ -406,7 +406,7 @@ class SampleLibraryTests(unittest.TestCase):
             self.assertEqual(pixels[:4], bytes([245, 245, 245, 255]))
             self.assertNotEqual(pixels[(32 * 128 + 32) * 4:(32 * 128 + 32) * 4 + 3],
                                 pixels[(32 * 128 + 96) * 4:(32 * 128 + 96) * 4 + 3])
-            self.assertEqual(jobs[ids['loveless']]['entity']['packaging']['structure'], 'card-sleeve')
+            self.assertEqual(jobs[ids['spiderland']]['entity']['packaging']['structure'], 'card-sleeve')
             before = store.state()
             self.seed.seed_models(folder)
             self.assertEqual(store.twin_index()['jobs'], jobs)
@@ -440,9 +440,9 @@ class EngineFixtureExportTests(unittest.TestCase):
                              {'entities.json', 'sample-scan.png', 'sample-disc.png', 'pixels.json',
                               'sample-obi.png', 'sample-booklet.png', 'sample-inner-sleeve.png', 'model-variants.json'})
             entities = json.loads((target / 'entities.json').read_text())
-            self.assertEqual([e['key'] for e in entities], ['lift-fists', 'loveless', 'illinois'])
+            self.assertEqual([e['key'] for e in entities], ['lift-fists', 'spiderland', 'illinois'])
             self.assertEqual([e['title'] for e in entities],
-                             ['Lift Your Skinny Fists Like Antennas to Heaven', 'Loveless', 'Illinois'])
+                             ['Lift Your Skinny Fists Like Antennas to Heaven', 'Spiderland', 'Illinois'])
             for entity in entities:
                 expected = {'schemaVersion', 'key', 'title', 'packaging', 'surfaces', 'document'}
                 if entity['key'] == 'lift-fists':
@@ -514,7 +514,7 @@ class ListingNavigationSampleTests(unittest.TestCase):
             after = store.state()
             self.assertEqual(len(after['records']), len(before['records']))
             record = next(r for r in after['records'] if r['id'] == ids['lift-fists'])
-            older = next(r for r in after['records'] if r['id'] == ids['tpab'])
+            older = next(r for r in after['records'] if r['id'] == ids['synchronicity'])
             old = next(r for r in before['records'] if r['id'] == ids['lift-fists'])
             self.assertTrue(record['listed'] and older['listed'])
             self.assertEqual((record['xianyuItemId'], older['xianyuItemId']), ('1004', '1005'))
@@ -531,7 +531,7 @@ class ListingNavigationSampleTests(unittest.TestCase):
             root = Path(directory)
             ids = seed(root / 'source')
             source = open_store(root / 'source')
-            first, second, undated = (ids[key] for key in ('parachutes', 'illinois', 'm83'))
+            first, second, undated = (ids[key] for key in ('wywh', 'illinois', 'glow'))
             source.bulk({'action': 'list', 'ids': [first]})  # Repeating an active mark does not move it.
             backup = source.backup()
             backup['audit'] = [row for row in backup['audit']

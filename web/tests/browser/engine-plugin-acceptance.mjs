@@ -17,7 +17,7 @@
 export async function accept(page, {baseURL, expectations, screenshotDir, stage = 'full-ui'} = {}) {
   const check = (condition, message) => {if (!condition) throw new Error(message);};
   check(baseURL, 'baseURL is required');
-  check(expectations?.galleryCount === 16 && expectations?.models?.length === 3,
+  check(expectations?.galleryCount === 27 && expectations?.models?.length === 3,
     'Pass the verified offline bundle check JSON (16 gallery covers, 3 reference models)');
   const origin = new URL(baseURL).origin;
   const errors = [], failures = [], pluginRequests = [];

@@ -223,7 +223,7 @@ def main():
         else:
             result = bundle.check(home / 'bundle', home / 'instance')
         if args.command == 'start':
-            print('样本就绪：21 张真实封面 / 3 个真实图集模型；离线启动', flush=True)
+            print('样本就绪：32 副本（官网封面墙 30 张专辑）真实封面 / 3 个真实图集模型；离线启动', flush=True)
             os.execv(sys.executable, [sys.executable, str(ROOT / 'app.py'), '--port', str(args.port or 63282),
                                      '--data-dir', str(home / 'instance'), '--no-seed'])
         print(json.dumps(result, ensure_ascii=False, indent=2))

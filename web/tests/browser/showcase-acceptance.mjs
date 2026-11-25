@@ -10,7 +10,7 @@ export const PARTS = ['card', 'models', 'mobile'];
 export async function accept(page, {baseURL, expectations, screenshotDir, saveShot, parts = PARTS} = {}) {
   const check = (condition, message) => {if (!condition) throw new Error(message);};
   check(baseURL, 'baseURL is required');
-  check(expectations?.galleryCount === 16 && expectations?.models?.length === 3,
+  check(expectations?.galleryCount === 27 && expectations?.models?.length === 3,
     'Pass the verified offline bundle check JSON (16 gallery covers, 3 reference models)');
   const origin = new URL(baseURL).origin;
   const errors = [], failures = [], responses = new Map(), modelRequests = [];
@@ -162,7 +162,7 @@ export async function accept(page, {baseURL, expectations, screenshotDir, saveSh
     await page.reload({waitUntil: 'networkidle'});
     await page.locator('.gallery-cover-button').first().waitFor();
     const covers = page.locator('.gallery-cover-button');
-    check(await covers.count() === expectations.galleryCount, 'Gallery must contain all 16 collected sample copies');
+    check(await covers.count() === expectations.galleryCount, 'Gallery must contain all 27 collected sample copies');
     for (let index = 0; index < await covers.count(); index++) {
       const cover = covers.nth(index); await cover.scrollIntoViewIfNeeded();
       await cover.locator('img').evaluate(image => image.decode());

@@ -62,7 +62,7 @@ class SampleBundleTests(unittest.TestCase):
                 second = workflow.restore(bundle, data, lock)
                 self.assertEqual(first, second)
                 self.assertEqual(before, open_store(data).state()['records'])
-                self.assertEqual((first['covers'], len(first['models'])), (21, 3))
+                self.assertEqual((first['covers'], len(first['models'])), (32, 3))
                 store = open_store(data)
                 manager = PluginManager(store, None, None)
                 self.assertTrue(manager.status()['installed'])
@@ -119,7 +119,7 @@ class SampleBundleTests(unittest.TestCase):
                 self.assertEqual(workflow.vinyl(bundle, data, lock), ids)
                 self.assertEqual(first, open_store(data).state()['records'])
             records = {r['id']: r for r in first}
-            self.assertEqual(len(records), 21)
+            self.assertEqual(len(records), 32)
             for key in manifest['covers']:
                 name = records[ids[key]].get('cover', '').split('/')[-1]
                 self.assertTrue(name and (data / 'covers' / name).is_file(), key)
@@ -209,7 +209,7 @@ class SampleBundleTests(unittest.TestCase):
                   patch('tools.seed_reference_models.artwork_fetcher', return_value=fetcher)):
                 first = workflow.restore(assets, home / 'instance', lock)
             refreshed = workflow.refresh_contract(assets, lock)
-            self.assertEqual(refreshed['sampleVersion'], '2026-10-17.1')
+            self.assertEqual(refreshed['sampleVersion'], workflow.SAMPLE_VERSION)
             self.assertEqual(old['assets'], refreshed['assets'])
             self.assertEqual(old['covers'], refreshed['covers'])
             self.assertEqual(old['references'], refreshed['references'])

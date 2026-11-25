@@ -28,9 +28,8 @@ MB_TITLE_ALIASES = {
 }
 
 # Reviewed MusicBrainz release-group IDs resolve exact-name collisions.
-# First Love Album vs Single; MBDTF 2010 Album vs 2020 Demo.
+# MBDTF 2010 Album vs 2020 Demo.
 PINNED_MB_GROUPS = {
-    'first-love': 'c60fcd45-9420-30aa-98e5-2bffb894021a',
     'mbdtf': '5d6e21e1-deb5-428e-bb42-c2a567f3619b',
     'lift-fists': '3822abb6-ca53-3ae1-a4ec-7718cb321e9b',
 }
@@ -51,7 +50,9 @@ def purge_synthetic(data_dir, ids):
         record = records[ids[key]]
         files = sorted((Path(data_dir)/'photos'/record['id']).glob('[0-9]*.*'),
                        key=lambda p: int(p.stem)) if record.get('photoCount') else []
-        known = expected[key]
+        known = expected.get(key)
+        if not known:   # 换成封面墙专辑后的新键从未有过合成图
+            continue
         only_fake_photos = (bool(files) and len(files) == len(known['photos'])
                             and all(hashlib.sha256(path.read_bytes()).hexdigest() == digest
                                     for path, digest in zip(files, known['photos'])))

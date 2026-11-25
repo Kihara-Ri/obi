@@ -141,7 +141,7 @@ async function verifyMobile(context, filename, colorScheme) {
 
 async function verifyMobileBatchForm(context) {
   const page = await context.newPage();
-  const titles = ['Shall We Dance? Shall We Talk!', "Larks' Tongues in Aspic"];
+  const titles = ['Shall We Dance? Shall We Talk!', 'Red'];
   const links = ['https://example.com/listing/1010', 'https://example.com/listing/1011'];
   await page.goto(base + '/#domestic');
   await page.getByRole('button', {name: '选择', exact: true}).tap();

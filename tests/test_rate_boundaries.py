@@ -25,7 +25,7 @@ class RateBoundaryTests(unittest.TestCase):
     def test_future_shipment_never_saves_even_with_cached_past_quote(self):
         before=self.store.backup()
         with self.assertRaisesRegex(ValidationError,'未来'):
-            self.store.ship({'ids':[self.ids['loveless']], 'method':'EMS', 'cost':'1000', 'currency':'JPY','date':'2099-01-01'})
+            self.store.ship({'ids':[self.ids['spiderland']], 'method':'EMS', 'cost':'1000', 'currency':'JPY','date':'2099-01-01'})
         self.assertEqual(self.store.backup()['records'],before['records'])
 
     def test_date_only_edit_revalues_and_prepared_snapshot_rejects_concurrent_edit(self):
@@ -49,7 +49,7 @@ class RateBoundaryTests(unittest.TestCase):
         self.store.rates.fetch=lambda s,e:self.fail('commit must not fetch')
         self.store.update_shipment(payload,prepared=prepared)
         before=self.store.backup()['shipments'][0]
-        self.store.update_shipment({'id':shipment['id'],'add':[self.ids['loveless']]})
+        self.store.update_shipment({'id':shipment['id'],'add':[self.ids['spiderland']]})
         after=self.store.backup()['shipments'][0]
         self.assertEqual(before['cost'],after['cost'])
         self.assertEqual(before['rateQuote'],after['rateQuote'])
@@ -77,7 +77,7 @@ class RateBoundaryTests(unittest.TestCase):
         replies = []
         handler = SimpleNamespace(send=lambda body: replies.append(body))
         routes.api_shipments(handler, SimpleNamespace(store=self.store),
-                             {'ids': [self.ids['loveless']], 'method': 'EMS', 'currency': 'JPY',
+                             {'ids': [self.ids['spiderland']], 'method': 'EMS', 'currency': 'JPY',
                               'cost': '1000', 'date': '2026-10-01'})
         self.assertIn('id', replies[0])
 
@@ -88,4 +88,4 @@ class RateBoundaryTests(unittest.TestCase):
         replies = []
         handler = SimpleNamespace(path='/api/export', send=lambda body, **kwargs: replies.append(body))
         routes.api_export(handler, SimpleNamespace(store=self.store))
-        self.assertIn('Dookie', replies[0].decode() if isinstance(replies[0], bytes) else replies[0])
+        self.assertIn('The Dark Side of the Moon', replies[0].decode() if isinstance(replies[0], bytes) else replies[0])

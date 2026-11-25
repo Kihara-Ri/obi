@@ -29,7 +29,7 @@ class SampleCoverWorkflowTests(unittest.TestCase):
             ids=seed_samples.seed(tmp)
             service=_AmbiguousCoverService()
             records=seed_samples.open_store(tmp).state()['records']
-            self.assertEqual(len(records),21)
+            self.assertEqual(len(records),32)
             self.assertFalse(any(r.get('cover') or r.get('photoCount') for r in records))
             result=workflow.fetch_covers(tmp,ids,service)
             self.assertEqual(service.download_calls,0)
@@ -40,7 +40,7 @@ class SampleCoverWorkflowTests(unittest.TestCase):
     def test_legacy_purge_does_not_remove_unrecognized_or_real_data(self):
         with tempfile.TemporaryDirectory() as tmp:
             ids=seed_samples.seed(tmp)
-            record=next(x for x in seed_samples.open_store(tmp).state()['records'] if x['id']==ids['islands-jp'])
+            record=next(x for x in seed_samples.open_store(tmp).state()['records'] if x['id']==ids['court-jp'])
             self.assertEqual(workflow.purge_synthetic(tmp,ids),{'covers':0,'photos':0})
             self.assertEqual(seed_samples.open_store(tmp).state()['records'][-1].get('cover',''),'')
 
@@ -66,7 +66,7 @@ class DigitalCoverPreferenceTests(unittest.TestCase):
             ids=seed_samples.seed(tmp)
             service=_DigitalCoverService()
             result=workflow.fetch_covers(tmp,ids,service)
-            self.assertEqual(len(result),21)
+            self.assertEqual(len(result),32)
             self.assertTrue(all(row['status']=='saved' for row in result))
             records=seed_samples.open_store(tmp).state()['records']
             self.assertTrue(all(r['coverSource']['provider']=='iTunes' for r in records))
@@ -80,16 +80,16 @@ class DigitalCoverPreferenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             ids=seed_samples.seed(tmp)
             store=seed_samples.open_store(tmp)
-            r=next(x for x in store.state()['records'] if x['id']==ids['tpab'])
+            r=next(x for x in store.state()['records'] if x['id']==ids['synchronicity'])
             image=_DigitalCoverService().artwork
             store.save({'id':r['id'],'revision':r['revision'],'cover':image,
-                        'coverSource':{'title':'To Pimp a Butterfly','artist':'Kendrick Lamar',
+                        'coverSource':{'title':'Synchronicity','artist':'The Police',
                             'provider':'MusicBrainz / Cover Art Archive'}})
-            r=next(x for x in store.state()['records'] if x['id']==ids['tpab'])
+            r=next(x for x in store.state()['records'] if x['id']==ids['synchronicity'])
             before=r['cover']
             service=_DigitalCoverService()
             result=workflow.fetch_covers(tmp,ids,service)
-            self.assertEqual(next(x for x in result if x['key']=='tpab')['status'],'upgraded-to-itunes')
-            updated=next(x for x in store.state()['records'] if x['id']==ids['tpab'])
+            self.assertEqual(next(x for x in result if x['key']=='synchronicity')['status'],'upgraded-to-itunes')
+            updated=next(x for x in store.state()['records'] if x['id']==ids['synchronicity'])
             self.assertEqual(updated['coverSource']['provider'],'iTunes')
             self.assertEqual(updated['cover'],before)  # test source pixel fixture shared; metadata changed

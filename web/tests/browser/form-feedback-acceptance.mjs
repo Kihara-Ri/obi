@@ -27,7 +27,7 @@ async function setField(page, selector, value) {
 }
 
 async function openRecord(page) {
-  await page.getByRole('button', {name: 'Islands', exact: true}).click();
+  await page.getByRole('button', {name: 'In the Court of the Crimson King', exact: true}).click();
   await page.locator('#panel').getByRole('button', {name: '编辑', exact: true}).click();
   await page.locator('#record-form').waitFor();
   await page.waitForTimeout(550);
@@ -55,7 +55,7 @@ try {
     await page.waitForTimeout(250);
     await page.getByRole('button', {name: '保存并入库', exact: true}).click();
     await page.getByText('请填写专辑名', {exact: true}).waitFor();
-    await setField(page, '#f-title', 'Islands');
+    await setField(page, '#f-title', 'In the Court of the Crimson King');
     await page.locator('.form-field-error').waitFor({state: 'detached'});
     // 固定样本会按专辑名自动带入艺人，清空后才能验证独立的必填提示。
     await setField(page, '#f-artist', '');
@@ -96,7 +96,7 @@ try {
     sale.on('pageerror', error => failures.push(error.message));
     sale.on('console', message => {if (message.type() === 'error') failures.push(message.text());});
     await sale.goto(base + '/');
-    await sale.getByRole('button', {name: 'Islands', exact: true}).click();
+    await sale.getByRole('button', {name: 'In the Court of the Crimson King', exact: true}).click();
     await sale.locator('#panel').getByRole('button', {name: '记录售出', exact: true}).click();
     await sale.waitForTimeout(300);
     await sale.locator('#sale-form button[type=submit]').click();

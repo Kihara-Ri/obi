@@ -58,8 +58,8 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(self.call('POST', '/api/nope', {})[0], 404)
 
     def test_local_has_no_external_collection_or_listing_access(self):
-        for path in ('/api/listing/status', '/api/listing/agent/package?q=Dookie',
-                     '/api/collection/purchases?q=Dookie'):
+        for path in ('/api/listing/status', '/api/listing/agent/package?q=Moon',
+                     '/api/collection/purchases?q=Moon'):
             self.assertEqual(self.call('GET', path)[0], 404)
         self.assertEqual(self.call('POST', '/api/listing/agent/receipts', {})[0], 404)
 

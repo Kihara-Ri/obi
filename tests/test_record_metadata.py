@@ -60,10 +60,10 @@ class RecordMetadataTests(unittest.TestCase):
         self.assertNotIn('original', result['records'][0])
 
     def test_shared_note_returns_both_copies(self):
-        result = self.save('dookie-jp', noteAlbum='共享笔记已更新')
+        result = self.save('dsotm-jp', noteAlbum='共享笔记已更新')
         self.assertEqual(len(result['records']), 2)
         self.assertTrue(all(r['noteAlbum'] == '共享笔记已更新' for r in result['records']))
-        self.assertEqual({r['title'] for r in result['records']}, {'Dookie'})
+        self.assertEqual({r['title'] for r in result['records']}, {'The Dark Side of the Moon'})
 
     def test_financial_fields_rejected_before_write(self):
         old = self.row('lift-fists')

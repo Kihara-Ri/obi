@@ -95,14 +95,14 @@ class EnginePluginTests(unittest.TestCase):
         running = self.queue_fixed_copy('illinois')
         claim = self.store.claim_twin('stopped-previous-process')
         self.assertEqual(claim['id'],running['id'])
-        queued = self.queue_fixed_copy('loveless')
+        queued = self.queue_fixed_copy('spiderland')
         before = self.store.twin_index()
         restarted = PluginManager(self.store,self.vision,Mock(),self.catalog)
         self.addCleanup(restarted.stop)
         restarted.start()
         self.assertIsNone(restarted._runtime)
         after = self.store.twin_index()
-        for key in ('illinois','loveless'):
+        for key in ('illinois','spiderland'):
             job = after['jobs'][self.ids[key]]
             self.assertEqual(job['status'],'interrupted')
             self.assertGreater(job['seq'],before['jobs'][self.ids[key]]['seq'])
@@ -355,7 +355,7 @@ class EnginePluginTests(unittest.TestCase):
         self.manager.asset('browser/plugin.js').write_bytes(b'corrupt')
         self.assertFalse(self.manager.status()['installed'])
         self.assertIn('损坏', self.manager.status()['error'])
-        self.assertEqual(len(self.store.state()['records']),21)
+        self.assertEqual(len(self.store.state()['records']),32)
         self.manager.install()
         self.assertTrue(self.manager.status()['installed'])
 

@@ -80,7 +80,7 @@ class TradingAgentTests(unittest.TestCase):
             self.assertEqual(self.request(route, {})[0], 401)
         self.assertEqual(self.request('/api/state', token=self.trade_token)[0], 401)
         self.assertEqual(self.request('/api/bulk', {}, token=self.trade_token)[0], 401)
-        self.assertEqual(self.request('/api/listing/agent/package?q=Dookie', token=self.trade_token)[0], 401)
+        self.assertEqual(self.request('/api/listing/agent/package?q=Moon', token=self.trade_token)[0], 401)
         self.assertEqual(self.request(RECEIPTS, data, token=self.trade_token, origin='https://other.test')[0], 403)
         self.store.set_modules(dict(acquisition=True, trading=False, circulation=True, showcase=True))
         self.post(RECEIPTS, data, 400)
@@ -116,7 +116,7 @@ class TradingAgentTests(unittest.TestCase):
 
     def test_editing_listing_details_preserves_receipt_time_and_product_owner(self):
         receipt = self.post(RECEIPTS, self.receipt())
-        self.store.bulk({'action': 'list', 'ids': [self.ids['dookie-jp']]})
+        self.store.bulk({'action': 'list', 'ids': [self.ids['dsotm-jp']]})
         def order():
             return {r['id']: r.get('listingOrder') for r in self.store.state()['records'] if r.get('listed')}
 
@@ -154,7 +154,7 @@ class TradingAgentTests(unittest.TestCase):
             'channel': '闲鱼', 'url': 'https://www.goofish.com/item?id=' + ITEM}})
         self.post(RECEIPTS, data, 409)
         data = self.receipt()
-        self.post(RECEIPTS, self.receipt('loveless'), 409)
+        self.post(RECEIPTS, self.receipt('spiderland'), 409)
         self.post(RECEIPTS, data)
         self.store.bulk({'ids': [rid], 'action': 'unlist'})
         self.assertFalse(self.post(RECEIPTS, data)['listed'])
