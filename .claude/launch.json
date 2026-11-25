@@ -2,6 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     {"name": "samples", "runtimeExecutable": "python3", "runtimeArgs": ["tools/preview_samples.py", "start"], "port": 63282},
+    {"name": "samples-vinyl", "runtimeExecutable": "python3", "runtimeArgs": ["tools/preview_samples.py", "vinyl"], "port": 63283},
     {"name": "site", "runtimeExecutable": "npm", "runtimeArgs": ["--prefix", "site", "run", "preview", "--", "--port", "4329"], "port": 4329}
   ]
 }

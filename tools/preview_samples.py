@@ -3,6 +3,7 @@
 
 prepare --download: first acquisition; prepare: offline fresh reconstruction;
 start (default): validate and run the same development instance;
+vinyl: offline vinyl instance (three copies as LP / 2LP / 7", same locked covers) on port 63283;
 backup/restore: complete JSON+image snapshot, without direct database writes.
 """
 import argparse
@@ -182,9 +183,9 @@ def prepare(home, rebuild=False, download=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', nargs='?', choices=('start','prepare','check','backup','restore'), default='start')
+    parser.add_argument('command', nargs='?', choices=('start','prepare','check','backup','restore','vinyl'), default='start')
     parser.add_argument('--home', type=Path, default=default_home())
-    parser.add_argument('--port', type=int, default=63282)
+    parser.add_argument('--port', type=int, help='默认 63282；vinyl 默认 63283')
     parser.add_argument('--download', action='store_true', help='仅 prepare：显式获取锁定素材')
     parser.add_argument('--rebuild', action='store_true', help='仅 prepare：完整归档后重建开发实例')
     parser.add_argument('--file', type=Path, help='backup 输出 / restore 输入')
@@ -196,12 +197,20 @@ def main():
         lease = None
         if args.command != 'check':
             home.mkdir(parents=True, exist_ok=True)
-            lease = os.open(home / 'preview.lock', os.O_CREAT | os.O_RDWR, 0o600)
+            # 黑胶实例单独上锁：只读 bundle、写自己的目录，可与日常预览同时运行
+            lease = os.open(home / ('vinyl.lock' if args.command == 'vinyl' else 'preview.lock'), os.O_CREAT | os.O_RDWR, 0o600)
             try:
                 fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError:
-                raise ValueError('固定开发实例正在运行；先停止预览再准备、备份或恢复') from None
+                raise ValueError('黑胶样本预览已在运行' if args.command == 'vinyl'
+                                 else '固定开发实例正在运行；先停止预览再准备、备份或恢复') from None
             os.set_inheritable(lease, True)
+        if args.command == 'vinyl':
+            # 独立目录，不动日常实例；素材只读复用同一个 bundle
+            ids = bundle.vinyl(home / 'bundle', home / 'vinyl')
+            print(f'黑胶样本就绪：{len(ids)} 副本，真实封面；离线启动', flush=True)
+            os.execv(sys.executable, [sys.executable, str(ROOT / 'app.py'), '--port', str(args.port or 63283),
+                                     '--data-dir', str(home / 'vinyl'), '--no-seed'])
         if args.command == 'prepare':
             result = prepare(home, args.rebuild, args.download)
         elif args.command == 'backup':
@@ -215,7 +224,7 @@ def main():
             result = bundle.check(home / 'bundle', home / 'instance')
         if args.command == 'start':
             print('样本就绪：21 张真实封面 / 3 个真实图集模型；离线启动', flush=True)
-            os.execv(sys.executable, [sys.executable, str(ROOT / 'app.py'), '--port', str(args.port),
+            os.execv(sys.executable, [sys.executable, str(ROOT / 'app.py'), '--port', str(args.port or 63282),
                                      '--data-dir', str(home / 'instance'), '--no-seed'])
         print(json.dumps(result, ensure_ascii=False, indent=2))
     except (OSError, ValueError, KeyError, tarfile.TarError, EOFError) as error:

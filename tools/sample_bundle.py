@@ -256,12 +256,8 @@ def download(bundle, lock_path=LOCK):
     return verified
 
 
-def restore(bundle, data_dir, lock_path=LOCK):
-    """Rebuild through the same fixed seed and publication transactions, offline."""
-    bundle, data_dir = map(guard, (bundle, data_dir))
-    manifest = verify(bundle, lock_path)
-    ids = seed(data_dir)
-    store = open_store(data_dir)
+def apply_covers(bundle, manifest, store, data_dir, ids):
+    """把素材包里锁定的真实封面写进各副本（已是同一张就跳过），离线。"""
     for key, cover in manifest['covers'].items():
         record = next(r for r in store.state()['records'] if r['id'] == ids[key])
         filename = record.get('cover', '').split('/')[-1]
@@ -272,6 +268,26 @@ def restore(bundle, data_dir, lock_path=LOCK):
         raw = (bundle / 'assets' / asset['file']).read_bytes()
         store.save({'id': record['id'], 'revision': record['revision'], 'coverSource': cover['source'],
                     'cover': 'data:' + image_type(raw)[1] + ';base64,' + base64.b64encode(raw).decode()})
+
+
+def vinyl(bundle, data_dir, lock_path=LOCK):
+    """黑胶预览实例（D-053）：同一份固定样本 + seed_vinyl_review，配同一组锁定的真实封面；离线、幂等。
+    只放封面，不发布 3D 参考模型（黑胶还没有 3D）。返回副本键 → id。"""
+    from tools.seed_samples import seed_vinyl_review
+    bundle, data_dir = map(guard, (bundle, data_dir))
+    manifest = verify(bundle, lock_path)
+    ids = seed_vinyl_review(data_dir)
+    apply_covers(bundle, manifest, open_store(data_dir), data_dir, ids)
+    return ids
+
+
+def restore(bundle, data_dir, lock_path=LOCK):
+    """Rebuild through the same fixed seed and publication transactions, offline."""
+    bundle, data_dir = map(guard, (bundle, data_dir))
+    manifest = verify(bundle, lock_path)
+    ids = seed(data_dir)
+    store = open_store(data_dir)
+    apply_covers(bundle, manifest, store, data_dir, ids)
     cache = data_dir / 'reference-artwork'
     for key, reference in manifest['references'].items():
         folder = cache / key

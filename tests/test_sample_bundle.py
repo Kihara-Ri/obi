@@ -107,6 +107,25 @@ class SampleBundleTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, '贴图损坏'):
                     workflow.check(bundle, data, lock)
 
+    def test_vinyl_instance_is_offline_idempotent_and_has_every_cover(self):
+        from domain import medium_of
+        from tools.seed_samples import VINYL_REVIEW
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); bundle, lock, manifest = offline_bundle(root)
+            with patch('urllib.request.urlopen', side_effect=AssertionError('offline')):
+                data = root / 'vinyl'
+                ids = workflow.vinyl(bundle, data, lock)
+                first = open_store(data).state()['records']
+                self.assertEqual(workflow.vinyl(bundle, data, lock), ids)
+                self.assertEqual(first, open_store(data).state()['records'])
+            records = {r['id']: r for r in first}
+            self.assertEqual(len(records), 21)
+            for key in manifest['covers']:
+                name = records[ids[key]].get('cover', '').split('/')[-1]
+                self.assertTrue(name and (data / 'covers' / name).is_file(), key)
+            for key in VINYL_REVIEW:
+                self.assertEqual(medium_of(records[ids[key]]['releaseInfo']['format']), 'vinyl', key)
+
     def test_missing_or_corrupt_bundle_fails_before_creating_instance(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp); bundle, lock, manifest = offline_bundle(root)

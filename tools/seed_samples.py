@@ -35,6 +35,7 @@ seed_legacy_listing_copy 在 lift-fists 及其审计历史中写入退役前的�
 seed_purchase_review 复用三张副本，覆盖实际支出、零金额以及只在介质明细中登记的黑胶格式。
 seed_vinyl_review（--vinyl）复用三张副本改成黑胶（D-053）：12″ LP（A/B 面）、带侧标的日版 2LP
 （A–D 面）、7″ 单曲；编号为虚构的 DEMO-LP-*，不增加副本或封面。
+带真实封面的黑胶预览用 `python3 tools/preview_samples.py vinyl`（离线复用同一素材包，端口 63283）。
 
 安全约束：只能写入 --data-dir 指定的目录；拒绝指向仓库 data/，拒绝覆盖已存在
 且非样本库的 albums.sqlite3；已灌过的目录幂等跳过。写入全部走 storage.py 的
