@@ -27,7 +27,7 @@ SCHEMA = 4; RETIRED_META = ('rym-links', 'rym-token')  # 已退役功能留下�
 STATE_SETTINGS = ('showcase-groups-v1',)
 # Metadata-only editor contract; never accepts purchase/status/derived money.
 RECORD_METADATA_FIELDS = ('title', 'artist', 'cover', 'coverSource', 'version', 'packaging',
-                          'pressing', 'obi', 'note', 'noteAlbum', 'storage', 'releaseInfo')
+                          'pressing', 'obi', 'note', 'noteAlbum', 'storage', 'releaseInfo', 'vinyl')
 
 
 def metadata_update(data):

@@ -137,6 +137,10 @@
   .shelf-page .toolbar .dd-btn{min-height:46px;width:100%;justify-content:space-between}
   .shelf-page .toolbar .dd,.shelf-page .toolbar .view-seg{flex:1 1 0;min-width:0}
   .shelf-page .toolbar .view-seg button{min-height:38px;flex:1}
+  /* 库里有黑胶时多一个「介质」下拉（D-055）：三项挤一行，列表 / 卡片只留图标 */
+  .shelf-page .toolbar.has-medium .view-seg{flex:0 0 auto}
+  .shelf-page .toolbar.has-medium .view-seg button{padding:0 14px}
+  .shelf-page .toolbar.has-medium .view-text{display:none}
   /* 「选择」在顶栏左侧：与顶栏次要操作同款玻璃文字钮（工具栏的「全选」在手机上由 BulkBar 顶栏接管） */
   .head-lead{grid-column:1;grid-row:1;justify-self:start}
   .head-lead .mobile-select-toggle{display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border-radius:20px;color:var(--text);font-size:14px;

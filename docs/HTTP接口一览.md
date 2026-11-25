@@ -47,7 +47,7 @@
 | GET | `/api/state` | 读 | 读取应用的账本状态及派生成本、交易和包裹。 |
 | GET | `/api/album-favorites` | 读 | 读取专辑的喜欢状态。 |
 | POST | `/api/album-favorites` | 写 | 设置喜欢状态。 |
-| POST | `/api/records`、`/api/records/metadata` | 写 | 新增或更新副本。`metadata` 只编辑发行、包装和照片等资料。 |
+| POST | `/api/records`、`/api/records/metadata` | 写 | 新增或更新副本。`metadata` 只编辑发行、包装和照片等资料；黑胶副本可带 `vinyl`（尺寸、转速、彩胶、品相，见 D-055），传 `null` 清空。 |
 | POST | `/api/bulk`、`/api/listing/details` | 写 | 批量流转、移除和恢复副本，标记上架或编辑上架平台和链接。 |
 | POST | `/api/sales`、`/api/sale-action`、`/api/sale-update` | 写 | 登记销售单，以及确认收货、撤销、退款、退货和修正费用。 |
 | POST | `/api/shipments`、`/api/shipment-action`、`/api/shipment-update` | 写 | 建立包裹、确认签收或撤销、修改运费与包裹明细。 |

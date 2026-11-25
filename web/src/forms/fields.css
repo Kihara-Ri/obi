@@ -168,3 +168,10 @@ details.adv:not([open]) > :not(summary){display:none}
 .cover-pick .cover-src{display:inline-block;margin-left:6px;padding:0 6px;border-radius:999px;background:var(--surface-3);color:var(--muted);font-style:normal;font-size:11px;line-height:16px}
 /* 退款抽屉：场景二选一（还没发货 · 退款 / 已发货 · 退货）与下方说明留出间距 */
 .refund-mode{margin-bottom:10px}
+
+/* 黑胶规格与品相（D-055）：每行左侧短标签 + 分段控件，窄屏分段占满剩余宽度 */
+.record-vinyl{display:grid;gap:10px;min-width:0}
+.record-vinyl-row{display:flex;align-items:center;gap:10px;min-width:0}
+.record-vinyl-label{flex:none;width:4.6em;font-size:12.5px;font-weight:650;color:var(--text)}
+.record-vinyl-row .seg{flex:1;min-width:0}
+.record-vinyl-hint{margin:0;font-size:11px;color:var(--muted)}

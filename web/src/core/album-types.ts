@@ -1,6 +1,7 @@
 // 专辑、副本、发行资料及实体插件的 API 数据模型。
 import type {DiscCalibration} from '@diedu/album-engine/disc-calibration';
 import type {Currency, RateQuote, Status} from '../types';
+import type {VinylSpec} from './vinyl';
 import type {AlbumDocument, PackagingSpec as EntityPackagingSpec, PackagingPhotoRole,
   PackagingPhotoRegion, PackagingWarpRow, AlbumCalibration} from '@diedu/album-engine/schema';
 export type {PackagingStructure, PackagingPhotoRole, PackagingPhotoRegion, PackagingWarpRow} from '@diedu/album-engine/schema';
@@ -124,6 +125,7 @@ export interface AlbumRecord {
   rawRemark?: string;
   storage?: string;         // 实物存放位置，与购买渠道 location 分开
   releaseInfo?: ReleaseInfo;
+  vinyl?: VinylSpec;        // 黑胶规格与品相（D-055），只有黑胶副本写
 }
 
 export interface ReleaseTrack {

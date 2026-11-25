@@ -2,10 +2,13 @@ import type {AlbumEntity, PackagingSpec as EntityPackagingSpec} from '@diedu/alb
 import type {AlbumRecord, PackagingPhotoRole} from '../types';
 import {albumPackaging, PACKAGING_PHOTO_ROLES} from './album-packaging';
 import {albumTextureSource} from './album-model-assets';
+import {recordMedium} from './medium';
 
 /** The host owns legacy interpretation and private resource locations. */
 export function toAlbumEntity(record: AlbumRecord): AlbumEntity {
-  const model = albumPackaging(record.version, record.packaging);
+  // 引擎只有 CD 模型：黑胶副本不套任何 CD 结构，按「其他包装」显示（D-055）
+  const model = recordMedium(record.releaseInfo) === 'vinyl' ? albumPackaging('', null)
+    : albumPackaging(record.version, record.packaging);
   const packaging: EntityPackagingSpec = {
     structure: model.kind, thickness: model.thickness, panels: model.panels, pockets: model.pockets,
     pocketOpening: model.pocketOpening, holder: model.holder, tray: model.tray, discs: model.discs,

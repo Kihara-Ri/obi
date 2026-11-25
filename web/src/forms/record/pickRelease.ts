@@ -5,7 +5,7 @@ import {displayReleaseTitle, releaseRegion} from '../../core/release-metadata';
 import {SOURCE_LABEL, identityFromCandidate, identityOf} from '../../core/release-source';
 import type {Medium} from '../../core/medium';
 import type {ReleaseCandidate, ReleaseInfo} from '../../types';
-import type {FormCtx} from './context';
+import {initialPackaging, type FormCtx} from './context';
 import {matchReleaseCover} from './releaseCover';
 import type {CoverSearch} from './useCoverSearch';
 
@@ -64,7 +64,7 @@ export async function pickRelease(candidate: ReleaseCandidate, d: PickDeps) {
   verified.current = candidate.id;
   d.setVerification('verified');
   set({title: displayReleaseTitle(candidate.title), artist: candidate.artist,
-    version: releaseInfo.packaging || '',
+    version: initialPackaging(releaseInfo),
     // 地区归类只是元数据；侧标仍是副本实物属性。
     pressing: releaseRegion(releaseInfo.country), releaseInfo,
     ...(changed ? {packaging: null} : {})});

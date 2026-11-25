@@ -3,7 +3,7 @@
 
 prepare --download: first acquisition; prepare: offline fresh reconstruction;
 start (default): validate and run the same development instance;
-vinyl: offline vinyl instance (three copies as LP / 2LP / 7", same locked covers) on port 63283;
+vinyl: offline vinyl instance (four copies as LP / gatefold 2LP / 7" / gatefold LP, same locked covers) on port 63283;
 backup/restore: complete JSON+image snapshot, without direct database writes.
 """
 import argparse

@@ -27,6 +27,8 @@ def media_format(text):
 
 
 def record_format(record):
+    if record.get('vinyl'):   # 填过黑胶规格的副本一定是黑胶（D-055）
+        return 'LP'
     info = record.get('releaseInfo') or {}
     parts = [info.get('format') or ''] + [str(m.get('format') or '') for m in info.get('media') or []
                                           if isinstance(m, dict)]

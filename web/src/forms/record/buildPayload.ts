@@ -1,6 +1,8 @@
 // 保存载荷：以打开时的快照合并表单值；隐藏的购买信息沿用原值，改动金额/币种/日期后清空实际成本。
 import {remapPackagingPhotos} from '../../core/album-packaging';
 import {prefs} from '../../core/prefs';
+import {recordMedium} from '../../core/medium';
+import {cleanVinyl} from '../../core/vinyl';
 import {RECORD_METADATA_FIELDS} from '../../core/record-metadata';
 import type {AlbumRecord, Status} from '../../types';
 import type {RecordValues} from './context';
@@ -25,6 +27,8 @@ export function buildPayload(base: Partial<AlbumRecord>, v: RecordValues, where:
     return 'existing' in p ? p.existing : 'data' in p ? (p.upload ? {upload: p.upload} : p.data) : '';
   });
   payload.packaging = remapPackagingPhotos(v.packaging, ok);
+  // 黑胶规格只属于黑胶副本：换成 CD / 其他时清掉（D-055）
+  payload.vinyl = recordMedium(v.releaseInfo) === 'vinyl' ? cleanVinyl(v.vinyl) : null;
   if (acquisition) {
     prefs.set('location', v.location);
     prefs.set('currency', v.currency);

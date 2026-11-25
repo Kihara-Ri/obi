@@ -4,7 +4,7 @@ import type {AlbumRecord, AppState} from '../types';
 import type {StateSnapshot} from './state-sync';
 
 export const RECORD_METADATA_FIELDS = ['title', 'artist', 'cover', 'coverSource', 'version', 'packaging',
-  'pressing', 'obi', 'note', 'noteAlbum', 'storage', 'releaseInfo'] as const;
+  'pressing', 'obi', 'note', 'noteAlbum', 'storage', 'releaseInfo', 'vinyl'] as const;
 
 export interface RecordMetadataSave {
   ids: string[];

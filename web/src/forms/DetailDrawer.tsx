@@ -22,6 +22,8 @@ import {NavRow} from '../components/ui/NavRow';
 import {InfoIco, SlidersIco} from '../components/icons';
 import {bulkAction} from './shared';
 import {formatPackagingName} from '../core/album-packaging';
+import {recordMedium} from '../core/medium';
+import {gradeText, vinylSpecText} from '../core/vinyl';
 import {PackagingLabel} from '../components/PackagingIcon';
 import {dedupeCatalog, displayRegion, displayReleaseTitle} from '../core/release-metadata';
 import {Rows} from './detail/Rows';
@@ -65,6 +67,7 @@ function DetailBody({id, back}: {id: string; back?: DetailBack}) {
   const sub = [displayRegion(info.country, r.pressing), /^\d{4}$/.test(year) ? year : '', info.unofficial === '1' ? '非官方' : ''].filter(Boolean).join(' · ');
   const pkg = info.packaging || formatPackagingName(r.version, r.packaging);
   const catalog = dedupeCatalog(info.catalogNumber);
+  const vinyl = recordMedium(info) === 'vinyl';
   const approx = jpyCost(r);
   // 国内 / 海外库存是常态，摘要里不再显示位置标签；在途、售出中、已售、回收站才需要提示（位置在管理页）
   const special = !['overseas', 'domestic'].includes(r.status);
@@ -103,6 +106,8 @@ function DetailBody({id, back}: {id: string; back?: DetailBack}) {
       <Rows rows={[
         !!pkg && {label: '包装', value: pkg === '待核对' ? '包装待核对' : <PackagingLabel text={pkg}/>},
         !!r.obi && {label: '侧标', value: r.obi},
+        vinyl && !!vinylSpecText(r.vinyl, info) && {label: '规格', value: vinylSpecText(r.vinyl, info)},
+        vinyl && !!gradeText(r.vinyl) && {label: '品相', value: gradeText(r.vinyl)},
         !!catalog && {label: '唱片编号', value: catalog, copy: info.catalogNumber},
         !!info.barcode && {label: '条码', value: info.barcode, copy: info.barcode},
         modules.acquisition && {label: '买入', value: price},

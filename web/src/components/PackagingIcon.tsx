@@ -2,6 +2,7 @@
 // kind 为 PACKAGING_PRESETS 的 value、'other' 或 ''（未填写）。PackagingLabel = 图标 + 中文名 + 原术语，详情页用。
 import type {ReactNode} from 'react';
 import {PACKAGING_PRESETS, PACKAGING_ZH, packagingDisplay, packagingKind} from '../core/album-packaging';
+import {VINYL_PACKAGING} from '../core/vinyl';
 import {OptionCards} from './ui/OptionCards';
 import './PackagingIcon.css';
 
@@ -48,6 +49,13 @@ const ICONS: Record<string, ReactNode> = {
   'digibook': <><rect x="8" y="3" width="19" height="21" rx="1"/><path d="M11.5 3v21"/>
     <path d="M27 5.5h2.5v21H10.5V24"/></>,
   'rigid-box': rigidBox,
+  // 黑胶：方形封套 + 露出带纹路的唱片；对开是两块方板，套装盒是带盖的扁盒
+  'lp-single': <><rect x="4" y="4" width="20" height="20" rx="1"/><path d="M24 5A9 9 0 0 1 24 23"/>
+    <path d="M24 8a6 6 0 0 1 0 12"/><path d="M24 12a2 2 0 0 1 0 4"/></>,
+  'lp-gatefold': <><rect x="2" y="7" width="16" height="16" rx="1"/><rect x="18" y="7" width="16" height="16" rx="1"/>
+    {peek(26, 7, 6.5)}{peek(26, 7, 3.6)}</>,
+  'lp-box': <><rect x="4" y="5" width="28" height="19" rx="1"/><path d="M4 9.5h28"/>
+    <circle cx="18" cy="17" r="4.6"/><circle cx="18" cy="17" r="1.2"/></>,
   'other': <><rect x="6" y="3" width="22" height="22" rx="1.5" strokeDasharray="3 2.5"/><circle cx="17" cy="14" r="5.5"/>
     <circle cx="17" cy="14" r="1.2"/></>,
   '': <><rect x="6" y="3" width="22" height="22" rx="1.5" strokeDasharray="3 2.5"/><path d="M13.5 10.5a3.5 3.5 0 1 1 4.5 3.4c-.6.2-1 .7-1 1.3v.8"/>
@@ -72,16 +80,19 @@ export function PackagingLabel({text}: {text: string}) {
  * 表单里的包装选择：预设点选后存预设的英文术语；归不进任何预设的选「其他」，存为 Other（不套结构、不生成 3D）。
  * 资料库带来的认不出的原值也归在「其他」下，选中它不会覆盖原值。
  */
-export function PackagingPicker({value, onPick, required = false}: {value: string; onPick: (label: string) => void; required?: boolean}) {
+export function PackagingPicker({value, onPick, required = false, vinyl = false}: {value: string; onPick: (label: string) => void;
+  required?: boolean; vinyl?: boolean}) {
   const kind = packagingKind(value);
+  // 黑胶只列黑胶预设（D-055），CD 预设的 3D 结构不适用
+  const presets = vinyl ? VINYL_PACKAGING : PACKAGING_PRESETS;
   const options = [
-    ...PACKAGING_PRESETS.map(p => ({value: p.value, label: PACKAGING_ZH[p.value], icon: <PackagingIcon kind={p.value}/>})),
+    ...presets.map(p => ({value: p.value, label: PACKAGING_ZH[p.value], icon: <PackagingIcon kind={p.value}/>})),
     {value: 'other', label: '其他', icon: <PackagingIcon kind="other"/>},
     ...(required ? [] : [{value: '', label: '不清楚', icon: <PackagingIcon kind=""/>}]),
   ];
   return <OptionCards className="pkg-picker" ariaLabel="包装" columns={3} options={options} value={kind}
     onValue={code => {
       if (code === 'other') { if (kind !== 'other') onPick('Other'); return; }
-      onPick(PACKAGING_PRESETS.find(p => p.value === code)?.label ?? '');
+      onPick(presets.find(p => p.value === code)?.label ?? '');
     }}/>;
 }

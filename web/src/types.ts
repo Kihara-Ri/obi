@@ -2,6 +2,8 @@
 // 金额一律是字符串（服务端 Decimal 量化到分），显示时再转 Number。
 import {formatPackagingName, packagingDisplay} from './core/album-packaging';
 import {copyEditionLabel} from './core/copy-edition';
+import {recordMedium} from './core/medium';
+import {vinylTag} from './core/vinyl';
 import {displayRegion} from './core/release-metadata';
 import type {AlbumRecord} from './core/album-types';
 export type * from './core/album-types';
@@ -132,9 +134,14 @@ export const SALE_NAMES: Record<SaleStatus, string> = {
 };
 
 // 实物版次和侧标独立于 MusicBrainz 发行资料；未填写不代表无侧标。
-export function labelTags(r: Pick<AlbumRecord, 'releaseInfo' | 'pressing' | 'obi' | 'version' | 'packaging'>): string[] {
+export function labelTags(r: Pick<AlbumRecord, 'releaseInfo' | 'pressing' | 'obi' | 'version' | 'packaging' | 'vinyl'>): string[] {
   const p = copyEditionLabel(displayRegion(r.releaseInfo?.country, r.pressing), r.obi);
-  return [p, packagingText(formatPackagingName(r.version, r.packaging))].filter(Boolean);
+  return [p, mediumTag(r), packagingText(formatPackagingName(r.version, r.packaging))].filter(Boolean);
+}
+
+/** 黑胶副本的介质标签（12″ 黑胶）；CD 是常态不标（D-055） */
+function mediumTag(r: Pick<AlbumRecord, 'releaseInfo' | 'vinyl'>): string {
+  return recordMedium(r.releaseInfo) === 'vinyl' ? vinylTag(r.vinyl, r.releaseInfo) : '';
 }
 
 /** 摘要里的包装用中文名（「待核对」写成「包装待核对」）。 */
@@ -148,7 +155,7 @@ export function metaTokens(r: AlbumRecord): {region: string; details: string[]; 
   const name = packagingText(pkg);
   return {
     region: displayRegion(r.releaseInfo?.country, r.pressing),
-    details: [r.obi?.trim(), name].filter((x): x is string => !!x),
+    details: [mediumTag(r), r.obi?.trim(), name].filter((x): x is string => !!x),
     packaging: name && pkg !== '待核对' ? {kind: packagingDisplay(pkg).kind, name} : null,
   };
 }

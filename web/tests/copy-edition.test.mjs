@@ -42,7 +42,9 @@ test('编辑表单的发行资料允许更正，侧标独立保存', () => {
   assert.match(form, /<ReleaseMetadataFields info=\{v\.releaseInfo\}/);
   assert.match(form, /set\(change\); dirty\(\)/);
   assert.match(form, /\.\.\.base, \.\.\.v, status:/);
-  assert.match(form, /version: releaseInfo\.packaging/);
+  // 选定发行版带入资料库包装；黑胶换成黑胶预设（D-055）
+  assert.match(form, /version: initialPackaging\(releaseInfo\)/);
+  assert.match(form, /recordMedium\(info\) === 'vinyl' \? vinylPackagingFromCatalog\(text\) : text/);
   // 发行地区在详情的二级页「发行资料」里完整显示（D-015）
   const detail = readFileSync(join(source, 'forms/detail/ReleasePage.tsx'), 'utf8');
   // 已由发行版确定国家时详情显示地区名与代码（美国（US）），没有国家才退回日版 / 外版

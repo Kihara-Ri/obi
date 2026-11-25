@@ -3,7 +3,6 @@
 // 实物照片（HEIC 压缩）、碟盒/版次/侧标联动。各区块与逻辑拆在 forms/record/。
 import {useEffect, useRef, useState} from 'react';
 import {api} from '../core/api';
-import {confirmedPackagingName} from '../core/album-packaging';
 import type {RecordMetadataSave} from '../core/record-metadata';
 import {today} from '../core/format';
 import {releaseRegion} from '../core/release-metadata';
@@ -25,7 +24,7 @@ import {matchReleaseCover} from './record/releaseCover';
 import {originOf} from '../core/version-cover';
 import {MoneySection} from './record/MoneySection';
 import {PhotoEntry} from './record/PhotoEntry';
-import {PackageReview, ReleaseDetails} from './record/ReleaseDetails';
+import {PackageReview, ReleaseDetails, reviewedPackaging} from './record/ReleaseDetails';
 import {FocusField} from './FocusField';
 import {ReleaseLookupSection} from './record/ReleaseLookupSection';
 import {useCostPreview} from './record/useCostPreview';
@@ -91,7 +90,7 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
     const control = feedback.issue?.control;
     if (!control) return;
     if ((control.id === 'f-title' && v.title.trim()) || (control.id === 'f-artist' && v.artist.trim())
-        || (control.closest('#record-packaging') && confirmedPackagingName(v.version, v.packaging, v.releaseInfo.packaging))
+        || (control.closest('#record-packaging') && reviewedPackaging(v))
         || (control.closest('.record-copy-edition') && (!japan || v.obi === '带侧标' || v.obi === '无侧标'))
         || (control.id === 'record-lookup' && identified && lookup.verification === 'verified'
           && lookup.barcode === (v.releaseInfo.barcode || '')
@@ -119,7 +118,7 @@ export function RecordForm({id, seed}: {id?: string; seed?: ReleaseCandidate}) {
       fieldError('#record-lookup', '发行版本已改变，请重新查询并选择 MusicBrainz 发行版');return;
     }
     if (lookup.busy) {setError('正在检索发行资料，请稍候');return;}
-    if (!confirmedPackagingName(v.version, v.packaging, v.releaseInfo.packaging)) {
+    if (!reviewedPackaging(v)) {
       fieldError('#record-packaging [role="radiogroup"]', '请选择这张专辑的实物包装后保存');
       return;
     }

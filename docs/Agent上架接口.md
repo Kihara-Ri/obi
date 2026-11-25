@@ -39,7 +39,7 @@ GET /api/listing/agent/package?id=0123456789abcdef0123456789abcdef
 | `photoRevision`、`photoCount` | 照片版本及副本照片总数。 |
 | `photoOrder`、`photos` | 本包的 0 基序号数组及有序文件清单 `[{index,file}]`。包内首张可用作首图。没有图或用了 `photos=0` 时两个数组为空。 |
 | `listed` | Obi 当前的上架标记。平台是否在线由外部系统核实。 |
-| `facts` | `album`、`release`、`copy` 三组白名单资料。发行版资料属于版次，本副本照片和确认过的实物信息才可作为品相依据。 |
+| `facts` | `album`、`release`、`copy` 三组白名单资料。发行版资料属于版次，本副本照片和确认过的实物信息才可作为品相依据。`copy.medium` 是 `cd` / `vinyl` / `other`（从发行格式认出，没写按 `cd`），黑胶的文案、打包和运费按它区分；黑胶副本填过规格时另有 `copy.vinyl`：`size`（`7` / `10` / `12`）、`speed`（`33` / `45` / `78`）、`color`（彩胶颜色）、`mediaGrade` / `sleeveGrade`（唱片 / 封套品相，`M` / `NM` / `VG+` / `VG` / `G`），都可缺省（D-055）。 |
 
 资料包排除采购成本、购买渠道、私人备注、凭据和其他副本数据。文案由外部系统持久化。旧的 `/api/listing/agent/copies`、`materials`、`photos` 和 `draft` 接口已停用。
 

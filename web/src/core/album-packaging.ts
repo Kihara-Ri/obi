@@ -1,6 +1,7 @@
 import type {PackagingPhotoRole, PackagingSpec} from '../types';
 
 import {albumPackaging as explicitPackaging} from '../vendor/album-data/packaging';
+import {VINYL_PACKAGING, vinylPackagingKind} from './vinyl';
 import type {AlbumPackaging} from '../vendor/album-data/packaging';
 export type {AlbumPackaging} from '../vendor/album-data/packaging';
 export {packagingName} from '../vendor/album-data/packaging';
@@ -58,6 +59,8 @@ function legacySpec(version: string): PackagingSpec {
 
 /** The host retains interpretation of legacy ledger labels. */
 export function albumPackaging(version: string, spec?: PackagingSpec | null): AlbumPackaging {
+  // 黑胶包装预设不带 3D 结构（D-055）：和「其他包装」一样保持 2D
+  if (vinylPackagingKind(version)) return explicitPackaging({});
   return explicitPackaging({...legacySpec(version), ...spec});
 }
 
@@ -124,6 +127,7 @@ export const PACKAGING_ZH: Record<string, string> = {
   'jewel': '标准塑料盒', 'slimline': '薄塑料盒', 'multi': '多碟厚塑料盒',
   'card-sleeve': '单口纸套', 'gatefold': '对折纸套', 'digisleeve': '三折纸套',
   'digipak': '纸盒带托盘', 'digibook': '精装书本', 'rigid-box': '硬纸盒', 'mini-lp': '迷你 LP 纸套',
+  ...Object.fromEntries(VINYL_PACKAGING.map(p => [p.value, p.zh])),
   'other': '其他包装',
 };
 
@@ -145,6 +149,8 @@ const OTHER_ZH: Record<string, string> = {
 export function packagingKind(text: string): string {
   const t = text.normalize('NFKC').trim().toLowerCase();
   if (!t) return '';
+  const vinyl = vinylPackagingKind(t);
+  if (vinyl) return vinyl;
   const preset = PACKAGING_PRESETS.find(p => p.label.toLowerCase() === t);
   if (preset) return preset.value;
   if (CATALOG_KINDS[t]) return CATALOG_KINDS[t];

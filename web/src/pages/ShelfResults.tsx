@@ -7,14 +7,24 @@ import {useApp} from '../state/AppContext';
 import {openRecordForm} from '../forms/RecordForm';
 import {openArtistDrawer} from '../forms/ArtistDrawer';
 
-export function ShelfResults({records: rs, sort, flip, renderCard}: {
+export function ShelfResults({records: rs, sort, flip, renderCard, medium, clearMedium}: {
   records: AlbumRecord[]; sort: SortMode; flip: boolean; renderCard: (record: AlbumRecord) => ReactNode;
+  /** 介质筛选生效时的名称（CD / 黑胶）；空结果按筛选说明，而不是说库存是空的 */
+  medium?: string; clearMedium?: () => void;
 }) {
   const app = useApp();
   const {page, query, modules} = app;
   const isTrash = page === 'trash';
   const searching = query.trim() !== '';
   const timeline = !searching && sort === 'new' && modules.acquisition;
+  if (!rs.length && medium && !query) {
+    return <div className="empty">
+      <div className="empty-symbol">◫</div>
+      <h3>这里没有{medium}</h3>
+      <p>换到另一边库存，或看全部介质。</p>
+      <button onClick={clearMedium}>看全部介质</button>
+    </div>;
+  }
   if (!rs.length) {
     return (
       <div className="empty">

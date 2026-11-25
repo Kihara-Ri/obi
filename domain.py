@@ -275,12 +275,38 @@ def clean_record(data):
         raise ValidationError('封面数据不正确')
     r['cover'] = cover
     if 'releaseInfo' in r: r['releaseInfo'] = clean_release_info(r['releaseInfo'])
+    if 'vinyl' in r:
+        vinyl = clean_vinyl(r['vinyl'])
+        if vinyl: r['vinyl'] = vinyl
+        else: r.pop('vinyl', None)
     if 'packaging' in r:
         packaging = clean_packaging(r['packaging'])
         if packaging: r['packaging'] = packaging
         else: r.pop('packaging', None)
     return r
 
+
+
+GRADES = ('M', 'NM', 'VG+', 'VG', 'G')
+VINYL_CHOICES = {'size': ('7', '10', '12'), 'speed': ('33', '45', '78'), 'mediaGrade': GRADES, 'sleeveGrade': GRADES}
+
+
+def clean_vinyl(value):
+    """黑胶副本的规格与品相（D-055）：尺寸、转速、彩胶、唱片 / 封套分级，全部可选；空值不写。"""
+    if value in (None, {}): return None
+    if not isinstance(value, dict) or set(value) - {*VINYL_CHOICES, 'color'}:
+        raise ValidationError('黑胶规格格式不正确')
+    result = {}
+    for key, choices in VINYL_CHOICES.items():
+        text = value.get(key)
+        if text in (None, ''): continue
+        if text not in choices: raise ValidationError('黑胶规格取值不正确')
+        result[key] = text
+    color = value.get('color')
+    if color not in (None, ''):
+        if not isinstance(color, str) or len(color.strip()) > 40: raise ValidationError('彩胶颜色应为 40 字以内的文字')
+        if color.strip(): result['color'] = color.strip()
+    return result or None
 
 
 def clean_packaging(value):

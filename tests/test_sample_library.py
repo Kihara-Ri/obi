@@ -108,7 +108,8 @@ class SampleLibraryTests(unittest.TestCase):
         vinyl = {key: records[ids[key]] for key in self.seed.VINYL_REVIEW}
         for key, r in vinyl.items():
             self.assertEqual(medium_of(r['releaseInfo']['format']), 'vinyl', key)
-            self.assertEqual((r['version'], r.get('packaging')), ('', None), key)
+            self.assertEqual((r['version'], r.get('packaging'), r.get('vinyl')),
+                             (*self.seed.VINYL_COPY[key][:1], None, self.seed.VINYL_COPY[key][1]), key)
             self.assertTrue(r['releaseInfo']['catalogNumber'].startswith('DEMO-LP-'))
         self.assertEqual(vinyl['one-last-kiss']['releaseInfo']['format'], '7" Vinyl')
         double = vinyl['mbdtf']

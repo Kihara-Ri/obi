@@ -1,5 +1,5 @@
 // 库存页（海外 / 国内 / 回收站共用）：搜索、排序、时间线/艺人分组、批量操作条。
-import {useRef} from 'react';
+import {useRef, useState} from 'react';
 import {useApp} from '../state/AppContext';
 import type {ShelfSortChoice} from '../state/AppContext';
 import type {AlbumRecord, SortMode} from '../types';
@@ -28,6 +28,8 @@ import {openDetail} from '../forms/DetailDrawer';
 import {openArtistDrawer} from '../forms/ArtistDrawer';
 import {bulkAction} from '../forms/shared';
 import {queueLookup} from '../core/lookup-handoff';
+import {recordMedium} from '../core/medium';
+import {prefs} from '../core/prefs';
 
 const SORTS = [
   {value: 'new', label: '最近买入'},
@@ -40,6 +42,9 @@ const LISTING_SORTS = [
   {value: 'listed', label: '最近上架'},
   {value: 'listed-old', label: '最早上架'},
 ];
+
+// 介质筛选（D-055）：库里有黑胶才出现；「其他」介质只在全部里
+const MEDIUM_FILTERS = [{value: 'all', label: '全部介质'}, {value: 'cd', label: 'CD'}, {value: 'vinyl', label: '黑胶'}];
 
 const LISTED_FILTERS = [
   {value: 'all', label: '全部专辑'},
@@ -58,7 +63,10 @@ export function ShelfPage() {
   const sort: SortMode = sortValue === 'old' ? 'new' : sortValue === 'listed-old' ? 'listed' : sortValue;
   const flip = sortValue === 'old' || sortValue === 'listed-old';
   const baseSorts = modules.acquisition ? SORTS : COLLECTION_SORTS;
-  const all = state.records.filter(r => onShelf(r.status, page, modules));
+  const [medium, setMedium] = useState(() => prefs.get('shelf-medium', 'all'));
+  const hasVinyl = state.records.some(r => recordMedium(r.releaseInfo) === 'vinyl');
+  const all = state.records.filter(r => onShelf(r.status, page, modules)
+    && (!hasVinyl || medium === 'all' || recordMedium(r.releaseInfo) === medium));
   const rs = shelfRecords(all, {page, query, sort, flip, shelfFilter, modules});
   const selectable = rs.filter(r => r.status !== 'transit');
   const searching = query.trim() !== '';
@@ -147,7 +155,7 @@ export function ShelfPage() {
         </nav>
       ) : null}
       <ShelfSummary all={all} modules={modules} page={page}/>
-      <div className="toolbar">
+      <div className={hasVinyl ? 'toolbar has-medium' : 'toolbar'}>
         {!isTrash && (
           <label className="select-all" title="全选当前结果">
             <input type="checkbox" aria-label="全选当前结果"
@@ -162,11 +170,13 @@ export function ShelfPage() {
           <Seg className="filter-seg" persistKey="shelf-listed" ariaLabel="上架筛选" options={LISTED_FILTERS}
                value={shelfFilter} onValue={app.setShelfFilter}/>
         ) : null}
+        {hasVinyl ? <Dropdown id="medium" value={medium} label="介质" options={MEDIUM_FILTERS}
+          onPick={m => { setMedium(m); prefs.set('shelf-medium', m); }}/> : null}
         <Dropdown id="sort" value={sortValue} label="排序方式"
                   options={canSortByListing ? [...LISTING_SORTS, ...baseSorts] : baseSorts}
                   onPick={v => app.setShelfSort({...app.shelfSort, [sortScope]: v as ShelfSortChoice})}/>
         <Seg className="view-seg" persistKey="shelf-view" ariaLabel="库存显示方式" value={app.shelfView}
-             options={[{value: 'list', label: <>{ListViewIco}列表</>, ariaLabel: '列表视图'}, {value: 'cards', label: <>{CardViewIco}卡片</>, ariaLabel: '卡片视图'}]}
+             options={[{value: 'list', label: <>{ListViewIco}<span className="view-text">列表</span></>, ariaLabel: '列表视图'}, {value: 'cards', label: <>{CardViewIco}<span className="view-text">卡片</span></>, ariaLabel: '卡片视图'}]}
              onValue={v => { snapshotFlip(); app.setShelfView(v as 'list' | 'cards'); }}/>
       </div>
       <BulkBar page={page} ids={[...curSelected]} allIds={selectable.map(r => r.id)} isTrash={isTrash}/>
@@ -174,7 +184,9 @@ export function ShelfPage() {
       {searching && !isTrash ? <a className="shelf-lookup-row" href="#lookup" onClick={() => queueLookup(query.trim())}>
         <span>在资料库查「<b>{query.trim()}</b>」</span><i aria-hidden="true">›</i></a> : null}
       <TabPanel value={page} order={['domestic', 'overseas']}>
-        <ShelfResults records={rs} sort={sort} flip={flip} renderCard={renderCard}/>
+        <ShelfResults records={rs} sort={sort} flip={flip} renderCard={renderCard}
+          medium={hasVinyl && medium !== 'all' ? MEDIUM_FILTERS.find(m => m.value === medium)?.label : undefined}
+          clearMedium={() => { setMedium('all'); prefs.set('shelf-medium', 'all'); }}/>
       </TabPanel>
     </div>
   );
