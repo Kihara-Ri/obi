@@ -52,6 +52,14 @@ def medium_of(text):
     return 'cd' if 'cd' in text.casefold() else 'other'
 
 
+def release_medium(info):
+    """副本优先采用发行版的整体介质，其次采用第一项已知的碟片介质。"""
+    info = info or {}
+    formats = [info.get('format')] + [disc.get('format') for disc in info.get('media') or []
+                                      if isinstance(disc, dict)]
+    return next((kind for kind in map(medium_of, formats) if kind), '')
+
+
 def medium_accepts(medium, formats):
     """发行版的各碟格式里有没有所选介质；「其他」不过滤。"""
     if medium == 'other': return True
@@ -277,6 +285,8 @@ def clean_record(data):
     if 'releaseInfo' in r: r['releaseInfo'] = clean_release_info(r['releaseInfo'])
     if 'vinyl' in r:
         vinyl = clean_vinyl(r['vinyl'])
+        if vinyl and release_medium(r.get('releaseInfo')) not in ('', 'vinyl'):
+            raise ValidationError('只有黑胶副本可以填写黑胶规格与品相')
         if vinyl: r['vinyl'] = vinyl
         else: r.pop('vinyl', None)
     if 'packaging' in r:

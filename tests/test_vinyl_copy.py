@@ -28,6 +28,15 @@ class VinylSpecTests(unittest.TestCase):
         self.assertNotIn('vinyl', record)
         self.assertEqual(clean_record({'title': 'A', 'artist': 'B', 'vinyl': {'speed': '45'}})['vinyl'], {'speed': '45'})
 
+    def test_record_checks_known_release_format_before_accepting_specs(self):
+        record = {'title': 'A', 'artist': 'B', 'vinyl': {'speed': '45'}}
+        for info in ({'format': 'CD', 'media': [{'format': 'Vinyl'}]},
+                     {'media': [{'format': 'SACD'}]}, {'format': 'Cassette'}):
+            with self.subTest(info=info), self.assertRaises(ValidationError):
+                clean_record({**record, 'releaseInfo': info})
+        saved = clean_record({**record, 'releaseInfo': {'media': [{'format': '7″ Vinyl'}]}})
+        self.assertEqual(saved['vinyl'], record['vinyl'])
+
     def test_vinyl_specs_make_the_copy_lp_even_without_format(self):
         self.assertEqual(record_format({'releaseInfo': {}}), 'CD')
         self.assertEqual(record_format({'releaseInfo': {}, 'vinyl': {'speed': '33'}}), 'LP')
@@ -55,6 +64,15 @@ class VinylCopyTests(unittest.TestCase):
         row = self.row('remain')
         routes.api_record_metadata(h, svc, {'id': row['id'], 'revision': row['revision'], 'vinyl': None})
         self.assertNotIn('vinyl', self.row('remain'))
+
+    def test_metadata_rejects_vinyl_specs_for_existing_cd(self):
+        h, svc = SimpleNamespace(send=Mock()), SimpleNamespace(store=self.store, shops=None, artists=None, releases=None)
+        row = self.row('dsotm-jp')
+        self.assertEqual(row['releaseInfo']['format'], 'CD')
+        with self.assertRaises(ValidationError):
+            routes.api_record_metadata(h, svc, {'id': row['id'], 'revision': row['revision'], 'vinyl': {'size': '12'}})
+        self.assertEqual(self.row('dsotm-jp'), row)
+        h.send.assert_not_called()
 
     def test_listing_package_carries_medium_and_vinyl_facts(self):
         double = public_context(self.row('mbdtf'))['copy']

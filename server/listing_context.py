@@ -1,5 +1,5 @@
 """上架资料包的事实白名单；排除采购、渠道、私人备注和数字实体。"""
-from domain import medium_of
+from domain import release_medium
 
 RELEASE_KEYS = ('catalogNumber', 'barcode', 'label', 'country', 'releaseDate', 'edition',
                 'packaging', 'format', 'discCount', 'matrix', 'extras', 'observations',
@@ -15,8 +15,7 @@ def public_context(record):
                 if key in packaging}
     if physical: copy['packaging'] = physical
     # 介质与黑胶规格 / 品相（D-055）：Agent 据此区分黑胶的文案、打包和运费
-    formats = [release.get('format')] + [m.get('format') for m in release.get('media') or [] if isinstance(m, dict)]
-    copy['medium'] = next((m for m in map(medium_of, formats) if m), '') or 'cd'
+    copy['medium'] = release_medium(release) or 'cd'
     if copy['medium'] == 'vinyl' and record.get('vinyl'): copy['vinyl'] = dict(record['vinyl'])
     return {'album': {key: record.get(key, '') for key in ('title', 'artist', 'releaseYear')},
             'release': {key: release[key] for key in RELEASE_KEYS if release.get(key)}, 'copy': copy}
