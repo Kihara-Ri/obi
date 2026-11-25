@@ -149,13 +149,12 @@ function packagingText(pkg: string): string {
   return !pkg ? '' : pkg === '待核对' ? '包装待核对' : packagingDisplay(pkg).name;
 }
 
-/** 列表行的元信息拆成「地区」+「其他」两层：地区（美国 / 日本…）突出，侧标与包装次之；包装未核对写成「包装待核对」。 */
+/** 列表行的地区、文字元信息与包装图标分开。待核对的包装提供文字状态。 */
 export function metaTokens(r: AlbumRecord): {region: string; details: string[]; packaging: {kind: string; name: string} | null} {
   const pkg = formatPackagingName(r.version, r.packaging);
-  const name = packagingText(pkg);
   return {
     region: displayRegion(r.releaseInfo?.country, r.pressing),
-    details: [mediumTag(r), r.obi?.trim(), name].filter((x): x is string => !!x),
-    packaging: name && pkg !== '待核对' ? {kind: packagingDisplay(pkg).kind, name} : null,
+    details: [mediumTag(r), r.obi?.trim(), pkg === '待核对' ? '包装待核对' : ''].filter((x): x is string => !!x),
+    packaging: pkg && pkg !== '待核对' ? packagingDisplay(pkg) : null,
   };
 }
