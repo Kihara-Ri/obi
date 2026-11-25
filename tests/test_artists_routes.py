@@ -12,6 +12,7 @@ from musicbrainz import MusicBrainzClient
 from server import Services, make_handler
 from server.artists import ArtistService
 from server.routes import WRITE_LOCK
+from auth_fixture import current_code, enroll_test_owner
 from security import Auth
 from storage import Store
 
@@ -43,10 +44,10 @@ class ArtistRouteTests(unittest.TestCase):
         self.rid = self.store.save({'title': '测试专辑', 'artist': '艺人'})['ids'][0]
         services = Services(store=self.store, auth=Auth(self.root / 'auth.sqlite3'),
                             covers=self.covers, artists=self.artists)
-        services.auth.set_password('test-password-12345')
+        enroll_test_owner(services.auth)
         self.server = ThreadingHTTPServer(('127.0.0.1', 0), make_handler(services))
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
-        _, headers, _ = self.req('/api/login', {'password': 'test-password-12345'})
+        _, headers, _ = self.req('/api/login', {'code': current_code()})
         self.cookie = headers['Set-Cookie']
 
     def tearDown(self):

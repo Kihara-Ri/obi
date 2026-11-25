@@ -12,6 +12,7 @@ import unittest
 from unittest.mock import patch
 
 from app import build
+from auth_fixture import current_code, enroll_test_owner
 from server import make_handler
 from tools.seed_samples import seed_purchase_review
 
@@ -36,7 +37,7 @@ class PurchaseQueryTests(unittest.TestCase):
             path.write_text(token + '\n')
             path.chmod(0o600)
         self.services = build(self.root)
-        self.services.auth.set_password('sample-purchase-query-password')
+        enroll_test_owner(self.services.auth)
         self.server = ThreadingHTTPServer(('127.0.0.1', 0), make_handler(self.services))
         threading.Thread(target=self.server.serve_forever, kwargs={'poll_interval': 0.04}, daemon=True).start()
         self.addCleanup(self.server.server_close)
@@ -69,7 +70,7 @@ class PurchaseQueryTests(unittest.TestCase):
             status, _, headers = self.request(path, token)
             self.assertEqual(status, 401)
             self.assertEqual(headers['WWW-Authenticate'], 'Bearer')
-        cookie = self.services.auth.login('sample-purchase-query-password', '127.0.0.1')
+        cookie = self.services.auth.login(current_code())
         self.assertEqual(self.request(path, cookie=cookie)[0], 401)
         token = self.tokens['collection']
         self.assertEqual(self.request(path, token, origin='https://other.test')[0], 403)

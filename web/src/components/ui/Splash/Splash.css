@@ -1,7 +1,19 @@
-/* 启动加载画面与转场（见 Splash.tsx）。颜色只用 token；唱片外观沿用 login.css 的 .vinyl。
-   退场总时长 720ms，与 Splash.tsx 的 EXIT_MS 保持一致。
-   所有动画只用 transform / opacity（走合成层，不触发整屏重绘）；
-   .splash 前缀提高优先级：login.css（后加载）的 .vinyl 带 104px 尺寸与 margin，不能盖过这里。 */
+/* 启动加载与转场，唱片外观也用于静态登录页。
+   退场总时长 720ms，与 Splash.tsx 的 EXIT_MS 保持一致。 */
+.vinyl{position:relative;border-radius:50%;border:1px solid var(--vinyl-rim);
+  background:var(--vinyl-light),
+             repeating-radial-gradient(circle,var(--vinyl-ring) 0 2px,var(--vinyl-body) 2px 5px);
+  box-shadow:var(--vinyl-shadow),var(--vinyl-inner-shadow)}
+.vinyl::before{content:"";position:absolute;inset:0;border-radius:50%;
+  background:var(--vinyl-glint);
+  animation:vinyl-glint 24s linear infinite}
+.vinyl::after{content:"";position:absolute;inset:31%;border-radius:50%;
+  background:radial-gradient(circle at 38% 32%,var(--accent-strong),var(--accent) 72%);
+  box-shadow:inset 0 0 0 1px var(--vinyl-label-edge)}
+.vinyl-hole{position:absolute;inset:47.2%;border-radius:50%;background:var(--vinyl-hole);box-shadow:0 0 0 1px var(--vinyl-hole-edge)}
+@keyframes vinyl-glint{to{transform:rotate(1turn)}}
+@media (prefers-reduced-motion:reduce){.vinyl::before{animation:none}}
+
 .splash{--beat:1.5s;position:fixed;inset:0;z-index:2000;display:grid;place-content:center;justify-items:center;gap:22px;
   animation:splash-in .22s ease-out both}
 .splash.is-wait{visibility:hidden}
@@ -30,8 +42,8 @@
 /* 唱片：两半叠在同一位置，加载时严丝合缝。投影单独一层（半片各带投影会在中线接缝处出一道发丝线），
    半片只保留盘内暗角 */
 .splash-disc{position:relative;width:76px;height:76px}
-.splash-disc::before{content:"";position:absolute;inset:0;border-radius:50%;box-shadow:0 14px 34px color-mix(in srgb,black 50%,transparent)}
-.splash .splash-half{position:absolute;inset:0;margin:0;width:76px;height:76px;box-shadow:inset 0 0 22px color-mix(in srgb,black 65%,transparent)}
+.splash-disc::before{content:"";position:absolute;inset:0;border-radius:50%;box-shadow:var(--vinyl-shadow)}
+.splash .splash-half{position:absolute;inset:0;margin:0;width:76px;height:76px;box-shadow:var(--vinyl-inner-shadow)}
 .splash .splash-half::before{animation-duration:var(--beat)}
 .splash .splash-top{clip-path:inset(0 0 calc(50% - .5px) 0)}
 .splash .splash-bottom{clip-path:inset(calc(50% - .5px) 0 0 0)}

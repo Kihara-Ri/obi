@@ -17,6 +17,10 @@ export default defineConfig({
     // 组件自带的样式若随 chunk 拆出、按需插入，层叠顺序会和现在不同
     cssCodeSplit: false,
     rollupOptions: {
+      input: {
+        index: 'index.html',
+        'auth-setup': 'src/auth-setup.ts',
+      },
       output: {
         entryFileNames: 'assets/[name].js',
         chunkFileNames: 'assets/[name].js',

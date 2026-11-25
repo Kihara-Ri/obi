@@ -16,7 +16,9 @@ const pyodideVersion = JSON.parse(readFileSync(join(pyodideDir, 'package.json'),
 
 if (!existsSync(join(root, 'static', 'index.html'))) throw new Error('先执行 vite build（static/index.html 不存在）');
 rmSync(out, {recursive: true, force: true});
-cpSync(join(root, 'static'), out, {recursive: true, filter: src => !src.endsWith('/static/sw.js') && !src.endsWith('/.DS_Store')});
+const serverOnly = new Set(['sw.js', 'setup.html', join('assets', 'auth-setup.js')]);
+cpSync(join(root, 'static'), out, {recursive: true, filter: src =>
+  !serverOnly.has(relative(join(root, 'static'), src)) && !src.endsWith('/.DS_Store')});
 cpSync(join(root, 'static', 'local', 'sw-local.js'), join(out, 'sw.js'));
 
 // 让前端知道自己跑在静态站点上（core/backend.ts 读这个标记）

@@ -106,9 +106,9 @@ export const app: Group[] = [
   {
     id: 'app-system', title: '设置与系统',
     routes: [
-      { m: 'POST', p: '/api/login', auth: '实例密码', does: '登录，下发 album_session Cookie。', body: 'password*' },
+      { m: 'POST', p: '/api/setup', auth: '私有安装凭据', does: '新公网实例首次绑定。先获取设置密钥，再提交动态码确认。', body: 'token* · code' },
+      { m: 'POST', p: '/api/login', auth: '6 位动态码', does: '验证 Google Authenticator 动态码，下发 album_session Cookie。', body: 'code*' },
       { m: 'POST', p: '/api/logout', does: '注销当前会话。' },
-      { m: 'POST', p: '/api/password', does: '改密码，其他设备全部退出。', body: 'current* · next*' },
       { m: 'GET', p: '/api/clients', does: '调用方列表：名称、权限、签发时间。', ret: 'available · path · scopes · clients[] · legacy' },
       { m: 'POST', p: '/api/clients/issue', does: '签发令牌，明文只在这次响应里出现。', body: 'name* · scopes*', ret: 'token · 列表' },
       { m: 'POST', p: '/api/clients/rotate', does: '换新令牌，旧的立即失效。', body: 'name*', ret: 'token · 列表' },

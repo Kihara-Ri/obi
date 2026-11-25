@@ -7,7 +7,7 @@
 #
 # 数据全部落在 ./data（数据库/照片/每日备份），与代码和镜像完全解耦。
 # 对外提供 HTTPS 时：反代到 127.0.0.1:8765，并在 .env 写 PUBLIC_ORIGIN=https://your.domain
-# （启用公网访问前先设登录密码：docker compose exec app python3 app.py --set-password）
+# （新实例启动后，从 ./data/obi-setup-url.txt 打开私有链接扫码绑定）
 
 name: obi
 

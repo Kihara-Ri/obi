@@ -18,6 +18,7 @@ from types import SimpleNamespace
 from domain import ValidationError, ConflictError
 from storage import Store, uid
 from server import Services, make_handler
+from auth_fixture import current_code, enroll_test_owner
 from security import Auth
 from twins import TWIN_KEY, clean_entity, clean_registry
 
@@ -366,7 +367,7 @@ class TwinHttpTests(unittest.TestCase):
     request = DigitalTwinTests.request
     create = DigitalTwinTests.create
     def setUp(self):
-        DigitalTwinTests.setUp(self); self.auth = Auth(Path(self.tmp.name) / 'auth.sqlite3'); self.auth.set_password('fixture-password-12345')
+        DigitalTwinTests.setUp(self); self.auth = Auth(Path(self.tmp.name) / 'auth.sqlite3'); enroll_test_owner(self.auth)
         self.previews = []
         twins = SimpleNamespace(index=self.store.twin_index,
                                 guided_image=lambda ident, ordinal, source=None: self.previews.append((ident, ordinal, source)) or PNG)
@@ -382,7 +383,7 @@ class TwinHttpTests(unittest.TestCase):
         connection.request('GET' if body is None else 'POST', path, json.dumps(body) if body is not None else None, headers)
         response = connection.getresponse(); result = response.status, dict(response.headers), response.read(); connection.close(); return result
     def login(self):
-        return self.http_req('/api/login', {'password': 'fixture-password-12345'})[1]['Set-Cookie']
+        return self.http_req('/api/login', {'code': current_code()})[1]['Set-Cookie']
 
     def test_http_auth_origin_and_published_assets(self):
         for route in ['/api/twins', '/api/twin-assets/' + uid() + '/photo-0.png']:

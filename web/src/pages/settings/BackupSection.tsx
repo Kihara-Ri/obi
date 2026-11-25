@@ -52,7 +52,7 @@ export function BackupSection() {
         <div><h4>备份里有</h4><ul>
           <li>专辑、发行资料与上架记录</li><li>包裹与交易记录</li><li>实物照片、封面（含自己上传的）</li><li>数字实体文件</li></ul></div>
         <div><h4>备份里没有</h4><ul>
-          <li>登录密码与模型授权</li><li>插件程序（在设置里重新安装）</li></ul></div>
+          <li>登录凭据与模型授权</li><li>插件程序（在设置里重新安装）</li></ul></div>
       </div>
     </section>
 

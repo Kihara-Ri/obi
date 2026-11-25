@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="same-origin">
+  <meta name="robots" content="noindex">
+  <script src="/theme.js"></script>
+  <link rel="stylesheet" href="/assets/index.css">
+  <link rel="stylesheet" href="/login.css">
+  <link rel="icon" href="/favicon.svg">
+  <title>首次绑定 · Obi</title>
+</head>
+<body>
+  <main class="login-page">
+    <section class="login-card setup-card" aria-labelledby="setup-title">
+      <h1 id="setup-title">绑定 Google Authenticator</h1>
+      <p id="setup-status" role="status">请从服务器私有安装链接打开此页。</p>
+      <div id="setup-pairing" hidden>
+        <img id="setup-qr" alt="Google Authenticator 设置二维码">
+        <details>
+          <summary>手动输入设置密钥</summary>
+          <p>账户名填 Obi，类型选「基于时间」。</p>
+          <code id="setup-key"></code>
+        </details>
+        <form id="setup-form" action="/api/setup" method="post">
+          <label class="login-label" for="setup-code">6 位动态码</label>
+          <input id="setup-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code"
+                 pattern="[0-9]{6}" maxlength="6" required aria-describedby="setup-error">
+          <p id="setup-error" role="alert"></p>
+          <button class="primary" type="submit">确认绑定</button>
+        </form>
+      </div>
+      <a id="setup-login" href="/login">去登录</a>
+    </section>
+  </main>
+  <script type="module" src="/assets/auth-setup.js"></script>
+</body>
+</html>

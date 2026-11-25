@@ -1,7 +1,7 @@
 """网页端管理对外调用方令牌（D-052）：设置 · 高级 · MCP 服务。
 
 与命令行 server.client_admin 读写同一份 credentials/clients.json（agent_clients 的同一组函数）。
-只在服务器版、且已设登录密码时可用（本机模式没有调用方清单；没设密码时服务器本就拒绝所有接口，这里再挡一次）。
+只在服务器版、且已绑定动态码时可用（本机模式没有调用方清单；无登录配置时这里拒绝签发）。
 令牌只在签发和轮换的响应里出现一次；列表只返回名称、权限和签发时间。
 """
 from pathlib import Path
@@ -16,7 +16,7 @@ def _root(svc):
     if not registry:
         return None, '本机模式不提供 MCP 服务，请使用服务器版'
     if not svc.auth or not svc.auth.configured():
-        return None, '先在「账户」设置登录密码，才能签发令牌'
+        return None, '先在服务器绑定 Google Authenticator，才能签发令牌'
     return Path(registry.path).parents[1], None
 
 

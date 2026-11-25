@@ -19,6 +19,7 @@ from app import build
 from domain import ConflictError, ValidationError
 from server import make_handler, Services
 from server.engine_plugins import PluginManager
+from auth_fixture import current_code, enroll_test_owner
 from security import Auth
 from tools.seed_samples import seed_models, open_store
 
@@ -366,7 +367,7 @@ class EnginePluginTests(unittest.TestCase):
 
     def test_authentication_and_csrf_cover_install_assets_and_uninstall(self):
         auth = Auth(self.root / 'auth.sqlite3')
-        auth.set_password('protocol-test-password')
+        enroll_test_owner(auth)
         services = Services(store=self.store, auth=auth, plugins=self.manager, twins=self.manager.facade)
         server = ThreadingHTTPServer(('127.0.0.1',0),make_handler(services))
         thread = threading.Thread(target=server.serve_forever,daemon=True); thread.start()
@@ -378,7 +379,7 @@ class EnginePluginTests(unittest.TestCase):
             response=conn.getresponse();response.read();self.assertEqual(response.status,401)
         conn.request('POST','/api/plugins/album-engine/install',body='{}',headers={'Content-Type':'application/json','Origin':'https://attacker.invalid'})
         response=conn.getresponse();response.read();self.assertEqual(response.status,403)
-        token = auth.login('protocol-test-password','127.0.0.1')
+        token = auth.login(current_code())
         headers = {'Cookie':'album_session=' + token, 'Content-Type':'application/json'}
         conn.request('POST','/api/plugins/album-engine/install',body='{"expectedRevision":0}',headers=headers)
         response=conn.getresponse();status=json.loads(response.read());self.assertEqual(response.status,200)

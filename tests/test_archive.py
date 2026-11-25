@@ -11,6 +11,7 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 from domain import ValidationError
+from auth_fixture import current_code, enroll_test_owner
 from security import Auth
 from server import Services, archive, local_entry, make_handler
 from storage import Store
@@ -108,7 +109,7 @@ class ArchiveHttpTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         root = Path(self.tmp.name)
         self.store = Store(root / 'albums.sqlite3')
-        auth = Auth(root / 'auth.sqlite3'); auth.set_password('test-password-12345')
+        auth = Auth(root / 'auth.sqlite3'); enroll_test_owner(auth)
         self.server = ThreadingHTTPServer(('127.0.0.1', 0), make_handler(Services(store=self.store, auth=auth)))
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.addCleanup(self.server.server_close); self.addCleanup(self.server.shutdown)
@@ -122,7 +123,7 @@ class ArchiveHttpTests(unittest.TestCase):
     def test_download_and_upload_restore(self):
         self.store.save({'title': 'Blue', 'artist': 'Joni', 'photos': [PNG_URL]})
         self.assertEqual(self.req('GET', '/api/backup')[0], 401)
-        cookie = self.req('POST', '/api/login', json.dumps({'password': 'test-password-12345'}), 'application/json')[1]['Set-Cookie']
+        cookie = self.req('POST', '/api/login', json.dumps({'code': current_code()}), 'application/json')[1]['Set-Cookie']
         status, headers, raw = self.req('GET', '/api/backup', cookie=cookie)
         self.assertEqual((status, headers['Content-Type']), (200, 'application/zip'))
         self.assertIn('obi-backup-', headers['Content-Disposition'])

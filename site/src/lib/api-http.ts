@@ -17,7 +17,7 @@ export const login = 'curl -c jar -H "Content-Type: application/json" \\\n  -d \
 
 export const conventions = [
   { k: '令牌', v: 'Authorization: Bearer obi_client_…；只开对外接口，权限同 A 面。' },
-  { k: '会话', v: 'POST /api/login 换 album_session Cookie，用于应用接口；设了登录密码才需要，对公网开放时必须设。' },
+  { k: '会话', v: 'POST /api/login 换 album_session Cookie，用于应用接口；使用 Google Authenticator 的 6 位动态码，对公网开放时需先绑定验证器。' },
   { k: '请求', v: 'POST 一律 application/json，请求体不超过 50 MB；整文件上传用 application/zip 或 octet-stream。' },
   { k: '来源', v: 'Host 必须是本机或配置的公网地址；带 Origin 时须同源，跨站请求一律 403。' },
   { k: '数值', v: '金额是人民币字符串，日期 YYYY-MM-DD；成本缺失为 null，不当 0。' },

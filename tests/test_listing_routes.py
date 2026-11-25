@@ -12,6 +12,7 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlencode
 
+from auth_fixture import current_code, enroll_test_owner
 from security import Auth
 from server import Services, make_handler
 from server.listing_agent import load_agent_secret
@@ -30,8 +31,8 @@ class ListingRouteTests(unittest.TestCase):
         self.ids = seed_listing_photos(root)
         self.store = open_store(root)
         auth = Auth(root / 'auth.sqlite3')
-        auth.set_password('sample-listing-package-password')
-        self.session = auth.login('sample-listing-package-password', '127.0.0.1')
+        enroll_test_owner(auth)
+        self.session = auth.login(current_code())
         credentials = root / 'credentials'
         credentials.mkdir()
         self.token = 'obi_listing_' + secrets.token_urlsafe(32)

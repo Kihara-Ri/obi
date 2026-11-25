@@ -1,10 +1,7 @@
 // 设置 · 账户：登录与安全、退出登录与安装提示。
-import {useState} from 'react';
 import {api} from '../../core/api';
 import {clearCoverCache} from '../../core/cover-cache';
 import {useApp} from '../../state/AppContext';
-import {Collapse} from '../../components/ui/Collapse';
-import {PasswordChange} from './PasswordChange';
 import './AccountSettings.css';
 
 // 已从主屏幕启动（PWA）或本身就是安卓应用时不再提示安装
@@ -14,7 +11,6 @@ const installed = () => 'ObiAndroid' in window || window.matchMedia('(display-mo
 export function AccountSettings() {
   const app = useApp();
   const loginOn = !!app.state.service?.login;
-  const [open, setOpen] = useState(false);
 
   const logout = async () => {
     await api('logout', {});
@@ -28,11 +24,7 @@ export function AccountSettings() {
         <h3>登录与安全</h3>
         {loginOn ? (
           <>
-            <button type="button" className="account-row" aria-expanded={open} aria-controls="pw-panel" onClick={() => setOpen(!open)}>
-              <span className="account-row-main"><strong>登录密码</strong><small>更改后其他设备会退出登录</small></span>
-              <span className="account-row-action">{open ? '收起' : '修改'}</span>
-            </button>
-            <Collapse open={open} id="pw-panel"><PasswordChange onDone={() => setOpen(false)}/></Collapse>
+            <p className="small-note">Google Authenticator 动态码</p>
             <button type="button" className="account-row is-danger" onClick={logout}>
               <span className="account-row-main"><strong>退出登录</strong><small>同时清除本机缓存的封面</small></span>
             </button>

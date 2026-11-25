@@ -48,7 +48,6 @@ web/src/styles/gallery-stage.css
 web/src/styles/gallery-viewport.css
 web/src/styles/gallery.css
 web/src/styles/layout.css
-web/src/styles/login.css
 web/src/styles/more.css
 web/src/styles/pagetransition.css
 web/src/styles/photos.css

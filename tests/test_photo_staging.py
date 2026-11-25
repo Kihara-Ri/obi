@@ -12,6 +12,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from domain import ValidationError
+from auth_fixture import enroll_test_owner
 from security import Auth
 from server import Services, make_handler, local_entry
 from tools.seed_samples import seed_listing_photos, open_store, model_sample_png
@@ -103,7 +104,7 @@ class PhotoStagingTests(unittest.TestCase):
 
     def test_upload_requires_login_and_rejects_cross_site(self):
         self.svc.auth = Auth(self.folder / 'test-auth.sqlite3')
-        self.svc.auth.set_password('fixture-password-123')
+        enroll_test_owner(self.svc.auth)
         path = '/api/photos/stage?token=' + 'c' * 32
         self.assertEqual(self.request(path, self.raw)[0], 401)
         self.assertEqual(self.request(path, self.raw, Origin='https://evil.test')[0], 403)

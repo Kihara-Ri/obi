@@ -1,4 +1,4 @@
-"""网页端管理调用方令牌（D-052）：需登录与已设密码；签发的令牌能连 MCP，轮换与撤销立即生效。"""
+"""网页端管理调用方令牌（D-052）：需绑定动态码并登录；签发的令牌能连 MCP，轮换与撤销立即生效。"""
 from contextlib import closing
 from http.client import HTTPConnection
 from http.server import ThreadingHTTPServer
@@ -13,6 +13,7 @@ import unittest
 from unittest.mock import patch
 
 from app import build
+from auth_fixture import current_code, enroll_test_owner
 from server import make_handler
 from server import agent_clients as ac
 
@@ -44,14 +45,14 @@ class ClientApiTests(unittest.TestCase):
             return response.status, json.loads(raw) if raw else None, dict(response.getheaders())
 
     def login(self):
-        self.services.auth.set_password('client-api-password-123')
-        status, _, headers = self.http('/api/login', {'password': 'client-api-password-123'})
+        enroll_test_owner(self.services.auth)
+        status, _, headers = self.http('/api/login', {'code': current_code()})
         self.assertEqual(status, 200)
         self.cookie = headers['Set-Cookie'].split(';')[0]
 
     def test_requires_login(self):
-        self.assertEqual(self.http('/api/clients')[0], 401)                 # 未设密码：整站拒绝
-        self.services.auth.set_password('client-api-password-123')
+        self.assertEqual(self.http('/api/clients')[0], 401)                 # 未绑定动态码：拒绝访问
+        enroll_test_owner(self.services.auth)
         self.assertEqual(self.http('/api/clients')[0], 401)
         self.assertEqual(self.http('/api/clients/issue', {'name': 'x', 'scopes': ['insight:read']})[0], 401)
         self.assertFalse((self.root / 'credentials' / 'clients.json').exists())

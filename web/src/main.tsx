@@ -33,7 +33,6 @@ import './styles/gallery-case.css';
 import './styles/album-model.css';
 import './styles/digital-twins.css';
 import './styles/gallery-viewport.css';
-import './styles/login.css';
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App';

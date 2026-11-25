@@ -23,6 +23,8 @@ listing-chatgpt.lock
 listing-agent.token
 trading-agent.token
 collection-read.token
+obi-setup-url.txt
+.obi-setup-*
 credentials/
 litestream.env
 # 历史数据导入与成交凭证

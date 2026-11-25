@@ -13,6 +13,8 @@ deploy
 .zcode
 .DS_Store
 vision-config.json
+**/obi-setup-url.txt
+**/.obi-setup-*
 *.md
 !CHANGELOG.md
 docs

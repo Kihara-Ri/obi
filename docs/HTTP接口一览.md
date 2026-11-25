@@ -24,9 +24,9 @@
 
 | 方法 | 路径 | 授权 | 读写 | 用途 |
 | --- | --- | --- | --- | --- |
-| POST | `/api/login` | 实例密码 | 写会话 | 建立登录会话。 |
+| POST | `/api/setup` | 私有安装凭据 | 写认证 | 仅全新公网实例可用。提交 `token` 获取设置密钥，再提交 `token` 与 6 位 `code` 完成绑定。 |
+| POST | `/api/login` | Google Authenticator 动态码 | 写会话 | 提交字符串 `code`（6 位数字），成功后返回会话 Cookie；尝试过多时返回 429。 |
 | POST | `/api/logout` | 登录会话 | 写会话 | 注销当前会话。 |
-| POST | `/api/password` | 登录会话和当前密码 | 写凭据 | 修改密码并使其他设备退出。 |
 | GET | `/api/clients` | 服务器版登录会话 | 读 | 列出 MCP 地址、调用方名称、权限和签发时间。 |
 | POST | `/api/clients/issue`、`/api/clients/rotate`、`/api/clients/scopes`、`/api/clients/revoke` | 服务器版登录会话 | 写凭据 | 签发、轮换、改权限或撤销。仅签发和轮换响应返回明文令牌。 |
 | GET | `/api/backup` | 登录会话 | 读 | 下载包含账本和业务资产的完整 ZIP。 |

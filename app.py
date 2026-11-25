@@ -8,7 +8,7 @@ HTTP 细节在 server/ 包；业务逻辑在根目录模块
 
 所有参数均可用环境变量 HOST / PORT / DATA_DIR / PUBLIC_ORIGIN 提供（Docker 用）。
 """
-import argparse, getpass, os, signal, threading
+import argparse, base64, getpass, os, secrets, signal, sys, threading
 from pathlib import Path
 from urllib.parse import urlsplit
 from http.server import ThreadingHTTPServer
@@ -24,6 +24,7 @@ from rates import RateService
 from security import Auth
 from server import Services, make_handler
 from server.artists import ArtistService
+from server.auth_setup import AuthSetup
 from server.routes import WRITE_LOCK
 from server.version import version
 from server.release_catalog import ReleaseCatalog
@@ -64,6 +65,21 @@ def build(data_dir, public_origin=None):
                     public_origin=public_origin)
 
 
+def enroll_authenticator(data_dir):
+    if not sys.stdin.isatty() or not sys.stdout.isatty():
+        raise SystemExit('请在交互式服务器终端绑定 Google Authenticator')
+    secret = secrets.token_bytes(20)
+    key = base64.b32encode(secret).decode('ascii')
+    print('在 Google Authenticator 中选择「输入设置密钥」，账户名填 Obi，类型选「基于时间」。')
+    print(f'设置密钥：{key}')
+    try:
+        code = getpass.getpass('输入手机显示的 6 位动态码：').strip()
+        Auth(Path(data_dir) / 'auth.sqlite3').enroll_totp(secret, code)
+    except (EOFError, KeyboardInterrupt, ValueError) as error:
+        raise SystemExit(str(error) or '已取消绑定') from None
+    print('已绑定 Google Authenticator，旧会话已退出。')
+
+
 def main():
     env = os.environ
     p = argparse.ArgumentParser()
@@ -72,29 +88,29 @@ def main():
     p.add_argument('--data-dir', default=env.get('DATA_DIR', str(ROOT / 'data')))
     p.add_argument('--public-origin', default=env.get('PUBLIC_ORIGIN'))
     p.add_argument('--no-seed', action='store_true')
-    p.add_argument('--set-password', action='store_true')
+    p.add_argument('--setup-totp', action='store_true', help='绑定或重置 Google Authenticator')
     args = p.parse_args()
     os.umask(0o077)
     Path(args.data_dir).mkdir(parents=True, exist_ok=True)
-    if args.set_password:
-        auth = Auth(Path(args.data_dir) / 'auth.sqlite3')
-        password = getpass.getpass('设置登录密码（至少12个字符）：')
-        if password != getpass.getpass('再次输入：'): raise SystemExit('两次密码不一致')
-        auth.set_password(password); print('密码已设置'); return
+    if args.setup_totp:
+        return enroll_authenticator(args.data_dir)
     if args.public_origin:
         u = urlsplit(args.public_origin)
         if u.scheme != 'https' or not u.netloc or u.path or u.query or u.fragment:
             raise SystemExit('--public-origin 必须是 HTTPS 根地址')
     svc = build(args.data_dir, args.public_origin)
-    if args.public_origin and not svc.auth.configured():
-        raise SystemExit('请先使用 --set-password 设置密码')
-    if not svc.auth.configured(): svc.auth = None  # 本机模式不启用登录
+    needs_setup = not svc.auth.configured()
+    if needs_setup and not args.public_origin:
+        svc.auth = None
     if not args.no_seed:
         seed_starter(svc.store)  # 空库才写示例专辑
     svc.backups = Backups(svc.store.path); svc.backups.start()
     svc.artists.start_prewarm()  # 后台预取存量未绑定艺人（账本写入后的增量由路由触发）
     svc.twins.start()
     server = ThreadingHTTPServer((args.host, args.port), make_handler(svc))
+    if needs_setup and args.public_origin:
+        svc.auth_setup = AuthSetup(svc.auth, args.public_origin)
+        print(f'首次绑定：请在浏览器打开 {svc.auth_setup.path} 中的安装链接。', flush=True)
     print(f'Obi 已启动：http://{args.host}:{args.port}（版本 {version()}）', flush=True)
 
     # 优雅停机：SIGTERM/SIGINT → 收完在途请求再退出（systemd / docker stop 不硬切）

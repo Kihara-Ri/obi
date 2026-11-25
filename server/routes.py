@@ -5,7 +5,6 @@ h 提供 send()/query；svc 是注入的服务集合（见 context.Services）�
 """
 from contextlib import closing
 import datetime
-import hashlib
 import json
 import base64
 import mimetypes
@@ -15,9 +14,11 @@ from urllib.parse import parse_qs, urlsplit
 
 from domain import ValidationError, clean_medium, clean_start_page
 from photo_uploads import MAX_BYTES, stage
+from security import LoginThrottled, TotpRequired
 from storage import SCHEMA, metadata_update
 from . import archive, export_csv
 from .artists import SourceUnavailableError
+from .auth_setup import SetupRejected
 from .client_api import api_client_issue, api_client_revoke, api_client_rotate, api_client_scopes, api_clients
 from .collection_api import api_purchased_copies, authorize_collection_read
 from .insight_api import api_insight_evaluate, api_insight_profile, api_insight_release, authorize_insight
@@ -184,28 +185,36 @@ def api_export(h, svc):
 
 
 # ── POST：登录与会话 ──────────────────────────────────────────────────
+def api_auth_setup(h, svc, body):
+    setup = svc.auth_setup
+    if setup is None:
+        return h.send({'error': '首次绑定已关闭'}, 404)
+    origin = h.headers.get('Origin')
+    if h.headers.get('Host') != setup.host or origin != setup.origin:
+        return h.send({'error': '请使用配置的 HTTPS 公网地址'}, 403)
+    try:
+        if 'code' not in body:
+            return h.send({'key': setup.key(body.get('token'))})
+        setup.confirm(body.get('token'), body['code'])
+    except SetupRejected as error:
+        return h.send({'error': str(error)}, error.status)
+    h.send({'ok': True})
+
+
 def api_login(h, svc, body):
     if not svc.auth: return h.send({'ok': True})
-    password = body.get('password', '')
-    if not isinstance(password, str) or len(password) > 1024: raise ValidationError('密码格式不正确')
-    token = svc.auth.login(password, h.client_address[0])
+    try:
+        token = svc.auth.login(body.get('code'))
+    except LoginThrottled as error:
+        return h.send({'error': str(error)}, 429, headers={'Retry-After': str(error.retry_after)})
+    except TotpRequired as error:
+        return h.send({'error': str(error)}, 503)
     h.send({'ok': True}, headers={'Set-Cookie': h.session_cookie(token)})
 
 
 def api_logout(h, svc, body):
     if svc.auth: svc.auth.logout(h.headers.get('Cookie'))
     h.send({'ok': True}, headers={'Set-Cookie': h.session_cookie('', True)})
-
-
-def api_password(h, svc, body):
-    """改密：验证当前密码后换新；除当前会话外其他设备全部退出。"""
-    current, new = body.get('current', ''), body.get('next', '')
-    if not isinstance(current, str) or not isinstance(new, str) or len(current) > 1024 or len(new) > 1024:
-        raise ValidationError('密码格式不正确')
-    keep = svc.auth.token(h.headers.get('Cookie'))
-    keep_hash = hashlib.sha256(keep.encode()).hexdigest() if keep else None
-    svc.auth.change_password(current, new, keep_hash)
-    h.send({'ok': True})
 
 
 # ── POST：封面（只读缓存，不进写锁）─────────────────────────────────
@@ -663,8 +672,8 @@ POST = {
     # path: (处理函数, 会话登录布尔值或独立鉴权函数, 需要 WRITE_LOCK)
     '/api/rates/prepare': (api_prepare_rates, True, False),
     '/api/login': (api_login, False, False),
+    '/api/setup': (api_auth_setup, False, False),
     '/api/logout': (api_logout, True, False),
-    '/api/password': (api_password, True, True),
     '/api/listing/details': (api_listing_details, True, True),
     '/api/listing/agent/receipts': (api_listing_receipt, authorize_trading_agent, True),
     '/api/trading/agent/orders': (api_paid_order, authorize_trading_agent, True),

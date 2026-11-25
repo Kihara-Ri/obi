@@ -24,3 +24,4 @@ class Services:
     trading_agent_secret: Optional[bytes] = None  # 只授予外部交易事实的入账接口
     collection_read_secret: Optional[bytes] = None  # 只授予已购唱片查询
     agent_clients: Optional[Any] = None  # agent_clients.ClientRegistry —— 按调用方与权限授权，热加载（D-050）
+    auth_setup: Optional[Any] = None  # auth_setup.AuthSetup —— 新公网实例首次绑定

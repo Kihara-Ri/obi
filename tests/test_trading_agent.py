@@ -11,6 +11,7 @@ import threading
 import unittest
 
 from app import build
+from auth_fixture import enroll_test_owner
 from domain import ConflictError
 from server import make_handler
 from storage import Store
@@ -41,7 +42,7 @@ class TradingAgentTests(unittest.TestCase):
         (credentials / 'listing-agent.token').write_text(self.draft_token + '\n')
         self.services = build(root)
         self.store = self.services.store
-        self.services.auth.set_password('sample-trading-agent-password')
+        enroll_test_owner(self.services.auth)
         self.server = ThreadingHTTPServer(('127.0.0.1', 0), make_handler(self.services))
         threading.Thread(target=self.server.serve_forever, kwargs={'poll_interval': 0.04}, daemon=True).start()
         self.addCleanup(self.server.server_close)

@@ -17,6 +17,12 @@
   --switch-knob:#fff; /* 开关旋钮：两套主题都是白 */
   /* 黑胶盘体本色：中性真黑（真实唱片是纯黑，不带界面主题的蓝灰调），不随主题变化 */
   --vinyl-rim:#1f1f1f; --vinyl-ring:#111; --vinyl-body:#030303;
+  --vinyl-light:radial-gradient(circle at 35% 30%,rgba(255,255,255,.09),rgba(255,255,255,0) 44%);
+  --vinyl-glint:radial-gradient(circle at 68% 30%,rgba(255,255,255,.08),rgba(255,255,255,0) 4%),
+    conic-gradient(from 210deg,rgba(255,255,255,.10),rgba(255,255,255,0) 18%,rgba(255,255,255,.05) 60%,rgba(255,255,255,0) 78%,rgba(255,255,255,.10));
+  --vinyl-shadow:0 14px 34px rgba(0,0,0,.5);
+  --vinyl-inner-shadow:inset 0 0 22px rgba(0,0,0,.65);
+  --vinyl-label-edge:rgba(0,0,0,.35); --vinyl-hole-edge:rgba(255,255,255,.07);
   /* 碟盒材质本色不随界面主题改变；光泽使用固定环境光。 */
   --album-plastic-light:#fff; --album-plastic-base:#c7cbd0; --album-plastic-edge:#80868e;
   --album-plastic-dark:#34383e; --album-plastic-ink:#25282c;

@@ -98,7 +98,7 @@ def make_handler(svc):
                 # two HTML entry points, GET, no Origin, and browser navigation
                 # metadata. POST and every /api/ request remain CSRF-protected.
                 page_navigation = (self.command == 'GET' and not origin
-                    and urlsplit(self.path).path in ('/', '/login')
+                    and urlsplit(self.path).path in static_files.ALIASES
                     and self.headers.get('Sec-Fetch-Mode') == 'navigate'
                     and self.headers.get('Sec-Fetch-Dest') == 'document')
                 if not page_navigation:
@@ -113,10 +113,11 @@ def make_handler(svc):
                 self.send({'error': '请登录后继续操作'}, 401); return False
             return True
 
-        def redirect_login(self):
-            # 页面与静态资源未登录走 302，浏览器直接落到登录页；API 走 authorized() 的 401
+        def redirect_login(self, *, discard_fragment=False):
+            # 页面与静态资源未登录走 302，由静态页模块选择绑定或登录入口；API 走 authorized() 的 401
             self.send_response(302)
-            self.send_header('Location', '/login')
+            suffix = '#' if discard_fragment else ''
+            self.send_header('Location', static_files.auth_page(svc) + suffix)
             self.send_header('Cache-Control', 'no-store')
             self.send_header('Content-Length', '0')
             self.end_headers()
@@ -151,7 +152,7 @@ def make_handler(svc):
             # 服务端登录门：未登录只放行登录页及其依赖（static_files.PUBLIC）
             if not self.logged_in() and path not in static_files.PUBLIC:
                 return self.redirect_login()
-            return static_files.serve(self, path)
+            return static_files.serve(self, path, svc)
 
         def upload(self, fn, limit, length):
             """整文件上传（routes.UPLOAD）：先验来源与登录，再把请求体分块写进数据目录里的临时文件，交给处理函数。"""
